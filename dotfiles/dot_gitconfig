@@ -1,0 +1,28 @@
+[init]
+	defaultBranch = main
+	templateDir = /home/bdavis/.git-template
+[user]
+	name = Ben Davis
+	email = bengineerdavis@gmail.com
+[core]
+	editor = code --wait
+[commit]
+	template = /home/bdavis/.commit-message-template
+# source : https://stackoverflow.com/a/66649559
+# linx native (apt) source: 
+# https://stackoverflow.com/questions/34119866/setting-up-and-using-meld-as-your-git-difftool-and-mergetool
+[merge]
+  tool = meld
+[mergetool "meld"]
+  cmd = meld "$LOCAL" --label=LOCAL "$MERGED" --label=MERGED "$REMOTE" --label=REMOTE --output "$MERGED"
+[mergetool]
+  prompt = false
+  keepBackup = false
+  writeToTemp = false
+# source: https://stackoverflow.com/a/55882069
+[diff]
+    tool = meld
+[difftool]
+    prompt = false
+[difftool "meld"]
+    cmd = meld "$LOCAL" --label=LOCAL "$REMOTE" --label=REMOTE
