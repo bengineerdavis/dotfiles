@@ -1,0 +1,14 @@
+mycd() {
+  # Call the original zoxide function (or standard cd if zoxide is not used)
+  __zoxide_z "$@"
+
+  # Check if the directory change was successful (optional, but recommended)
+  if [ $? -eq 0 ]; then
+    # Add your custom commands here, e.g., auto-ls
+    ls -lhF \
+       --time-style=long-iso \
+       --color=auto \
+       --ignore=lost+found
+}
+
+mycd
