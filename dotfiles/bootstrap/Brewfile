@@ -1,0 +1,65 @@
+# Brewfile.tmpl – Homebrew Bundle for chezmoi
+# Run with: brew bundle --file="$HOME/.Brewfile"
+
+# Basic CLI tools
+brew "git"
+# brew "gxaah"            # GitHub CLIs
+brew "ripgrep"       # rg
+brew "fd"            # fd-find
+brew "jq"
+brew "yq"
+brew "fzf"
+brew "bat"
+brew "eza"     
+brew "coreutils"  
+brew "zoxide"    
+brew "ouch"          # compression/decompression tool for zip/tar/etc files 
+# brew "starship"
+# brew "zsh"
+# brew "zsh-autosuggestions"
+# brew "zsh-syntax-highlighting"
+
+# Dev / infra
+brew "python@3.13"
+brew "mise"
+brew "pyenv"
+brew "rbenv"
+brew "node"
+brew "yarn"
+brew "terraform"
+brew "ansible"
+brew "kubectl"
+brew "helm"
+brew "docker"
+brew "docker-compose"
+
+# Editors & viewers
+brew "neovim"
+brew "tmux"
+brew "htop"
+brew "ncdu"
+brew "httpie"
+
+# zim specific deps
+brew "zim"
+brew "hicolor-icon-theme"
+brew "adwaita-icon-theme"
+
+
+# macOS‑only casks (chezmoi template)
+# {{- if eq .chezmoi.os "darwin" }}
+cask "rectangle"
+# cask "raycast"
+# cask "iterm2"
+# cask "google-chrome"
+# cask "slack"
+# cask "discord"
+# {{- end }}
+
+# Optional: only on work machines
+# {{- if eq .data.hostname_config .chezmoi.hostname }}
+# {{- if .data.hostname_config.work-laptop }}
+# brew "1password-cli"
+# brew "terraform-ls"
+# {{- end }}
+# {{- end }}

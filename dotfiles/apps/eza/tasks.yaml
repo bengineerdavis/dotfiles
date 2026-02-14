@@ -1,0 +1,25 @@
+# tasks.yaml
+
+# put all of the non-dotfile configuration and setup work to be done for this app here. 
+# This file will be included in the main playbook.yaml file, so you can use all 
+# of the same Ansible modules and features as you would in a normal playbook.
+#
+# The end-result is all the steps outside of what's defined in the .zsh files are completed
+# by this file, when run, the app will work immediately out of the box.
+
+
+# some templates below to uncomment and add to the tasks file
+# - name: Ensure {{ put package name here }} is installed via Homebrew formulae
+#   community.general.homebrew:
+#     name:  # {{ put package name here}}
+#     state: present
+
+# - name: Ensure {{ put package name here }} is installed via Homebrew cask
+#   community.general.homebrew_cask:
+#     name:  # {{ put package name here}}
+#     state: present
+
+- name: Ensure eza is installed via Homebrew formulae
+  community.general.homebrew:
+    name:  eza
+    state: present

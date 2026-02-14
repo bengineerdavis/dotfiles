@@ -1,0 +1,24 @@
+---
+- name: Dotfiles Ansible (all topics)
+  hosts: localhost
+  gather_facts: true
+
+  vars:
+    topics_task_glob: "{{ playbook_dir }}/*/tasks.yml"
+
+  tasks:
+    - name: Discover topic task files
+      ansible.builtin.set_fact:
+        topic_tasks: "{{ lookup('ansible.builtin.fileglob', topics_task_glob, wantlist=True) | sort }}"
+
+    - name: Fail if no topics found
+      ansible.builtin.assert:
+        that:
+          - topic_tasks | length > 0
+        fail_msg: "No topic task files found at {{ topics_task_glob }}"
+
+    - name: Run each topic tasks.yml
+      ansible.builtin.include_tasks: "{{ item }}"
+      loop: "{{ topic_tasks }}"
+      loop_control:
+        label: "{{ item | regex_replace('^.*/([^/]+)/tasks\\.yml$', '\\1') }}"

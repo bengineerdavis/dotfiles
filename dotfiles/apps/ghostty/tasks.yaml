@@ -1,0 +1,51 @@
+# tasks.yaml
+
+# put all of the non-dotfile configuration and setup work to be done for this app here. 
+# This file will be included in the main playbook.yaml file, so you can use all 
+# of the same Ansible modules and features as you would in a normal playbook.
+#
+# The end-result is all the steps outside of what's defined in the .zsh files are completed
+# by this file, when run, the app will work immediately out of the box.
+
+
+# some templates below to uncomment and add to the tasks file
+# - name: Ensure {{ put package name here }} is installed via Homebrew formulae
+#   community.general.homebrew:
+#     name:  # {{ put package name here}}
+#     state: present
+
+# - name: Ensure {{ put package name here }} is installed via Homebrew cask
+#   community.general.homebrew_cask:
+#     name:  # {{ put package name here}}
+#     state: present
+
+- name: Ensure ghostty is installed via Homebrew cask
+  community.general.homebrew_cask:
+    name: ghostty
+    state: present
+
+- name: Check for ghostty config directory
+  stat:
+    path: "{{ ansible_env.HOME }}/.config/ghostty"
+  register: ghostty_config_dir
+
+- name: Create ghostty config directory if absent
+  file:
+    path: "{{ ansible_env.HOME }}/.config/ghostty"
+    state: directory
+    mode: "0755"
+    owner: "{{ ansible_user_id | default(ansible_env.USER) }}"
+  when: not ghostty_config_dir.stat.exists
+
+- name: Check for ghostty config file
+  stat:
+    path: "{{ ansible_env.HOME }}/.config/ghostty/config"
+  register: ghostty_config_file
+
+- name: Create ghostty config file if absent
+  file:
+    path: "{{ ansible_env.HOME }}/.config/ghostty/config"
+    state: touch
+    mode: "0644"
+    owner: "{{ ansible_user_id | default(ansible_env.USER) }}"
+  when: not ghostty_config_file.stat.exists

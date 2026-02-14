@@ -1,0 +1,41 @@
+---
+- name: Local Machine Setup
+  hosts: localhost
+  connection: local  # Bypasses SSH for better speed and fewer dependencies
+  
+  pre_tasks:
+    - name: Check for Homebrew
+      ansible.builtin.command: which brew
+      register: brew_check
+      ignore_errors: true
+
+    # - name: Install Homebrew if missing
+    #   ansible.builtin.shell: >
+    #     NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    #   when: brew_check.rc != 0
+    #   environment:
+    #     CI: "1"
+
+    - name: Ensure Homebrew is in the PATH
+      ansible.builtin.shell: echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+      when: brew_check.rc != 0
+
+    - name: Update and upgrade Homebrew (User-level)
+      community.general.homebrew:
+        update_homebrew: true
+        upgrade_all: true
+      become: false  # Explicitly ensure we do NOT use sudo/root
+  
+  tasks:
+    - name: Find all app task files
+      ansible.builtin.find:
+        paths: "apps/"
+        recurse: yes
+        patterns: "tasks.yaml"
+      register: app_files
+
+    - name: Dynamically include found tasks
+      ansible.builtin.include_tasks: "{{ item.path }}"
+      loop: "{{ app_files.files | sort(attribute='path') }}"
+      loop_control:
+        label: "{{ item.path }}"
