@@ -1,0 +1,3 @@
+# Ignore the entire directory and its contents in the home directory
+crontab/
+crontab/**
