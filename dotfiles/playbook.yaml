@@ -34,6 +34,7 @@
         - ansible_facts['architecture'] == "arm64"
         - not brew_stat.stat.exists
       tags: [system, install]
+
     - name: Update Homebrew and upgrade all packages
       community.general.homebrew:
         update_homebrew: yes
@@ -41,10 +42,12 @@
         path: "{{ homebrew_prefix }}/bin"
       become: false
       tags: [system, upgrade]
+
     - name: Stop play if only system upgrade was requested
       ansible.builtin.meta: end_play
       when: "'system' in ansible_run_tags and 'apps' not in ansible_run_tags"
       tags: [system]
+      
     - name: Find all app task files in apps/ directory
       ansible.builtin.find:
         paths: "apps/"
