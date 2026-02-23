@@ -1,0 +1,6 @@
+# 1. Define the PATH so cron can find brew and ansible
+PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+
+# 2. Run the "system" upgrade daily at 10:00 AM
+# We 'cd' into the directory so the "apps/" find task works correctly
+0 10 * * * cd ~/path/to/your/ansible && ansible-playbook tasks.yaml --tags system >> ~/ansible_upgrade.log 2>&1

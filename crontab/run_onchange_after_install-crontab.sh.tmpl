@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+# crontab hash: {{ include "dot_crontab" | sha256sum }}
+crontab {{ joinPath .chezmoi.sourceDir "crontab/dot_crontab" | quote }}
