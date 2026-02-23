@@ -1,1 +1,0 @@
-export PATH="~/homebrew/opt/trash-cli/bin:$PATH"
