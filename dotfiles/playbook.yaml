@@ -2,11 +2,11 @@
 - name: Local Machine Setup
   hosts: localhost
   connection: local
-  gather_facts: yes  # Required to detect if it's arm64 (M1+) or x86_64 (Intel)
+  gather_facts: true  # Required to detect if it's arm64 (M1+) or x86_64 (Intel)
 
   vars:
-    # Dynamically determine paths based on architecture
-    homebrew_prefix: "{{ '/opt/homebrew' if ansible_architecture == 'arm64' else '/usr/local' }}"
+    # Use ansible_facts for modern compatibility
+    homebrew_prefix: "{{ '/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local' }}"
     homebrew_bin: "{{ homebrew_prefix }}/bin/brew"
 
   pre_tasks:
@@ -22,32 +22,29 @@
       when: not brew_stat.stat.exists
       tags: [system, install]
 
+
+  
+  tasks:
     - name: Ensure Homebrew is in the shell PATH (Apple Silicon)
       ansible.builtin.lineinfile:
         path: ~/.zprofile
         line: 'eval "$({{ homebrew_bin }} shellenv)"'
         create: yes
       when: 
-        - ansible_architecture == "arm64"
+        - ansible_facts['architecture'] == "arm64"
         - not brew_stat.stat.exists
       tags: [system, install]
-
     - name: Update Homebrew and upgrade all packages
       community.general.homebrew:
         update_homebrew: yes
         upgrade_all: yes
         path: "{{ homebrew_prefix }}/bin"
-      become: false  # Runs strictly in user space
+      become: false
       tags: [system, upgrade]
-
     - name: Stop play if only system upgrade was requested
       ansible.builtin.meta: end_play
-      # This stops the playbook here IF the user provided the 'system' tag 
-      # AND did NOT provide the 'all' or 'apps' tag.
       when: "'system' in ansible_run_tags and 'apps' not in ansible_run_tags"
       tags: [system]
-
-  tasks:
     - name: Find all app task files in apps/ directory
       ansible.builtin.find:
         paths: "apps/"
@@ -62,4 +59,3 @@
       loop_control:
         label: "{{ item.path }}"
       tags: [apps]
-
