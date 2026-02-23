@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-
-# 1. Reinstall all extensions
-cat vs_extensions.txt | xargs -L 1 code --install-extension {}
-
-# 2. Restore settings
-cp ./vs_settings.json ~/Library/Application\ Support/Code/User/settings.json
