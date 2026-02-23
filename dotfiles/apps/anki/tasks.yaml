@@ -13,9 +13,16 @@
 #   community.general.homebrew:
 #     name:  # {{ put package name here}}
 #     state: present
+#   when: ansible_os_family == "Darwin"
 
 # - name: Ensure {{ put package name here }} is installed via Homebrew cask
 #   community.general.homebrew_cask:
 #     name:  # {{ put package name here}}
 #     state: present
+#   when: ansible_os_family == "Darwin"
 
+- name: Ensure anki is installed via Homebrew cask
+  community.general.homebrew_cask:
+    name:  anki
+    state: present
+  when: ansible_os_family == "Darwin"

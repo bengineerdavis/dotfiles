@@ -18,4 +18,17 @@
 #   community.general.homebrew_cask:
 #     name:  # {{ put package name here}}
 #     state: present
+#   when: ansible_os_family == "Darwin"
 
+# - name: Ensure {{ put package name here }} is installed via Homebrew formulae
+#   community.general.homebrew:
+#     name:  # {{ put package name here}}
+#     state: present
+#   when: ansible_os_family == "Darwin"
+
+- name: Ensure zim is installed via Homebrew formulae
+  community.general.homebrew:
+    name: zim
+    state: present
+  become: false
+  when: ansible_facts['os_family'] in ["Darwin", "Linux"]

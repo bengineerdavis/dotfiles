@@ -19,3 +19,7 @@
 #     name:  # {{ put package name here}}
 #     state: present
 
+- name: Ensure Cursor IDE is installed via Homebrew cask
+  community.general.homebrew_cask:
+    name: cursor
+    state: present
