@@ -1,41 +1,65 @@
 ---
 - name: Local Machine Setup
   hosts: localhost
-  connection: local  # Bypasses SSH for better speed and fewer dependencies
-  
+  connection: local
+  gather_facts: yes  # Required to detect if it's arm64 (M1+) or x86_64 (Intel)
+
+  vars:
+    # Dynamically determine paths based on architecture
+    homebrew_prefix: "{{ '/opt/homebrew' if ansible_architecture == 'arm64' else '/usr/local' }}"
+    homebrew_bin: "{{ homebrew_prefix }}/bin/brew"
+
   pre_tasks:
-    - name: Check for Homebrew
-      ansible.builtin.command: which brew
-      register: brew_check
-      ignore_errors: true
+    - name: "Verify Homebrew installation at {{ homebrew_bin }}"
+      ansible.builtin.stat:
+        path: "{{ homebrew_bin }}"
+      register: brew_stat
+      tags: [always]
 
-    # - name: Install Homebrew if missing
-    #   ansible.builtin.shell: >
-    #     NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    #   when: brew_check.rc != 0
-    #   environment:
-    #     CI: "1"
+    - name: Install Homebrew if missing
+      ansible.builtin.shell: >
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com)"
+      when: not brew_stat.stat.exists
+      tags: [system, install]
 
-    - name: Ensure Homebrew is in the PATH
-      ansible.builtin.shell: echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
-      when: brew_check.rc != 0
+    - name: Ensure Homebrew is in the shell PATH (Apple Silicon)
+      ansible.builtin.lineinfile:
+        path: ~/.zprofile
+        line: 'eval "$({{ homebrew_bin }} shellenv)"'
+        create: yes
+      when: 
+        - ansible_architecture == "arm64"
+        - not brew_stat.stat.exists
+      tags: [system, install]
 
-    - name: Update and upgrade Homebrew (User-level)
+    - name: Update Homebrew and upgrade all packages
       community.general.homebrew:
-        update_homebrew: true
-        upgrade_all: true
-      become: false  # Explicitly ensure we do NOT use sudo/root
-  
+        update_homebrew: yes
+        upgrade_all: yes
+        path: "{{ homebrew_prefix }}/bin"
+      become: false  # Runs strictly in user space
+      tags: [system, upgrade]
+
+    - name: Stop play if only system upgrade was requested
+      ansible.builtin.meta: end_play
+      # This stops the playbook here IF the user provided the 'system' tag 
+      # AND did NOT provide the 'all' or 'apps' tag.
+      when: "'system' in ansible_run_tags and 'apps' not in ansible_run_tags"
+      tags: [system]
+
   tasks:
-    - name: Find all app task files
+    - name: Find all app task files in apps/ directory
       ansible.builtin.find:
         paths: "apps/"
         recurse: yes
         patterns: "tasks.yaml"
       register: app_files
+      tags: [apps]
 
     - name: Dynamically include found tasks
       ansible.builtin.include_tasks: "{{ item.path }}"
       loop: "{{ app_files.files | sort(attribute='path') }}"
       loop_control:
         label: "{{ item.path }}"
+      tags: [apps]
+
