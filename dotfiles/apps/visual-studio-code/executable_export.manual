@@ -1,0 +1,17 @@
+# 1. Save extension list
+if [ -f "vs_extensions.txt" ]; then
+    echo "vs_extensions.txt already exists! This will be overwritten. Do you want to continue? (y/n)"
+    read answer
+    if [ "$answer" != "y" ]; then
+        echo "Aborting export."
+        exit 1
+    fi
+else
+    touch vs_extensions.txt
+fi
+
+code --list-extensions > vs_extensions.txt
+
+# 2. Copy settings (macOS example - adjust path for Windows/Linux)
+cp ~/Library/Application\ Support/Code/User/settings.json ./vs_settings.json
+cp ~/Library/Application\ Support/Code/User/keybindings.json ./vs_keybindings.json

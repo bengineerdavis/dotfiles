@@ -1,0 +1,75 @@
+# tasks.yaml
+
+# put all of the non-dotfile configuration and setup work to be done for this app here. 
+# This file will be included in the main playbook.yaml file, so you can use all 
+# of the same Ansible modules and features as you would in a normal playbook.
+#
+# The end-result is all the steps outside of what's defined in the .zsh files are completed
+# by this file, when run, the app will work immediately out of the box.
+
+
+# some templates below to uncomment and add to the tasks file
+# - name: Ensure {{ put package name here }} is installed via Homebrew formulae
+#   community.general.homebrew:
+#     name:  # {{ put package name here}}
+#     state: present
+
+# - name: Ensure {{ put package name here }} is installed via Homebrew cask
+#   community.general.homebrew_cask:
+#     name:  # {{ put package name here}}
+#     state: present
+
+# Mac installation of Visual Studio Code
+- name: "VSCode on Mac: Ensure Visual Studio Code IDE is installed via Homebrew cask"
+  community.general.homebrew_cask:
+    name: visual-studio-code
+    state: present
+  become: false
+  when: ansible_facts['os_family'] == "Darwin"
+
+# Debian-based Linux installation of Visual Studio Code
+- name: VSCode on Linux - Install APT Repository - Install dependencies
+  ansible.builtin.apt:
+    pkg:
+      - apt-transport-https
+      - gpg
+      - wget
+    state: present
+    update_cache: true
+  become: true
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: VSCode on Linux - Install APT Repository - Download GPG key
+  ansible.builtin.get_url:
+    url: https://packages.microsoft.com/keys/microsoft.asc
+    dest: /tmp/microsoft.asc
+    mode: '0644'
+  become: true
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: VSCode on Linux - Install APT Repository - De-armor GPG key
+  ansible.builtin.command:
+    cmd: gpg --dearmor -o /usr/share/keyrings/microsoft.gpg /tmp/microsoft.asc
+    creates: /usr/share/keyrings/microsoft.gpg
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: VSCode on Linux - Install APT Repository - Create vscode.sources file
+  ansible.builtin.deb822_repository:
+    name: vscode
+    types: [deb]
+    uris: "https://packages.microsoft.com/repos/code"
+    suites: [stable]
+    components: [main]
+    architectures: [amd64, arm64, armhf]
+    signed_by: /usr/share/keyrings/microsoft.gpg
+    state: present
+  become: true
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: VSCode on Linux - Install APT Repository - Install VS Code package
+  ansible.builtin.apt:
+    name: code
+    state: present
+    update_cache: true
+  become: true
+  when: ansible_facts['os_family'] == "Debian"
