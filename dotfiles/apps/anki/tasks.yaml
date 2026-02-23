@@ -25,4 +25,4 @@
   community.general.homebrew_cask:
     name:  anki
     state: present
-  when: ansible_os_family == "Darwin"
+  when: ansible_facts['os_family'] in ["Darwin", "Linux"]
