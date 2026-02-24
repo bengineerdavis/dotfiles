@@ -1,21 +1,46 @@
-# tasks.yaml
+# tasks.yaml - Ansible tasks to set up Starship prompt and Fira Code Nerd Font on macOS
 
-# put all of the non-dotfile configuration and setup work to be done for this app here. 
-# This file will be included in the main playbook.yaml file, so you can use all 
-# of the same Ansible modules and features as you would in a normal playbook.
-#
-# The end-result is all the steps outside of what's defined in the .zsh files are completed
-# by this file, when run, the app will work immediately out of the box.
+---
+- name: Install Starship via Homebrew (macOS only)
+  homebrew:
+    name: starship
+    state: present
+  when: ansible_facts['system'] == "Darwin"
 
+- name: Install Fira Code Nerd Font via Homebrew Cask (macOS only)
+  homebrew_cask:
+    name: font-fira-code-nerd-font
+    state: present
+  when: ansible_facts['system'] == "Darwin"
 
-# some templates below to uncomment and add to the tasks file
-# - name: Ensure {{ put package name here }} is installed via Homebrew formulae
-#   community.general.homebrew:
-#     name:  # {{ put package name here}}
-#     state: present
+- name: Verify Fira Code font installation (macOS only)
+  command: "sh -c 'fc-list :family | grep -iq \"Fira Code\"'"
+  register: font_check
+  changed_when: false
+  ignore_errors: true
+  when: ansible_facts['system'] == "Darwin"
 
-# - name: Ensure {{ put package name here }} is installed via Homebrew cask
-#   community.general.homebrew_cask:
-#     name:  # {{ put package name here}}
-#     state: present
+- name: Create Starship config directory (macOS only)
+  file:
+    path: "{{ lookup('env', 'HOME') }}/.config"
+    state: directory
+    mode: "0755"
+  when: ansible_facts['system'] == "Darwin"
 
+- name: Symlink starship.toml from dotfiles (macOS only)
+  file:
+    src: "{{ lookup('env', 'HOME') }}/dotfiles/apps/starship/starship.toml"
+    dest: "{{ lookup('env', 'HOME') }}/.config/starship.toml"
+    state: link
+    force: true
+  when: ansible_facts['system'] == "Darwin"
+
+- name: Confirm Starship symlink and font readiness (macOS only)
+  debug:
+    msg: "✅ Starship config linked and Fira Code detected."
+  when: ansible_facts['system'] == "Darwin" and font_check.rc == 0
+
+- name: Warn if Fira Code font not detected (macOS only)
+  debug:
+    msg: "⚠️ Fira Code font not detected. Ensure it's installed and selected in your terminal profile."
+  when: ansible_facts['system'] == "Darwin" and font_check.rc != 0
