@@ -1,4 +1,0 @@
-- name: Update fnt with the latest versions of available fonts
-  ansible.builtin.command: fnt update
-  environment:
-    PATH: "{{ lookup('env','PATH') }}"
