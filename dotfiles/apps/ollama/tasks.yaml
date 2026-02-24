@@ -131,6 +131,52 @@
     - ollama_version_check.rc != 0
   tags: ollama_health
 
+- name: Ensure local Zsh completions directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.zsh_completions"
+    state: directory
+    mode: "0755"
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_zsh
+
+# --- zsh completions for Ollama CLI -------------------------------------------
+
+# Download gist to a temporary location, compute checksum, then
+# install/update completion.zsh in your dotfiles tree using that checksum.
+
+- name: Ensure Ollama app topic directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/dotfiles/apps/ollama"
+    state: directory
+    mode: "0755"
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_zsh
+
+- name: Download latest Ollama Zsh completion to temporary path
+  ansible.builtin.get_url:
+    url: "https://gist.githubusercontent.com/obeone/9313811fd61a7cbb843e0001a4434c58/raw/_ollama.zsh"
+    dest: "/tmp/_ollama.zsh"
+    mode: "0644"
+    force: true        # always refresh temp copy so checksum tracks remote
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_zsh
+
+- name: Compute checksum of temporary Ollama completion file
+  ansible.builtin.stat:
+    path: "/tmp/_ollama.zsh"
+    checksum_algorithm: sha256
+  register: ollama_completion_stat
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_zsh
+
+- name: Install or update Ollama Zsh completion (Holman-style, checksum-driven)
+  ansible.builtin.get_url:
+    url: "https://gist.githubusercontent.com/obeone/9313811fd61a7cbb843e0001a4434c58/raw/_ollama.zsh"
+    dest: "{{ ansible_facts['env']['HOME'] }}/dotfiles/apps/ollama/completion.zsh"
+    mode: "0644"
+    checksum: "sha256:{{ ollama_completion_stat.stat.checksum }}"
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_zsh
 
 # --- Key paths / facts (for logging & future tasks) ---------------------------
 
