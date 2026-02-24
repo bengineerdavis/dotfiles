@@ -100,6 +100,32 @@
     state: absent
   become: true
 
+# --- Zsh completion cleanup ---------------------------------------------------
+
+# Remove the symlink used by fpath
+- name: Remove Ollama Zsh completion symlink from ~/.zsh_completions
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.zsh_completions/_ollama"
+    state: absent
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_zsh
+
+# Remove the source file in the dotfiles topic
+- name: Remove Ollama Zsh completion file from dotfiles topic
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/dotfiles/apps/ollama/_ollama_zsh_completion"
+    state: absent
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_zsh
+
+# Optionally remove the temporary checksum/download file
+- name: Remove temporary Ollama completion file
+  ansible.builtin.file:
+    path: "/tmp/_ollama.zsh"
+    state: absent
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_zsh
+
 # --- Optional: models and data (~/.ollama) -----------------------------------
 
 - name: Remove Ollama models and data directory (~/.ollama)
