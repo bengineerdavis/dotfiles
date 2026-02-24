@@ -166,5 +166,4 @@
 - name: Warn if Fira Code font not detected (macOS only)
   debug:
     msg: "⚠️ Fira Code font not detected. Ensure it's installed and selected in your terminal profile."
-  when: ansible_facts['system'] == "Darwin" and font_check.rc != 0
-  # If the font check failed, we don’t break the run; we just warn.
+  when:
