@@ -33,7 +33,7 @@
       tags: [system, install]
   
   tasks:
-    - name: Update Homebrew and upgrade all packages
+    - name: Update Homebrew and upgrade all installed packages
       community.general.homebrew:
         update_homebrew: true
         upgrade_all: true
@@ -41,7 +41,7 @@
       become: false
       tags: [system, upgrade]
 
-    - name: Upgrade all casks
+    - name: Upgrade all installed Homebrew casks
       community.general.homebrew_cask:
         upgrade_all: true
       tags: [system, upgrade]
