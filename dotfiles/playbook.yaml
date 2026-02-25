@@ -22,9 +22,6 @@
       when: not brew_stat.stat.exists
       tags: [system, install]
 
-
-  
-  tasks:
     - name: Ensure Homebrew is in the shell PATH (Apple Silicon)
       ansible.builtin.lineinfile:
         path: ~/.zprofile
@@ -34,7 +31,8 @@
         - ansible_facts['architecture'] == "arm64"
         - not brew_stat.stat.exists
       tags: [system, install]
-
+  
+  tasks:
     - name: Update Homebrew and upgrade all packages
       community.general.homebrew:
         update_homebrew: yes
