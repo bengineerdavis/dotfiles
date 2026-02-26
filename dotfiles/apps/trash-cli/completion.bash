@@ -10,9 +10,10 @@ for cmd in "${cmds[@]}"; do
   command -v "$cmd" >/dev/null 2>&1 || continue
 
   # bash
-  echo "(Re-)generating bash completion for $cmd..."
+  
   if [[ -d "$bash_completion_dir" ]]; then
 
+    echo "(Re-)generating bash completion for $cmd..."
     bash_target="$bash_completion_dir/$cmd"
     if [[ ! -f "$bash_target" ]]; then
       "$cmd" --print-completion bash 2>/dev/null \
