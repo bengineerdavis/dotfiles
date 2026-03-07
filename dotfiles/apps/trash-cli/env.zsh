@@ -1,0 +1,1 @@
+TRASH_DIR="$HOME/.local/share/Trash"
