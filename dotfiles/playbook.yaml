@@ -14,7 +14,7 @@
       ansible.builtin.stat:
         path: "{{ homebrew_bin }}"
       register: brew_stat
-      tags: [always]
+      tags: [always, install]
 
     - name: Install Homebrew if missing
       ansible.builtin.shell: >
@@ -39,12 +39,12 @@
         upgrade_all: true
         path: "{{ homebrew_prefix }}/bin"
       become: false
-      tags: [system, upgrade]
+      tags: [system, upgrade, apps]
 
     - name: Upgrade all installed Homebrew casks
       community.general.homebrew_cask:
         upgrade_all: true
-      tags: [system, upgrade]
+      tags: [system, upgrade, apps]
 
     - name: Stop play if only system upgrade was requested
       ansible.builtin.meta: end_play
@@ -57,11 +57,11 @@
         recurse: yes
         patterns: "tasks.yaml"
       register: app_files
-      tags: [apps]
+      tags: [apps, install]
 
     - name: Dynamically include found tasks
       ansible.builtin.include_tasks: "{{ item.path }}"
       loop: "{{ app_files.files | sort(attribute='path') }}"
       loop_control:
         label: "{{ item.path }}"
-      tags: [apps]
+      tags: [apps, install]
