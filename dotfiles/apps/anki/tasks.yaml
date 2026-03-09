@@ -25,4 +25,5 @@
   community.general.homebrew_cask:
     name:  anki
     state: present
+    install_options: "appdir={{ user_appdir }}"
   when: ansible_facts['os_family'] in ["Darwin", "Linux"]

@@ -87,6 +87,7 @@
   community.general.homebrew_cask:
     name: ollama          # or ollama-app, depending on your tap
     state: present
+    install_options: "appdir={{ user_appdir }}"
   become: false
   when: ansible_facts['os_family'] == "Darwin"
   tags: ollama_gui

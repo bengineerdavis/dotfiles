@@ -17,6 +17,7 @@
   community.general.homebrew_cask:
     name: ghostty
     state: present
+    install_options: "appdir={{ user_appdir }}"
 
 - name: Check for ghostty config directory
   ansible.builtin.stat:

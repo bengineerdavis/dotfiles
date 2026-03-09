@@ -11,3 +11,4 @@
   community.general.homebrew_cask:
     name: cursor
     state: present
+    install_options: "appdir={{ user_appdir }}"

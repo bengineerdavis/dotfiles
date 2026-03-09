@@ -8,6 +8,7 @@
     # Use ansible_facts for modern compatibility
     homebrew_prefix: "{{ '/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local' }}"
     homebrew_bin: "{{ homebrew_prefix }}/bin/brew"
+    user_appdir: "{{ ansible_facts['env']['HOME'] }}/Applications"
 
   pre_tasks:
     - name: "Verify Homebrew installation at {{ homebrew_bin }}"
@@ -37,13 +38,16 @@
       community.general.homebrew:
         update_homebrew: true
         upgrade_all: true
+        upgrade_options: greedy
         path: "{{ homebrew_prefix }}/bin"
       become: false
       tags: [system, upgrade, apps]
 
     - name: Upgrade all installed Homebrew casks
       community.general.homebrew_cask:
+        update_homebrew: true
         upgrade_all: true
+        greedy: true
       tags: [system, upgrade, apps]
 
     - name: Stop play if only system upgrade was requested
