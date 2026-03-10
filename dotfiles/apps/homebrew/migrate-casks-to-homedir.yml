@@ -1,0 +1,53 @@
+---
+- name: Migrate Homebrew Casks to User Directory
+  hosts: localhost
+  connection: local
+  vars:
+    user_appdir: "{{ ansible_env.HOME }}/Applications"
+    dotfile_path: "dotfiles/apps/homebrew/zsh/env.zsh"
+    installed_casks: "{{ lookup('pipe', 'brew list --cask') | split('\n') | map('trim') | select('ne', '') | list }}"
+
+  tasks:
+    - name: Check if HOMEBREW_CASK_OPTS is defined in environment
+      ansible.builtin.set_fact:
+        cask_opts_defined: "{{ lookup('env', 'HOMEBREW_CASK_OPTS') != '' }}"
+
+    - name: Ensure user Applications directory exists
+      ansible.builtin.file:
+        path: "{{ user_appdir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Force uninstall and zap existing casks
+      community.general.homebrew_cask:
+        name: "{{ item }}"
+        state: absent
+        uninstall_options: "force,zap"
+        # Uses the -K password, or null if not provided
+        sudo_password: "{{ ansible_password | default(omit) }}"
+      loop: "{{ installed_casks }}"
+      when: installed_casks | length > 0
+      ignore_errors: yes
+
+    - name: Reinstall casks into ~/Applications
+      community.general.homebrew_cask:
+        name: "{{ item }}"
+        state: present
+        install_options: "force,appdir={{ user_appdir }}"
+        sudo_password: "{{ ansible_password | default(omit) }}"
+      loop: "{{ installed_casks }}"
+      when: installed_casks | length > 0
+
+    - name: Instructions for manual configuration
+      ansible.builtin.debug:
+        msg: 
+          - "--------------------------------------------------------"
+          - "CONFIGURATION REQUIRED"
+          - "The variable HOMEBREW_CASK_OPTS is not currently active."
+          - "To ensure future installs use ~/Applications, add this line:"
+          - ""
+          - "export HOMEBREW_CASK_OPTS=\"--appdir=${HOME}/Applications\""
+          - ""
+          - "to your dotfile: {{ dotfile_path }}"
+          - "--------------------------------------------------------"
+      when: not cask_opts_defined
