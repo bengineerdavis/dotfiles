@@ -1,3 +1,4 @@
 # Ignore these specific files/artifacts related to ansible tasks
 dotfiles/apps/starship/preset_choice.yml
-
+crontab
+crontab/**
