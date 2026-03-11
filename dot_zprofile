@@ -1,4 +1,11 @@
+#!/bin/zsh
 
-eval "$(/opt/homebrew/bin/brew shellenv)"
-eval "$(/opt/homebrew/bin/brew shellenv)"
-eval "$(/opt/homebrew/bin/brew shellenv)"
+# Pyenv configuration
+export PYENV_ROOT="$HOME/.pyenv"
+[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
+eval "$(pyenv init --path)"
+eval "$(pyenv virtualenv-init -)"
+
+# trying to fix freezing comic-app-library window select issues
+# see more here: https://github.com/pop-os/cosmic-applibrary/issues/296
+export WPGU_BACKEND=gl

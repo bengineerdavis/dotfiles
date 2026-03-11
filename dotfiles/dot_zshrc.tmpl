@@ -1,53 +1,9 @@
-## ---- New .zshrc config ---- ##
-
-# # shortcut to this dotfiles path is $ZSH
-# export ZSH=$HOME/dotfiles
-
-# # your project folder that we can `c [tab]` to
-# export PROJECTS=~/code
-
-# # Stash your environment variables in ~/.localrc. This means they'll stay out
-# # of your main dotfiles repository (which may be public, like this one), but
-# # you'll have access to them in your scripts.
-# if [[ -a ~/.localrc ]]
-# then
-#   source ~/.localrc
-# fi
-
-# # all of our zsh files
-# typeset -U config_files
-# config_files=($ZSH/**/*.zsh)
-
-# # load the path files
-# for file in ${(M)config_files:#*/path.zsh}
-# do
-#   source $file
-# done
-
-# # load everything but the path and completion files
-# for file in ${${config_files:#*/path.zsh}:#*/completion.zsh}
-# do
-#   source $file
-# done
-
-# # initialize autocomplete here, otherwise functions won't be loaded
-# autoload -U compinit
-# compinit
-
-# # load every completion after autocomplete loads
-# for file in ${(M)config_files:#*/completion.zsh}
-# do
-#   source $file
-# done
-
-# unset config_files
-
-# # Make sure PATH is set correctly for mpm tool
-# export PATH="$HOME/.local/share/mise/installs/python/latest/bin/python3:$PATH"
-
-## ---- Old linux .zshrc TODO: PLEASE REFACTOR ---- ##
+# Make sure PATH is set correctly for mpm tool
+export PATH="$HOME/.local/share/mise/installs/python/latest/bin/python3:$PATH"
 
 
+# If you come from bash you might have to change your $PATH.
+export PATH=$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH
 
 # Make sure C# and it's tools never pass on telemetry data
 # echo "DOTNET_CLI_TELEMETRY_OPTOUT=1" | sudo tee -a /etc/environment
@@ -97,12 +53,6 @@ ZSH_THEME="robbyrussell"
 # zstyle ':omz:update' mode disabled  # disable automatic updates
 # zstyle ':omz:update' mode auto      # update automatically without asking
 # zstyle ':omz:update' mode reminder  # just remind me to update when it's time
-
-# for auto-finder
-zstyle ':omz:plugins:alias-finder' autoload yes # disabled by default
-zstyle ':omz:plugins:alias-finder' longer yes # disabled by default
-zstyle ':omz:plugins:alias-finder' exact yes # disabled by default
-zstyle ':omz:plugins:alias-finder' cheaper yes # disabled by default
 
 # Uncomment the following line to change how often to auto-update (in days).
 # zstyle ':omz:update' frequency 13
@@ -220,7 +170,6 @@ zinit light zsh-users/zsh-completions
 zinit light zsh-users/zsh-autosuggestions
 
 # Add in zsh snippets
-zinit snippet OMZP::alias-finder
 zinit snippet OMZL::git.zsh
 zinit snippet OMZP::git
 zinit snippet OMZP::sudo
@@ -260,9 +209,9 @@ esac
 # force_color_prompt=yes
 
 if [ -n "$force_color_prompt" ]; then
-    if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
+    if [ -x {{ .chezmoi.pathSeparator }}usr{{ .chezmoi.pathSeparator }}bin{{ .chezmoi.pathSeparator }}tput ] && tput setaf 1 >&{{ .chezmoi.pathSeparator }}dev{{ .chezmoi.pathSeparator }}null; then
 	# We have color support; assume it's compliant with Ecma-48
-	# (ISO/IEC-6429). (Lack of such support is extremely rare, and such
+	# (ISO{{ .chezmoi.pathSeparator }}IEC-6429). (Lack of such support is extremely rare, and such
 	# a case would tend to support setf rather than setaf.)
 	color_prompt=yes
     else
@@ -271,68 +220,85 @@ if [ -n "$force_color_prompt" ]; then
 fi
 
 # if [ "$color_prompt" = yes ]; then
-#     PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+#     PS1='${debian_chroot{{ .chezmoi.pathListSeparator }}+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]{{ .chezmoi.pathListSeparator }}\[\033[01;34m\]\w\[\033[00m\]\$ '
 # else
-#     PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
+#     PS1='${debian_chroot{{ .chezmoi.pathListSeparator }}+($debian_chroot)}\u@\h{{ .chezmoi.pathListSeparator }}\w\$ '
 # fi
 # unset color_prompt force_color_prompt
 
-# If this is an xterm set the title to user@host:dir
+# If this is an xterm set the title to user@host{{ .chezmoi.pathListSeparator }}dir
 # case "$TERM" in
 # xterm*|rxvt*)
-#     PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
+#     PS1="\[\e]0;${debian_chroot{{ .chezmoi.pathListSeparator }}+($debian_chroot)}\u@\h{{ .chezmoi.pathListSeparator }} \w\a\]$PS1"
 #     ;;
 # *)
 #     ;;
 # esac
 
 # Alias definitions.
-# You may want to put all your additions into a separate file like
-# ~/.bash_aliases, instead of adding them here directly.
-# See /usr/share/doc/bash-doc/examples in the bash-doc package.
+# You may want to put all your additions into a separate {{ .chezmoi.config.mode }} like
+# ~{{ .chezmoi.pathSeparator }}.bash_aliases, instead of adding them here directly.
+# See {{ .chezmoi.pathSeparator }}usr{{ .chezmoi.pathSeparator }}share{{ .chezmoi.pathSeparator }}doc{{ .chezmoi.pathSeparator }}bash-doc{{ .chezmoi.pathSeparator }}examples in the bash-doc package.
 
-if [[ -f ~/.bash_aliases ]]; then
-    source ~/.bash_aliases
+if [[ -f ~{{ .chezmoi.pathSeparator }}.bash_aliases ]]; then
+    source ~{{ .chezmoi.pathSeparator }}.bash_aliases
 fi
 
 # export custom local functions
-if [[ -f ~/.functions ]]; then
-    source ~/.functions
+if [[ -f ~{{ .chezmoi.pathSeparator }}.functions ]]; then
+    source ~{{ .chezmoi.pathSeparator }}.functions
 fi
 
 # export shaka package manager
-export PATH="$HOME/usr/local/bin:$PATH"
+export PATH="$HOME{{ .chezmoi.pathSeparator }}usr{{ .chezmoi.pathSeparator }}local{{ .chezmoi.pathSeparator }}bin{{ .chezmoi.pathListSeparator }}$PATH"
 
-# # Created by `pipx` on 2023-03-07 16:42:51
-export PATH="/home/bdavis/.local/bin:$PATH"
+# # Created by `pipx` on 2023-03-07 16{{ .chezmoi.pathListSeparator }}42{{ .chezmoi.pathListSeparator }}51
+export PATH="{{ .chezmoi.commandDir }}{{ .chezmoi.pathSeparator }}.local{{ .chezmoi.pathSeparator }}bin{{ .chezmoi.pathListSeparator }}$PATH"
 eval "$(register-python-argcomplete pipx)"
 
 # rustup config
-. "$HOME/.cargo/env"
-source $HOME/.cargo/env
+. "$HOME{{ .chezmoi.pathSeparator }}.cargo{{ .chezmoi.pathSeparator }}env"
+source $HOME{{ .chezmoi.pathSeparator }}.cargo{{ .chezmoi.pathSeparator }}env
 
 # used for cargo build -r command with copes repo
-LIBCLANG_PATH=~/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bindgen-0.61.0/./lib.rs:2276:31
+LIBCLANG_PATH=~{{ .chezmoi.pathSeparator }}.cargo{{ .chezmoi.pathSeparator }}registry{{ .chezmoi.pathSeparator }}src{{ .chezmoi.pathSeparator }}index.crates.io-6f17d22bba15001f{{ .chezmoi.pathSeparator }}bindgen-0.61.0{{ .chezmoi.pathSeparator }}.{{ .chezmoi.pathSeparator }}lib.rs{{ .chezmoi.pathListSeparator }}2276{{ .chezmoi.pathListSeparator }}31
 RUST_BACKTRACE=1
 
 # Pyenv configuration
-[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
+[[ -d $PYENV_ROOT{{ .chezmoi.pathSeparator }}bin ]] && export PATH="$PYENV_ROOT{{ .chezmoi.pathSeparator }}bin{{ .chezmoi.pathListSeparator }}$PATH"
 eval "$(pyenv init -)"
 eval "$(pyenv virtualenv-init -)"
 
-# # eval "$(~/.rbenv/bin/rbenv init - zsh)"
+# # eval "$(~{{ .chezmoi.pathSeparator }}.rbenv{{ .chezmoi.pathSeparator }}bin{{ .chezmoi.pathSeparator }}rbenv init - zsh)"
 
 
 # # Enable steam with Vulkan
 MANGOHUD=1
 
+### Brew config
+# test to make linuxbrew run
+# eval "$({{ .chezmoi.pathSeparator }}bin{{ .chezmoi.pathSeparator }}brew shellenv)"
+eval "$({{ .chezmoi.pathSeparator }}home{{ .chezmoi.pathSeparator }}linuxbrew{{ .chezmoi.pathSeparator }}.linuxbrew{{ .chezmoi.pathSeparator }}bin{{ .chezmoi.pathSeparator }}brew shellenv)"
+# Add new concurrency env for v4.5.0+
+export HOMEBREW_DOWNLOAD_CONCURRENCY={{ .chezmoi.config.color }}
+# Enables bat for brew cat command output (syntax highlighting and paging)
+export HOMEBREW_BAT=on
+export HOMEBREW_NO_ANALYTICS=1
+export HOMEBREW_CLEANUP_PERIODIC_FULL_DAYS=7
+# If set, always assume --debug when running commands.
+# export HOMEBREW_DEBUG=1
+# Run brew update once every $HOMEBREW_AUTO_UPDATE_SECS seconds before some commands, e.g. brew install, brew upgrade or brew tap. Alternatively, disable {{ .chezmoi.config.color }}-update entirely with $HOMEBREW_NO_AUTO_UPDATE.
+# Default{{ .chezmoi.pathListSeparator }} 86400 (24 hours), 3600 (1 hour) if a developer command has been run or 300 (5 minutes) if $HOMEBREW_NO_INSTALL_FROM_API is set.
+export HOMEBREW_AUTO_UPDATE_HOURS=24
+export HOMEBREW_AUTO_UPDATE_SECS=$((60*60*${HOMEBREW_AUTO_UPDATE_HOURS{{ .chezmoi.pathListSeparator }}-24}))
+
 # testing MangoHUD settings ...
 
-# Created by `pipx` on 2024-04-09 06:09:58
-export PATH="$PATH:/home/bdavis/.local/bin"
+# Created by `pipx` on 2024-04-09 06{{ .chezmoi.pathListSeparator }}09{{ .chezmoi.pathListSeparator }}58
+export PATH="$PATH{{ .chezmoi.pathListSeparator }}{{ .chezmoi.commandDir }}{{ .chezmoi.pathSeparator }}.local{{ .chezmoi.pathSeparator }}bin"
 
 # setup autocomplete for fzf in bash environment
-# [ -f ~/.fzf.bash ] && source ~/.fzf.bash
+# [ -f ~{{ .chezmoi.pathSeparator }}.fzf.bash ] && source ~{{ .chezmoi.pathSeparator }}.fzf.bash
 # eval "$(fzf --bash)"
 
 # Set up fzf key bindings and fuzzy completion
@@ -342,7 +308,7 @@ source <(fzf --zsh)
 # eval "$(starship init bash)"
 
 # # AI API keys DO NOT SHARE
-source ~/.config/api_keys
+source ~{{ .chezmoi.pathSeparator }}.config{{ .chezmoi.pathSeparator }}api_keys
 
 # zoxide shell enablement (cd replacement)
 eval "$(zoxide init zsh --cmd cd)"
@@ -353,82 +319,28 @@ eval "$(zoxide init zsh --cmd cd)"
 eval "$(mise activate zsh)"
 
 # Generated for envman. Do not edit.
-[ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
+[ -s "$HOME{{ .chezmoi.pathSeparator }}.config{{ .chezmoi.pathSeparator }}envman{{ .chezmoi.pathSeparator }}load.sh" ] && source "$HOME{{ .chezmoi.pathSeparator }}.config{{ .chezmoi.pathSeparator }}envman{{ .chezmoi.pathSeparator }}load.sh"
 
-source /home/bdavis/.config/broot/launcher/bash/br
+source {{ .chezmoi.commandDir }}{{ .chezmoi.pathSeparator }}.config{{ .chezmoi.pathSeparator }}broot{{ .chezmoi.pathSeparator }}launcher{{ .chezmoi.pathSeparator }}bash{{ .chezmoi.pathSeparator }}br
 
 # ROCm setup
-# docs: https://rocm.docs.amd.com/projects/install-on-linux/en/latest/install/post-install.html
-export PATH=$PATH:/opt/rocm-7.0.1/bin
-export LD_LIBRARY_PATH=/opt/rocm-7.0.1/lib
+# docs{{ .chezmoi.pathListSeparator }} https{{ .chezmoi.pathListSeparator }}{{ .chezmoi.pathSeparator }}{{ .chezmoi.pathSeparator }}rocm.docs.amd.com{{ .chezmoi.pathSeparator }}projects{{ .chezmoi.pathSeparator }}install-on-{{ .chezmoi.os }}{{ .chezmoi.pathSeparator }}en{{ .chezmoi.pathSeparator }}latest{{ .chezmoi.pathSeparator }}install{{ .chezmoi.pathSeparator }}post-install.html
+export PATH=$PATH{{ .chezmoi.pathListSeparator }}{{ .chezmoi.pathSeparator }}opt{{ .chezmoi.pathSeparator }}rocm-7.0.1{{ .chezmoi.pathSeparator }}bin
+export LD_LIBRARY_PATH={{ .chezmoi.pathSeparator }}opt{{ .chezmoi.pathSeparator }}rocm-7.0.1{{ .chezmoi.pathSeparator }}lib
 
 # more ROCm setup
-# source: https://www.perplexity.ai/search/remind-me-of-the-different-typ-Uj.Js0XIQneIy61Mu1OW6g#60
+# source{{ .chezmoi.pathListSeparator }} https{{ .chezmoi.pathListSeparator }}{{ .chezmoi.pathSeparator }}{{ .chezmoi.pathSeparator }}www.perplexity.ai{{ .chezmoi.pathSeparator }}search{{ .chezmoi.pathSeparator }}remind-me-of-the-different-typ-Uj.Js0XIQneIy61Mu1OW6g#60
 # Force ROCm to recognize your 6900XT
 export HSA_OVERRIDE_GFX_VERSION=10.3.0
-export ROCM_PATH=/opt/rocm  # adjust if you installed elsewhere
+export ROCM_PATH={{ .chezmoi.pathSeparator }}opt{{ .chezmoi.pathSeparator }}rocm  # adjust if you installed elsewhere
 
 # Prevent Ollama from underestimating VRAM
 export HIP_VISIBLE_DEVICES=0
 export GPU_MAX_HEAP_SIZE=100
 export GPU_MAX_ALLOC_PERCENT=100
-export OLLAMA_NUM_GPU_LAYERS=25 # Conservative for 16GB VRAM (gemma3:12b needs ~12GB)
+export OLLAMA_NUM_GPU_LAYERS=25 # Conservative for 16GB VRAM (gemma3{{ .chezmoi.pathListSeparator }}12b needs ~12GB)
 
-# Optional: if you see crashes, reduce memory pressure
+# Optional{{ .chezmoi.pathListSeparator }} if you see crashes, reduce memory pressure
 export HSA_NO_SCRATCH_RECLAIM=1
 
-### Brew config
 
-# detect bat cli before setting env var
-if command -v bat &> /dev/null; then
-  export HOMEBREW_BAT=on
-else
-  export HOMEBREW_BAT=off
-fi
-
-
-# see https://github.com/orgs/Homebrew/discussions/2560#discussioncomment-10429972 for why this is needed
-if [ -z "$HOMEBREW_PREFIX" ]; then
-  case "$(uname -s)" in
-    Linux)
-      for __brew in "/home/linuxbrew/.linuxbrew/bin/brew" "$HOME/.linuxbrew/bin/brew"; do
-        [ -x "$__brew" ] && {
-          eval "$("$__brew" shellenv | grep -v '^export PATH=')"
-          export PATH="$PATH:${HOMEBREW_PREFIX}/bin:${HOMEBREW_PREFIX}/sbin"
-        } && break
-      done
-      unset __brew
-      ;;
-    Darwin)
-      for __brew in "/opt/homebrew/bin/brew" "/usr/local/bin/brew"; do
-        [ -x "$__brew" ] && {
-          eval "$("$__brew" shellenv)"
-          export PATH="/opt/homebrew/bin:$PATH"
-        } && break
-      done
-      unset __brew
-      ;;
-  esac
-fi
-
-# Add new concurrency env for v4.5.0+
-export HOMEBREW_DOWNLOAD_CONCURRENCY=auto
-# Enables bat for brew cat command output (syntax highlighting and paging)
-export HOMEBREW_BAT=on
-export HOMEBREW_NO_ANALYTICS=1
-export HOMEBREW_CLEANUP_PERIODIC_FULL_DAYS=7
-# If set, always assume --debug when running commands.
-# export HOMEBREW_DEBUG=1
-# Run brew update once every $HOMEBREW_AUTO_UPDATE_SECS seconds before some commands, e.g. brew install, brew upgrade or brew tap. Alternatively, disable auto-update entirely with $HOMEBREW_NO_AUTO_UPDATE.
-# Default: 86400 (24 hours), 3600 (1 hour) if a developer command has been run or 300 (5 minutes) if $HOMEBREW_NO_INSTALL_FROM_API is set.
-export HOMEBREW_AUTO_UPDATE_HOURS=24
-export HOMEBREW_AUTO_UPDATE_SECS=$((60*60*${HOMEBREW_AUTO_UPDATE_HOURS:-24}))
-
-# system-specific options and environment variables
-if [ "$(uname -s)" = "Darwin" ]; then
-  # macOS-only: e.g. Homebrew is at /opt/homebrew (Apple Silicon) or /usr/local (Intel)
-  export HOMEBREW_CASK_OPTS="--appdir=~/Applications"
-elif [ "$(uname -s)" = "Linux" ]; then
-  # Linux-only: linuxbrew doesn't support casks
-  :
-fi
