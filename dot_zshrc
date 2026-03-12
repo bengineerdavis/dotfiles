@@ -1,49 +1,51 @@
-{{- if eq .chezmoi.os "darwin" }}
-## ---- New .zshrc config (macOS) ---- ##
+## ---- New .zshrc config ---- ##
 
-# On macOS: use chezmoi to add local config if available
-if command -v chezmoi >/dev/null 2>&1; then
-  chezmoi add ~/.localrc 2>/dev/null || true
+if [[ "$(uname -s)" = "Darwin" ]]; then
+  # On macOS: use chezmoi to add local config if available
+  if command -v chezmoi >/dev/null 2>&1; then
+    chezmoi add ~/.localrc 2>/dev/null || true
+  fi
+else
+  # On Linux: keep legacy local config loading and project shortcuts
+  export ZSH="$HOME/dotfiles"
+  export PROJECTS=~/code
+
+  if [[ -a ~/.localrc ]]; then
+    source ~/.localrc
+  fi
+
+  # all of our zsh files
+  typeset -U config_files
+  config_files=($ZSH/**/*.zsh)
+
+  # load the path files
+  for file in ${(M)config_files:#*/path.zsh}; do
+    source $file
+  done
+
+  # load everything but the path and completion files
+  for file in ${${config_files:#*/path.zsh}:#*/completion.zsh}; do
+    source $file
+  done
+
+  # initialize autocomplete here, otherwise functions won't be loaded
+  autoload -U compinit
+  compinit
+
+  # load every completion after autocomplete loads
+  for file in ${(M)config_files:#*/completion.zsh}; do
+    source $file
+  done
+
+  unset config_files
+
+  # Make sure PATH is set correctly for mpm tool
+  export PATH="$HOME/.local/share/mise/installs/python/latest/bin/python3:$PATH"
 fi
 
-{{- else }}
 ## ---- Old linux .zshrc TODO: PLEASE REFACTOR ---- ##
 
-# On Linux: keep legacy local config loading and project shortcuts
-export ZSH="$HOME/dotfiles"
-export PROJECTS=~/code
 
-if [[ -a ~/.localrc ]]; then
-  source ~/.localrc
-fi
-
-# all of our zsh files
-typeset -U config_files
-config_files=($ZSH/**/*.zsh)
-
-# load the path files
-for file in ${(M)config_files:#*/path.zsh}; do
-  source $file
-done
-
-# load everything but the path and completion files
-for file in ${${config_files:#*/path.zsh}:#*/completion.zsh}; do
-  source $file
-done
-
-# initialize autocomplete here, otherwise functions won't be loaded
-autoload -U compinit
-compinit
-
-# load every completion after autocomplete loads
-for file in ${(M)config_files:#*/completion.zsh}; do
-  source $file
-done
-
-unset config_files
-
-# Make sure PATH is set correctly for mpm tool
-export PATH="$HOME/.local/share/mise/installs/python/latest/bin/python3:$PATH"
 
 # Make sure C# and it's tools never pass on telemetry data
 # echo "DOTNET_CLI_TELEMETRY_OPTOUT=1" | sudo tee -a /etc/environment
@@ -428,8 +430,3 @@ elif [ "$(uname -s)" = "Linux" ]; then
   # Linux-only: linuxbrew doesn't support casks
   :
 fi
-
-# Add new concurrency env for v4.5.0+
-export HOMEBREW_DOWNLOAD_CONCURRENCY=auto
-
-{{- end }}
