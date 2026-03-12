@@ -1,14 +1,10 @@
+{{- if eq .chezmoi.os "darwin" }}
 ## ---- New .zshrc config ---- ##
 
-if [[ "$(uname -s)" = "Darwin" ]]; then
-  # On macOS: use chezmoi to add local config if available
-  if command -v chezmoi >/dev/null 2>&1; then
-    chezmoi add ~/.localrc 2>/dev/null || true
-  fi
-else
-  # On Linux: keep legacy local config loading and project shortcuts
-  export ZSH="$HOME/dotfiles"
-  export PROJECTS=~/code
+# On macOS: use chezmoi to add local config if available
+#  if command -v chezmoi >/dev/null 2>&1; then
+#    chezmoi add ~/.localrc 2>/dev/null || true
+#  fi
 
   if [[ -a ~/.localrc ]]; then
     source ~/.localrc
@@ -42,10 +38,14 @@ else
   # Make sure PATH is set correctly for mpm tool
   export PATH="$HOME/.local/share/mise/installs/python/latest/bin/python3:$PATH"
 fi
+{{- end }}
 
+{{- if eq .chezmoi.os "linux" }}
 ## ---- Old linux .zshrc TODO: PLEASE REFACTOR ---- ##
 
-
+# On Linux: keep legacy local config loading and project shortcuts
+export ZSH="$HOME/dotfiles"
+export PROJECTS=~/code
 
 # Make sure C# and it's tools never pass on telemetry data
 # echo "DOTNET_CLI_TELEMETRY_OPTOUT=1" | sudo tee -a /etc/environment
@@ -430,3 +430,5 @@ elif [ "$(uname -s)" = "Linux" ]; then
   # Linux-only: linuxbrew doesn't support casks
   :
 fi
+
+{{- end }}
