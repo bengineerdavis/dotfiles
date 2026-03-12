@@ -13,17 +13,14 @@
 #   community.general.homebrew:
 #     name:  # {{ put package name here}}
 #     state: present
-#   when: ansible_os_family == "Darwin"
+#   become: false
+#   when: ansible_facts['os_family'] in ["Darwin", "Linux"]
 
 # - name: Ensure {{ put package name here }} is installed via Homebrew cask
 #   community.general.homebrew_cask:
 #     name:  # {{ put package name here}}
 #     state: present
-#   when: ansible_os_family == "Darwin"
+#     install_options: "appdir={{ user_appdir }}"
+#   become: false
+#   when: ansible_facts['os_family'] in ["Darwin", "Linux"]
 
-- name: Ensure mise is installed via Homebrew formulae
-  community.general.homebrew:
-    name: mise
-    state: present
-  become: false
-  when: ansible_facts['os_family'] in ["Darwin", "Linux"]

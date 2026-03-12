@@ -1,8 +1,15 @@
-# Meld App Module
+# {{ app_name }} App Module
 
-Welcome to my *meld app module in my local machine provisioning setup!
+_Template directory for dotfile or tool user/system tool config_
+
+Welcome to my {{ app_name }} app module in my local machine provisioning setup!
 
 ## Links
 
-- [project website](https://gitlab.gnome.org/GNOME/meld)
-- [homebrew package](https://formulae.brew.sh/cask/meld#default)
+- [project website]() 
+- [project git repository]() 
+- [homebrew package]() 
+
+
+
+See more in https://github.com/holman/dotfiles
