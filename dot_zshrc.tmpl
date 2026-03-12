@@ -1,3 +1,7 @@
+# On Linux: keep legacy local config loading and project shortcuts
+export ZSH="$HOME/dotfiles"
+export PROJECTS=~/code
+
 {{- if eq .chezmoi.os "darwin" }}
 ## ---- New .zshrc config ---- ##
 
@@ -37,7 +41,7 @@
 
   # Make sure PATH is set correctly for mpm tool
   export PATH="$HOME/.local/share/mise/installs/python/latest/bin/python3:$PATH"
-fi
+
 {{- end }}
 
 {{- if eq .chezmoi.os "linux" }}
