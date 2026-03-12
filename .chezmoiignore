@@ -2,3 +2,8 @@
 dotfiles/apps/starship/preset_choice.yml
 crontab
 crontab/**
+
+
+{{ if ne .chezmoi.os "darwin" }}
+.zprofile
+{{ end }}
