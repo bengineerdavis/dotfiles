@@ -1,39 +1,9 @@
-# topics/mise/tasks/main.yml
+# apps/mise/main.yaml
 ---
-- name: "Ensure Homebrew is installed (prereq for mise via brew)"
-  stat:
-    path: "/opt/homebrew/bin/brew"
-  register: _brew_bin
-  when: ansible_os_family == "Darwin"
+- name: "Run mise role standalone"
+  hosts: localhost
+  gather_facts: true
+  become: false
 
-- name: "Fail if Homebrew is missing"
-  fail:
-    msg: "Homebrew is required on macOS to install mise via brew; install from https://brew.sh"
-  when:
-    - ansible_os_family == "Darwin"
-    - not _brew_bin.stat.exists
-
-- name: "Install mise via Homebrew (if not present)"
-  homebrew:
-    name: "mise"
-    state: present
-  when:
-    - ansible_pkg_mgr is defined and ansible_pkg_mgr == "homebrew"
-  tags:
-    - brew
-    - tools
-    - mise
-
-- name: "Ensure ~/.config/mise directory exists"
-  file:
-    path: "{{ ansible_user_dir }}/.config/mise"
-    state: directory
-
-- name: "Symlink topic config.toml into ~/.config/mise/config.toml"
-  file:
-    src: "{{ playbook_dir }}/topics/mise/files/config.toml"
-    dest: "{{ ansible_user_dir }}/.config/mise/config.toml"
-    state: link
-  tags:
-    - mise
-    - config
+  roles:
+    - apps/mise
