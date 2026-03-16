@@ -16,6 +16,15 @@
 
 # ----------------- 1. Install Zim CLI -----------------
 
+- name: Install dependencies for Zim GUI and MacOSbar plugin
+  community.general.homebrew:
+    name:
+      - gtk-mac-integration
+      - gtkspell3
+      - python3
+    state: present
+  when: ansible_facts['os_family'] in ["Darwin"]
+
 - name: Ensure Zim CLI is installed via Homebrew
   community.general.homebrew:
     name: zim
