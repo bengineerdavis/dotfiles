@@ -1,0 +1,11 @@
+# apps/monitorcontrol/main.yaml
+---
+- name: "Run monitorcontrol standalone"
+  hosts: localhost
+  gather_facts: true
+  become: false
+
+  tasks:
+    - name: Run monitorcontrol role tasks
+      import_role:
+        name: "."

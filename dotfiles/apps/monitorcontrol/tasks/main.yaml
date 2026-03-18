@@ -1,0 +1,29 @@
+# template_dir/topic/tasks/main.yaml – empty template for new topics
+
+# tasks.yaml
+
+# put all of the non-dotfile configuration and setup work to be done for this app here. 
+# This file will be included in the main playbook.yaml file, so you can use all 
+# of the same Ansible modules and features as you would in a normal playbook.
+#
+# The end-result is all the steps outside of what's defined in the .zsh files are completed
+# by this file, when run, the app will work immediately out of the box.
+
+---
+- name: "Ensure monitorcontrol configuration directory exists"
+  file:
+    path: "{{ ansible_user_dir }}/Applications/monitorcontrol"
+    state: directory
+    mode: "0755"
+  tags:
+    - monitorcontrol
+    - directories
+
+- name: "Install monitorcontrol via Homebrew Cask"
+  community.general.homebrew_cask:
+    name: monitorcontrol
+    state: present
+  when: ansible_os_family == "Darwin"
+  tags:
+    - brew
+    - monitorcontrol
