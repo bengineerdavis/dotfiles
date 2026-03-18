@@ -69,3 +69,9 @@
       loop_control:
         label: "{{ item.path }}"
       tags: [apps, install]
+
+    - name: "Dynamically include app roles"
+      include_role:
+        name: "apps/{{ item }}"
+      loop: "{{ enabled_apps }}"
+      tags: ["apps"]
