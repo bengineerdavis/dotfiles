@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-code --wait "$@"
+/opt/homebrew/bin/code --wait "$@"
