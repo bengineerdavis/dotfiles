@@ -1,3 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
 mycd() {
   # Call the original zoxide function (or standard cd if zoxide is not used)
   __zoxide_z "$@"
