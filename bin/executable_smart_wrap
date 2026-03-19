@@ -66,10 +66,12 @@ smart_wrap() {
     fi
 }
 
+smart_wrap "$@"
+
 # --- Quick Access Aliases Ideas ---
 
 # Chezmoi: Uses 'help' syntax for better headers
-cz() { smart_wrap chezmoi help "$@"; }
+# cz() { smart_wrap chezmoi help "$@"; }
 
 # Git: Uses 'git' syntax (useful for git help <command>)
 # gz() { smart_wrap git git "$@"; }
