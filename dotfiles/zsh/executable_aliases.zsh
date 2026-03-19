@@ -1,1 +1,1 @@
-cz='smart_wrap chezmoi help'
+alias cz='smart_wrap chezmoi help'

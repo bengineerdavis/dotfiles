@@ -45,16 +45,16 @@ smart_wrap() {
         if command -v bat >/dev/null 2>&1; then
             # Determine if we should use a specific language or fall back to plain
             # We check bat's internal list to see if the requested lang exists
-            local bat_lang="plain"
+            local bat_lang="help"
             if bat --list-languages | grep -qi "^$lang$"; then
                 bat_lang="$lang"
             fi
 
             # Execute: If no args, inject 'help'. Otherwise, pass args through.
             if [ $# -eq 0 ]; then
-                eval "$CMD" help | bat --plain --language="$bat_lang" --paging=always
+                eval "$CMD" help | bat --language="$bat_lang" --paging=always
             else
-                eval "$CMD" "$@" | bat --plain --language="$bat_lang" --paging=always
+                eval "$CMD" "$@" | bat --language="$bat_lang" --paging=always
             fi
         else
             # Fallback: No 'bat' installed? Use 'less -R' to preserve ANSI colors.
