@@ -1,47 +1,15 @@
-# -----------------------------------------------------------------------------
-# File: cz
-# Description: A portable shell function to wrap the chezmoi binary.
-# Features: 
-#   - Detects if 'chezmoi' and 'bat' are installed.
-#   - Fixes Ghostty color detection by overriding TERM=xterm-256color.
-#   - Automatically pipes help commands into 'bat' with syntax highlighting.
-#   - Gracefully falls back to 'less -R' if 'bat' is missing.
-# License: MIT
-# -----------------------------------------------------------------------------
+#!/usr/bin/env bash
+set -euo pipefail
 
-chezmoi() {
-    # 1. Safety check: Ensure the chezmoi binary is available in the PATH
-    if ! command -v chezmoi >/dev/null 2>&1; then
-        echo "Error: 'chezmoi' binary not found. Please install it first." >&2
+main() { 
+    # check if smart_wrap is available
+    if ! command -v smart_wrap >/dev/null 2>&1; then
+        echo "Error: 'smart_wrap' function not found. Please ensure it's defined in your shell environment." >&2
         return 1
-    fi
-
-    # 2. Define the core command with the terminal fix for Ghostty
-    # We use 'command' to ensure we hit the binary and avoid infinite recursion.
-    local CZ_BASE="TERM=xterm-256color command chezmoi"
-    
-    # 3. Check for 'help' or '--help' in the arguments provided
-    local is_help=0
-    for arg in "$@"; do
-        case "$arg" in
-            help|--help)
-                is_help=1
-                break
-                ;;
-        esac
-    done
-
-    # 4. Execute with conditional piping based on 'bat' availability
-    if [ "$is_help" -eq 1 ]; then
-        if command -v bat >/dev/null 2>&1; then
-            # Use bat for a superior help experience
-            eval "$CZ_BASE" "$@" | bat --plain --language=help --paging=always
-        else
-            # Fallback to less -R if bat is not installed
-            eval "$CZ_BASE" "$@" | less -R
-        fi
     else
-        # Run normally for all other operations (apply, diff, edit, etc.)
-        eval "$CZ_BASE" "$@"
+        # "Using 'smart_wrap' to access Chezmoi help..."
+        smart_wrap chezmoi help "$@"; 
     fi
-}
+    }
+
+main "$@"
