@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# -----------------------------------------------------------------------------
+# File: smart_wrap.sh
+# Author: Ben Davis <bengineerdavis@gmail.com>
+# Description: A portable shell function to wrap CLI utilities.
+# Features: 
+#   - Forces TERM=xterm-256color for Ghostty/modern terminal compatibility.
+#   - Defaults to 'help' if no arguments are provided.
+#   - Pipes help output to 'bat' with smart syntax highlighting.
+#   - Handles cases where no specific color/syntax is available for help menus.
+# License: MIT
+# -----------------------------------------------------------------------------
+
+smart_wrap() {
+    local bin="$1"
+    local lang="$2"
+    shift 2 # Remove binary and language from arguments
+
+    # 1. Safety check: Ensure the binary exists in PATH
+    if ! command -v "$bin" >/dev/null 2>&1; then
+        echo "Error: '$bin' binary not found." >&2
+        return 1
+    fi
+
+    # 2. Fix Ghostty color detection and define the core command
+    # We use 'command' to bypass aliases/functions and avoid infinite loops.
+    local CMD="TERM=xterm-256color command $bin"
+
+    # 3. Help Detection Logic
+    local is_help=0
+    if [ $# -eq 0 ]; then
+        is_help=1
+    else
+        for arg in "$@"; do
+            case "$arg" in
+                help|--help|-h) is_help=1; break ;;
+            esac
+        done
+    fi
+
+    # 4. Execution with Color/Pager Handling
+    if [ "$is_help" -eq 1 ]; then
+        if command -v bat >/dev/null 2>&1; then
+            # Determine if we should use a specific language or fall back to plain
+            # We check bat's internal list to see if the requested lang exists
+            local bat_lang="help"
+            if bat --list-languages | grep -qi "^$lang$"; then
+                bat_lang="$lang"
+            fi
+
+            # Execute: If no args, inject 'help'. Otherwise, pass args through.
+            if [ $# -eq 0 ]; then
+                eval "$CMD" help | bat --language="$bat_lang" --paging=always
+            else
+                eval "$CMD" "$@" | bat --language="$bat_lang" --paging=always
+            fi
+        else
+            # Fallback: No 'bat' installed? Use 'less -R' to preserve ANSI colors.
+            [ $# -eq 0 ] && eval "$CMD" help | less -R || eval "$CMD" "$@" | less -R
+        fi
+    else
+        # Standard execution for non-help commands (e.g., chezmoi apply)
+        eval "$CMD" "$@"
+    fi
+}
+
+smart_wrap "$@"
+
+# --- Quick Access Aliases Ideas ---
+
+# Chezmoi: Uses 'help' syntax for better headers
+# cz() { smart_wrap chezmoi help "$@"; }
+
+# Git: Uses 'git' syntax (useful for git help <command>)
+# gz() { smart_wrap git git "$@"; }
+
+# General fallback: use 'plain' for tools with no specific help syntax
+# uz() { smart_wrap "$1" plain "${@:2}"; }

@@ -2,12 +2,23 @@
 # This template generates your local ~/.config/chezmoi/chezmoi.toml
 # Source: https://www.chezmoi.io
 
+# Top-level settings
+color = "on"
+pager = "bat -l help"
+
+# Add custom variables here to use in your templates
+# Example: email = "your@email.com"
+[data]
+    email = "bengineerdavis@gmail.com"
+    name = "Ben Davis"
+
 [diff]
     # Graphical side-by-side comparison using Meld
     # Ref: https://www.chezmoi.io
     command = "meld"
     # We use {{ "{{" }} to escape the braces so they appear literally in the final config
-    args = ["--diff", '{{ "{{" }} .Destination {{ "}}" }}', '{{ "{{" }} .Target {{ "}}" }}']
+    # Use the 'quote' function and escape the braces
+    args = ["--diff", "{{ "{{" }} .Destination {{ "}}" }}", "{{ "{{" }} .Target {{ "}}" }}"]
     # Destination = Live file (~/.zshrc) | Target = Calculated state (templates applied)
 
 [merge]
@@ -16,7 +27,7 @@
     command = "meld"
     # Order: [Disk/Local] | [Repo/Source] | [Calculated/Target]
     # PRO TIP: Merge changes from the outer panes INTO the middle (Source) to save to git.
-    args = ['{{ "{{" }} .Destination {{ "}}" }}', '{{ "{{" }} .Source {{ "}}" }}', '{{ "{{" }} .Target {{ "}}" }}']
+    args = ["{{ "{{" }} .Destination {{ "}}" }}", "{{ "{{" }} .Source {{ "}}" }}", "{{ "{{" }} .Target {{ "}}" }}"]
 
 [edit]
     # Use VS Code for 'chezmoi edit'
@@ -25,6 +36,4 @@
     # --wait is critical: chezmoi pauses until you close the tab to apply changes/hooks
     args = ["--wait"]
 
-[data]
-    # Add custom variables here to use in your templates
-    # Example: email = "your@email.com"
+
