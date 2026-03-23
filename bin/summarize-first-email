@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# -----------------------------------------------------------------------------
+# Script Name:        summarize-first-email.sh
+# Description:        Summarizes and rephrases the content of a customer's first email reply into clear, itemized, and actionable requests. Uses an LLM to convert complex or ambiguous initial emails into concise, team-friendly questions that capture the customer's intent.
+#
+# License:            MIT
+# Author:             Ben Davis <bengineerdavis@gmail.com>
+# Credits:            None
+# Created:            2026-03-23
+# Last Modified:      2026-03-23
+#
+# Usage:              ./summarize-first-email.sh
+#
+# Notes:
+#   - Requires an external LLM service (e.g., via llm command) to process the input text.
+#   - The input file 'first-reply.md' must exist in the current directory and contain the customer's initial email content.
+#   - The script assumes the 'llm' command is available and configured in the environment (e.g., via API keys or local setup).
+#   - Output is saved as "$MODEL-llm-processed-reply.md" in the current directory.
+#   - No sudo or root privileges required.
+#
+# -----------------------------------------------------------------------------
+
+## VARIABLES ##
+# Use existing MODEL env var if set; otherwise use first script arg; fallback to default.
+MODEL="${1:-"qwen3.5:27b"}"
+PROMPT=$(cat <<'EOF'
+You are an experienced senior technical support engineer; 
+help summarize and target complex initial email requests into 
+itemized and easy to understand asks from us (rephrase to be 
+the better version of the question)? Make sure to put it into
+your own words instead of trying to re-ask the question -- 
+describe it to me as if you were helping me on the team to 
+understand the ticket and what the customer is asking.
+EOF
+)
+
+# MAIN #
+cat first-reply.md | \
+llm "$PROMPT" -m "$MODEL" > \
+"$MODEL-llm-processed-reply.md"
