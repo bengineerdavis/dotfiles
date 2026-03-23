@@ -1,5 +1,8 @@
 [settings]
 experimental = true
+pipx.uvx = true
 
 [tools]
 go = "latest"
+"pipx:llm" = "latest"
+uv = "latest"
