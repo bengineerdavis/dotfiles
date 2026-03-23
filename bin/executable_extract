@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+shopt -s extglob
 
 # Original: Arch Wiki (https://wiki.archlinux.org/title/Bash/Functions#Extract)
 # Co-Author: Ben Davis
@@ -40,3 +41,5 @@ extract() {
     done
     return "$e"
 }
+
+extract "$@" 
