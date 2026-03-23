@@ -142,6 +142,14 @@ INTELLIGENCE REQUIRED:
    - EXISTING files: Preserve all script content, only update/add the header
    - Output ONLY the complete script
    - No explanations, no markdown blocks, no commentary
+   - The output MUST follow this exact sequence with NO extra lines or separators between them:
+     1. The Shebang: #!/usr/bin/env bash
+     2. The Opening Header Line: # -----------------------------------------------------------------------------
+     3. The Header Content: (Script Name, Description, Author, etc.)
+     4. The Closing Header Line: # -----------------------------------------------------------------------------
+     5. The Script Code: (The actual bash logic)
+   - DO NOT include triple backticks (```), "---", or conversational text.
+   - Ensure the header is INSIDE the script, not a separate block.
 INSTRUCTIONS_END
 
 # Build the complete prompt
@@ -171,16 +179,36 @@ Now output the complete updated script with intelligent, accurate header.
 EOF
 
 check_dependencies() {
+    # assert that 'llm' command is available
     if ! command -v llm &> /dev/null; then
         echo "Error: 'llm' command not found. Please install the LLM CLI tool."
+        exit 1
+    fi
+
+    # assert first if the model is saas/cloud and available to llm
+    if ! llm models list | grep -q "$LLM_MODEL"; then
+        echo "Error: LLM model '$LLM_MODEL' not found. Please check available models with 'llm models list'."
         exit 1
     fi
 }
 
 cognition() {
-    local script_path="$1"
-    llm -m "$LLM_MODEL" "$PROMPT" | tee "${script_path}.tmp"
+    local target_file="$1"
+    
+    # 1. Send the prompt to the LLM
+    # 2. Strip markdown backticks
+    # 3. Strip any line that is JUST dashes (without a leading #)
+    # 4. Strip conversational filler
+    printf "%s\n" "$PROMPT" | llm -m "$LLM_MODEL" | 
+        sed '/^```/d' | 
+        sed '/^---/d' | 
+        sed '/^Here is/d' | 
+        sed '/^I have updated/d' > "$target_file"
 }
+
+
+## MAIN ### 
+check_dependencies
 
 echo "Would you like to add or update the script header? (yes/no)"
 read -r answer
@@ -212,13 +240,17 @@ if [[ "$answer" =~ ^[Yy][Ee][Ss]$|^[Yy]$ ]]; then
         echo "=== DEBUG MODE: Showing LLM output in real-time ==="
         # Run the configured and prompted LLM
         cognition "${SCRIPT_PATH}.tmp"
+        # Add this right here:
+        ls -la "${SCRIPT_PATH}.tmp" || echo "DEBUG: .tmp file was NEVER created!"
+
         echo ""
         echo "=== END DEBUG OUTPUT ==="
     else
         # Run LLM in background with spinner
         # Run the configured and prompted LLM
-        cognition "${SCRIPT_PATH}.tmp" &
-        LLM_PID=$!
+        cognition "${SCRIPT_PATH}.tmp" && \
+        ls -la "${SCRIPT_PATH}.tmp" || echo "DEBUG: .tmp file was NEVER created!"
+        LLM_PID=$!        
         show_spinner $LLM_PID
         wait $LLM_PID
         LLM_EXIT_CODE=$?
