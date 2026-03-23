@@ -1,0 +1,386 @@
+#!/bin/bash
+# ==============================================================================
+# MIT License
+# 
+# Copyright (c) 2025 Ben Davis
+# 
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+# ==============================================================================
+
+
+# ==============================================================================
+# Archiver Script - Compresses or extracts archives using available tools
+# ==============================================================================
+# Usage: archiver.sh [compress|extract|prune] input [output]
+#
+# Examples:
+#   archiver.sh compress directory archive.tar.gz
+#   archiver.sh compress directory archive.tar.xz
+#   archiver.sh extract archive.tar.gz [output_dir]
+#   archiver.sh extract archive.tar.xz [output_dir]
+#   archiver.sh prune /path/to/archive.tar.gz
+#
+# Environment Variables:
+#   MAX_ARCHIVES - Maximum number of archives to keep (default: 5)
+#   DISABLE_PRUNING - Set to 1 to disable automatic pruning after compression
+
+set -e     # Exit immediately if a command exits with a non-zero status
+set -u     # Treat unset variables as an error
+set -o pipefail # Return value of a pipeline is the value of the last command to exit with non-zero status
+
+# Uncomment for debugging
+# set -x   # Print commands and their arguments as they are executed
+
+# Configuration
+MAX_ARCHIVES="${MAX_ARCHIVES:-5}"
+DISABLE_PRUNING="${DISABLE_PRUNING:-0}"
+
+########################
+### Helper Functions ###
+########################
+
+# Helper function to check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+help_message() {
+    echo "Usage: $(basename "$0") [compress|extract|prune] input [output]"
+    echo ""
+    echo "Actions:"
+    echo "  compress: Compress a directory into an archive"
+    echo "  extract:  Extract an archive into a directory"
+    echo "  prune:    Remove old archives, keeping only the most recent ones"
+    echo ""
+    echo "Arguments:"
+    echo "  input:    The directory to compress, archive to extract, or archive path for pruning"
+    echo "  output:   The name of the output archive (for compress) or output directory (for extract)"
+    echo ""
+    echo "Environment Variables:"
+    echo "  MAX_ARCHIVES      - Maximum archives to keep during pruning (default: $MAX_ARCHIVES)"
+    echo "  DISABLE_PRUNING   - Set to 1 to disable automatic pruning (default: $DISABLE_PRUNING)"
+    echo ""
+    echo "Examples:"
+    echo "  $(basename "$0") compress ./tickets archive.tar.gz"
+    echo "  $(basename "$0") extract archive.tar.gz ./restored"
+    echo "  $(basename "$0") prune /path/to/archive.tar.gz"
+    echo "  MAX_ARCHIVES=10 $(basename "$0") compress ./data backup.zip"
+}
+
+# Helper function to get the file extension pattern for pruning
+get_archive_pattern() {
+    local archive="$1"
+    local filename=$(basename "$archive")
+    
+    case "$filename" in
+        *.tar.gz) echo "*.tar.gz" ;;
+        *.tgz)    echo "*.tgz" ;;
+        *.tar.xz) echo "*.tar.xz" ;;
+        *.zip)    echo "*.zip" ;;
+        *)        echo "*" ;;  # Fallback to all files if extension unknown
+    esac
+}
+
+# Helper function to prune old archives
+prune_archives() {
+    local archive_path="$1"
+    local archive_dir=$(dirname "$archive_path")
+    local archive_pattern=$(get_archive_pattern "$archive_path")
+    local max_archives="$MAX_ARCHIVES"
+    
+    echo "INFO: Pruning archives in $archive_dir, keeping $max_archives most recent $archive_pattern files"
+    
+    # Count existing archives
+    local archive_count=$(find "$archive_dir" -name "$archive_pattern" -type f | wc -l | tr -d ' ')
+    
+    if [ "$archive_count" -le "$max_archives" ]; then
+        echo "INFO: Only $archive_count archives found, no pruning needed"
+        return
+    fi
+    
+    echo "INFO: Found $archive_count archives, will remove $((archive_count - max_archives)) old ones"
+    
+    # Use ls to get files sorted by modification time (newest first)
+    # Then use tail to get the oldest files beyond our keep limit
+    local files_to_remove=$(ls -1t "$archive_dir"/$archive_pattern 2>/dev/null | tail -n +$((max_archives + 1)))
+    
+    if [ -z "$files_to_remove" ]; then
+        echo "INFO: No files to remove"
+        return
+    fi
+    
+    echo "DEBUG: Files to remove:"
+    echo "$files_to_remove"
+    
+    if command_exists trash; then
+        echo "INFO: Using trash-cli to safely remove old archives"
+        echo "$files_to_remove" | while IFS= read -r filepath; do
+            if [ -f "$filepath" ]; then
+                echo "INFO: Moving old archive to trash: $(basename "$filepath")"
+                trash "$filepath"
+            else
+                echo "WARNING: File not found: $filepath"
+            fi
+        done
+    else
+        echo "WARNING: trash-cli not found, using rm instead (permanent deletion)"
+        echo "Files to be deleted:"
+        echo "$files_to_remove" | while IFS= read -r filepath; do
+            echo "  $(basename "$filepath")"
+        done
+        read -p "Continue with permanent deletion? [y/N] " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo "$files_to_remove" | while IFS= read -r filepath; do
+                echo "INFO: Permanently deleting old archive: $(basename "$filepath")"
+                rm "$filepath"
+            done
+        else
+            echo "INFO: Skipping archive pruning"
+        fi
+    fi
+}
+
+# Helper function to extract archives
+extract_archive() {
+    local archive="$1"
+    local output_dir="${2:-.}"
+    
+    # Create output directory if it doesn't exist
+    mkdir -p "$output_dir"
+    
+    case "$archive" in
+        *.tar.gz|*.tgz)
+            if command_exists tar; then
+                echo "INFO: Extracting $archive to $output_dir using tar -xzf"
+                tar -xzf "$archive" -C "$output_dir"
+            else
+                echo "Error: tar command not found"
+                exit 1
+            fi
+            ;;
+        *.tar.xz)
+            if command_exists tar; then
+                echo "INFO: Extracting $archive to $output_dir using tar -xJf"
+                tar -xJf "$archive" -C "$output_dir"
+            else
+                echo "Error: tar command not found"
+                exit 1
+            fi
+            ;;
+        *.zip)
+            if command_exists unzip; then
+                echo "INFO: Extracting $archive to $output_dir using unzip"
+                unzip "$archive" -d "$output_dir"
+            else
+                echo "Error: unzip command not found"
+                exit 1
+            fi
+            ;;
+        *)
+            echo "Error: Unsupported archive format"
+            exit 1
+            ;;
+    esac
+}
+
+# Helper function to create archives
+compress_directory() {
+    local input="$1"
+    local output="$2"
+    
+    # Calculate initial size
+    local initial_size=$(du -s "$input" | awk '{print $1}')
+    local readable_initial=$(du -sh "$input" | awk '{print $1}')
+    
+    # Helper functions for compression using different tools
+    compress_with_tar_gz() {
+        local input="$1"
+        local output="$2"
+        
+        if command_exists tar; then
+            if command_exists pigz; then
+                echo "INFO: Compressing $input to $output using tar with pigz"
+                tar -I pigz -cf "$output" -C "$(dirname "$input")" "$(basename "$input")"
+            else
+                echo "INFO: Compressing $input to $output using tar -czf (consider installing pigz for faster compression)"
+                tar -czf "$output" -C "$(dirname "$input")" "$(basename "$input")"
+            fi
+        else
+            echo "Error: tar command not found"
+            exit 1
+        fi
+    }
+
+    compress_with_tar_xz() {
+        local input="$1"
+        local output="$2"
+        
+        if command_exists tar; then
+            if command_exists pixz; then
+                echo "INFO: Compressing $input to $output using tar with pixz"
+                tar -I pixz -cf "$output" -C "$(dirname "$input")" "$(basename "$input")"
+            else
+                echo "INFO: Compressing $input to $output using tar -cJf (consider installing pixz for faster compression)"
+                tar -cJf "$output" -C "$(dirname "$input")" "$(basename "$input")"
+            fi
+        else
+            echo "Error: tar command not found"
+            exit 1
+        fi
+    }
+
+    compress_with_zip() {
+        local input="$1"
+        local output="$2"
+        
+        if ! command_exists zip; then
+            echo "Error: zip command not found"
+            exit 1
+        fi
+        
+        # Store original directory to return later
+        local original_dir=$(pwd)
+        
+        # Change to input parent directory for zip operation
+        cd "$(dirname "$input")"
+        
+        if command_exists pigz; then
+            echo "INFO: Compressing $input to $output using zip with pigz"
+            zip -r -0 - "$(basename "$input")" | pigz > "$(basename "$output")"
+        else
+            echo "INFO: Compressing $input to $output using standard zip"
+            zip -r "$(basename "$output")" "$(basename "$input")"
+        fi
+        
+        # Move the zip file if necessary
+        local zip_name="$(basename "$output")"
+        if [ "$(pwd)/$zip_name" != "$output" ]; then
+            mv "$zip_name" "$output"
+        fi
+        
+        # Return to original directory
+        cd "$original_dir"
+    }
+
+    # Main compression function
+    case "$output" in
+        *.tar.gz|*.tgz)
+            compress_with_tar_gz "$input" "$output"
+            ;;
+        *.tar.xz)
+            compress_with_tar_xz "$input" "$output"
+            ;;
+        *.zip)
+            compress_with_zip "$input" "$output"
+            ;;
+        *)
+            echo "Error: Unsupported output format. Use .tar.gz, .tgz, .tar.xz, or .zip"
+            exit 1
+            ;;
+    esac
+    
+    # Calculate compressed size and reduction
+    local final_size=$(stat -f%z "$output" 2>/dev/null || stat -c%s "$output" 2>/dev/null || echo "0")
+    local readable_final=$(du -sh "$output" | awk '{print $1}')
+    
+    if [ "$final_size" -gt 0 ] && [ "$initial_size" -gt 0 ]; then
+        local reduction=$(( 100 - (final_size * 100 / initial_size) ))
+        echo "INFO: Compression results:"
+        echo "  Original size: $readable_initial ($initial_size bytes)"
+        echo "  Compressed size: $readable_final ($final_size bytes)"
+        echo "  Size reduction: ${reduction}%"
+    fi
+}
+
+########################
+##### Main Script ######   
+########################
+
+# Main script execution function
+main() {
+    local action="$1"
+    local input="$2"
+    local output="${3:-}"
+
+    echo "INFO: Action: $action"
+    echo "INFO: Input: $input"
+    if [ -n "$output" ]; then
+        echo "INFO: Output: $output"
+    fi
+
+    case "$action" in
+        compress)
+            if [ -z "$output" ]; then
+                echo "Error: Output file name is required for compression"
+                exit 1
+            fi
+            if [ ! -d "$input" ]; then
+                echo "Error: Input must be a directory for compression"
+                exit 1
+            fi
+            echo "INFO: Starting compression of $input to $output"
+            compress_directory "$input" "$output"
+            echo "INFO: Successfully compressed $input to $output"
+            
+            # Automatically prune old archives unless disabled
+            if [ "$DISABLE_PRUNING" != "1" ]; then
+                echo "INFO: Auto-pruning enabled, cleaning up old archives..."
+                prune_archives "$output"
+            else
+                echo "INFO: Auto-pruning disabled, keeping all archives"
+            fi
+            ;;
+            
+        extract)
+            if [ ! -f "$input" ]; then
+                echo "Error: Input file does not exist: $input"
+                exit 1
+            fi
+            echo "INFO: Starting extraction of $input to ${output:-.}"
+            extract_archive "$input" "$output"
+            echo "INFO: Successfully extracted $input to ${output:-.}"
+            ;;
+            
+        prune)
+            if [ ! -f "$input" ]; then
+                echo "Error: Archive file does not exist: $input"
+                exit 1
+            fi
+            echo "INFO: Starting pruning for archives similar to $input"
+            prune_archives "$input"
+            echo "INFO: Pruning completed"
+            ;;
+            
+        *)
+            echo "Error: Unknown action '$action'. Use 'compress', 'extract', or 'prune'"
+            help_message
+            exit 1
+            ;;
+    esac
+}
+
+# Check if we have enough arguments
+if [ "$#" -lt 2 ]; then
+    help_message
+    exit 1
+fi
+
+# Call main with all arguments
+main "$@"

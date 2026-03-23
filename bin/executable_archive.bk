@@ -1,0 +1,507 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "typer",
+#   "tomli",
+#   "tomli-w",
+#   "rich",
+# ]
+# ///
+
+import datetime
+import logging
+import subprocess
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
+from typing import List, Optional
+
+import tomli
+import tomli_w
+import typer
+from typer import Argument, Option
+
+app = typer.Typer()
+
+# Set up storage of local config, logs, and data for the script
+APP_DIR = Path.home() / ".local" / "archive-script"
+APP_DIR.mkdir(parents=True, exist_ok=True)
+
+CONFIG_FILE = APP_DIR / "config.toml"
+
+# Default configuration
+DEFAULT_CONFIG = {
+    "compression": {
+        "level": 19,
+        "tool": "pzstd",
+    },
+    "output": {
+        "default_dir": ".",
+    },
+    "logging": {
+        "level": "INFO",
+        "max_bytes": 10 * 1024 * 1024,  # 10MB
+        "backup_count": 10,
+    },
+}
+
+# Load or create config file
+if not CONFIG_FILE.exists():
+    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(CONFIG_FILE, "wb") as f:
+        tomli_w.dump(DEFAULT_CONFIG, f)
+    config = DEFAULT_CONFIG
+else:
+    with open(CONFIG_FILE, "rb") as f:
+        config = tomli.load(f)
+
+# Set up logging
+LOG_DIR = APP_DIR / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE = LOG_DIR / f"archive_{datetime.date.today().isoformat()}.log"
+
+logging.basicConfig(
+    level=getattr(logging, config["logging"]["level"]),
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+    handlers=[
+        RotatingFileHandler(
+            LOG_FILE,
+            maxBytes=config["logging"]["max_bytes"],
+            backupCount=config["logging"]["backup_count"],
+        )
+    ],
+)
+
+logger = logging.getLogger(__name__)
+
+
+def check_tool_available(tool: str) -> bool:
+    """Check if a compression tool is available."""
+    try:
+        subprocess.check_call(
+            [tool, "--version"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+
+@app.command()
+def compress(
+    paths: List[Path] = Argument(..., help="Paths to directories or files to compress."),
+    output_dir: Optional[Path] = Option(None, "-o", "--output-dir", help="Output directory (default: current directory)."),
+    output_name: Optional[str] = Option(None, "-n", "--name", help="Output archive name (without extension)."),
+    compression_level: Optional[int] = Option(None, "-c", "--compression-level", help="Compression level (default: from config)."),
+    external_tool: Optional[str] = Option(None, "-e", "--external-tool", help="External tool: 'pzstd', 'zstd', 'gzip', 'bzip2', 'xz' (default: from config)."),
+    individual: bool = Option(False, "-i", "--individual", help="Create separate archives for each input path."),
+    preserve_paths: bool = Option(False, "-p", "--preserve-paths", help="Preserve full directory paths in archive."),
+):
+    """
+    Create compressed tar archives from the specified directories and files.
+
+    By default, all inputs are combined into a single archive. Use --individual 
+    to create separate archives for each input path.
+    """
+    # Use config defaults if not specified
+    if output_dir is None:
+        output_dir = Path(config["output"]["default_dir"])
+    if compression_level is None:
+        compression_level = config["compression"]["level"]
+    if external_tool is None:
+        external_tool = config["compression"]["tool"]
+
+    # Validate compression level (different tools have different ranges)
+    if external_tool in ["pzstd", "zstd"]:
+        if not (1 <= compression_level <= 22):
+            typer.echo("Error: Compression level must be between 1 and 22 for zstd", err=True)
+            raise typer.Exit(1)
+    elif external_tool == "gzip":
+        if not (1 <= compression_level <= 9):
+            typer.echo("Error: Compression level must be between 1 and 9 for gzip", err=True)
+            raise typer.Exit(1)
+    elif external_tool == "xz":
+        if not (0 <= compression_level <= 9):
+            typer.echo("Error: Compression level must be between 0 and 9 for xz", err=True)
+            raise typer.Exit(1)
+
+    # Check tool availability
+    if external_tool == "pzstd" and not check_tool_available("pzstd"):
+        logger.warning("pzstd is not installed, falling back to zstd.")
+        external_tool = "zstd"
+
+    if not check_tool_available(external_tool):
+        typer.echo(f"Error: {external_tool} is not installed. Please install it first.", err=True)
+        logger.error(f"{external_tool} is not installed, cannot compress.")
+        raise typer.Exit(1)
+
+    # Check if tar is available
+    if not check_tool_available("tar"):
+        typer.echo("Error: tar is not installed. Please install it first.", err=True)
+        raise typer.Exit(1)
+
+    # Validate input paths
+    for path in paths:
+        if not path.exists():
+            typer.echo(f"Error: Path does not exist: {path}", err=True)
+            raise typer.Exit(1)
+
+    # Ensure output directory exists
+    output_dir = output_dir.resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Determine file extension based on compressor
+    ext_map = {
+        "pzstd": ".tar.zst",
+        "zstd": ".tar.zst",
+        "gzip": ".tar.gz",
+        "bzip2": ".tar.bz2",
+        "xz": ".tar.xz",
+    }
+    extension = ext_map.get(external_tool, ".tar.zst")
+
+    # Compression flag for the tool
+    if external_tool in ["pzstd", "zstd"]:
+        comp_flag = f"-{compression_level}"
+    elif external_tool == "gzip":
+        comp_flag = f"-{compression_level}"
+    elif external_tool == "bzip2":
+        comp_flag = f"-{compression_level}"
+    elif external_tool == "xz":
+        comp_flag = f"-{compression_level}"
+    else:
+        comp_flag = f"-{compression_level}"
+
+    success_count = 0
+    fail_count = 0
+
+    if individual:
+        # Create separate archive for each input path
+        typer.echo(f"Creating {len(paths)} individual archives with {external_tool}")
+        
+        for path in paths:
+            # Generate archive name from input path
+            archive_name = path.name if path.name else "archive"
+            output_file = output_dir / f"{archive_name}{extension}"
+            
+            # Avoid overwriting
+            counter = 1
+            while output_file.exists():
+                output_file = output_dir / f"{archive_name}_{counter}{extension}"
+                counter += 1
+
+            success = create_tar_archive(
+                paths=[path],
+                output_file=output_file,
+                compressor=external_tool,
+                compression_flag=comp_flag,
+                preserve_paths=preserve_paths,
+            )
+            
+            if success:
+                logger.info(f"Created archive: {output_file}")
+                typer.echo(f"✓ Created: {output_file.name}")
+                success_count += 1
+            else:
+                logger.error(f"Failed to create archive: {output_file}")
+                typer.echo(f"✗ Failed: {output_file.name}", err=True)
+                fail_count += 1
+    else:
+        # Create single archive from all inputs
+        if output_name:
+            archive_name = output_name
+        else:
+            # Generate name from timestamp or first path
+            archive_name = f"archive_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        output_file = output_dir / f"{archive_name}{extension}"
+        
+        # Avoid overwriting
+        counter = 1
+        while output_file.exists():
+            output_file = output_dir / f"{archive_name}_{counter}{extension}"
+            counter += 1
+
+        typer.echo(f"Creating archive: {output_file.name}")
+        typer.echo(f"Using {external_tool} with compression level {compression_level}")
+        
+        success = create_tar_archive(
+            paths=paths,
+            output_file=output_file,
+            compressor=external_tool,
+            compression_flag=comp_flag,
+            preserve_paths=preserve_paths,
+        )
+        
+        if success:
+            logger.info(f"Created archive: {output_file}")
+            typer.echo(f"✓ Successfully created: {output_file}")
+            success_count = 1
+        else:
+            logger.error(f"Failed to create archive: {output_file}")
+            typer.echo(f"✗ Failed to create archive", err=True)
+            fail_count = 1
+
+    typer.echo(f"\nCompleted: {success_count} succeeded, {fail_count} failed")
+
+
+def create_tar_archive(
+    paths: List[Path],
+    output_file: Path,
+    compressor: str,
+    compression_flag: str,
+    preserve_paths: bool = False,
+) -> bool:
+    """
+    Create a compressed tar archive using the specified compressor.
+    
+    Returns True on success, False on failure.
+    """
+    try:
+        def _build_tar_cmd(preserve_paths: bool, paths: List[Path] = []) -> List[str]:
+            
+            tar_cmd = ["tar", "-c"]
+
+            # Add tar options
+            if not preserve_paths:
+                tar_cmd.append("-C")
+                # Use common parent directory
+                if len(paths) == 1:
+                    if paths[0].is_dir():
+                        tar_cmd.append(str(paths[0].parent))
+                        tar_targets = [paths[0].name]
+                    else:
+                        tar_cmd.append(str(paths[0].parent))
+                        tar_targets = [paths[0].name]
+                else:
+                    # For multiple paths, use current directory
+                    tar_cmd.append(".")
+                    tar_targets = [str(p) for p in paths]
+            else:
+                tar_targets = [str(p) for p in paths]
+            
+            tar_cmd.extend(tar_targets)
+
+            return tar_cmd
+        
+        def _build_comp_cmd(compressor: str, compression_flag: str, output_file: Path) -> List[str]:
+            comp_cmd = []
+            if compressor in ["pzstd", "zstd"]:
+                comp_cmd = [compressor, compression_flag, "-o", str(output_file)]
+            # Special handling for different compressors
+            elif compressor in ["gzip", "bzip2", "xz"]:
+                # These tools don't use -o flag
+                comp_cmd = [compressor, compression_flag]
+
+            return comp_cmd
+        
+        # Build tar command
+        tar_cmd = _build_tar_cmd(preserve_paths, paths)
+
+        # Build compressor command
+        comp_cmd = _build_comp_cmd(compressor, compression_flag, output_file)
+        
+        # Create the pipeline: tar -c ... | compressor > output_file
+        logger.debug(f"Running: {' '.join(tar_cmd)} | {' '.join(comp_cmd)}")
+        
+        # Start tar process
+        tar_process = subprocess.Popen(
+            tar_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        
+        # Start compressor process
+        if compressor in ["pzstd", "zstd"]:
+            # pzstd and zstd support -o flag
+            comp_process = subprocess.Popen(
+                comp_cmd,
+                stdin=tar_process.stdout,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+            )
+        else:
+            # gzip, bzip2, xz write to stdout
+            with open(output_file, "wb") as f:
+                comp_process = subprocess.Popen(
+                    comp_cmd,
+                    stdin=tar_process.stdout,
+                    stdout=f,
+                    stderr=subprocess.PIPE,
+                )
+        
+        # Close tar stdout in parent (allows tar to receive SIGPIPE if comp dies)
+        if tar_process.stdout:
+            tar_process.stdout.close()
+        
+        # Wait for both processes
+        comp_stderr = comp_process.communicate()[1]
+        tar_return = tar_process.wait()
+        comp_return = comp_process.returncode
+        
+        if tar_return != 0:
+            logger.error(f"tar failed with return code {tar_return}")
+            return False
+        
+        if comp_return != 0:
+            logger.error(f"{compressor} failed with return code {comp_return}: {comp_stderr.decode()}")
+            return False
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error creating archive: {e}")
+        return False
+
+
+@app.command()
+def decompress(
+    paths: List[Path] = Argument(..., help="Paths to compressed tar archives to decompress."),
+    output_dir: Optional[Path] = Option(None, "-o", "--output-dir", help="Output directory (default: current directory)."),
+    external_tool: Optional[str] = Option(None, "-e", "--external-tool", help="External tool: 'pzstd', 'zstd', 'gzip', 'bzip2', 'xz' (default: auto-detect)."),
+):
+    """
+    Decompress and extract compressed tar archives.
+    
+    Auto-detects compression format from file extension if not specified.
+    """
+    # Use config defaults if not specified
+    if output_dir is None:
+        output_dir = Path(config["output"]["default_dir"])
+
+    # Validate input paths
+    for path in paths:
+        if not path.exists():
+            typer.echo(f"Error: Path does not exist: {path}", err=True)
+            raise typer.Exit(1)
+
+    # Collect all archive files to decompress
+    all_files = []
+    archive_extensions = [".tar.zst", ".tar.gz", ".tar.bz2", ".tar.xz", ".tgz"]
+    
+    for path in paths:
+        if path.is_dir():
+            for ext in archive_extensions:
+                all_files.extend(path.rglob(f"**/*{ext}"))
+        elif path.is_file():
+            all_files.append(path)
+
+    if not all_files:
+        typer.echo("No archive files found to decompress.", err=True)
+        raise typer.Exit(1)
+
+    # Ensure output directory exists
+    output_dir = output_dir.resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    typer.echo(f"Decompressing {len(all_files)} archives to {output_dir}")
+
+    # Decompress files
+    success_count = 0
+    fail_count = 0
+
+    for archive in all_files:
+        # Auto-detect compressor from extension if not specified
+        if external_tool is None:
+            if archive.suffix == ".zst" or ".tar.zst" in archive.name:
+                detected_tool = "pzstd" if check_tool_available("pzstd") else "zstd"
+            elif archive.suffix == ".gz" or ".tar.gz" in archive.name or archive.suffix == ".tgz":
+                detected_tool = "gzip"
+            elif archive.suffix == ".bz2" or ".tar.bz2" in archive.name:
+                detected_tool = "bzip2"
+            elif archive.suffix == ".xz" or ".tar.xz" in archive.name:
+                detected_tool = "xz"
+            else:
+                typer.echo(f"✗ Cannot detect compression format for: {archive.name}", err=True)
+                fail_count += 1
+                continue
+        else:
+            detected_tool = external_tool
+
+        # Check if tool is available
+        if detected_tool == "pzstd" and not check_tool_available("pzstd"):
+            detected_tool = "zstd"
+        
+        if not check_tool_available(detected_tool):
+            typer.echo(f"✗ {detected_tool} is not installed, skipping {archive.name}", err=True)
+            fail_count += 1
+            continue
+
+        success = extract_tar_archive(
+            archive_file=archive,
+            output_dir=output_dir,
+            decompressor=detected_tool,
+        )
+        
+        if success:
+            logger.info(f"Extracted: {archive}")
+            typer.echo(f"✓ Extracted: {archive.name}")
+            success_count += 1
+        else:
+            logger.error(f"Failed to extract: {archive}")
+            typer.echo(f"✗ Failed: {archive.name}", err=True)
+            fail_count += 1
+
+    typer.echo(f"\nCompleted: {success_count} succeeded, {fail_count} failed")
+
+
+def extract_tar_archive(
+    archive_file: Path,
+    output_dir: Path,
+    decompressor: str,
+) -> bool:
+    """
+    Extract a compressed tar archive using the specified decompressor.
+    
+    Returns True on success, False on failure.
+    """
+    try:
+        # Build decompressor command
+        decomp_cmd = [decompressor, "-d", "-c", str(archive_file)]
+        
+        # Build tar command
+        tar_cmd = ["tar", "-x", "-C", str(output_dir)]
+        
+        logger.debug(f"Running: {' '.join(decomp_cmd)} | {' '.join(tar_cmd)}")
+        
+        # Create the pipeline: decompressor -d -c archive | tar -x -C output_dir
+        decomp_process = subprocess.Popen(
+            decomp_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        
+        tar_process = subprocess.Popen(
+            tar_cmd,
+            stdin=decomp_process.stdout,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+        
+        # Close decomp stdout in parent
+        if decomp_process.stdout:
+            decomp_process.stdout.close()
+        
+        # Wait for both processes
+        tar_stderr = tar_process.communicate()[1]
+        decomp_return = decomp_process.wait()
+        tar_return = tar_process.returncode
+        
+        if decomp_return != 0:
+            logger.error(f"{decompressor} failed with return code {decomp_return}")
+            return False
+        
+        if tar_return != 0:
+            logger.error(f"tar failed with return code {tar_return}: {tar_stderr.decode()}")
+            return False
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error extracting archive: {e}")
+        return False
+
+
+if __name__ == "__main__":
+    app()

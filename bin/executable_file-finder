@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# This script finds the top n-most recently modified versions of the target_file
+# in the home directory, but (optionally) only if they are in directories that also contain
+# one or more constraint files
+
+# Work was assisted by this Claude chat: https://claude.ai/chat/ec9b5aa3-819f-4311-9688-cc9abe2fc49d
+
+_help() {
+    echo "Usage: $(basename "$0") <target_file> [found_with_files_constraints] [limit]"
+    echo ""
+    echo "Arguments:"
+    echo "  target_file                    File to search for (e.g., 'mise.toml')"
+    echo "  found_with_files_constraints   Comma-separated list of constraint files (e.g., 'pyproject.toml,package.json,*prompt*')"
+    echo "  limit                          Number of results to return (default: 5)"
+    echo ""
+    echo "Example:"
+    echo "  $(basename "$0") mise.toml 'pyproject.toml,*prompt*' 10"
+}
+
+_check_dependencies() {
+    command -v fd >/dev/null 2>&1 || \
+        { echo >&2 "fd is required but it's not installed. Aborting."; exit 1; }
+}
+
+main() {
+    _check_dependencies
+    
+    if [ "$#" -lt 1 ]; then
+        _help
+        exit 1
+    fi
+    
+    # the file we're looking for 
+    local target_file="$1"
+    # only show paths to files that also have one or more of the following files in the same directory
+    local found_with_files_constraints="${2:-}"
+    # returns the top n-most recently modified versions of the target_file
+    local limit="${3:-5}"
+    
+    # find the most recently modified files in home directory 
+    echo "Finding the $limit most recently modified '$target_file' files in home directory..."
+    
+    # If no constraints, just find all instances
+    if [ -z "$found_with_files_constraints" ]; then
+        fd -HI "$target_file" ~ \
+            --exec ls -lt {} \; 2>/dev/null | \
+            head -n "$limit"
+    else
+        # Convert comma-separated string to array
+        IFS=',' read -ra constraints <<< "$found_with_files_constraints"
+        
+        echo "  (Only showing results where directory also contains: ${constraints[*]})"
+        
+        # Define helper function to check constraints
+        _check_any_filter() {
+            local dir="$1"
+            shift
+            for pattern in "$@"; do
+                [ -f "$dir/$pattern" ] 2>/dev/null && return 0
+                ls "$dir"/$pattern >/dev/null 2>&1 && return 0
+            done
+            return 1
+        }
+        export -f _check_any_filter
+        
+        # Pass constraints as separate arguments using "$@" in the subshell
+        fd -HI "$target_file" ~ \
+            --exec bash -c '_check_any_filter "$(dirname {})" "$@" && echo "{}"' _ "${constraints[@]}" \; | \
+            xargs -r ls -lt 2>/dev/null | \
+            head -n "$limit"
+    fi
+}
+
+main "$@"

@@ -1,0 +1,266 @@
+#!/usr/bin/env bash
+
+# -----------------------------------------------------------------------------
+# Script Name:        update-script-header.sh
+# Description:        Automatically adds or updates bash script headers using an LLM
+#
+# License:            MIT
+# Author:             Ben Davis - bengineerdavis@gmail.com
+# Credits:            
+# Created:            2025-10-07
+# Last Modified:      2025-10-07
+#
+# Usage:              ./update-script-header.sh <file_path> [llm_model]
+#                     Example: ./update-script-header.sh myscript.sh qwen3:8b
+#
+# Notes:
+#   - Requires 'llm' CLI tool to be installed
+#   - Default model is qwen3:8b if not specified
+#   - Creates file if it doesn't exist
+#
+# -----------------------------------------------------------------------------
+
+# Define header template
+# if values exist, use them, DO NOT CHANGE!
+# if file is modified, update with the last/latest modified date
+read -r -d '' HEADER <<'HEAD'
+# -----------------------------------------------------------------------------
+# Script Name:        [INSERT_SCRIPT_NAME_HERE - Default: use the existing filename]
+# Description:        [Provide a brief description of what this script does. - Default: create a summary if it's missing]
+#
+# License:            [Specify license, e.g., MIT, Apache 2.0, GPL v3.0 - Default: MIT]
+# Author:             [Your Name or Organization - Default: Ben Davis - bengineerdavis@gmail.com]
+# Credits:            [List contributors or sources, if any - Default: Leave blank]
+# Created:            [YYYY-MM-DD: Use the creation date, do not change]
+# Last Modified:      [YYYY-MM-DD - Default: blank, unless modification date is detected, then use that]
+#
+# Usage:              [Provide example usage, if applicable -- do not change if usage has been defined!]
+#
+# Notes:
+#   - [Add any important notes or warnings about this script.]
+#   - [Mention dependencies or required environment variables.]
+#
+# -----------------------------------------------------------------------------
+HEAD
+
+# template values
+INPUT_PATH="$1"
+
+# Check if input was provided FIRST
+if [[ -z "$INPUT_PATH" ]]; then
+    echo "Error: No file path provided."
+    echo "Usage: $0 <file_path> [llm_model]"
+    exit 1
+fi
+
+echo "File path provided: $INPUT_PATH"
+
+# Handle non-existent files
+if [[ ! -e "$INPUT_PATH" ]]; then
+    echo "File does not exist. Creating $INPUT_PATH..."
+    mkdir -p "$(dirname "$INPUT_PATH")" || { echo "Failed to create directory."; exit 1; }
+    touch "$INPUT_PATH" || { echo "Failed to create file."; exit 1; }
+    echo "#!/usr/bin/env bash" > "$INPUT_PATH"
+fi
+
+# NOW resolve the full path (file exists now)
+SCRIPT_PATH="$(realpath "$INPUT_PATH")"
+echo "Processing file: $SCRIPT_PATH"
+SCRIPT_NAME="$(basename "$SCRIPT_PATH")"
+echo "Script name: $SCRIPT_NAME"
+TODAY="$(date +%Y-%m-%d)"
+echo "Today's date: $TODAY"
+
+# Assign git config user name and email to separate variables
+GIT_USER_NAME=$(git config --local user.name 2>/dev/null || git config --global user.name 2>/dev/null || echo "Ben Davis")
+GIT_USER_EMAIL=$(git config --local user.email 2>/dev/null || git config --global user.email 2>/dev/null || echo "bengineerdavis@gmail.com")
+
+# LLM model to use
+LLM_MODEL=${2:-"qwen3:4b-instruct-2507-q4_K_M"} # default to smaller 4b instruct model for cost savings
+echo "Using LLM model: $LLM_MODEL"
+
+# Debug mode (set to 1 to see LLM output in real-time)
+DEBUG_MODE=${DEBUG_MODE:-0}
+
+# /nothink if using a qwen model
+# NO_THINK=""
+# if [[ "$LLM_MODEL" == qwen* ]]; then
+#     echo "Using Qwen model: $LLM_MODEL"
+#     NO_THINK="/nothink"
+# fi
+
+# Read the current file content
+FILE_CONTENT="$(cat "$SCRIPT_PATH")"
+
+# Check if file is empty or only has shebang
+FILE_SIZE=$(wc -l < "$SCRIPT_PATH")
+if [[ "$FILE_SIZE" -le 1 ]]; then
+    echo "Detected new/empty file. Will generate initial header and script structure."
+fi
+
+# Define the instructions (no variable expansion needed here)
+read -r -d '' INSTRUCTIONS <<'INSTRUCTIONS_END'
+You are an expert bash script documentation assistant.
+
+Your task is to analyze and create/update bash script headers intelligently.
+
+INTELLIGENCE REQUIRED:
+1. **Analyze the script content** (if it exists) to understand what it does
+   - For NEW/EMPTY scripts: Infer purpose from filename
+   - For EXISTING scripts: Read the actual code logic, functions, and operations
+
+2. **Generate or improve the description**:
+   - NEW files: Write a clear, specific description based on filename (e.g., "backup-db.sh" → "Automated database backup script with rotation and compression")
+   - EXISTING files: Base description on actual script functionality
+   - Make it 1-2 sentences, clear and professional
+
+3. **Smart Usage examples**:
+   - NEW files: Generate realistic examples based on inferred purpose
+   - EXISTING files: Analyze actual parameters ($1, $2, flags, etc.) and create accurate usage
+   - If existing usage is good, preserve it; if generic or wrong, improve it
+
+4. **Intelligent Notes**:
+   - Identify actual dependencies (jq, curl, docker, git, etc.)
+   - Note required environment variables found in the script
+   - Warn about sudo/root requirements if detected
+   - Mention external tools, APIs, or files the script interacts with
+   - For new files, suggest likely requirements based on script name/type
+
+5. **Date handling**:
+   - NEW files: Created = today, Last Modified = blank
+   - EXISTING files: Preserve original Created date if it exists, otherwise use today
+   - EXISTING files: Update Last Modified to today's date
+
+6. **Preserve existing good values**:
+   - Keep Credits if they exist
+   - Keep License if specified (otherwise default to MIT)
+   - Keep Author if specified (otherwise use provided default)
+   - Don't blindly overwrite good descriptions or notes
+
+7. **Output format**:
+   - NEW files: Start with #!/usr/bin/env bash, add header, then "# Script content goes here"
+   - EXISTING files: Preserve all script content, only update/add the header
+   - Output ONLY the complete script
+   - No explanations, no markdown blocks, no commentary
+INSTRUCTIONS_END
+
+# Build the complete prompt
+read -r -d '' PROMPT <<EOF
+$NO_THINK 
+$INSTRUCTIONS
+
+HEADER TEMPLATE TO USE:
+$HEADER
+
+CURRENT SCRIPT INFORMATION:
+- Script Name: $SCRIPT_NAME
+- File path: $SCRIPT_PATH
+- Today's Date: $TODAY
+
+DEFAULT VALUES (use if not specified in existing header):
+- License: MIT
+- Author: $GIT_USER_NAME <$GIT_USER_EMAIL>
+- Created: $TODAY
+
+CURRENT SCRIPT CONTENT:
+---
+$FILE_CONTENT
+---
+
+Now output the complete updated script with intelligent, accurate header.
+EOF
+
+check_dependencies() {
+    if ! command -v llm &> /dev/null; then
+        echo "Error: 'llm' command not found. Please install the LLM CLI tool."
+        exit 1
+    fi
+}
+
+cognition() {
+    local script_path="$1"
+    llm -m "$LLM_MODEL" "$PROMPT" | tee "${script_path}.tmp"
+}
+
+echo "Would you like to add or update the script header? (yes/no)"
+read -r answer
+if [[ "$answer" =~ ^[Yy][Ee][Ss]$|^[Yy]$ ]]; then
+    echo "Updating header..."
+    echo "Sending request to LLM model: $LLM_MODEL"
+    echo "Please wait, this may take a moment..."
+    
+    # Show a spinner while waiting for LLM
+    show_spinner() {
+        local pid=$1
+        local delay=0.1
+        local spinstr='|/-\'
+        while ps -p $pid > /dev/null 2>&1; do
+            local temp=${spinstr#?}
+            printf " [%c] Processing..." "$spinstr"
+            local spinstr=$temp${spinstr%"$temp"}
+            sleep $delay
+            printf "\r"
+        done
+        printf "    \r"
+    }
+    
+    # Use llm to generate the complete updated script
+    if [[ "$DEBUG_MODE" == "1" ]]; then
+        # set -x for more verbose bash output
+        echo "=== DEBUG MODE: Showing LLM PROMPT in real-time ==="
+        echo "$PROMPT" | tee "${SCRIPT_PATH}.prompt"
+        echo "=== DEBUG MODE: Showing LLM output in real-time ==="
+        # Run the configured and prompted LLM
+        cognition "${SCRIPT_PATH}.tmp"
+        echo ""
+        echo "=== END DEBUG OUTPUT ==="
+    else
+        # Run LLM in background with spinner
+        # Run the configured and prompted LLM
+        cognition "${SCRIPT_PATH}.tmp" &
+        LLM_PID=$!
+        show_spinner $LLM_PID
+        wait $LLM_PID
+        LLM_EXIT_CODE=$?
+        
+        if [[ $LLM_EXIT_CODE -ne 0 ]]; then
+            echo "Error: LLM command failed with exit code $LLM_EXIT_CODE"
+            rm -f "${SCRIPT_PATH}.tmp"
+            exit 1
+        fi
+        
+        echo "✓ LLM processing complete"
+    fi
+    
+    if [[ -s "${SCRIPT_PATH}.tmp" ]]; then
+        # Show preview of changes
+        LINES=$(wc -l < "${SCRIPT_PATH}.tmp")
+        echo "Generated $LINES lines of output"
+        
+        if [[ "$DEBUG_MODE" != "1" ]]; then
+            echo ""
+            echo "=== Preview (first 20 lines) ==="
+            head -n 20 "${SCRIPT_PATH}.tmp"
+            echo "=== End Preview ==="
+            echo ""
+            echo "Apply these changes? (yes/no)"
+            read -r confirm
+            if [[ ! "$confirm" =~ ^[Yy][Ee][Ss]$|^[Yy]$ ]]; then
+                echo "Changes discarded."
+                rm -f "${SCRIPT_PATH}.tmp"
+                exit 0
+            fi
+        fi
+        
+        mv "${SCRIPT_PATH}.tmp" "$SCRIPT_PATH"
+        echo "✓ Header updated in $SCRIPT_PATH"
+    else
+        echo "Error: LLM produced no output. No changes made."
+        echo "Check if the LLM model '$LLM_MODEL' is available."
+        echo "Try running: llm models list"
+        rm -f "${SCRIPT_PATH}.tmp"
+        exit 1
+    fi
+else
+    echo "No changes made."
+fi

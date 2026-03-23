@@ -1,0 +1,827 @@
+#!/usr/bin/env bash
+
+# Homebrew Bootstrap Script (Bash 3.2+ Compatible)
+# =================================================
+# This script works on both old macOS bash (3.2.x) and modern bash (5.x+)
+# It bootstraps Homebrew installation and then upgrades the shell environment
+#
+# Stage 1: Install Homebrew with bash 3.2+ compatible code
+# Stage 2: Use Homebrew to install modern bash/zsh and re-exec
+#
+# Author: Ben Davis
+# License: MIT
+# Updated: 2025-01-15
+
+set -euo pipefail
+
+readonly SCRIPT_NAME="brew-bootstrap"
+readonly SCRIPT_VERSION="1.0.1"
+readonly CONFIG_DIR="${HOME}/.config/homebrew"
+
+# Colors (compatible with older bash)
+RED='\033[31m'
+GREEN='\033[32m'
+YELLOW='\033[33m'
+BLUE='\033[34m'
+BOLD='\033[1m'
+RESET='\033[0m'
+
+# Configuration using simple variables (bash 3.2+ compatible)
+DEFAULT_INSTALLATION_TYPE="userspace"
+DEFAULT_PREFIX_SYSTEM_LINUX="/home/linuxbrew/.linuxbrew"
+DEFAULT_PREFIX_USERSPACE="${DEFAULT_PREFIX_SYSTEM_LINUX}"
+DEFAULT_PREFIX_SYSTEM_MACOS="/opt/homebrew"
+
+DEFAULT_LOG_LEVEL="NORMAL"
+
+# Current configuration
+INSTALLATION_TYPE=""
+HOMEBREW_PREFIX=""
+LOG_LEVEL=""
+
+log_info() {
+    echo -e "${GREEN}INFO:${RESET} $*"
+}
+
+log_warn() {
+    echo -e "${YELLOW}WARNING:${RESET} $*"
+}
+
+log_error() {
+    echo -e "${RED}ERROR:${RESET} $*"
+}
+
+log_step() {
+    echo -e "\n${BOLD}${BLUE}===> $*${RESET}"
+}
+
+detect_os() {
+    case "$(uname -s)" in
+        Darwin) echo "macos" ;;
+        Linux) echo "linux" ;;
+        *) echo "unknown" ;;
+    esac
+}
+
+detect_bash_version() {
+    local version
+    version="${BASH_VERSION%%.*}"
+    echo "${version}"
+}
+
+detect_existing_homebrew() {
+    if command -v brew >/dev/null 2>&1; then
+        local current_prefix
+        current_prefix="$(brew --prefix 2>/dev/null || echo "")"
+        if [ -n "${current_prefix}" ] && [ -d "${current_prefix}" ]; then
+            echo "${current_prefix}"
+            return 0
+        fi
+    fi
+    return 1
+}
+
+check_sudo_requirements() {
+    local installation_type="$1"
+    local target_prefix="$2"
+    
+    # Check if we need sudo for the installation
+    local needs_sudo=false
+    
+    case "${installation_type}" in
+        userspace)
+            # Userspace installations shouldn't need sudo
+            if [ ! -w "$(dirname "${target_prefix}")" ]; then
+                log_warn "Parent directory of ${target_prefix} is not writable"
+                needs_sudo=false
+            fi
+            ;;
+        system|custom)
+            # System installations typically need sudo
+            if [ ! -w "$(dirname "${target_prefix}" 2>/dev/null || echo "/opt")" ]; then
+                needs_sudo=true
+            fi
+            ;;
+    esac
+    
+    if [ "${needs_sudo}" = "true" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+request_sudo_access() {
+    log_step "Requesting Administrator Access"
+    
+    log_info "This installation requires administrator privileges"
+    log_info "You will be prompted for your password"
+    
+    # Test sudo access and keep it alive
+    if sudo -v; then
+        log_info "Administrator access granted"
+        
+        # Keep sudo alive in the background
+        while true; do
+            sleep 50
+            sudo -n true
+            kill -0 "$$" || exit
+        done 2>/dev/null &
+        
+        return 0
+    else
+        log_error "Administrator access required but not available"
+        log_error "Please ensure your user account has administrator privileges"
+        return 1
+    fi
+}
+
+backup_existing_homebrew() {
+    local existing_prefix="$1"
+    local backup_dir="${HOME}/.homebrew_backup_$(date +%Y%m%d_%H%M%S)"
+    
+    log_step "Backing up existing Homebrew installation"
+    
+    mkdir -p "${backup_dir}"
+    
+    # Export current packages
+    log_info "Exporting current package list..."
+    if brew bundle dump --file="${backup_dir}/Brewfile.backup" 2>/dev/null; then
+        log_info "Package list saved to: ${backup_dir}/Brewfile.backup"
+    else
+        log_warn "Failed to export packages - continuing anyway"
+        touch "${backup_dir}/Brewfile.backup"
+    fi
+    
+    # Backup custom taps
+    log_info "Backing up custom taps..."
+    if brew tap > "${backup_dir}/taps.backup" 2>/dev/null; then
+        log_info "Taps saved to: ${backup_dir}/taps.backup"
+    else
+        log_warn "Failed to export taps - continuing anyway"
+        touch "${backup_dir}/taps.backup"
+    fi
+    
+    # Backup configuration files
+    local brew_repo
+    brew_repo="$(brew --repository 2>/dev/null || echo "")"
+    if [ -n "${brew_repo}" ] && [ -d "${brew_repo}" ]; then
+        log_info "Backing up Homebrew repository configuration..."
+        
+        # Backup important config files if they exist
+        for config_file in ".gitconfig" "Library/Homebrew/brew.rb" "etc/homebrew"; do
+            if [ -e "${brew_repo}/${config_file}" ]; then
+                mkdir -p "${backup_dir}/config/$(dirname "${config_file}")"
+                cp -r "${brew_repo}/${config_file}" "${backup_dir}/config/${config_file}" 2>/dev/null || true
+            fi
+        done
+        
+        # Backup custom taps directory
+        if [ -d "${brew_repo}/Library/Taps" ]; then
+            cp -r "${brew_repo}/Library/Taps" "${backup_dir}/taps_directory/" 2>/dev/null || log_warn "Could not backup taps directory"
+        fi
+    fi
+    
+    # Create backup info file
+    cat > "${backup_dir}/backup_info.txt" << EOF
+Homebrew Backup Information
+===========================
+Backup Date: $(date)
+Original Location: ${existing_prefix}
+Original Homebrew Version: $(brew --version 2>/dev/null | head -n1 || echo "Unknown")
+System: $(uname -a)
+
+Files in this backup:
+- Brewfile.backup: Complete package list
+- taps.backup: Custom taps list
+- config/: Homebrew configuration files
+- taps_directory/: Complete taps directory backup
+
+To restore packages after new installation:
+1. Copy Brewfile.backup to ~/.config/homebrew/Brewfile
+2. Run: brew bundle install
+3. Manually re-add any custom taps from taps.backup
+EOF
+    
+    log_info "Backup completed in: ${backup_dir}"
+    echo "${backup_dir}"
+}
+
+cleanup_shell_profiles() {
+    local old_prefix="$1"
+    
+    log_info "Checking shell profiles for Homebrew PATH entries..."
+    
+    local profile_files=(
+        "${HOME}/.bashrc"
+        "${HOME}/.bash_profile"
+        "${HOME}/.zshrc"
+        "${HOME}/.zprofile"
+        "${HOME}/.profile"
+    )
+    
+    local cleaned_files=""
+    
+    for profile in "${profile_files[@]}"; do
+        if [ -f "${profile}" ]; then
+            # Check if file contains references to the old prefix
+            if grep -q "${old_prefix}" "${profile}" 2>/dev/null; then
+                log_info "Found Homebrew references in: ${profile}"
+                
+                # Create backup
+                cp "${profile}" "${profile}.brew_backup_$(date +%Y%m%d_%H%M%S)"
+                
+                # Remove lines containing the old prefix (commented out for safety)
+                # This creates a cleaned version but doesn't automatically apply it
+                grep -v "${old_prefix}" "${profile}" > "${profile}.cleaned" 2>/dev/null || true
+                
+                cleaned_files="${cleaned_files} ${profile}"
+            fi
+        fi
+    done
+    
+    if [ -n "${cleaned_files}" ]; then
+        log_warn "Found Homebrew PATH entries in shell profiles:${cleaned_files}"
+        log_warn "Backups created with .brew_backup_* extension"
+        log_warn "Cleaned versions created with .cleaned extension"
+        log_warn "Review and manually apply changes as needed"
+    else
+        log_info "No Homebrew PATH entries found in shell profiles"
+    fi
+}
+
+remove_existing_homebrew() {
+    local existing_prefix="$1"
+    local needs_sudo=false
+    
+    log_step "Removing existing Homebrew installation"
+    
+    log_warn "This will completely remove Homebrew from: ${existing_prefix}"
+    
+    # Check if we need sudo for removal
+    if [ ! -w "${existing_prefix}" ] || [ ! -w "$(dirname "${existing_prefix}")" ]; then
+        needs_sudo=true
+        log_info "Administrator access required for removal"
+        if ! request_sudo_access; then
+            log_error "Cannot proceed without administrator access"
+            return 1
+        fi
+    fi
+    
+    # Try using Homebrew's official uninstall script first
+    log_info "Attempting official Homebrew uninstall..."
+    export NONINTERACTIVE=1
+    
+    if [ "${needs_sudo}" = "true" ]; then
+        if ! curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh | sudo bash; then
+            log_warn "Official uninstall failed or incomplete (with sudo)"
+        else
+            log_info "Official uninstall completed"
+        fi
+    else
+        if ! curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh | bash; then
+            log_warn "Official uninstall failed or incomplete"
+        else
+            log_info "Official uninstall completed"
+        fi
+    fi
+    
+    # Clean up any remaining files
+    if [ -d "${existing_prefix}" ]; then
+        log_info "Cleaning up remaining files in ${existing_prefix}..."
+        
+        if [ "${needs_sudo}" = "true" ]; then
+            sudo rm -rf "${existing_prefix}" 2>/dev/null || {
+                log_warn "Could not remove ${existing_prefix} completely with sudo"
+            }
+        else
+            rm -rf "${existing_prefix}" 2>/dev/null || {
+                log_warn "Could not remove ${existing_prefix} completely"
+                log_warn "You may need to run: sudo rm -rf '${existing_prefix}'"
+            }
+        fi
+    fi
+    
+    # Clean up shell profile entries
+    cleanup_shell_profiles "${existing_prefix}"
+    
+    log_info "Homebrew removal completed"
+}
+
+check_modern_shells() {
+    local shells_available=""
+    
+    # Check for bash 4+
+    if command -v bash >/dev/null 2>&1; then
+        local bash_version
+        bash_version="$(bash -c 'echo ${BASH_VERSION%%.*}')"
+        if [ "${bash_version}" -ge 4 ] 2>/dev/null; then
+            shells_available="${shells_available} bash${bash_version}"
+        fi
+    fi
+    
+    # Check for zsh
+    if command -v zsh >/dev/null 2>&1; then
+        shells_available="${shells_available} zsh"
+    fi
+    
+    echo "${shells_available}"
+}
+
+get_default_prefix() {
+    local installation_type="$1"
+    local os
+    os="$(detect_os)"
+    
+    case "${installation_type}" in
+        userspace)
+            echo "${DEFAULT_PREFIX_USERSPACE}"
+            ;;
+        system)
+            case "${os}" in
+                macos) echo "${DEFAULT_PREFIX_SYSTEM_MACOS}" ;;
+                linux) echo "${DEFAULT_PREFIX_SYSTEM_LINUX}" ;;
+                *) echo "${DEFAULT_PREFIX_USERSPACE}" ;;
+            esac
+            ;;
+        *)
+            echo "${DEFAULT_PREFIX_USERSPACE}"
+            ;;
+    esac
+}
+
+prompt_installation_type() {
+    log_step "Choose Homebrew Installation Type"
+    
+    echo "1) userspace  - ${DEFAULT_PREFIX_USERSPACE} (no sudo, cross-platform)"
+    echo "2) system     - OS default location (may need sudo)"
+    echo "3) custom     - specify your own path"
+    echo
+    
+    while true; do
+        echo -n "Choose [1-3] or press Enter for userspace: "
+        read -r choice
+        
+        case "${choice:-1}" in
+            1|userspace)
+                INSTALLATION_TYPE="userspace"
+                break
+                ;;
+            2|system)
+                INSTALLATION_TYPE="system"
+                break
+                ;;
+            3|custom)
+                INSTALLATION_TYPE="custom"
+                break
+                ;;
+            *)
+                log_warn "Invalid choice. Please select 1, 2, or 3."
+                ;;
+        esac
+    done
+    
+    if [ "${INSTALLATION_TYPE}" = "custom" ]; then
+        while true; do
+            echo -n "Enter custom Homebrew path: "
+            read -r custom_path
+            
+            if [ -n "${custom_path}" ]; then
+                # Expand tilde manually (bash 3.2 compatible)
+                case "${custom_path}" in
+                    \~/*) custom_path="${HOME}${custom_path#\~}" ;;
+                esac
+                
+                # Basic validation
+                if [ "${custom_path#/}" != "${custom_path}" ]; then
+                    HOMEBREW_PREFIX="${custom_path}"
+                    break
+                else
+                    log_warn "Path must be absolute (start with /)"
+                fi
+            else
+                log_warn "Path cannot be empty"
+            fi
+        done
+    else
+        HOMEBREW_PREFIX="$(get_default_prefix "${INSTALLATION_TYPE}")"
+    fi
+    
+    log_info "Selected: ${INSTALLATION_TYPE} installation at ${HOMEBREW_PREFIX}"
+}
+
+install_homebrew() {
+    log_step "Installing Homebrew @ ${HOMEBREW_PREFIX}"
+    
+    # Check for existing installation
+    local existing_prefix
+    if existing_prefix="$(detect_existing_homebrew)"; then
+        log_warn "Existing Homebrew installation detected at: ${existing_prefix}"
+        
+        if [ "${existing_prefix}" = "${HOMEBREW_PREFIX}" ]; then
+            log_info "Homebrew already installed at desired location"
+            return 0
+        fi
+        
+        echo "Current installation: ${existing_prefix}"
+        echo "Desired installation:  ${HOMEBREW_PREFIX}"
+        echo
+        echo "Options:"
+        echo "1) Backup and remove existing, then install fresh"
+        echo "2) Keep existing installation (cancel)"
+        echo "3) Skip Homebrew installation (use existing)"
+        echo
+        
+        while true; do
+            echo -n "Choose [1-3]: "
+            read -r choice
+            
+            case "${choice}" in
+                1)
+                    log_info "Proceeding with backup and fresh installation"
+                    local backup_dir
+                    backup_dir="$(backup_existing_homebrew "${existing_prefix}")"
+                    remove_existing_homebrew "${existing_prefix}"
+                    
+                    # Wait a moment for cleanup to complete
+                    sleep 2
+                    
+                    log_info "Backup saved to: ${backup_dir}"
+                    export BACKUP_DIR="${backup_dir}"
+                    break
+                    ;;
+                2)
+                    log_info "Keeping existing installation"
+                    HOMEBREW_PREFIX="${existing_prefix}"
+                    return 0
+                    ;;
+                3)
+                    log_info "Skipping Homebrew installation"
+                    HOMEBREW_PREFIX="${existing_prefix}"
+                    return 0
+                    ;;
+                *)
+                    log_warn "Invalid choice. Please select 1, 2, or 3."
+                    ;;
+            esac
+        done
+    fi
+    
+    # Check if we need sudo for installation
+    local needs_sudo=false
+    if check_sudo_requirements "${INSTALLATION_TYPE}" "${HOMEBREW_PREFIX}"; then
+        needs_sudo=true
+        log_info "Administrator access required for this installation location"
+        if ! request_sudo_access; then
+            log_error "Cannot proceed without administrator access"
+            return 1
+        fi
+    fi
+    
+    # Create target directory
+    if [ "${needs_sudo}" = "true" ]; then
+        sudo mkdir -p "${HOMEBREW_PREFIX}"
+        # Make sure the current user owns the directory for the installation
+        sudo chown "$(id -u):$(id -g)" "${HOMEBREW_PREFIX}"
+    else
+        mkdir -p "${HOMEBREW_PREFIX}"
+    fi
+    
+    # Set environment for installation
+    export HOMEBREW_PREFIX
+    export HOMEBREW_REPOSITORY="${HOMEBREW_PREFIX}/Homebrew"
+    export NONINTERACTIVE=1
+    
+    log_info "Installing Homebrew to: ${HOMEBREW_PREFIX}"
+    
+    if [ "${INSTALLATION_TYPE}" = "system" ]; then
+        log_info "System installation selected"
+        # Install Homebrew (the installer script will handle sudo internally if needed)
+        if ! /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; then
+            log_error "Failed to install Homebrew"
+            log_error "This may be due to permissions or network issues"
+            return 1
+        fi
+        # Additional checks or steps for system installation can be added here
+    elif [ "${INSTALLATION_TYPE}" = "userspace" ]; then
+        log_info "Userspace installation selected"
+        curl -L https://github.com/Homebrew/brew/tarball/main | tar xz --strip-components 1 -C "${HOMEBREW_PREFIX}"
+    fi
+
+    
+    # Fix ownership if we used sudo
+    if [ "${needs_sudo}" = "true" ]; then
+        log_info "Fixing ownership of Homebrew installation..."
+        sudo chown -R "$(id -u):$(id -g)" "${HOMEBREW_PREFIX}" 2>/dev/null || {
+            log_warn "Could not fix all ownership - some operations may require sudo"
+        }
+    fi
+    
+    echo "Update PATH to include Homebrew:"
+    echo eval "$("$HOMEBREW_PREFIX"/bin/brew shellenv)"
+    echo "brew update --force --quiet"
+    echo "chmod -R go-w \"$(brew --prefix)/share/zsh\""
+
+    log_info "Homebrew installed successfully"
+}
+
+install_modern_shells() {
+    log_step "Installing Modern Shells"
+    
+    # Make sure brew is in PATH
+    export PATH="${HOMEBREW_PREFIX}/bin:${HOMEBREW_PREFIX}/sbin:${PATH}"
+    
+    log_info "Installing bash (latest version)..."
+    if ! brew install bash; then
+        log_warn "Failed to install modern bash"
+    fi
+    
+    # zsh is usually already available on macOS, but install latest on Linux
+    local os
+    os="$(detect_os)"
+    if [ "${os}" = "linux" ]; then
+        log_info "Installing zsh (latest version)..."
+        if ! brew install zsh; then
+            log_warn "Failed to install zsh"
+        fi
+    fi
+    
+    log_info "Modern shells installation complete"
+}
+
+create_basic_config() {
+    log_step "Creating Basic Configuration"
+    
+    mkdir -p "${CONFIG_DIR}"
+    
+    # Check if there are backup packages to integrate
+    local backup_brewfile=""
+    if [ -n "${BACKUP_DIR:-}" ] && [ -f "${BACKUP_DIR}/Brewfile.backup" ]; then
+        backup_brewfile="${BACKUP_DIR}/Brewfile.backup"
+        log_info "Found backup packages to integrate"
+    fi
+    
+    # Create a simple config file (no associative arrays needed)
+    cat > "${CONFIG_DIR}/.brew_env" << EOF
+# Homebrew Environment Configuration
+# Generated by ${SCRIPT_NAME} v${SCRIPT_VERSION}
+
+HOMEBREW_PREFIX="${HOMEBREW_PREFIX}"
+INSTALLATION_TYPE="${INSTALLATION_TYPE}"
+LOG_LEVEL="${LOG_LEVEL:-${DEFAULT_LOG_LEVEL}}"
+LOG_FILE="${HOME}/.brewup.log"
+PARALLEL_JOBS="auto"
+CLEANUP_DAYS="30"
+ENABLE_BUNDLE="true"
+
+# Homebrew Environment Variables
+HOMEBREW_DISPLAY_INSTALL_TIMES="1"
+HOMEBREW_NO_AUTO_UPDATE="1"
+HOMEBREW_NO_INSTALL_CLEANUP="1"
+HOMEBREW_DEVELOPER="1"
+HOMEBREW_VERBOSE_USING_DOTS="1"
+EOF
+    
+    # Create Brewfile, integrating backup if available
+    if [ -n "${backup_brewfile}" ] && [ -s "${backup_brewfile}" ]; then
+        log_info "Integrating backed up packages into new Brewfile"
+        cat > "${CONFIG_DIR}/Brewfile" << EOF
+# Brewfile - Restored from backup and enhanced
+# Generated by ${SCRIPT_NAME} v${SCRIPT_VERSION}
+
+# Essential packages for development
+brew "bash"      # Modern bash shell
+brew "git"       # Version control
+brew "curl"      # HTTP client
+brew "jq"        # JSON processor
+
+# Restored packages from backup:
+EOF
+        # Append the backup content (filtering out comments and empty lines for cleaner integration)
+        grep -v "^#\|^$" "${backup_brewfile}" >> "${CONFIG_DIR}/Brewfile" 2>/dev/null || true
+        echo "" >> "${CONFIG_DIR}/Brewfile"
+        echo "# Add new packages below:" >> "${CONFIG_DIR}/Brewfile"
+    else
+        cat > "${CONFIG_DIR}/Brewfile" << 'EOF'
+# Essential packages for development
+brew "bash"      # Modern bash shell
+brew "git"       # Version control
+brew "curl"      # HTTP client
+brew "jq"        # JSON processor
+
+# Add your packages below:
+
+EOF
+    fi
+    
+    log_info "Configuration created at: ${CONFIG_DIR}"
+}
+
+check_reexec_with_modern_shell() {
+    log_step "Checking for Modern Shell Re-execution"
+    
+    # Update PATH to include new Homebrew
+    export PATH="${HOMEBREW_PREFIX}/bin:${HOMEBREW_PREFIX}/sbin:${PATH}"
+    
+    local modern_shells
+    modern_shells="$(check_modern_shells)"
+    
+    if [ -n "${modern_shells}" ]; then
+        log_info "Modern shells available:${modern_shells}"
+        
+        # Check if we're already running in a modern shell
+        local current_bash_version
+        current_bash_version="$(detect_bash_version)"
+        
+        if [ "${current_bash_version}" -lt 4 ] 2>/dev/null; then
+            log_info "Currently running bash ${current_bash_version}"
+            log_info "Re-executing with modern shell for enhanced features..."
+            
+            # Try to re-exec with modern bash first
+            if command -v bash >/dev/null 2>&1; then
+                local modern_bash_version
+                modern_bash_version="$(bash -c 'echo ${BASH_VERSION%%.*}')"
+                if [ "${modern_bash_version}" -ge 4 ] 2>/dev/null; then
+                    log_info "Re-executing with bash ${modern_bash_version}..."
+                    export BREW_BOOTSTRAP_STAGE2=1
+                    exec bash "$0" "$@"
+                fi
+            fi
+            
+            # Fallback to zsh if available
+            if command -v zsh >/dev/null 2>&1; then
+                log_info "Re-executing with zsh..."
+                export BREW_BOOTSTRAP_STAGE2=1
+                exec zsh "$0" "$@"
+            fi
+        else
+            log_info "Already running modern bash ${current_bash_version}"
+        fi
+    else
+        log_warn "No modern shells detected"
+        log_info "You can manually install and run: brew install bash"
+    fi
+}
+
+print_completion_message() {
+    log_step "Bootstrap Complete!"
+    
+    local bash_version
+    bash_version="$(detect_bash_version)"
+    
+    cat << EOF
+
+${GREEN}Homebrew bootstrap completed successfully!${RESET}
+
+${BOLD}Installation Details:${RESET}
+  Location: ${HOMEBREW_PREFIX}
+  Type:     ${INSTALLATION_TYPE}
+  Shell:    $(basename "${SHELL}") ${bash_version}
+
+${BOLD}Configuration Files:${RESET}
+  ${CONFIG_DIR}/.brew_env
+  ${CONFIG_DIR}/Brewfile
+
+${BOLD}Next Steps:${RESET}
+
+1. ${BOLD}Add Homebrew to your PATH:${RESET}
+   Add this to your shell profile (~/.bashrc, ~/.zshrc, etc.):
+   ${BLUE}export PATH="${HOMEBREW_PREFIX}/bin:\$PATH"${RESET}
+
+2. ${BOLD}Restart your shell:${RESET}
+   exec \$SHELL -l
+
+3. ${BOLD}Install your packages:${RESET}
+   cd "${CONFIG_DIR}" && brew bundle install
+
+4. ${BOLD}Use the enhanced scripts:${RESET}
+   The bootstrap config works with both basic and advanced brew scripts.
+
+${BOLD}Advanced Features Available:${RESET}
+EOF
+
+    if [ "${bash_version}" -ge 4 ] 2>/dev/null || command -v zsh >/dev/null 2>&1; then
+        echo "  ✓ Modern shell detected - full featured scripts available"
+        echo "  ✓ You can now use the advanced brew-init script"
+    else
+        echo "  ⚠ Running older bash - some advanced features limited"
+        echo "  → Install modern bash: brew install bash"
+    fi
+    
+    echo
+}
+
+main() {
+    local auto_mode=false
+    local force_remove=false
+    
+    # Parse basic arguments (bash 3.2 compatible)
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --auto)
+                auto_mode=true
+                shift
+                ;;
+            --force-remove)
+                force_remove=true
+                shift
+                ;;
+            -h|--help)
+                cat << EOF
+Usage: $0 [OPTIONS]
+
+Bootstrap Homebrew installation with cross-compatible shell support
+
+OPTIONS:
+    --auto          Use default settings, backup and replace existing Homebrew
+    --force-remove  Skip prompts when removing existing installations
+    -h, --help      Show this help message
+
+DESCRIPTION:
+    This script handles existing Homebrew installations safely by:
+    1. Detecting existing installations
+    2. Backing up packages and configuration
+    3. Optionally removing old installations
+    4. Installing fresh Homebrew in preferred location
+    5. Restoring packages and upgrading shell environment
+
+BACKUP LOCATION:
+    Backups are saved to ~/.homebrew_backup_YYYYMMDD_HHMMSS/
+
+EXAMPLES:
+    $0                    # Interactive mode with prompts
+    $0 --auto             # Auto mode: backup existing, install userspace
+    $0 --auto --force-remove  # Auto mode: remove existing without prompts
+
+EOF
+                exit 0
+                ;;
+            *)
+                log_error "Unknown argument: $1"
+                exit 1
+                ;;
+        esac
+    done
+    
+    echo -e "${BOLD}${BLUE}Homebrew Bootstrap v${SCRIPT_VERSION}${RESET}"
+    echo "Compatible with bash 3.2+ and modern shells"
+    echo
+    
+    local bash_version
+    bash_version="$(detect_bash_version)"
+    log_info "Running bash version: ${bash_version}"
+    
+    # Check for existing Homebrew early
+    local existing_prefix
+    if existing_prefix="$(detect_existing_homebrew)"; then
+        log_info "Detected existing Homebrew at: ${existing_prefix}"
+    fi
+    
+    # Skip prompts if this is stage 2 (re-exec)
+    if [ "${BREW_BOOTSTRAP_STAGE2:-0}" = "1" ]; then
+        log_info "Running in enhanced mode with modern shell"
+        print_completion_message
+        exit 0
+    fi
+    
+    # Handle configuration based on mode
+    if [ "${auto_mode}" = "true" ]; then
+        INSTALLATION_TYPE="${DEFAULT_INSTALLATION_TYPE}"
+        HOMEBREW_PREFIX="$(get_default_prefix "${INSTALLATION_TYPE}")"
+        LOG_LEVEL="${DEFAULT_LOG_LEVEL}"
+        log_info "Auto mode: ${INSTALLATION_TYPE} installation at ${HOMEBREW_PREFIX}"
+        
+        # Handle existing installation in auto mode
+        if [ -n "${existing_prefix}" ] && [ "${existing_prefix}" != "${HOMEBREW_PREFIX}" ]; then
+            log_info "Auto mode: backing up and replacing existing installation"
+            local backup_dir
+            backup_dir="$(backup_existing_homebrew "${existing_prefix}")"
+            export BACKUP_DIR="${backup_dir}"
+            
+            if [ "${force_remove}" = "true" ]; then
+                remove_existing_homebrew "${existing_prefix}"
+            else
+                log_warn "Existing installation found. Use --force-remove for automatic removal"
+                log_warn "Or run interactively to choose options"
+                exit 1
+            fi
+        fi
+    else
+        prompt_installation_type
+    fi
+    
+    install_homebrew
+    install_modern_shells
+    create_basic_config
+    check_reexec_with_modern_shell
+    print_completion_message
+    
+    # Show backup information if we created one
+    if [ -n "${BACKUP_DIR:-}" ]; then
+        echo
+        log_info "Backup created at: ${BACKUP_DIR}"
+        log_info "Backup contains your previous packages and configuration"
+    fi
+}
+
+main "$@"

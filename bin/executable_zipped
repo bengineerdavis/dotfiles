@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# MIT License
+#   ==============================================================================
+#   Copyright (c) 2025 Ben Davis
+#   ==============================================================================
+# ==============================================================================
+# This script compresses the Zendesk tickets directory into a zip archive.
+# It uses the archiver.sh utility to handle compression and extraction.
+# ==============================================================================    
+# Usage: zip.sh <tickets_dir> <archive_dir>
+# Example: ./zip.sh /path/to/tickets /path/to/archive
+# ==============================================================================
+
+
+set -euo pipefail
+# Debugging only, please keep commented out for regular use
+# set -x
+
+ARCHIVER_SCRIPT="archive"
+
+main() {
+    # Assign arguments to variables
+    local TICKETS_DIR="$1"
+    local ARCHIVE_FILE_PATH="$2"
+    
+    local ARCHIVE_DIR
+    ARCHIVE_DIR="$(dirname "${ARCHIVE_FILE_PATH}")"
+
+    # Check if the tickets directory exists
+    if [[ ! -d "${TICKETS_DIR}" ]]; then
+        echo "Tickets directory does not exist: ${TICKETS_DIR}"
+        exit 1
+    fi
+
+# Check if the archive directory exists, create it if it doesn't
+if [[ ! -d "${ARCHIVE_DIR}" ]]; then
+    echo "Archive directory does not exist: ${ARCHIVE_DIR}"
+    echo "Creating a new archive directory at ${ARCHIVE_DIR}"
+    mkdir -p "${ARCHIVE_DIR}"
+fi
+    
+    echo "Using tickets directory: ${TICKETS_DIR}"
+    echo "Using archive directory: ${ARCHIVE_DIR}"
+    echo "Creating archive at: ${ARCHIVE_FILE_PATH}"
+    pwd
+
+    # Create the archive using the archiver utility
+    # Check if archiver utility exists
+    # if [[ ! -f "./archiver.sh" ]]; then
+    #     echo "Archiver utility not found: ./scripts/archiver.sh"
+    #     exit 1
+    # fi
+
+    # Create the archive using the archiver utility
+    if "${ARCHIVER_SCRIPT}" compress "${TICKETS_DIR}" "${ARCHIVE_FILE_PATH}"; then
+        echo "Archive successfully created at: ${ARCHIVE_FILE_PATH}"
+    else
+        echo "Failed to create archive."
+        exit 1
+    fi
+}
+
+# Check if the correct number of arguments is provided
+if [[ $# -ne 2 ]]; then
+    echo "Usage: $0 <tickets_dir> <archive_dir>"
+    exit 1
+fi      
+
+main "$@"

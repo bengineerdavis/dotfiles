@@ -1,0 +1,451 @@
+#!/usr/bin/env bash
+
+# Homebrew Migration Script
+# =========================
+# This script helps migrate from an existing Homebrew installation to userspace.
+# It provides both interactive guidance and automated migration options.
+#
+# Author: Ben Davis
+# License: MIT
+# Email: bengineerdavis@gmail.com
+# Updated: 2025-01-15
+
+set -euo pipefail
+
+readonly SCRIPT_NAME="homebrew-migrate"
+readonly SCRIPT_VERSION="1.0.0"
+readonly MIGRATION_BACKUP_DIR="/tmp/homebrew_migration_$(date +%Y%m%d_%H%M%S)"
+readonly NEW_HOMEBREW_PREFIX="${HOME}/.linuxbrew"
+
+# Colors for output
+readonly RED='\033[31m'
+readonly GREEN='\033[32m'
+readonly YELLOW='\033[33m'
+readonly BLUE='\033[34m'
+readonly BOLD='\033[1m'
+readonly RESET='\033[0m'
+
+log_info() {
+    echo -e "${GREEN}INFO:${RESET} $*"
+}
+
+log_warn() {
+    echo -e "${YELLOW}WARNING:${RESET} $*"
+}
+
+log_error() {
+    echo -e "${RED}ERROR:${RESET} $*"
+}
+
+log_step() {
+    echo -e "\n${BOLD}${BLUE}===> $*${RESET}"
+}
+
+detect_current_homebrew() {
+    if ! command -v brew >/dev/null 2>&1; then
+        log_error "No Homebrew installation detected"
+        return 1
+    fi
+    
+    local current_prefix
+    current_prefix="$(brew --prefix 2>/dev/null)"
+    echo "${current_prefix}"
+}
+
+check_prerequisites() {
+    log_step "Checking prerequisites"
+    
+    # Check for existing Homebrew
+    local current_prefix
+    if ! current_prefix="$(detect_current_homebrew)"; then
+        log_error "This script requires an existing Homebrew installation to migrate"
+        exit 1
+    fi
+    
+    log_info "Found Homebrew at: ${current_prefix}"
+    
+    # Check if already in userspace
+    if [[ "${current_prefix}" == "${NEW_HOMEBREW_PREFIX}" ]]; then
+        log_info "Homebrew is already installed in userspace (${NEW_HOMEBREW_PREFIX})"
+        log_info "No migration needed!"
+        exit 0
+    fi
+    
+    # Check disk space (rough estimate)
+    local available_space
+    available_space=$(df -h "${HOME}" | awk 'NR==2 {print $4}' | sed 's/[^0-9.]//g')
+    log_info "Available space in home directory: ${available_space}G"
+    
+    # Check for curl
+    if ! command -v curl >/dev/null 2>&1; then
+        log_error "curl is required for this migration"
+        exit 1
+    fi
+    
+    log_info "Prerequisites check passed"
+}
+
+backup_current_installation() {
+    log_step "Creating backup of current Homebrew configuration"
+    
+    mkdir -p "${MIGRATION_BACKUP_DIR}"
+    
+    # Export current packages
+    log_info "Exporting current package list..."
+    brew bundle dump --file="${MIGRATION_BACKUP_DIR}/migration_brewfile" || {
+        log_warn "Failed to export packages - continuing anyway"
+        touch "${MIGRATION_BACKUP_DIR}/migration_brewfile"
+    }
+    
+    # Backup custom taps
+    log_info "Backing up custom taps..."
+    brew tap > "${MIGRATION_BACKUP_DIR}/current_taps.txt" 2>/dev/null || {
+        log_warn "Failed to export taps - continuing anyway"
+        touch "${MIGRATION_BACKUP_DIR}/current_taps.txt"
+    }
+    
+    # Backup tap configurations (optional)
+    local homebrew_repo
+    homebrew_repo="$(brew --repository 2>/dev/null || echo "")"
+    if [[ -n "${homebrew_repo}" && -d "${homebrew_repo}/Library/Taps" ]]; then
+        log_info "Backing up tap configurations..."
+        cp -r "${homebrew_repo}/Library/Taps" "${MIGRATION_BACKUP_DIR}/homebrew_taps_backup/" 2>/dev/null || {
+            log_warn "Failed to backup tap configurations - not critical"
+        }
+    fi
+    
+    log_info "Backup completed in: ${MIGRATION_BACKUP_DIR}"
+    log_info "Files created:"
+    ls -la "${MIGRATION_BACKUP_DIR}"
+}
+
+find_shell_config_files() {
+    local config_files=()
+    local potential_files=(
+        "${HOME}/.zshrc"
+        "${HOME}/.bashrc"
+        "${HOME}/.bash_profile"
+        "${HOME}/.profile"
+        "${HOME}/.zprofile"
+    )
+    
+    for file in "${potential_files[@]}"; do
+        if [[ -f "${file}" ]]; then
+            config_files+=("${file}")
+        fi
+    done
+    
+    printf '%s\n' "${config_files[@]}"
+}
+
+check_shell_configurations() {
+    log_step "Checking shell configuration files"
+    
+    local config_files
+    readarray -t config_files < <(find_shell_config_files)
+    
+    if [[ ${#config_files[@]} -eq 0 ]]; then
+        log_info "No shell configuration files found"
+        return 0
+    fi
+    
+    local found_homebrew_paths=false
+    for file in "${config_files[@]}"; do
+        if grep -q "/opt/homebrew\|/usr/local.*brew\|/home/linuxbrew" "${file}" 2>/dev/null; then
+            log_warn "Found Homebrew PATH entries in: ${file}"
+            echo "  Lines containing Homebrew paths:"
+            grep -n "/opt/homebrew\|/usr/local.*brew\|/home/linuxbrew" "${file}" | sed 's/^/    /'
+            found_homebrew_paths=true
+        fi
+    done
+    
+    if [[ "${found_homebrew_paths}" == "true" ]]; then
+        log_warn "You'll need to remove or comment out these PATH entries manually"
+        log_info "After migration, the new PATH will be handled by the brewup script"
+    else
+        log_info "No Homebrew PATH entries found in shell configs"
+    fi
+}
+
+uninstall_current_homebrew() {
+    log_step "Uninstalling current Homebrew installation"
+    
+    log_warn "This will remove your current Homebrew installation"
+    log_info "Your packages are backed up and will be restored after migration"
+    
+    if ! curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh | bash; then
+        log_error "Failed to uninstall Homebrew"
+        log_error "You may need to run the uninstall script manually"
+        return 1
+    fi
+    
+    log_info "Homebrew uninstalled successfully"
+}
+
+install_userspace_homebrew() {
+    log_step "Installing Homebrew to userspace (${NEW_HOMEBREW_PREFIX})"
+    
+    # Set up environment for userspace installation
+    export HOMEBREW_PREFIX="${NEW_HOMEBREW_PREFIX}"
+    export HOMEBREW_REPOSITORY="${NEW_HOMEBREW_PREFIX}"
+    
+    # Create directory
+    mkdir -p "${NEW_HOMEBREW_PREFIX}"
+    
+    # Install Homebrew
+    if ! curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh | bash -s -- --prefix="${NEW_HOMEBREW_PREFIX}"; then
+        log_error "Failed to install Homebrew to userspace"
+        return 1
+    fi
+    
+    # Update PATH for this session
+    export PATH="${NEW_HOMEBREW_PREFIX}/bin:${NEW_HOMEBREW_PREFIX}/sbin:${PATH}"
+    
+    log_info "Userspace Homebrew installed successfully"
+    log_info "New Homebrew location: ${NEW_HOMEBREW_PREFIX}"
+}
+
+setup_brewup_config() {
+    log_step "Setting up brewup configuration"
+    
+    local config_dir="${HOME}/.config/homebrew"
+    mkdir -p "${config_dir}"
+    
+    # Copy the backed up Brewfile to the new location
+    if [[ -f "${MIGRATION_BACKUP_DIR}/migration_brewfile" ]] && [[ -s "${MIGRATION_BACKUP_DIR}/migration_brewfile" ]]; then
+        cp "${MIGRATION_BACKUP_DIR}/migration_brewfile" "${config_dir}/Brewfile"
+        log_info "Copied package list to: ${config_dir}/Brewfile"
+    else
+        log_warn "No package list found to restore"
+    fi
+    
+    log_info "Configuration directory created: ${config_dir}"
+}
+
+restore_packages() {
+    log_step "Restoring packages and taps"
+    
+    # Restore custom taps first
+    if [[ -f "${MIGRATION_BACKUP_DIR}/current_taps.txt" ]] && [[ -s "${MIGRATION_BACKUP_DIR}/current_taps.txt" ]]; then
+        log_info "Restoring custom taps..."
+        while IFS= read -r tap; do
+            if [[ -n "${tap}" ]]; then
+                log_info "Adding tap: ${tap}"
+                brew tap "${tap}" || log_warn "Failed to add tap: ${tap}"
+            fi
+        done < "${MIGRATION_BACKUP_DIR}/current_taps.txt"
+    fi
+    
+    # Install packages via brewup if available, otherwise use brew bundle
+    local config_dir="${HOME}/.config/homebrew"
+    if [[ -f "${config_dir}/Brewfile" ]] && [[ -s "${config_dir}/Brewfile" ]]; then
+        log_info "Installing packages from Brewfile..."
+        
+        # Try to use brewup if it exists
+        if command -v brewup >/dev/null 2>&1; then
+            log_info "Using brewup script to install packages..."
+            brewup || log_warn "brewup failed, trying brew bundle directly"
+        else
+            log_info "Using brew bundle to install packages..."
+            cd "${config_dir}"
+            brew bundle install || log_warn "Some packages may have failed to install"
+        fi
+    else
+        log_warn "No Brewfile found - no packages to restore"
+    fi
+}
+
+verify_migration() {
+    log_step "Verifying migration"
+    
+    # Check brew command
+    if command -v brew >/dev/null 2>&1; then
+        local new_prefix
+        new_prefix="$(brew --prefix)"
+        if [[ "${new_prefix}" == "${NEW_HOMEBREW_PREFIX}" ]]; then
+            log_info "✓ Homebrew is now installed at: ${new_prefix}"
+        else
+            log_warn "Homebrew prefix mismatch. Expected: ${NEW_HOMEBREW_PREFIX}, Got: ${new_prefix}"
+        fi
+        
+        log_info "✓ Homebrew version: $(brew --version | head -n1)"
+    else
+        log_error "✗ brew command not found in PATH"
+        log_info "You may need to restart your shell or update your PATH"
+    fi
+    
+    # Check some common packages
+    local test_packages=("git" "curl" "wget")
+    for pkg in "${test_packages[@]}"; do
+        if brew list "${pkg}" >/dev/null 2>&1; then
+            log_info "✓ Package '${pkg}' is installed"
+        fi
+    done
+}
+
+cleanup_migration() {
+    log_step "Cleaning up migration files"
+    
+    log_info "Migration backup directory: ${MIGRATION_BACKUP_DIR}"
+    log_info "You can safely delete this directory after verifying everything works"
+    log_info "To delete: rm -rf '${MIGRATION_BACKUP_DIR}'"
+}
+
+print_final_instructions() {
+    log_step "Migration Complete!"
+    
+    cat << EOF
+
+${GREEN}✓ Migration completed successfully!${RESET}
+
+${BOLD}IMPORTANT NEXT STEPS:${RESET}
+
+1. ${BOLD}Restart your shell:${RESET}
+   exec \$SHELL -l
+
+2. ${BOLD}Verify Homebrew works:${RESET}
+   brew --version
+   which brew
+
+3. ${BOLD}Test your important packages${RESET}
+
+4. ${BOLD}If using brewup script:${RESET}
+   - Your packages are already configured in ~/.config/homebrew/Brewfile
+   - Run: ./brewup to ensure everything is up to date
+
+5. ${BOLD}Clean up (after verification):${RESET}
+   rm -rf '${MIGRATION_BACKUP_DIR}'
+
+${BOLD}Benefits of your new setup:${RESET}
+- ✓ No sudo required for Homebrew operations
+- ✓ Consistent path across macOS and Linux
+- ✓ Better isolation from system packages
+- ✓ Easier backup/restore of entire environment
+
+${BOLD}Troubleshooting:${RESET}
+- If PATH issues persist, check shell config files for old Homebrew paths
+- If packages don't work, try: brew doctor
+- Backup files are in: ${MIGRATION_BACKUP_DIR}
+
+EOF
+}
+
+print_usage() {
+    cat << EOF
+${SCRIPT_NAME} v${SCRIPT_VERSION} - Homebrew Migration Tool
+
+USAGE:
+    ${SCRIPT_NAME} [OPTIONS]
+
+OPTIONS:
+    --auto          Run migration automatically (non-interactive)
+    --dry-run       Show what would be done without making changes
+    -h, --help      Show this help message
+    --version       Show version information
+
+DESCRIPTION:
+    This script migrates an existing Homebrew installation (typically in
+    /opt/homebrew on macOS or /home/linuxbrew/.linuxbrew on Linux) to a
+    consistent userspace location (~/.linuxbrew).
+
+    The migration process:
+    1. Backs up your current packages and configuration
+    2. Uninstalls the current Homebrew
+    3. Installs Homebrew in userspace
+    4. Restores your packages and taps
+    5. Sets up brewup configuration
+
+EXAMPLES:
+    ${SCRIPT_NAME}                    # Interactive migration
+    ${SCRIPT_NAME} --auto             # Automated migration
+    ${SCRIPT_NAME} --dry-run          # Preview changes
+
+For more information, visit: https://brew.sh/
+EOF
+}
+
+main() {
+    local auto_mode=false
+    local dry_run=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --auto)
+                auto_mode=true
+                shift
+                ;;
+            --dry-run)
+                dry_run=true
+                shift
+                ;;
+            -h|--help)
+                print_usage
+                exit 0
+                ;;
+            --version)
+                echo "${SCRIPT_NAME} v${SCRIPT_VERSION}"
+                exit 0
+                ;;
+            *)
+                log_error "Unknown argument: $1"
+                print_usage
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Add this check at the start of both scripts
+    if [[ ! -f "${HOME}/.config/homebrew/.brew_env" ]]; then
+        log_error "Configuration not found. Please run 'brew-init' first."
+        exit 1
+    fi
+
+
+    echo -e "${BOLD}${BLUE}Homebrew Migration Tool v${SCRIPT_VERSION}${RESET}"
+    echo "This will migrate your Homebrew installation to userspace"
+    echo
+    
+    if [[ "${dry_run}" == "true" ]]; then
+        log_info "DRY RUN MODE - No changes will be made"
+        echo
+    fi
+    
+    # Check prerequisites
+    check_prerequisites
+    
+    if [[ "${auto_mode}" == "false" ]]; then
+        echo
+        log_warn "This will uninstall your current Homebrew and reinstall it in userspace"
+        log_info "Your packages will be backed up and restored"
+        echo
+        read -p "Do you want to continue? (y/N): " -r
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log_info "Migration cancelled"
+            exit 0
+        fi
+    fi
+    
+    if [[ "${dry_run}" == "true" ]]; then
+        log_info "Would perform migration steps:"
+        log_info "1. Backup current installation"
+        log_info "2. Check shell configurations"
+        log_info "3. Uninstall current Homebrew"
+        log_info "4. Install userspace Homebrew"
+        log_info "5. Restore packages and configuration"
+        exit 0
+    fi
+    
+    # Perform migration
+    backup_current_installation
+    check_shell_configurations
+    uninstall_current_homebrew
+    install_userspace_homebrew
+    setup_brewup_config
+    restore_packages
+    verify_migration
+    cleanup_migration
+    print_final_instructions
+}
+
+main "$@"

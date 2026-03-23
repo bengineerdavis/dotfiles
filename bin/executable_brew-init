@@ -1,0 +1,657 @@
+#!/usr/bin/env bash
+
+# Homebrew Configuration Initialization Script
+# ============================================
+# This script sets up the initial configuration for Homebrew management tools.
+# It must be run before using brewup or brew-migrate scripts.
+#
+# Features:
+# - Interactive or automated configuration setup
+# - Choice between system-wide or userspace installation
+# - Customizable environment variables with sensible defaults
+# - XDG-compliant configuration directory structure
+# - Validation of configuration choices
+#
+# Author: Ben Davis
+# License: MIT
+# Email: bengineerdavis@gmail.com
+# Updated: 2025-01-15
+
+set -euo pipefail
+
+readonly SCRIPT_NAME="brew-init"
+readonly SCRIPT_VERSION="1.0.0"
+readonly CONFIG_DIR="${HOME}/.config/homebrew"
+readonly BREW_ENV_FILE="${CONFIG_DIR}/.brew_env"
+readonly BREWFILE="${CONFIG_DIR}/Brewfile"
+
+# Colors for output
+readonly RED='\033[31m'
+readonly GREEN='\033[32m'
+readonly YELLOW='\033[33m'
+readonly BLUE='\033[34m'
+readonly BOLD='\033[1m'
+readonly RESET='\033[0m'
+
+# Default configuration values
+declare -A CONFIG_DEFAULTS=(
+    [INSTALLATION_TYPE]="userspace"           # userspace, system, custom
+    [HOMEBREW_PREFIX_USERSPACE]="${HOME}/.linuxbrew"
+    [HOMEBREW_PREFIX_SYSTEM_MACOS]="/opt/homebrew"
+    [HOMEBREW_PREFIX_SYSTEM_LINUX]="/home/linuxbrew/.linuxbrew"
+    [LOG_LEVEL]="NORMAL"                      # QUIET, NORMAL, VERBOSE, DEBUG
+    [LOG_FILE]="${HOME}/.brewup.log"
+    [PARALLEL_JOBS]="auto"                    # auto, or specific number
+    [CLEANUP_DAYS]="30"                       # Days to keep cache
+    [ENABLE_BUNDLE]="true"                    # Enable Brewfile management
+    [HOMEBREW_DISPLAY_INSTALL_TIMES]="1"
+    [HOMEBREW_NO_AUTO_UPDATE]="1"
+    [HOMEBREW_NO_INSTALL_CLEANUP]="1"
+    [HOMEBREW_DEVELOPER]="1"
+    [HOMEBREW_VERBOSE_USING_DOTS]="1"
+)
+
+# Configuration choices for interactive mode
+declare -A CONFIG_OPTIONS=(
+    [INSTALLATION_TYPE]="userspace|system|custom"
+    [LOG_LEVEL]="QUIET|NORMAL|VERBOSE|DEBUG"
+    [PARALLEL_JOBS]="auto|1|2|4|8|16"
+    [CLEANUP_DAYS]="7|14|30|60|all"
+    [ENABLE_BUNDLE]="true|false"
+)
+
+# Current configuration (will be populated)
+declare -A CURRENT_CONFIG=()
+
+log_info() {
+    echo -e "${GREEN}INFO:${RESET} $*"
+}
+
+log_warn() {
+    echo -e "${YELLOW}WARNING:${RESET} $*"
+}
+
+log_error() {
+    echo -e "${RED}ERROR:${RESET} $*"
+}
+
+log_step() {
+    echo -e "\n${BOLD}${BLUE}===> $*${RESET}"
+}
+
+log_question() {
+    echo -e "${BOLD}${YELLOW}?${RESET} $*"
+}
+
+detect_os() {
+    case "$(uname -s)" in
+        Darwin)
+            echo "macos"
+            ;;
+        Linux)
+            echo "linux"
+            ;;
+        *)
+            echo "unknown"
+            ;;
+    esac
+}
+
+check_existing_homebrew() {
+    if command -v brew >/dev/null 2>&1; then
+        local current_prefix
+        current_prefix="$(brew --prefix 2>/dev/null || echo "")"
+        if [[ -n "${current_prefix}" ]]; then
+            echo "${current_prefix}"
+            return 0
+        fi
+    fi
+    return 1
+}
+
+check_prerequisites() {
+    log_step "Checking prerequisites"
+    
+    # Check for required commands
+    local missing_commands=()
+    for cmd in curl mkdir; do
+        if ! command -v "${cmd}" >/dev/null 2>&1; then
+            missing_commands+=("${cmd}")
+        fi
+    done
+    
+    if [[ ${#missing_commands[@]} -gt 0 ]]; then
+        log_error "Missing required commands: ${missing_commands[*]}"
+        exit 1
+    fi
+    
+    # Check if config already exists
+    if [[ -f "${BREW_ENV_FILE}" ]]; then
+        log_warn "Configuration already exists at: ${BREW_ENV_FILE}"
+        return 1
+    fi
+    
+    log_info "Prerequisites check passed"
+    return 0
+}
+
+get_default_prefix() {
+    local installation_type="$1"
+    local os
+    os="$(detect_os)"
+    
+    case "${installation_type}" in
+        userspace)
+            echo "${CONFIG_DEFAULTS[HOMEBREW_PREFIX_USERSPACE]}"
+            ;;
+        system)
+            case "${os}" in
+                macos)
+                    echo "${CONFIG_DEFAULTS[HOMEBREW_PREFIX_SYSTEM_MACOS]}"
+                    ;;
+                linux)
+                    echo "${CONFIG_DEFAULTS[HOMEBREW_PREFIX_SYSTEM_LINUX]}"
+                    ;;
+                *)
+                    echo "${CONFIG_DEFAULTS[HOMEBREW_PREFIX_USERSPACE]}"
+                    ;;
+            esac
+            ;;
+        custom)
+            echo ""  # Will be prompted for
+            ;;
+        *)
+            echo "${CONFIG_DEFAULTS[HOMEBREW_PREFIX_USERSPACE]}"
+            ;;
+    esac
+}
+
+validate_prefix() {
+    local prefix="$1"
+    
+    # Expand tilde
+    prefix="${prefix/#\~/$HOME}"
+    
+    # Check if it's an absolute path
+    if [[ ! "${prefix}" = /* ]]; then
+        log_error "Prefix must be an absolute path: ${prefix}"
+        return 1
+    fi
+    
+    # Check if parent directory exists or can be created
+    local parent_dir
+    parent_dir="$(dirname "${prefix}")"
+    if [[ ! -d "${parent_dir}" ]]; then
+        if ! mkdir -p "${parent_dir}" 2>/dev/null; then
+            log_error "Cannot create parent directory: ${parent_dir}"
+            return 1
+        fi
+    fi
+    
+    # Check if directory is writable
+    if [[ -d "${prefix}" ]]; then
+        if [[ ! -w "${prefix}" ]]; then
+            log_warn "Directory exists but is not writable: ${prefix}"
+            log_warn "This may require sudo privileges for Homebrew operations"
+        fi
+    fi
+    
+    echo "${prefix}"
+    return 0
+}
+
+prompt_for_value() {
+    local key="$1"
+    local default_value="$2"
+    local options="${CONFIG_OPTIONS[$key]:-}"
+    local prompt_text="$3"
+    
+    if [[ -n "${options}" ]]; then
+        echo -e "${BOLD}Available options:${RESET} ${options//|/, }"
+    fi
+    
+    while true; do
+        log_question "${prompt_text}"
+        echo -n "Enter value [${default_value}]: "
+        read -r user_input
+        
+        # Use default if empty
+        if [[ -z "${user_input}" ]]; then
+            user_input="${default_value}"
+        fi
+        
+        # Validate against options if provided
+        if [[ -n "${options}" ]]; then
+            if [[ "|${options}|" =~ \|${user_input}\| ]]; then
+                echo "${user_input}"
+                return 0
+            else
+                log_error "Invalid option. Choose from: ${options//|/, }"
+                continue
+            fi
+        else
+            echo "${user_input}"
+            return 0
+        fi
+    done
+}
+
+configure_installation_type() {
+    log_step "Configuring Homebrew installation type"
+    
+    echo "Choose your Homebrew installation preference:"
+    echo "  ${BOLD}userspace${RESET} - Install in your home directory (${CONFIG_DEFAULTS[HOMEBREW_PREFIX_USERSPACE]})"
+    echo "                 + No sudo required"
+    echo "                 + Consistent across platforms"
+    echo "                 + Easy backup/restore"
+    echo "                 - May conflict with some system integrations"
+    echo
+    echo "  ${BOLD}system${RESET}    - Install in system location (OS-dependent)"
+    echo "                 + Better system integration"
+    echo "                 + Standard Homebrew behavior"
+    echo "                 - May require sudo"
+    echo "                 - Platform-specific paths"
+    echo
+    echo "  ${BOLD}custom${RESET}    - Specify your own installation path"
+    echo "                 + Full control over location"
+    echo "                 - Requires manual path management"
+    
+    local installation_type
+    installation_type="$(prompt_for_value "INSTALLATION_TYPE" "${CONFIG_DEFAULTS[INSTALLATION_TYPE]}" "Installation type")"
+    
+    local homebrew_prefix
+    homebrew_prefix="$(get_default_prefix "${installation_type}")"
+    
+    if [[ "${installation_type}" == "custom" ]] || [[ -z "${homebrew_prefix}" ]]; then
+        while true; do
+            log_question "Enter custom Homebrew installation path:"
+            echo -n "Path: "
+            read -r custom_prefix
+            
+            if homebrew_prefix="$(validate_prefix "${custom_prefix}")"; then
+                break
+            fi
+        done
+    fi
+    
+    CURRENT_CONFIG[INSTALLATION_TYPE]="${installation_type}"
+    CURRENT_CONFIG[HOMEBREW_PREFIX]="${homebrew_prefix}"
+    
+    log_info "Selected installation: ${installation_type} (${homebrew_prefix})"
+}
+
+configure_logging() {
+    log_step "Configuring logging preferences"
+    
+    echo "Logging levels:"
+    echo "  ${BOLD}QUIET${RESET}   - Minimal output, suitable for cron jobs"
+    echo "  ${BOLD}NORMAL${RESET}  - Standard informational output"
+    echo "  ${BOLD}VERBOSE${RESET} - Detailed output for troubleshooting"
+    echo "  ${BOLD}DEBUG${RESET}   - Maximum output for development"
+    
+    local log_level
+    log_level="$(prompt_for_value "LOG_LEVEL" "${CONFIG_DEFAULTS[LOG_LEVEL]}" "Default log level")"
+    CURRENT_CONFIG[LOG_LEVEL]="${log_level}"
+    
+    log_question "Log file location"
+    echo -n "Enter path [${CONFIG_DEFAULTS[LOG_FILE]}]: "
+    read -r log_file
+    if [[ -z "${log_file}" ]]; then
+        log_file="${CONFIG_DEFAULTS[LOG_FILE]}"
+    fi
+    
+    # Expand tilde and validate
+    log_file="${log_file/#\~/$HOME}"
+    CURRENT_CONFIG[LOG_FILE]="${log_file}"
+    
+    log_info "Logging configured: ${log_level} -> ${log_file}"
+}
+
+configure_performance() {
+    log_step "Configuring performance settings"
+    
+    echo "Parallel jobs options:"
+    echo "  ${BOLD}auto${RESET} - Automatically detect CPU cores"
+    echo "  ${BOLD}1-16${RESET} - Specific number of parallel jobs"
+    
+    local parallel_jobs
+    parallel_jobs="$(prompt_for_value "PARALLEL_JOBS" "${CONFIG_DEFAULTS[PARALLEL_JOBS]}" "Parallel jobs setting")"
+    CURRENT_CONFIG[PARALLEL_JOBS]="${parallel_jobs}"
+    
+    echo
+    echo "Cache cleanup options:"
+    echo "  ${BOLD}7${RESET}   - Keep 1 week of cache"
+    echo "  ${BOLD}14${RESET}  - Keep 2 weeks of cache"
+    echo "  ${BOLD}30${RESET}  - Keep 1 month of cache"
+    echo "  ${BOLD}60${RESET}  - Keep 2 months of cache"
+    echo "  ${BOLD}all${RESET} - Remove all old cache"
+    
+    local cleanup_days
+    cleanup_days="$(prompt_for_value "CLEANUP_DAYS" "${CONFIG_DEFAULTS[CLEANUP_DAYS]}" "Cache cleanup setting")"
+    CURRENT_CONFIG[CLEANUP_DAYS]="${cleanup_days}"
+    
+    log_info "Performance configured: ${parallel_jobs} jobs, ${cleanup_days} day cache"
+}
+
+configure_package_management() {
+    log_step "Configuring package management"
+    
+    echo "Brewfile management:"
+    echo "  ${BOLD}true${RESET}  - Enable automatic Brewfile package management"
+    echo "  ${BOLD}false${RESET} - Disable Brewfile management (manual only)"
+    
+    local enable_bundle
+    enable_bundle="$(prompt_for_value "ENABLE_BUNDLE" "${CONFIG_DEFAULTS[ENABLE_BUNDLE]}" "Enable Brewfile management")"
+    CURRENT_CONFIG[ENABLE_BUNDLE]="${enable_bundle}"
+    
+    log_info "Package management configured: Brewfile ${enable_bundle}"
+}
+
+interactive_configuration() {
+    log_step "Interactive Configuration Setup"
+    
+    echo "This will guide you through setting up your Homebrew configuration."
+    echo "You can accept defaults by pressing Enter, or customize each setting."
+    echo
+    
+    # Check for existing Homebrew installation
+    local existing_prefix
+    if existing_prefix="$(check_existing_homebrew)"; then
+        log_warn "Existing Homebrew installation detected at: ${existing_prefix}"
+        echo "You may want to run the migration script first if you want to change locations."
+        echo
+    fi
+    
+    configure_installation_type
+    configure_logging
+    configure_performance
+    configure_package_management
+    
+    # Copy remaining defaults
+    for key in "${!CONFIG_DEFAULTS[@]}"; do
+        if [[ -z "${CURRENT_CONFIG[$key]:-}" ]]; then
+            CURRENT_CONFIG[$key]="${CONFIG_DEFAULTS[$key]}"
+        fi
+    done
+}
+
+auto_configuration() {
+    log_step "Automatic Configuration Setup"
+    
+    log_info "Using default configuration values"
+    
+    # Copy all defaults and expand any tilde paths
+    for key in "${!CONFIG_DEFAULTS[@]}"; do
+        local value="${CONFIG_DEFAULTS[$key]}"
+        # Expand tilde for path-like values
+        if [[ "${value}" =~ ^~/ ]]; then
+            value="${value/#\~/$HOME}"
+        fi
+        CURRENT_CONFIG["${key}"]="${value}"
+    done
+    
+    # Set the appropriate prefix based on installation type
+    local homebrew_prefix
+    homebrew_prefix="$(get_default_prefix "${CURRENT_CONFIG[INSTALLATION_TYPE]}")"
+    CURRENT_CONFIG["HOMEBREW_PREFIX"]="${homebrew_prefix}"
+    
+    log_info "Installation type: ${CURRENT_CONFIG[INSTALLATION_TYPE]}"
+    log_info "Homebrew prefix: ${CURRENT_CONFIG[HOMEBREW_PREFIX]}"
+    log_info "Log level: ${CURRENT_CONFIG[LOG_LEVEL]}"
+}
+
+display_configuration_summary() {
+    log_step "Configuration Summary"
+    
+    echo "The following configuration will be created:"
+    echo
+    echo "${BOLD}Installation:${RESET}"
+    echo "  Type:   ${CURRENT_CONFIG[INSTALLATION_TYPE]}"
+    echo "  Prefix: ${CURRENT_CONFIG[HOMEBREW_PREFIX]}"
+    echo
+    echo "${BOLD}Logging:${RESET}"
+    echo "  Level:    ${CURRENT_CONFIG[LOG_LEVEL]}"
+    echo "  Log file: ${CURRENT_CONFIG[LOG_FILE]}"
+    echo
+    echo "${BOLD}Performance:${RESET}"
+    echo "  Parallel jobs: ${CURRENT_CONFIG[PARALLEL_JOBS]}"
+    echo "  Cache cleanup: ${CURRENT_CONFIG[CLEANUP_DAYS]} days"
+    echo
+    echo "${BOLD}Package Management:${RESET}"
+    echo "  Brewfile: ${CURRENT_CONFIG[ENABLE_BUNDLE]}"
+    echo
+    echo "${BOLD}Files to be created:${RESET}"
+    echo "  Config directory: ${CONFIG_DIR}"
+    echo "  Environment file: ${BREW_ENV_FILE}"
+    echo "  Brewfile:         ${BREWFILE}"
+}
+
+create_configuration_files() {
+    log_step "Creating configuration files"
+    
+    # Create config directory
+    mkdir -p "${CONFIG_DIR}"
+    log_info "Created directory: ${CONFIG_DIR}"
+    
+    # Create .brew_env file
+    cat > "${BREW_ENV_FILE}" << EOF
+# Homebrew Environment Configuration
+# ==================================
+# This file contains environment variables and configuration for Homebrew management tools.
+# Generated by ${SCRIPT_NAME} v${SCRIPT_VERSION} on $(date)
+# Edit these values to customize behavior across all runs.
+
+# Installation Configuration
+HOMEBREW_PREFIX="${CURRENT_CONFIG[HOMEBREW_PREFIX]}"    # Homebrew installation path
+
+# Logging Configuration
+LOG_LEVEL="${CURRENT_CONFIG[LOG_LEVEL]}"              # QUIET, NORMAL, VERBOSE, DEBUG
+LOG_FILE="${CURRENT_CONFIG[LOG_FILE]}"
+
+# Performance Configuration  
+PARALLEL_JOBS="${CURRENT_CONFIG[PARALLEL_JOBS]}"                    # auto, or specific number (e.g., "4")
+
+# Maintenance Configuration
+CLEANUP_DAYS="${CURRENT_CONFIG[CLEANUP_DAYS]}"                       # Days of cache to keep during cleanup
+ENABLE_BUNDLE="${CURRENT_CONFIG[ENABLE_BUNDLE]}"                    # Enable Brewfile management (true/false)
+
+# Homebrew Behavior Variables
+# (See https://docs.brew.sh/Manpage#environment for full list)
+HOMEBREW_DISPLAY_INSTALL_TIMES="${CURRENT_CONFIG[HOMEBREW_DISPLAY_INSTALL_TIMES]}"      # Show install times
+HOMEBREW_NO_AUTO_UPDATE="${CURRENT_CONFIG[HOMEBREW_NO_AUTO_UPDATE]}"             # Prevent auto-update during installs (we handle this)
+HOMEBREW_NO_INSTALL_CLEANUP="${CURRENT_CONFIG[HOMEBREW_NO_INSTALL_CLEANUP]}"         # We handle cleanup separately
+HOMEBREW_DEVELOPER="${CURRENT_CONFIG[HOMEBREW_DEVELOPER]}"                  # Enable developer mode for better error messages
+HOMEBREW_VERBOSE_USING_DOTS="${CURRENT_CONFIG[HOMEBREW_VERBOSE_USING_DOTS]}"         # Use dots for verbose output instead of full logs
+EOF
+    
+    log_info "Created environment file: ${BREW_ENV_FILE}"
+    
+    # Create Brewfile
+    cat > "${BREWFILE}" << 'EOF'
+# Brewfile - Homebrew Package Declaration
+# =======================================
+# This file declares which packages should be installed via Homebrew.
+# Use 'brew bundle dump' to auto-generate from current installations.
+#
+# Syntax:
+#   brew "package-name"           # Formula
+#   cask "app-name"              # Cask (GUI applications)
+#   mas "App Name", id: 123      # Mac App Store (macOS only)
+#   tap "user/repo"              # Custom taps
+#
+# Example packages (uncomment to install):
+# brew "git"
+# brew "curl"
+# brew "jq"
+# brew "node"
+# cask "visual-studio-code"      # GUI applications
+# cask "docker"
+# mas "Xcode", id: 497799835     # Mac App Store (macOS only)
+
+# Add your desired packages below:
+
+EOF
+    
+    log_info "Created Brewfile template: ${BREWFILE}"
+}
+
+print_next_steps() {
+    log_step "Setup Complete!"
+    
+    cat << EOF
+
+${GREEN}Configuration has been successfully created!${RESET}
+
+${BOLD}Configuration files:${RESET}
+  Environment: ${BREW_ENV_FILE}
+  Packages:    ${BREWFILE}
+
+${BOLD}Next steps:${RESET}
+
+1. ${BOLD}Install Homebrew (if needed):${RESET}
+   If you don't have Homebrew installed at the configured location:
+   ${BLUE}./brew-migrate${RESET}  (to migrate existing installation)
+   ${BLUE}or install fresh Homebrew manually${RESET}
+
+2. ${BOLD}Use the management tools:${RESET}
+   ${BLUE}./brewup${RESET}         (for regular maintenance and updates)
+   ${BLUE}./brew-migrate${RESET}   (to migrate existing installations)
+
+3. ${BOLD}Customize your setup:${RESET}
+   - Edit ${BREW_ENV_FILE} to modify settings
+   - Edit ${BREWFILE} to declare your desired packages
+   - Run 'brew bundle dump' to auto-generate from existing packages
+
+4. ${BOLD}Add packages to Brewfile:${RESET}
+   Example additions to ${BREWFILE}:
+   brew "git"
+   brew "node"
+   cask "visual-studio-code"
+
+${BOLD}Configuration summary:${RESET}
+  Installation: ${CURRENT_CONFIG[INSTALLATION_TYPE]} (${CURRENT_CONFIG[HOMEBREW_PREFIX]})
+  Log level:    ${CURRENT_CONFIG[LOG_LEVEL]}
+  Brewfile:     ${CURRENT_CONFIG[ENABLE_BUNDLE]}
+
+EOF
+}
+
+print_usage() {
+    cat << EOF
+${SCRIPT_NAME} v${SCRIPT_VERSION} - Homebrew Configuration Initialization
+
+USAGE:
+    ${SCRIPT_NAME} [OPTIONS]
+
+OPTIONS:
+    --auto          Use default configuration without prompts
+    --interactive   Use interactive configuration (default)
+    --force         Overwrite existing configuration
+    -h, --help      Show this help message
+    --version       Show version information
+
+DESCRIPTION:
+    This script initializes the configuration required by brewup and brew-migrate.
+    It creates the necessary configuration files with either default values or
+    custom settings based on your preferences.
+
+    The script creates:
+    - Configuration directory: ${CONFIG_DIR}
+    - Environment variables:   ${BREW_ENV_FILE}
+    - Package declarations:    ${BREWFILE}
+
+EXAMPLES:
+    ${SCRIPT_NAME}                    # Interactive setup (default)
+    ${SCRIPT_NAME} --auto             # Use defaults without prompts
+    ${SCRIPT_NAME} --force --auto     # Overwrite existing config with defaults
+
+DEPENDENCIES:
+    This script must be run before using:
+    - brewup (Homebrew maintenance script)
+    - brew-migrate (Homebrew migration script)
+
+For more information, visit: https://brew.sh/
+EOF
+}
+
+main() {
+    local auto_mode=false
+    local force_mode=false
+    local interactive_mode=true
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --auto)
+                auto_mode=true
+                interactive_mode=false
+                shift
+                ;;
+            --interactive)
+                interactive_mode=true
+                auto_mode=false
+                shift
+                ;;
+            --force)
+                force_mode=true
+                shift
+                ;;
+            -h|--help)
+                print_usage
+                exit 0
+                ;;
+            --version)
+                echo "${SCRIPT_NAME} v${SCRIPT_VERSION}"
+                exit 0
+                ;;
+            *)
+                log_error "Unknown argument: $1"
+                print_usage
+                exit 1
+                ;;
+        esac
+    done
+    
+    echo -e "${BOLD}${BLUE}Homebrew Configuration Initialization v${SCRIPT_VERSION}${RESET}"
+    echo "This script sets up configuration for Homebrew management tools."
+    echo
+    
+    # Check prerequisites
+    if ! check_prerequisites; then
+        if [[ "${force_mode}" == "true" ]]; then
+            log_warn "Forcing configuration overwrite"
+        else
+            log_error "Configuration already exists. Use --force to overwrite."
+            exit 1
+        fi
+    fi
+    
+    # Run configuration based on mode
+    if [[ "${auto_mode}" == "true" ]]; then
+        auto_configuration
+    else
+        interactive_configuration
+    fi
+    
+    # Show summary and confirm
+    display_configuration_summary
+    
+    if [[ "${interactive_mode}" == "true" ]]; then
+        echo
+        log_question "Create this configuration?"
+        echo -n "Proceed? (Y/n): "
+        read -r confirm
+        if [[ "${confirm}" =~ ^[Nn]$ ]]; then
+            log_info "Configuration cancelled"
+            exit 0
+        fi
+    fi
+    
+    # Create files
+    create_configuration_files
+    
+    # Show next steps
+    print_next_steps
+}
+
+main "$@"
