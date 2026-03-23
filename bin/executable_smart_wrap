@@ -2,15 +2,29 @@
 set -euo pipefail
 
 # -----------------------------------------------------------------------------
-# File: smart_wrap.sh
-# Author: Ben Davis <bengineerdavis@gmail.com>
-# Description: A portable shell function to wrap CLI utilities.
-# Features: 
-#   - Forces TERM=xterm-256color for Ghostty/modern terminal compatibility.
-#   - Defaults to 'help' if no arguments are provided.
-#   - Pipes help output to 'bat' with smart syntax highlighting.
-#   - Handles cases where no specific color/syntax is available for help menus.
-# License: MIT
+# Script Name:        smart_wrap
+# Description:        A portable shell function to wrap CLI utilities with smart help output and syntax highlighting. It ensures terminal color compatibility, detects help flags, and pipes help content to 'bat' for syntax highlighting with language-specific formatting, or falls back to 'less' for ANSI color preservation.
+#
+# License:            MIT
+# Author:             Ben Davis <bengineerdavis@gmail.com>
+# Credits:            None
+# Created:            2026-03-23
+# Last Modified:      2026-03-23
+#
+# Usage:              smart_wrap <command> [language] [arguments...]
+#                     smart_wrap git git --help     # Show git help with syntax highlighting
+#                     smart_wrap chezmoi help      # Show chezmoi help with smart formatting
+#                     smart_wrap <tool> plain     # Use plain syntax for tools without specific language support
+#
+# Notes:
+#   - Requires 'bat' for syntax highlighting; falls back to 'less -R' if 'bat' is not installed.
+#   - Uses 'TERM=xterm-256color' to ensure proper color rendering in modern terminals (e.g., Ghostty).
+#   - Detects help flags (--help, -h, help) to trigger help output mode.
+#   - If no arguments are provided, defaults to 'help' mode.
+#   - The function supports passing arguments through and will execute the command as normal if not in help mode.
+#   - Dependencies: bat (for syntax highlighting), command (for binary lookup), less (for fallback).
+#   - Environment variables: TERM (set to xterm-256color internally).
+#
 # -----------------------------------------------------------------------------
 
 smart_wrap() {
@@ -44,7 +58,6 @@ smart_wrap() {
     if [ "$is_help" -eq 1 ]; then
         if command -v bat >/dev/null 2>&1; then
             # Determine if we should use a specific language or fall back to plain
-            # We check bat's internal list to see if the requested lang exists
             local bat_lang="help"
             if bat --list-languages | grep -qi "^$lang$"; then
                 bat_lang="$lang"
