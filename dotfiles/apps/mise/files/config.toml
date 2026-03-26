@@ -4,6 +4,7 @@ pipx.uvx = true
 
 [tools]
 go = "latest"
+"pipx:git-filter-repo" = "latest"
 "pipx:gita" = "latest"
 "pipx:llm" = "latest"
 uv = "latest"
