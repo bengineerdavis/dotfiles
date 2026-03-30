@@ -3,8 +3,19 @@ experimental = true
 pipx.uvx = true
 
 [tools]
+# go tooling
 go = "latest"
 "pipx:git-filter-repo" = "latest"
 "pipx:gita" = "latest"
+# http://llm.datasette.io/en/stable/setup.html
 "pipx:llm" = "latest"
+
+# python tooling
 uv = "latest"
+python = "latest"
+
+# ai tooling
+# Aider gets its own isolated venv pinned to 3.12
+# mise uses uv tool install under the hood for pipx: backend
+# https://aider.chat/docs/install.html
+"pipx:aider-chat" = { version = "latest", uvx_args = "--python 3.12 --force" }
