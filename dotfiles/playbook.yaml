@@ -78,3 +78,68 @@
         name: "apps/{{ item }}"
       loop: "{{ enabled_apps }}"
       tags: ["apps"]
+
+    # ── Update installed ollama LLM models ──────────────────────────────────────────────────
+    # sources
+    # https://github.com/SoMoney/ansible-ollama/
+
+    - name: Ensure ollama cli is installed
+      ansible.builtin.stat:
+        path: "{{ homebrew_prefix }}/bin/ollama"
+      register: ollama_stat
+      tags: [system, upgrade, ollama]
+
+    - name: Check if ollama already has models installed
+      ansible.builtin.command: "{{ homebrew_prefix }}/bin/ollama list"
+      register: ollama_models
+      failed_when: false
+      changed_when: false
+      when: ollama_stat.stat.exists
+      tags: [system, upgrade, ollama]
+
+    - name: Parse installed ollama model names
+      ansible.builtin.set_fact:
+        ollama_model_names: >-
+          {{
+            ollama_models.stdout_lines
+            | reject('match', '^NAME')
+            | reject('equalto', '')
+            | map('split')
+            | map('first')
+            | list
+          }}
+      when:
+        - ollama_stat.stat.exists
+        - ollama_models.rc == 0
+        - ollama_models.stdout_lines | length > 1
+      tags: [system, upgrade, ollama]
+
+    - name: Pull latest version of each installed model
+      ansible.builtin.command:
+        argv:
+          - "{{ homebrew_prefix }}/bin/ollama"
+          - pull
+          - "{{ item }}"
+      loop: "{{ ollama_model_names | default([]) }}"
+      loop_control:
+        label: "{{ item }}"
+      register: ollama_pull_results
+      when:
+        - ollama_stat.stat.exists
+        - ollama_model_names | default([]) | length > 0
+      changed_when: "'up to date' not in ollama_pull_results.stdout"
+      failed_when: ollama_pull_results.rc != 0
+      any_errors_fatal: true
+      no_log: "{{ 'debug' not in ansible_run_tags }}"
+      tags: [system, upgrade, ollama]
+
+    - name: Ollama model update summary
+      ansible.builtin.debug:
+        msg: |
+          {% for result in ollama_pull_results.results | default([]) %}
+          {{ result.item }}: {{ 'up to date' if 'up to date' in (result.stdout | default('')) else 'updated' }}
+          {% endfor %}
+      when:
+        - ollama_stat.stat.exists
+        - ollama_pull_results is defined
+      tags: [system, upgrade, ollama]
