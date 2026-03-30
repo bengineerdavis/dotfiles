@@ -2,7 +2,7 @@
 - name: Local Machine Setup
   hosts: localhost
   connection: local
-  gather_facts: true  # Required to detect if it's arm64 (M1+) or x86_64 (Intel)
+  gather_facts: true # Required to detect if it's arm64 (M1+) or x86_64 (Intel)
 
   vars:
     # Use ansible_facts for modern compatibility
@@ -28,11 +28,12 @@
         path: ~/.zprofile
         line: 'eval "$({{ homebrew_bin }} shellenv)"'
         create: yes
-      when: 
+      when:
         - ansible_facts['architecture'] == "arm64"
         - not brew_stat.stat.exists
+      register: brew_stat
       tags: [system, install]
-  
+
   tasks:
     - name: Update Homebrew and upgrade all installed packages
       community.general.homebrew:
@@ -40,6 +41,7 @@
         upgrade_all: true
         upgrade_options: greedy
         path: "{{ homebrew_prefix }}/bin"
+      when: brew_stat.stat.exists
       become: false
       tags: [system, upgrade, apps]
 
@@ -48,13 +50,14 @@
         update_homebrew: true
         upgrade_all: true
         greedy: true
+      when: brew_stat.stat.exists
       tags: [system, upgrade, apps]
 
     - name: Stop play if only system upgrade was requested
       ansible.builtin.meta: end_play
       when: "'system' in ansible_run_tags and 'apps' not in ansible_run_tags"
       tags: [system]
-      
+
     - name: Find all app task files in apps/ directory
       ansible.builtin.find:
         paths: "apps/"
