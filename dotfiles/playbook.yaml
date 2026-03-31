@@ -41,7 +41,9 @@
         upgrade_all: true
         upgrade_options: greedy
         path: "{{ homebrew_prefix }}/bin"
-      when: brew_stat.stat.exists
+      when:
+        - brew_stat.stat.exists
+        - ansible_facts['os_family'] in ["Darwin", "Linux"]
       become: false
       tags: [system, upgrade, apps]
 
@@ -50,7 +52,9 @@
         update_homebrew: true
         upgrade_all: true
         greedy: true
-      when: brew_stat.stat.exists
+      when:
+        - brew_stat.stat.exists
+        - ansible_facts['os_family'] in ["Darwin", "Linux"]
       tags: [system, upgrade, apps]
 
     - name: Stop play if only system upgrade was requested
@@ -127,6 +131,7 @@
       when:
         - ollama_stat.stat.exists
         - ollama_model_names | default([]) | length > 0
+        - ansible_facts['os_family'] in ["Darwin", "Linux"]
       changed_when: "'up to date' not in ollama_pull_results.stdout"
       failed_when: ollama_pull_results.rc != 0
       any_errors_fatal: true
