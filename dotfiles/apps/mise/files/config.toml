@@ -3,16 +3,22 @@ experimental = true
 pipx.uvx = true
 
 [tools]
+"cargo:https://github.com/sondr3/git-ignore" = { version = "branch:main", crate = "git-ignore-generator" }
+fd = "latest"
+fzf = "latest"
+
 # go tooling
 go = "latest"
-"pipx:git-filter-repo" = "latest"
-"pipx:gita" = "latest"
-# http://llm.datasette.io/en/stable/setup.html
-"pipx:llm" = "latest"
 
 # python tooling
 uv = "latest"
 python = "latest"
+"pipx:pre-commit" = "latest"
+"pipx:git-filter-repo" = "latest"
+"pipx:gita" = "latest"
+
+# http://llm.datasette.io/en/stable/setup.html
+"pipx:llm" = "latest"
 
 # ai tooling
 # Aider gets its own isolated venv pinned to 3.12

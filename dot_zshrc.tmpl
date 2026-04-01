@@ -324,7 +324,6 @@ eval "$(pyenv virtualenv-init -)"
 
 # # eval "$(~/.rbenv/bin/rbenv init - zsh)"
 
-
 # # Enable steam with Vulkan
 MANGOHUD=1
 
@@ -336,6 +335,9 @@ export PATH="$PATH:/home/bdavis/.local/bin"
 # setup autocomplete for fzf in bash environment
 # [ -f ~/.fzf.bash ] && source ~/.fzf.bash
 # eval "$(fzf --bash)"
+
+# Load mise-en-place programming language environment manager
+eval "$(mise activate zsh)"
 
 # Set up fzf key bindings and fuzzy completion
 source <(fzf --zsh)
@@ -350,9 +352,6 @@ source ~/.config/api_keys
 eval "$(zoxide init zsh --cmd cd)"
 
 ## End of bashrc
-
-# Load mise-en-place programming language environment manager
-eval "$(mise activate zsh)"
 
 # Generated for envman. Do not edit.
 [ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
