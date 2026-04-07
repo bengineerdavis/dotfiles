@@ -17,7 +17,12 @@ repos:
         language: script
         entry: scripts/run-bats.sh
         types: [shell]
-        exclude: ^tests/ # test files themselves are not subjects
+        exclude: >-
+          (?x)^(
+            tests/|                       # test files are not subjects
+            scripts/run-bats\.sh|         # the runner itself
+            scripts/run-shellharden\.sh   # shellharden helper
+          )$
         files: ^(bin|scripts)/
-        pass_filenames: true # runner receives staged script paths
+        pass_filenames: false # runner pulls staged files itself via git
         stages: [pre-commit, pre-push]
