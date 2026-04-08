@@ -1,150 +1,118 @@
 ---
-- name: Local Machine Setup
+# playbook.yaml — main dotfiles provisioner
+# Driver: chezmoi. This playbook is invoked by chezmoi or directly.
+#
+# Tag hierarchy:
+#   provision      = bootstrap + prerequisites + upgrade + install (full fresh machine)
+#   bootstrap      = ensure package managers exist (confirmed, never silent)
+#   prerequisites  = core tools required before any topic installs
+#   upgrade        = system-level upgrades only (brew, apt) — no topic installs
+#   install        = all topic installs (assumes env is ready)
+#   remove         = explicit uninstall only, never part of provision
+#
+# Examples:
+#   ansible-playbook playbook.yaml --tags provision   # full fresh machine
+#   ansible-playbook playbook.yaml --tags upgrade     # upgrade existing env
+#   ansible-playbook playbook.yaml --tags install     # install all topics
+#   ansible-playbook playbook.yaml --tags remove      # uninstall all topics
+
+- name: "Local Machine Setup"
   hosts: localhost
   connection: local
-  gather_facts: true # Required to detect if it's arm64 (M1+) or x86_64 (Intel)
+  gather_facts: true
+  become: false
 
   vars:
-    # Use ansible_facts for modern compatibility
     homebrew_prefix: "{{ '/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local' }}"
     homebrew_bin: "{{ homebrew_prefix }}/bin/brew"
     user_appdir: "{{ ansible_facts['env']['HOME'] }}/Applications"
 
   pre_tasks:
-    - name: "Verify Homebrew installation at {{ homebrew_bin }}"
-      ansible.builtin.stat:
-        path: "{{ homebrew_bin }}"
-      register: brew_stat
-      tags: [always, install]
-
-    - name: Install Homebrew if missing
-      ansible.builtin.shell: >
-        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com)"
-      when: not brew_stat.stat.exists
-      tags: [system, install]
-
-    - name: Ensure Homebrew is in the shell PATH (Apple Silicon)
-      ansible.builtin.lineinfile:
-        path: ~/.zprofile
-        line: 'eval "$({{ homebrew_bin }} shellenv)"'
-        create: yes
-      when:
-        - ansible_facts['architecture'] == "arm64"
-        - not brew_stat.stat.exists
-      register: brew_stat
-      tags: [system, install]
+    - name: "Detect OS family"
+      ansible.builtin.debug:
+        msg: "OS: {{ ansible_facts['os_family'] }}, Arch: {{ ansible_facts['architecture'] }}"
+      tags: [always]
 
   tasks:
-    - name: Update Homebrew and upgrade all installed packages
-      community.general.homebrew:
-        update_homebrew: true
-        upgrade_all: true
-        upgrade_options: greedy
-        path: "{{ homebrew_prefix }}/bin"
-      when:
-        - brew_stat.stat.exists
-        - ansible_facts['os_family'] in ["Darwin", "Linux"]
-      become: false
-      tags: [system, upgrade, apps]
+    # ── Bootstrap ──────────────────────────────────────────────────────────────
+    # Ensure package managers exist. Confirmed, never silent. No drift tolerated.
 
-    - name: Upgrade all installed Homebrew casks
-      community.general.homebrew_cask:
-        update_homebrew: true
-        upgrade_all: true
-        greedy: true
-      when:
-        - brew_stat.stat.exists
-        - ansible_facts['os_family'] in ["Darwin", "Linux"]
-      tags: [system, upgrade, apps]
+    - name: "Bootstrap: Homebrew (macOS)"
+      ansible.builtin.import_role:
+        name: apps/homebrew
+        tasks_from: bootstrap
+      when: ansible_facts['os_family'] == 'Darwin'
+      tags: [bootstrap, provision]
 
-    - name: Stop play if only system upgrade was requested
-      ansible.builtin.meta: end_play
-      when: "'system' in ansible_run_tags and 'apps' not in ansible_run_tags"
-      tags: [system]
+    - name: "Bootstrap: apt (Linux)"
+      ansible.builtin.import_role:
+        name: apps/apt
+        tasks_from: bootstrap
+      when: ansible_facts['os_family'] == 'Debian'
+      tags: [bootstrap, provision]
 
-    - name: Find all app task files in apps/ directory
+    - name: "Bootstrap: Docker"
+      ansible.builtin.import_role:
+        name: apps/docker
+        tasks_from: bootstrap
+      tags: [bootstrap, provision]
+
+    # ── Prerequisites ──────────────────────────────────────────────────────────
+    # Core tools required before any topic installs. Idempotent, no confirmation.
+
+    - name: "Prerequisites: Homebrew (macOS)"
+      ansible.builtin.import_role:
+        name: apps/homebrew
+        tasks_from: prerequisites
+      when: ansible_facts['os_family'] == 'Darwin'
+      tags: [prerequisites, provision]
+
+    - name: "Prerequisites: apt (Linux)"
+      ansible.builtin.import_role:
+        name: apps/apt
+        tasks_from: prerequisites
+      when: ansible_facts['os_family'] == 'Debian'
+      tags: [prerequisites, provision]
+
+    # ── Upgrade ────────────────────────────────────────────────────────────────
+    # System-level upgrades only. Topics do not own upgrade logic.
+
+    - name: "Upgrade: Homebrew (macOS)"
+      ansible.builtin.import_role:
+        name: apps/homebrew
+        tasks_from: upgrade
+      when: ansible_facts['os_family'] == 'Darwin'
+      tags: [upgrade, provision]
+
+    - name: "Upgrade: apt (Linux)"
+      ansible.builtin.import_role:
+        name: apps/apt
+        tasks_from: upgrade
+      when: ansible_facts['os_family'] == 'Debian'
+      tags: [upgrade, provision]
+
+    # ── Topic installs ─────────────────────────────────────────────────────────
+    # Dynamically discover and run all topic install tasks.
+
+    - name: "Find all topic roles in apps/"
       ansible.builtin.find:
         paths: "apps/"
         recurse: yes
-        patterns: "tasks.yaml"
+        patterns: "main.yaml"
+        file_type: file
       register: app_files
-      tags: [apps, install]
+      tags: [install, remove, provision]
 
-    - name: Dynamically include found tasks
-      ansible.builtin.include_tasks: "{{ item.path }}"
-      loop: "{{ app_files.files | sort(attribute='path') }}"
-      loop_control:
-        label: "{{ item.path }}"
-      tags: [apps, install]
-
-    - name: "Dynamically include app roles"
-      include_role:
+    - name: "Dynamically include topic roles"
+      ansible.builtin.include_role:
         name: "apps/{{ item }}"
-      loop: "{{ enabled_apps }}"
-      tags: ["apps"]
-
-    # ── Update installed ollama LLM models ──────────────────────────────────────────────────
-    # sources
-    # https://github.com/SoMoney/ansible-ollama/
-
-    - name: Ensure ollama cli is installed
-      ansible.builtin.stat:
-        path: "{{ homebrew_prefix }}/bin/ollama"
-      register: ollama_stat
-      tags: [system, upgrade, ollama]
-
-    - name: Check if ollama already has models installed
-      ansible.builtin.command: "{{ homebrew_prefix }}/bin/ollama list"
-      register: ollama_models
-      failed_when: false
-      changed_when: false
-      when: ollama_stat.stat.exists
-      tags: [system, upgrade, ollama]
-
-    - name: Parse installed ollama model names
-      ansible.builtin.set_fact:
-        ollama_model_names: >-
-          {{
-            ollama_models.stdout_lines
-            | reject('match', '^NAME')
-            | reject('equalto', '')
-            | map('split')
-            | map('first')
-            | list
-          }}
-      when:
-        - ollama_stat.stat.exists
-        - ollama_models.rc == 0
-        - ollama_models.stdout_lines | length > 1
-      tags: [system, upgrade, ollama]
-
-    - name: Pull latest version of each installed model
-      ansible.builtin.command:
-        argv:
-          - "{{ homebrew_prefix }}/bin/ollama"
-          - pull
-          - "{{ item }}"
-      loop: "{{ ollama_model_names | default([]) }}"
-      loop_control:
-        label: "{{ item }}"
-      register: ollama_pull_results
-      when:
-        - ollama_stat.stat.exists
-        - ollama_model_names | default([]) | length > 0
-        - ansible_facts['os_family'] in ["Darwin", "Linux"]
-      changed_when: "'up to date' not in ollama_pull_results.stdout"
-      failed_when: ollama_pull_results.rc != 0
-      any_errors_fatal: true
-      no_log: "{{ 'debug' not in ansible_run_tags }}"
-      tags: [system, upgrade, ollama]
-
-    - name: Ollama model update summary
-      ansible.builtin.debug:
-        msg: |
-          {% for result in ollama_pull_results.results | default([]) %}
-          {{ result.item }}: {{ 'up to date' if 'up to date' in (result.stdout | default('')) else 'updated' }}
-          {% endfor %}
-      when:
-        - ollama_stat.stat.exists
-        - ollama_pull_results is defined
-      tags: [system, upgrade, ollama]
+      loop: >-
+        {{
+          app_files.files
+          | map(attribute='path')
+          | select('search', 'tasks/main.yaml')
+          | map('regex_replace', '.*/apps/([^/]+)/tasks/main.yaml', '\\1')
+          | reject('in', ['homebrew', 'apt', 'docker'])
+          | list | sort
+        }}
+      tags: [install, remove, provision]
