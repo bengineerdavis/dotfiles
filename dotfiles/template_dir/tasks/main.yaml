@@ -1,77 +1,12 @@
-# template_dir/topic/tasks/main.yaml – empty template for new topics
+# apps/<topic>/tasks/main.yaml — role task router
+# Imports subtask files by tag. Only imports files that exist.
+# chezmoi owns dotfile/config state. zsh sources handle shell config.
+# This file owns: package installation and explicit removal only.
 
-# tasks.yaml
+- name: "Import install tasks"
+  ansible.builtin.import_tasks: install.yaml
+  tags: [install, provision]
 
-# put all of the non-dotfile configuration and setup work to be done for this app here. 
-# This file will be included in the main playbook.yaml file, so you can use all 
-# of the same Ansible modules and features as you would in a normal playbook.
-#
-# The end-result is all the steps outside of what's defined in the .zsh files are completed
-# by this file, when run, the app will work immediately out of the box.
-
-
-# some templates below to uncomment and add to the tasks file
-# - name: Ensure {{ put package name here }} is installed via Homebrew formulae
-#   community.general.homebrew:
-#     name:  # {{ put package name here}}
-#     state: present
-#   become: false
-#   when: ansible_facts['os_family'] in ["Darwin", "Linux"]
-
-# - name: Ensure {{ put package name here }} is installed via Homebrew cask
-#   community.general.homebrew_cask:
-#     name:  # {{ put package name here}}
-#     state: present
-#     install_options: "appdir={{ user_appdir }}"
-#   become: false
-#   when: ansible_facts['os_family'] in ["Darwin", "Linux"]
-
----
-- name: "Ensure topic directory structures exist [optional]"
-  file:
-    path: "{{ ansible_user_dir }}/path/to/topic/structure"
-    state: directory
-  # when:
-  #   - topic_create_directories | default(true) | bool
-  tags:
-    - topic
-    - directories
-
-- name: "Install topic tools via Homebrew (if applicable) [optional]"
-  homebrew:
-    name:
-      # - topic-tool
-    state: present
-  when:
-    - ansible_pkg_mgr is defined and ansible_pkg_mgr == "homebrew"
-    # - topic_install_tools | default(false) | bool
-  tags:
-    - brew
-    - tools
-    - topic
-
-- name: "Symlink global config file for topic [optional]"
-  file:
-    src: "{{ playbook_dir }}/apps/topic/files/.config/topic/config.ext"
-    dest: "{{ ansible_user_dir }}/.config/topic/config.ext"
-    state: link
-  # when:
-  #   - topic_manage_global_config | default(true) | bool
-  tags:
-    - topic
-    - config
-
-- name: "Copy topic shell config snippets [optional]"
-  copy:
-    src: "files/zsh/topic_*.zsh"
-    dest: "{{ ansible_user_dir }}/.zshrc.d/topic_{{ item }}"
-    mode: "0644"
-  loop:
-    # - "env.zsh"
-    # - "path.zsh"
-    # - "init.zsh"
-  when:
-    # - topic_manage_zsh_files | default(true) | bool
-  tags:
-    - topic
-    - shell
+- name: "Import remove tasks"
+  ansible.builtin.import_tasks: remove.yaml
+  tags: [remove]

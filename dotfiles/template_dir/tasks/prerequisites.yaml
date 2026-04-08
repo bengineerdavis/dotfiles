@@ -1,0 +1,34 @@
+# apps/homebrew/tasks/prerequisites.yaml
+# Core tools required before any topic installs.
+# Idempotent — safe to re-run. No confirmation needed.
+# These are tools Homebrew itself or subsequent roles depend on.
+
+- name: "Prerequisites: ensure Xcode CLI tools are installed (macOS)"
+  ansible.builtin.command:
+    cmd: xcode-select --print-path
+  register: xcode_check
+  failed_when: false
+  changed_when: false
+
+- name: "Prerequisites: install Xcode CLI tools if missing"
+  ansible.builtin.command:
+    cmd: xcode-select --install
+  when: xcode_check.rc != 0
+  register: xcode_install
+  failed_when:
+    - xcode_install.rc != 0
+    - "'already installed' not in xcode_install.stderr"
+  changed_when: xcode_install.rc == 0
+
+- name: "Prerequisites: install core Homebrew packages"
+  community.general.homebrew:
+    name:
+      - git
+      - curl
+      - wget
+      - ca-certificates
+      - gnupg
+      - coreutils
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  when: ansible_facts['os_family'] == 'Darwin'
