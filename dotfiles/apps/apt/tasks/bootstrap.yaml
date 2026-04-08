@@ -1,0 +1,22 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# apps/apt/tasks/bootstrap.yaml
+# ──────────────────────────────────────────────────────────────────────────────
+# TODO: apt is available by default on Debian/Ubuntu — bootstrap checks
+# that apt-get is functional and that universe/multiverse repos are enabled.
+
+- name: "Bootstrap: check apt-get is available"
+  ansible.builtin.stat:
+    path: /usr/bin/apt-get
+  register: apt_stat
+
+- name: "Bootstrap: apt-get already present"
+  ansible.builtin.debug:
+    msg: "✅ apt-get found — no action needed."
+  when: apt_stat.stat.exists
+
+- name: "Bootstrap: fail if apt-get not found"
+  ansible.builtin.fail:
+    msg: "apt-get not found at /usr/bin/apt-get. Is this a Debian/Ubuntu system?"
+  when: not apt_stat.stat.exists
+# TODO: enable universe/multiverse repos if needed
+# TODO: add support for other Linux package managers (dnf, pacman, zypper)

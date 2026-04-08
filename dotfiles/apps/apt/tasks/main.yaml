@@ -1,0 +1,23 @@
+# apps/apt/tasks/main.yaml — apt role task router
+# System role — handles apt package manager lifecycle.
+# Called by parent playbook with explicit tags.
+
+- name: "apt: bootstrap"
+  ansible.builtin.import_tasks: bootstrap.yaml
+  tags: [bootstrap, provision]
+
+- name: "apt: prerequisites"
+  ansible.builtin.import_tasks: prerequisites.yaml
+  tags: [prerequisites, provision]
+
+- name: "apt: upgrade"
+  ansible.builtin.import_tasks: upgrade.yaml
+  tags: [upgrade, provision]
+
+- name: "apt: install"
+  ansible.builtin.import_tasks: install.yaml
+  tags: [install, provision]
+
+- name: "apt: remove"
+  ansible.builtin.import_tasks: remove.yaml
+  tags: [remove]

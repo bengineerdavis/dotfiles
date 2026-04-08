@@ -1,0 +1,15 @@
+# apps/homebrew/tasks/main.yaml — Homebrew role task router
+# System role — handles package manager lifecycle only.
+# Called by parent playbook with explicit tags, not dynamically discovered.
+
+- name: "Homebrew: bootstrap"
+  ansible.builtin.import_tasks: bootstrap.yaml
+  tags: [bootstrap, provision]
+
+- name: "Homebrew: prerequisites"
+  ansible.builtin.import_tasks: prerequisites.yaml
+  tags: [prerequisites, provision]
+
+- name: "Homebrew: upgrade"
+  ansible.builtin.import_tasks: upgrade.yaml
+  tags: [upgrade, provision]

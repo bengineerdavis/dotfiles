@@ -1,0 +1,18 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# apps/docker/tasks/upgrade.yaml
+# ──────────────────────────────────────────────────────────────────────────────
+# Pull latest versions of any tracked Docker images.
+# TODO: define a list of tracked images in defaults/main.yaml
+
+- name: "Upgrade: pull latest tracked Docker images"
+  community.docker.docker_image:
+    name: "{{ item }}"
+    source: pull
+    force_source: true
+  loop: "{{ docker_tracked_images | default([]) }}"
+  when: docker_tracked_images | default([]) | length > 0
+
+- name: "Upgrade: no tracked images defined"
+  ansible.builtin.debug:
+    msg: "No docker_tracked_images defined in defaults/main.yaml — nothing to pull."
+  when: docker_tracked_images | default([]) | length == 0
