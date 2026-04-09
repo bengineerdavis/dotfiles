@@ -31,8 +31,12 @@ ROOT_EXTENSIONS=("yaml" "yml" "md" "sh" "toml" "txt" "zsh" "cfg" "conf" "ini")
 ROLE_DIRS=("tasks" "defaults" "vars" "files" "templates" "handlers" "meta")
 
 # ── Model config ──────────────────────────────────────────────────────────────
-CODE_MODELS=("devstral-small-2:24b" "qwen3.5:9b")
-REASON_MODELS=("deepseek-r1:32b" "qwen3:30b" "phi4:14b")
+CODE_MODELS=("devstral-small-2:24b" "qwen3.5:9b" "mistral-small3.1:24b")
+REASON_MODELS=("deepseek-r1:32b" "qwen3:30b" "phi4:14b" "mistral-small3.1:24b")
+
+# Timeout in seconds before falling back to the next model in the chain.
+# Uncomment to enable. Requires `timeout` (GNU coreutils) or `gtimeout` (brew install coreutils).
+# LLM_TIMEOUT=60
 
 # ── CLI flags ─────────────────────────────────────────────────────────────────
 usage() {
@@ -111,7 +115,7 @@ fs_write() { $DRY_RUN && dryrun "write $1"      || printf '%s\n' "$2" > "$1"; }
 backup_file() {
   local src="$1" topic="$2" label="$3"
   local dest="$BACKUP_DIR/$topic/$label"
-  fs_mkdir "$BACKUP_DIR/$topic"
+  fs_mkdir "$(dirname "$dest")"
   fs_cp "$src" "$dest"
   log "backed up $src → $dest"
 }
@@ -145,6 +149,18 @@ llm_run() {
   local output
   for model in "${_models[@]}"; do
     llmlog "trying: $model"
+    # If LLM_TIMEOUT is set, wrap the call with timeout (GNU coreutils / gtimeout on macOS)
+    # local _timeout_cmd=""
+    # if [[ -n "${LLM_TIMEOUT:-}" ]]; then
+    #   if command -v gtimeout &>/dev/null; then
+    #     _timeout_cmd="gtimeout ${LLM_TIMEOUT}"
+    #   elif command -v timeout &>/dev/null; then
+    #     _timeout_cmd="timeout ${LLM_TIMEOUT}"
+    #   else
+    #     warn "LLM_TIMEOUT set but neither 'timeout' nor 'gtimeout' found — install via: brew install coreutils"
+    #   fi
+    # fi
+    # if output=$(${_timeout_cmd} llm -m "$model" "$prompt" 2>/dev/null); then
     if output=$(llm -m "$model" "$prompt" 2>/dev/null); then
       llmlog "✅ success: $model"
       echo "$output"
@@ -155,7 +171,8 @@ llm_run() {
   done
 
   warn "all LLM models failed for: $reason"
-  return 1
+  echo ""
+  return 0  # never let LLM failure abort the topic loop
 }
 
 # ── Template loader ───────────────────────────────────────────────────────────
@@ -195,11 +212,18 @@ ${file_content}
 
 ${extra_context}
 
-Assess whether the actual file conforms to the template structure and intent.
+Assessment rules:
+- Every install.yaml MUST have at least one active (non-commented) install task — that is the only hard requirement
+- Template comment blocks showing multiple package managers are scaffolding hints, NOT requirements
+- A file with exactly one package manager implemented is fully CONFORMANT — more is optional
+- If multiple package managers are present, that is acceptable but not required
+- Only flag non-conformant if: no active install task exists, wrong module names are used, or tag usage diverges from the template
+- Do not require Linux, Docker, or any specific package manager unless already partially present
+
 Reply EXACTLY in this format:
 CONFORMANT: <yes|no|partial>
 CONFIDENCE: <high|medium|low>
-ISSUES: <comma-separated list of issues, or 'none'>
+ISSUES: <comma-separated list of structural issues, or 'none'>
 PRESERVE: <comma-separated list of content worth keeping from actual file, or 'none'>
 ACTION: <keep|rewrite|flag-for-manual-review>
 REASON: <one sentence>"
@@ -237,10 +261,14 @@ ${current_content}
 Content worth preserving from current file:
 ${preserve_notes}
 
-Rewrite the file to conform to the template structure while preserving the noted content.
-Replace all <topic> placeholders with: ${topic}
-Output ONLY valid YAML. No markdown, no explanation, no code fences.
-First line must be a comment: # apps/${topic}/${file_label}"
+Rewrite rules:
+- The file MUST contain exactly one active package manager implementation
+- If preserve_notes names a specific package manager, use that one
+- Otherwise pick the package manager most likely to provide the most recent version. Prefer: homebrew cask > homebrew formula > apt > snap > docker
+- Commented-out alternatives are acceptable scaffolding — include them as comments only
+- Replace all <topic> placeholders with: ${topic}
+- Output ONLY valid YAML. No markdown, no explanation, no code fences.
+- First line must be a comment: # apps/${topic}/${file_label}"
 
   llm_run CODE_MODELS "$prompt" "rewrite to template: apps/${topic}/${file_label}"
 }
@@ -269,15 +297,18 @@ ${remove_tpl}
 ---
 
 RULES:
-1. install.yaml  — package installation tasks (brew, apt, cask, docker pull, etc.)
-2. remove.yaml   — uninstall/cleanup tasks (state: absent/removed)
-3. Ambiguous tasks → install.yaml with comment: # TODO: verify placement
-4. Tasks belonging in a system role (brew update, apt update, etc.) → install.yaml with comment: # TODO: belongs in system role (homebrew/apt/docker)
-5. Each output must be a valid YAML task list
-6. Use fully qualified module names (ansible.builtin.*, community.general.*)
-7. Replace any bare module names with FQCNs
-8. If no tasks for a section output exactly: # EMPTY
-9. First line of each must be: # apps/${topic}/tasks/install.yaml or # apps/${topic}/tasks/remove.yaml
+1. install.yaml MUST contain exactly one active package manager implementation — pick the best one
+2. If multiple package managers are present, select the one most likely to provide the most recent version of the package. Prefer: homebrew cask > homebrew formula > apt > snap > docker. Override this order if one option clearly provides a newer or more complete install.
+3. Commented-out alternative package managers are acceptable as scaffolding hints — keep them as comments
+4. remove.yaml — uninstall/cleanup tasks matching whichever package manager was chosen for install
+5. Ambiguous tasks → install.yaml with comment: # TODO: verify placement
+6. Tasks belonging in a system role (brew update, apt update, etc.) → install.yaml with comment: # TODO: belongs in system role (homebrew/apt/docker)
+7. Each output must be a valid YAML task list
+8. Use fully qualified module names (ansible.builtin.*, community.general.*)
+9. Replace any bare module names with FQCNs
+10. If no tasks for a section output exactly: # EMPTY
+11. First line of each must be: # apps/${topic}/tasks/install.yaml or # apps/${topic}/tasks/remove.yaml
+12. In the REPORT section, state which package manager was chosen and why
 
 Respond ONLY in this format (no markdown):
 === INSTALL ===
@@ -420,8 +451,15 @@ parse_split_section() {
 }
 
 parse_llm_field() {
+  # For single-word fields: CONFORMANT, ACTION, CONFIDENCE, PREFER
   local raw="$1" field="$2"
-  echo "$raw" | grep "^${field}:" | sed "s/^${field}: *//"
+  echo "$raw" | grep "^${field}:" | sed "s/^${field}: *//" | tr -d '[:space:]'
+}
+
+parse_llm_field_text() {
+  # For free-text fields: REASON, PRESERVE, ISSUES, PRESERVE_FROM_LOSER
+  local raw="$1" field="$2"
+  echo "$raw" | grep "^${field}:" | sed "s/^${field}: *//" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
 }
 
 # ── Write migration report ────────────────────────────────────────────────────
@@ -442,18 +480,26 @@ assess_and_rewrite() {
   local template_rel="$3"
   local file_label="$4"
 
-  [[ ! -f "$file_path" ]] && return
+  [[ ! -f "$file_path" ]] && return 0
 
   local assessment
-  assessment=$(llm_assess_conformance "$topic" "$file_path" "$template_rel")
+  assessment=$(llm_assess_conformance "$topic" "$file_path" "$template_rel") || {
+    flag "$file_label: conformance check failed — skipping"
+    return 0
+  }
 
-  local conformant action confidence preserve
-  conformant=$(parse_llm_field "$assessment" "CONFORMANT")
-  action=$(parse_llm_field "$assessment" "ACTION")
-  confidence=$(parse_llm_field "$assessment" "CONFIDENCE")
-  preserve=$(parse_llm_field "$assessment" "PRESERVE")
-  local reason
-  reason=$(parse_llm_field "$assessment" "REASON")
+  local conformant action confidence preserve reason
+  conformant=$(parse_llm_field      "$assessment" "CONFORMANT")
+  action=$(parse_llm_field          "$assessment" "ACTION")
+  confidence=$(parse_llm_field      "$assessment" "CONFIDENCE")
+  preserve=$(parse_llm_field_text   "$assessment" "PRESERVE")
+  reason=$(parse_llm_field_text     "$assessment" "REASON")
+
+  # guard against empty LLM output
+  if [[ -z "$action" ]]; then
+    flag "$file_label: LLM returned unparseable assessment — skipping rewrite"
+    return 0
+  fi
 
   log "conformance: $conformant ($confidence) → action: $action"
 
@@ -464,27 +510,38 @@ assess_and_rewrite() {
     rewrite)
       if [[ "$confidence" == "low" ]]; then
         flag "$file_label: low-confidence rewrite needed — $reason"
-        return
+        return 0
       fi
       local rewritten
       rewritten=$(llm_rewrite_to_template "$topic" "$template_rel" \
-        "$(cat "$file_path")" "$preserve" "$file_label")
-      backup_file "$file_path" "$topic" "${file_label}.bak"
+        "$(cat "$file_path")" "${preserve:-none}" "$file_label") || {
+        flag "$file_label: rewrite LLM call failed — skipping"
+        return 0
+      }
+      if [[ -z "$rewritten" ]]; then
+        flag "$file_label: LLM returned empty rewrite — skipping"
+        return 0
+      fi
+      backup_file "$file_path" "$topic" "${file_label//\//-}.bak"
       fs_write "$file_path" "$rewritten"
       success "$file_label rewritten to conform to template"
       write_report "$topic" "## ${file_label}
 Action: rewrite
 Reason: ${reason}
-Preserved: ${preserve}"
+Preserved: ${preserve:-none}"
       ;;
     flag-for-manual-review)
       flag "$file_label: needs manual review — $reason"
       write_report "$topic" "## ${file_label}
 Action: MANUAL REVIEW REQUIRED
 Reason: ${reason}
-Preserved: ${preserve}"
+Preserved: ${preserve:-none}"
+      ;;
+    *)
+      flag "$file_label: unrecognised LLM action '${action}' — skipping"
       ;;
   esac
+  return 0
 }
 
 # ── ZSH migration ─────────────────────────────────────────────────────────────
@@ -773,10 +830,14 @@ run_topic() {
   local topic="$1"
   if [[ ! -d "$APPS_DIR/$topic" ]]; then
     SKIPPED_TOPICS+=("$topic (not found)")
-    return
+    return 0
   fi
   REVIEWED_TOPICS+=("$topic")
-  migrate_topic "$topic" || FLAGGED_TOPICS+=("$topic (error)")
+  migrate_topic "$topic" || {
+    warn "$topic: migration encountered an error — continuing"
+    FLAGGED_TOPICS+=("$topic (error)")
+  }
+  return 0
 }
 
 # ── template_dir cleanup ──────────────────────────────────────────────────────
@@ -785,9 +846,13 @@ cleanup_template_dir() {
   for f in "tasks/bootstrap.yaml" "tasks/prerequisites.yaml"; do
     local path="$TEMPLATE_DIR/$f"
     if [[ -f "$path" ]]; then
-      backup_file "$path" "template_dir" "$f"
+      local backup_dest="$BACKUP_DIR/template_dir/$(dirname "$f")"
+      fs_mkdir "$backup_dest"
+      fs_cp "$path" "$backup_dest/$(basename "$f")"
       fs_rm "$path"
       success "removed $f from template_dir (system role only)"
+    else
+      skip "$f not present in template_dir"
     fi
   done
   echo ""
@@ -796,14 +861,19 @@ cleanup_template_dir() {
 # ── Main ──────────────────────────────────────────────────────────────────────
 $DRY_RUN && echo "🔍 DRY RUN — no changes will be made" && echo ""
 
+# trap to identify exactly where set -e fires
+trap 'echo "❌ script exited unexpectedly at line $LINENO — command: $BASH_COMMAND" >&2' ERR
+
 fs_mkdir "$BACKUP_DIR"
 
 cleanup_template_dir
 
 if [[ ${#TOPICS[@]} -eq 0 ]]; then
-  while IFS= read -r -d '' dir; do
+  # collect all topics into array first — prevents LLM stdin from consuming the find pipe
+  mapfile -d '' ALL_DISCOVERED < <(find "$APPS_DIR" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
+  for dir in "${ALL_DISCOVERED[@]}"; do
     run_topic "$(basename "$dir")"
-  done < <(find "$APPS_DIR" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
+  done
 else
   for topic in "${TOPICS[@]}"; do
     run_topic "$topic"
@@ -830,16 +900,17 @@ fi
 
 # verify all topics accounted for
 ALL_TOPICS=()
-while IFS= read -r -d '' dir; do
+mapfile -d '' _all_dirs < <(find "$APPS_DIR" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
+for dir in "${_all_dirs[@]}"; do
   ALL_TOPICS+=("$(basename "$dir")")
-done < <(find "$APPS_DIR" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
+done
 
 ACCOUNTED=("${REVIEWED_TOPICS[@]}")
 for t in "${SKIPPED_TOPICS[@]}"; do ACCOUNTED+=("${t%% *}"); done
 
 MISSED=()
 for t in "${ALL_TOPICS[@]}"; do
-  local found=false
+  found=false
   for a in "${ACCOUNTED[@]}"; do [[ "$a" == "$t" ]] && found=true && break; done
   $found || MISSED+=("$t")
 done
