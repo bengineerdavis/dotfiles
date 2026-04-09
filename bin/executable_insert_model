@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+llm models | fzf --prompt="Select model: " --exit-0 --cycle | sed 's/^[^:]*: *//'
