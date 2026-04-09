@@ -1,0 +1,107 @@
+# apps/zim/tasks/install.yaml
+# Package installation tasks. Be explicit about which package manager is used.
+# Use when: conditions to guard each block by OS/arch.
+# Do NOT put upgrade logic here — upgrades are owned by system roles (homebrew, apt).
+# Do NOT put config/symlink tasks here — those are owned by chezmoi.
+
+# ── macOS (Homebrew) ──────────────────────────────────────────────────────────
+- name: Install dependencies for Zim GUI and MacOSbar plugin
+  community.general.homebrew:
+    name:
+      - gtk-mac-integration
+      - gtkspell3
+      - python3
+    state: present
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: Ensure Zim CLI is installed via Homebrew
+  community.general.homebrew:
+    name: zim
+    state: present
+  become: false
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# TODO: belongs in system role (homebrew)
+- name: Determine Homebrew prefix (Apple Silicon or Intel)
+  ansible.builtin.command: brew --prefix
+  register: brew_prefix
+  changed_when: false
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# TODO: verify placement
+- name: Define Zim macOS wrapper paths and metadata
+  ansible.builtin.set_fact:
+    app_name: "Zim"
+    app_identifier: "org.zim.wiki"
+    user_applications: "{{ ansible_facts['user_dir'] }}/Applications"
+    app_root: "{{ ansible_facts['user_dir'] }}/Applications/Zim.app"
+    zim_zip_url: "https://github.com/jaap-karssenberg/zim-desktop-wiki/files/1568387/Zim.zip"
+    zim_zip_path: "{{ ansible_facts['user_dir'] }}/Downloads/Zim.zip"
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# TODO: verify placement
+- name: Ensure local Zim.zip directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/Downloads"
+    state: directory
+    mode: '0755'
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# TODO: verify placement
+- name: Download (or refresh) Zim.zip archive for macOS wrapper
+  ansible.builtin.get_url:
+    url: "{{ zim_zip_url }}"
+    dest: "{{ zim_zip_path }}"
+    mode: '0644'
+    force: true
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# TODO: verify placement
+- name: Remove any existing Zim.app wrapper before reinstalling
+  ansible.builtin.file:
+    path: "{{ app_root }}"
+    state: absent
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# TODO: verify placement
+- name: Unpack Zim.zip into user Applications
+  ansible.builtin.unarchive:
+    src: "{{ zim_zip_path }}"
+    dest: "{{ user_applications }}"
+    remote_src: true
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# TODO: verify placement
+- name: Ensure Zim launcher script uses Homebrew zim path
+  ansible.builtin.copy:
+    dest: "{{ app_root }}/Contents/MacOS/Zim"
+    mode: '0755'
+    content: |
+      #!/bin/sh
+      # Wrapper launcher for Zim Wiki on macOS using Homebrew-installed zim.
+      exec "{{ brew_prefix.stdout }}/bin/zim" "$@"
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# TODO: verify placement
+- name: Verify Zim.app wrapper exists
+  ansible.builtin.stat:
+    path: "{{ app_root }}"
+  register: zim_app_stat
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# TODO: verify placement
+- name: Fail if Zim.app wrapper was not created
+  ansible.builtin.fail:
+    msg: "Zim.app wrapper was not found after unpacking Zim.zip."
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - not zim_app_stat.stat.exists | default(false)
+
+# TODO: verify placement
+- name: Final status
+  ansible.builtin.debug:
+    msg: >
+      Zim CLI is installed via Homebrew, and Zim.app has been unpacked from Zim.zip
+      into {{ app_root }} and updated to use {{ brew_prefix.stdout }}/bin/zim for
+      native macOS integration.
+  when: ansible_facts['os_family'] == 'Darwin'

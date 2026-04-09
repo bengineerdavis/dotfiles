@@ -1,0 +1,33 @@
+# apps/meld/tasks/remove.yaml
+# Explicit uninstall tasks. Never run as part of provision or install.
+# Only invoked via --tags remove.
+# Mirror the install.yaml structure — one block per package manager.
+
+# ── macOS (Homebrew Cask) ───────────────────────────────────────────────────
+- name: "Remove meld via Homebrew Cask (macOS)"
+  community.general.homebrew_cask:
+    name: meld
+    state: absent
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# ── macOS (Homebrew) ───────────────────────────────────────────────────────────
+# - name: "Remove meld via Homebrew (macOS)"
+#   community.general.homebrew:
+#     name: meld
+#     state: absent
+#   when: ansible_facts['os_family'] == 'Darwin'
+
+# ── Linux (apt) ─────────────────────────────────────────────────────────────────
+# - name: "Remove meld via apt (Linux)"
+#   ansible.builtin.apt:
+#     name: meld
+    state: absent
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+# - name: "Remove meld Docker image"
+#   community.docker.docker_image:
+#     name: meld:latest
+#     state: absent
+#   when: install_method | default('') == 'docker'

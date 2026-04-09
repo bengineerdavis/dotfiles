@@ -1,0 +1,43 @@
+# apps/eza/tasks/install.yaml
+# Package installation tasks. Be explicit about which package manager is used.
+# Use when: conditions to guard each block by OS/arch.
+# Do NOT put upgrade logic here — upgrades are owned by system roles (homebrew, apt).
+# Do NOT put config/symlink tasks here — those are owned by chezmoi.
+
+# ── macOS (Homebrew) ────────────────────────────────────────────────────────────
+- name: "Install eza via Homebrew (macOS)"
+  community.general.homebrew:
+    name: eza
+    state: present
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# ── macOS (Homebrew Cask) ─────────────────────────────────────────────────────
+# - name: "Install eza via Homebrew Cask (macOS)"
+#   community.general.homebrew_cask:
+#     name: eza
+#     state: present
+#     install_options: "appdir={{ user_appdir }}"
+#   when: ansible_facts['os_family'] == 'Darwin'
+
+# ── Linux (apt) ─────────────────────────────────────────────────────────────────
+# - name: "Install eza via apt (Linux)"
+#   ansible.builtin.apt:
+#     name: eza
+#     state: present
+#   become: true
+#   when: ansible_facts['os_family'] == 'Debian'
+
+# ── Linux (snap) ─────────────────────────────────────────────────────────────────
+# - name: "Install eza via snap (Linux)"
+#   community.general.snap:
+#     name: eza
+#     state: present
+#   become: true
+#   when: ansible_facts['os_family'] == 'Debian'
+
+# ── Docker ──────────────────────────────────────────────────────────────────────
+# - name: "Pull eza Docker image"
+#   community.docker.docker_image:
+#     name: eza:latest
+#     source: pull
+#   when: install_method | default('') == 'docker'

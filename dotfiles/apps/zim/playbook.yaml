@@ -1,0 +1,19 @@
+# apps/zim/playbook.yaml
+# Standalone runner for this topic role.
+# Usage: ansible-playbook apps/zim/playbook.yaml [--tags install|remove]
+#
+# Assumes package managers are already bootstrapped.
+# For a fresh machine use the parent playbook with --tags provision instead.
+
+- name: "Run zim role standalone"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: false
+
+  vars:
+    homebrew_prefix: "{{ '/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local' }}"
+    user_appdir: "{{ ansible_facts['env']['HOME'] }}/Applications"
+
+  roles:
+    - role: apps/zim

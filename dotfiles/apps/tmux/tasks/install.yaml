@@ -1,0 +1,21 @@
+# apps/tmux/tasks/install.yaml
+# Package installation tasks. Be explicit about which package manager is used.
+# Use when: conditions to guard each block by OS/arch.
+# Do NOT put upgrade logic here — upgrades are owned by system roles (homebrew, apt).
+# Do NOT put config/symlink tasks here — those are owned by chezmoi.
+
+# ── macOS (Homebrew) ────────────────────────────────────────────────────────
+- name: "Install tmux via Homebrew (macOS)"
+  community.general.homebrew:
+    name: tmux
+    state: present
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# ---- Pre-requisite tasks ----
+# TODO: belongs in system role (homebrew)
+# - name: Ensure utf8proc is installed via Homebrew formulae
+#   community.general.homebrew:
+#     name: utf8proc
+#     state: present
+#   become: false
+#   when: ansible_facts['os_family'] in ["Darwin", "Linux"]

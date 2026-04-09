@@ -1,23 +1,17 @@
-# apps/apt/tasks/main.yaml — apt role task router
-# System role — handles apt package manager lifecycle.
-# Called by parent playbook with explicit tags.
+  🤖 rewrite to template: apps/apt/tasks/main.yaml
+  🤖 trying: devstral-small-2:24b
+  🤖 ✅ success: devstral-small-2:24b
+```yaml
+# apps/apt/tasks/main.yaml
+# Imports subtask files by tag. Only imports files that exist.
+# chezmoi owns dotfile/config state. zsh sources handle shell config.
+# This file owns: package installation and explicit removal only.
 
-- name: "apt: bootstrap"
-  ansible.builtin.import_tasks: bootstrap.yaml
-  tags: [bootstrap, provision]
-
-- name: "apt: prerequisites"
-  ansible.builtin.import_tasks: prerequisites.yaml
-  tags: [prerequisites, provision]
-
-- name: "apt: upgrade"
-  ansible.builtin.import_tasks: upgrade.yaml
-  tags: [upgrade, provision]
-
-- name: "apt: install"
+- name: "Import install tasks"
   ansible.builtin.import_tasks: install.yaml
   tags: [install, provision]
 
-- name: "apt: remove"
+- name: "Import remove tasks"
   ansible.builtin.import_tasks: remove.yaml
   tags: [remove]
+```

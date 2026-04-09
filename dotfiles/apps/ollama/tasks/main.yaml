@@ -1,0 +1,12 @@
+# 🤖 generate tasks/main.yaml router: ollama
+# 🤖 trying: devstral-small-2:24b
+# 🤖 ✅ success: devstral-small-2:24b
+
+# apps/ollama/tasks/main.yaml
+- name: "Import install tasks"
+  ansible.builtin.import_tasks: install.yaml
+  tags: [install, provision]
+
+- name: "Import remove tasks"
+  ansible.builtin.import_tasks: remove.yaml
+  tags: [remove]

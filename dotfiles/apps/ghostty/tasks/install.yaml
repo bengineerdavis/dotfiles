@@ -1,0 +1,43 @@
+# apps/ghostty/tasks/install.yaml
+# Package installation tasks. Be explicit about which package manager is used.
+# Use when: conditions to guard each block by OS/arch.
+# Do NOT put upgrade logic here — upgrades are owned by system roles (homebrew, apt).
+# Do NOT put config/symlink tasks here — those are owned by chezmoi.
+
+# ── macOS (Homebrew Cask) ─────────────────────────────────────────────────
+- name: "Install ghostty via Homebrew Cask (macOS)"
+  community.general.homebrew_cask:
+    name: ghostty
+    state: present
+    install_options: "appdir={{ user_appdir }}"
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# ── macOS (Homebrew) ────────────────────────────────────────────────────────────
+# - name: "Install ghostty via Homebrew (macOS)"
+#   community.general.homebrew:
+#     name: ghostty
+#     state: present
+#   when: ansible_facts['os_family'] == 'Darwin'
+
+# ── Linux (apt) ──────────────────────────────────────────────────────────────────
+# - name: "Install ghostty via apt (Linux)"
+#   ansible.builtin.apt:
+#     name: ghostty
+#     state: present
+#   become: true
+#   when: ansible_facts['os_family'] == 'Debian'
+
+# ── Linux (snap) ─────────────────────────────────────────────────────────────────
+# - name: "Install ghostty via snap (Linux)"
+#   community.general.snap:
+#     name: ghostty
+#     state: present
+#   become: true
+#   when: ansible_facts['os_family'] == 'Debian'
+
+# ── Docker ─────────────────────────────────────────────────────────────────────
+# - name: "Pull ghostty Docker image"
+#   community.docker.docker_image:
+#     name: ghostty:latest
+#     source: pull
+#   when: install_method | default('') == 'docker'
