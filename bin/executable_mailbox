@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# -----------------------------------------------------------------------------
+# Script Name:        mailbox
+# Description:        Analyzes a directory of email attachments and content, sending it to a large language model (LLM) to generate a structured, chronological markdown summary of the entire correspondence chain.
+#
+# License:            MIT
+# Author:             Ben Davis <bengineerdavis@gmail.com>
+# Credits:            
+# Created:            2026-04-10
+# Last Modified:      2026-04-10
+#
+# Usage:              ./mailbox [ATTACHMENTS_PATH] [OUTPUT_FILENAME]
+#                      Example: ./mailbox ./email_attachments/archive mail_summary.md
+#
+# Notes:
+#   - Requires the 'llm-ctx' tool to be installed and accessible in the system PATH.
+#   - The script uses the 'gemma4:31b' model by default.
+#   - $1 (ATTACHMENTS) specifies the directory containing the email data.
+#   - $2 (OUTPUT_FILE) specifies the markdown file where the summary will be written.
+# ------------------------------------------------------
+PROMPT=$(cat <<'PROMPT'
+Review the attachments you find and identify the items that are part of my
+email correspondence, including attached binary and text documents.
+Then, convert all select documents into a well-formatted markdown
+document showing the chronological correspondence in the email chain.
+While creating the markdown doc make it clear when each person is 
+replying and from which ticket or follow-up support ticket, and with 
+which attachments based on the ticket and person replying, which I've 
+also provided in slugified form for you.
+PROMPT
+)
+MODEL="gemma4:31b"
+
+ATTACHMENTS=${1-"./attachments/**"}
+OUTPUT_FILE=${2-"mail.md"}
+
+llm-ctx -v -m "$MODEL" "$ATTACHMENTS" -- "$PROMPT" > "$OUTPUT_FILE"

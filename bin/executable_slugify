@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+"""slugify — rename files to URL-friendly slugs"""
+
+import argparse
+import os
+import re
+import sys
+import unicodedata
+
+BOLD = "\033[1m"
+DIM = "\033[2m"
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+CYAN = "\033[36m"
+RESET = "\033[0m"
+
+
+def slugify_text(text: str) -> str:
+    text = unicodedata.normalize("NFKD", text)
+    text = text.encode("ascii", "ignore").decode("ascii")
+    text = text.strip().lower()
+    text = re.sub(r"[\s_]+", "-", text)
+    text = re.sub(r"[^\w-]", "", text)
+    text = re.sub(r"-{2,}", "-", text)
+    return text.strip("-")
+
+
+def slugify_path(path: str) -> str:
+    """Slugify every component of a path, preserving separators and extension."""
+    dirpart = os.path.dirname(path)
+    basename = os.path.basename(path)
+    name, ext = os.path.splitext(basename)
+
+    slug_name = slugify_text(name)
+    slug_ext = slugify_text(ext.lstrip("."))
+    slug_base = f"{slug_name}.{slug_ext}" if slug_ext else slug_name
+
+    if dirpart:
+        parts = [p for p in dirpart.split(os.sep) if p]
+        slug_dir = os.path.join(*[slugify_text(p) for p in parts])
+        if os.path.isabs(path):
+            slug_dir = os.sep + slug_dir
+        return os.path.join(slug_dir, slug_base)
+
+    return slug_base
+
+
+def vprint(msg: str) -> None:
+    """Print verbose info to stderr so stdout stays pipeable."""
+    print(msg, file=sys.stderr)
+
+
+def rename_file(src: str, verbose: bool, dry_run: bool) -> str:
+    """Rename src to its slugified path. Returns the resulting path."""
+    dst = slugify_path(src)
+
+    if src == dst:
+        if verbose:
+            vprint(f"  {DIM}unchanged{RESET}  {src}")
+        return dst
+
+    if dry_run:
+        vprint(
+            f"  {YELLOW}would rename{RESET}  {src}\n             {DIM}→{RESET}  {dst}"
+        )
+        return dst
+
+    # Create destination directory if needed
+    dst_dir = os.path.dirname(dst)
+    if dst_dir and not os.path.exists(dst_dir):
+        if verbose:
+            vprint(f"  {CYAN}mkdir{RESET}  {dst_dir}")
+        os.makedirs(dst_dir, exist_ok=True)
+
+    # Guard against clobbering an existing different file
+    if os.path.exists(dst) and os.path.abspath(dst) != os.path.abspath(src):
+        vprint(
+            f"  {YELLOW}skip{RESET}  '{src}'\n"
+            f"       destination already exists: '{dst}'"
+        )
+        return src
+
+    os.rename(src, dst)
+
+    if verbose:
+        vprint(f"  {GREEN}renamed{RESET}  {src}\n         {DIM}→{RESET}  {dst}")
+
+    return dst
+
+
+def print_help() -> None:
+    print(f"""
+{BOLD}slugify{RESET} — rename files to URL-friendly slugs
+
+{BOLD}USAGE{RESET}
+  slugify [OPTIONS] FILE [FILE ...]
+  echo "some text" | slugify        print slug only, no file ops
+  slugify < list.txt                print slugs for each line
+
+{BOLD}OPTIONS{RESET}
+  -v, --verbose    explain each rename (writes to stderr, stdout unaffected)
+  -n, --dry-run    preview renames without changing anything
+  -h, --help       show this help and exit
+
+{BOLD}EXAMPLES{RESET}
+  slugify photo.JPG                 rename a single file
+  slugify attachments/*.png         rename all PNGs in a folder
+  fd . attachments -X slugify {{}}    rename via fd (one path per line)
+  slugify -v *.md                   rename with verbose output
+  slugify -n *.md                   preview renames, nothing changes
+  echo "Hello World!" | slugify     → hello-world  (stdout, no rename)
+
+{BOLD}BEHAVIOR{RESET}
+  · Renames files in place — directory components and filename are slugified
+  · File extension is preserved and lowercased  (.JPG → .jpg)
+  · Spaces and underscores become hyphens
+  · Unicode/accented characters are transliterated  (café → cafe)
+  · Punctuation and special characters are removed
+  · Multiple hyphens are collapsed; leading/trailing hyphens are stripped
+  · Files already matching their slug are skipped silently
+  · Warns and skips if the destination path already exists
+  · Verbose/-n output goes to stderr so stdout stays pipeable
+""")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("-n", "--dry-run", action="store_true")
+    parser.add_argument("-h", "--help", action="store_true")
+    parser.add_argument("files", nargs="*")
+    args = parser.parse_args()
+
+    if args.help:
+        print_help()
+        sys.exit(0)
+
+    # ── File mode: one or more paths given as arguments ──────────────────────
+    if args.files:
+        if args.verbose or args.dry_run:
+            label = "dry run" if args.dry_run else "verbose"
+            vprint(f"\n{BOLD}slugify{RESET}  [{label}]  {len(args.files)} file(s)\n")
+
+        for path in args.files:
+            if not os.path.exists(path):
+                vprint(f"  {YELLOW}missing{RESET}  '{path}' — skipping")
+                continue
+            result = rename_file(path, verbose=args.verbose, dry_run=args.dry_run)
+            print(result)  # new (or unchanged) path → stdout, one per line
+
+        if args.verbose or args.dry_run:
+            vprint("")  # trailing blank line for readability
+        return
+
+    # ── Text mode: piped / redirected stdin, no file args ────────────────────
+    if not sys.stdin.isatty():
+        for line in sys.stdin.read().splitlines():
+            if line.strip():
+                print(slugify_path(line.strip()))
+        return
+
+    # ── No args at all ───────────────────────────────────────────────────────
+    print_help()
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
