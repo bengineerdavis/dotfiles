@@ -33,5 +33,9 @@ MODEL="gemma4:31b"
 
 ATTACHMENTS=${1-"./attachments/**"}
 OUTPUT_FILE=${2-"mail.md"}
+# Log file in the current working directory (append to preserve history)
+LOGFILE="${PWD}/mailbox.log"
+
+printf "Adding the following attachments to the prompt:\n%s\n\n" "$ATTACHMENTS" | tee -a "$LOGFILE"
 
 llm-ctx -v -m "$MODEL" "$ATTACHMENTS" -- "$PROMPT" > "$OUTPUT_FILE"
