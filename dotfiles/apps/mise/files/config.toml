@@ -18,7 +18,19 @@ python = "latest"
 "pipx:gita" = "latest"
 
 # http://llm.datasette.io/en/stable/setup.html
-"pipx:llm" = "latest"
+"pipx:llm" = { version = "latest", uvx_args = """
+  --with llm-anthropic
+  --with llm-gemini
+  --with llm-ollama
+  --with llm-sentence-transformers
+  --with llm-tools-exa
+  --with llm-pdf-to-images
+  --with llm-jq
+  --with llm-python
+  --with llm-all-models-async
+  --with llm-cmd
+  --with llm-docs
+""" }
 
 # ai tooling
 # Aider gets its own isolated venv pinned to 3.12
