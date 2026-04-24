@@ -174,3 +174,76 @@ teardown() {
         'hello'
     [ -z "$glob" ]
 }
+
+# ─── zero results handling ───────────────────────────────────────────────────
+
+setup_no_results() {
+    # Replace the fzf stub with one that returns nothing (simulates no match or cancel)
+    cat > "$TEST_DIR/bin/fzf" <<'STUB'
+#!/usr/bin/env bash
+exit 1
+STUB
+    chmod +x "$TEST_DIR/bin/fzf"
+}
+
+@test "zero results: exits non-zero" {
+    setup_no_results
+    run bash "$SCRIPT" --path-only --subdir "$TEST_DIR/src" 'hello'
+    assert_failure
+}
+
+@test "zero results: prints 'no results' message to stderr" {
+    setup_no_results
+    run bash "$SCRIPT" --path-only --subdir "$TEST_DIR/src" 'hello'
+    assert_failure
+    assert_output --partial 'no results'
+}
+
+@test "zero results with --files: warns about shell glob expansion" {
+    setup_no_results
+    run bash "$SCRIPT" --path-only --subdir "$TEST_DIR/src" --files '**/*.txt' 'hello'
+    assert_failure
+    assert_output --partial 'single-quoted'
+}
+
+@test "zero results with --files: suggests a fix command" {
+    setup_no_results
+    run bash "$SCRIPT" --path-only --subdir "$TEST_DIR/src" --files '**/*.txt' 'hello'
+    assert_failure
+    assert_output --partial "did you mean: --files '**/*.txt'"
+}
+
+@test "zero results without --files: no shell-expansion warning" {
+    setup_no_results
+    run bash "$SCRIPT" --path-only --subdir "$TEST_DIR/src" 'hello'
+    assert_failure
+    refute_output --partial 'single-quoted'
+}
+
+# ─── debug mode ──────────────────────────────────────────────────────────────
+
+@test "--debug logs the rg command to stderr" {
+    run bash "$SCRIPT" --debug --path-only --subdir "$TEST_DIR/src" 'hello'
+    assert_success
+    assert_output --partial 'running: rg'
+}
+
+@test "--debug includes glob in logged rg command" {
+    run bash "$SCRIPT" --debug --path-only --subdir "$TEST_DIR/src" --files '**/*.py' 'hello'
+    assert_success
+    assert_output --partial "--glob '**/*.py'"
+}
+
+@test "--debug logs parsed pattern, dir, and glob" {
+    run bash "$SCRIPT" --debug --path-only --subdir "$TEST_DIR/src" --files '*.py' 'mypattern'
+    assert_success
+    assert_output --partial "pattern : 'mypattern'"
+    assert_output --partial "dir     : '$TEST_DIR/src'"
+    assert_output --partial "glob    : '*.py'"
+}
+
+@test "without --debug, no debug lines appear" {
+    run bash "$SCRIPT" --path-only --subdir "$TEST_DIR/src" 'hello'
+    assert_success
+    refute_output --partial '[debug]'
+}

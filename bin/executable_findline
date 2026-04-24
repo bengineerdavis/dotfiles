@@ -35,6 +35,22 @@
 # Author: bdavis
 # License: MIT (assumed, specify if different)
 ###############
+## Logging   ##
+###############
+
+# Global flag; set to 1 by main() after arg parsing so all helpers can see it.
+_FINDLINE_DEBUG=0
+
+log_error() { echo "findline: error: $*" >&2; }
+log_warn()  { echo "findline: warning: $*" >&2; }
+log_info()  { echo "findline: $*" >&2; }
+log_debug() {
+    if [[ "$_FINDLINE_DEBUG" -eq 1 ]]; then
+        echo "findline: [debug] $*" >&2
+    fi
+}
+
+###############
 ## Functions ##
 ###############
 
@@ -140,7 +156,7 @@ function search_with_ripgrep_and_fzf() {
 
     # Check if subdir exists
     if [[ ! -d "$subdir" ]]; then
-        echo "Error: Directory '$subdir' does not exist" >&2
+        log_error "directory '$subdir' does not exist"
         return 1
     fi
 
@@ -157,6 +173,11 @@ function search_with_ripgrep_and_fzf() {
     if [[ -n "$glob_pattern" ]]; then
         rg_glob_args=(--glob "$glob_pattern")
     fi
+
+    local _dbg_cmd="rg --color=always --line-number --no-heading --column --smart-case"
+    [[ -n "$glob_pattern" ]] && _dbg_cmd+=" --glob '${glob_pattern}'"
+    _dbg_cmd+=" '${search_pattern:-}' '${subdir}'"
+    log_debug "running: ${_dbg_cmd}"
 
     command rg --color=always --line-number --no-heading --column --smart-case "${rg_glob_args[@]}" "${search_pattern:-}" "$subdir" \
         | command fzf -d':' --ansi \
@@ -209,11 +230,12 @@ function validate_editor_selection() {
         if command -v code >/dev/null 2>&1; then
             return 0  # We'll use VSCode as default
         else
-            echo "Error: No editor specified and VSCode (default) not found. Please specify one of --vscode, --windsurf, or --cursor, or use --path-only to print the path." >&2
+            log_error "no editor specified and VSCode (default) not found"
+            log_info  "  use --vscode, --windsurf, --cursor, or --path-only"
             return 2
         fi
     elif [[ $cli_count -gt 1 ]]; then
-        echo "Error: Please specify only one of --vscode, --windsurf, or --cursor." >&2
+        log_error "specify only one of --vscode, --windsurf, or --cursor"
         return 2
     fi
     return 0
@@ -223,12 +245,10 @@ function show_debug_info() {
     local file="$1"
     local line="$2"
     local col="$3"
-    
-    echo "[findline debug] file: $file"
-    echo "[findline debug] line: $line"
-    if [[ -n "$col" ]]; then
-        echo "[findline debug] col: $col"
-    fi
+
+    log_debug "file: $file"
+    log_debug "line: $line"
+    [[ -n "$col" ]] && log_debug "col: $col"
 }
 
 function open_in_editor() {
@@ -246,32 +266,25 @@ function open_in_editor() {
     fi
     
     if [[ $use_vscode -eq 1 ]]; then
-        if ! command -v code --new-window >/dev/null 2>&1; then
-            echo "Error: VSCode CLI (code) not found in PATH" >&2
+        if ! command -v code >/dev/null 2>&1; then
+            log_error "VSCode CLI (code) not found in PATH"
             return 3
         fi
-        if [[ $debug -eq 1 ]]; then
-            echo "[findline debug] Would run: code -g $location"
-        fi
+        log_debug "running: code -g '$location'"
         command code -g "$location"
     elif [[ $use_windsurf -eq 1 ]]; then
         if ! command -v windsurf >/dev/null 2>&1; then
-            echo "Error: windsurf CLI not found in PATH" >&2
+            log_error "windsurf CLI not found in PATH"
             return 3
         fi
-        if [[ $debug -eq 1 ]]; then
-            echo "[findline debug] Would run: windsurf '$location'"
-        fi
-        # Note: windsurf might not support -g flag, adjust if needed
+        log_debug "running: windsurf '$location'"
         command windsurf "$location"
     elif [[ $use_cursor -eq 1 ]]; then
         if ! command -v cursor >/dev/null 2>&1; then
-            echo "Error: cursor CLI not found in PATH" >&2
+            log_error "cursor CLI not found in PATH"
             return 3
         fi
-        if [[ $debug -eq 1 ]]; then
-            echo "[findline debug] Would run: cursor '$location'"
-        fi
+        log_debug "running: cursor '$location'"
         command cursor "$location"
     fi
 }
@@ -286,21 +299,28 @@ function main() {
     # Check for required dependencies
     for cmd in rg fzf; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
-            echo "Error: Required command '$cmd' not found. Please install it first." >&2
-            echo "  - ripgrep (rg): https://github.com/BurntSushi/ripgrep" >&2
-            echo "  - fzf: https://github.com/junegunn/fzf" >&2
+            log_error "required command '$cmd' not found"
+            log_info  "  ripgrep (rg): https://github.com/BurntSushi/ripgrep"
+            log_info  "  fzf:          https://github.com/junegunn/fzf"
             return 1
         fi
     done
 
     # Check for optional dependency
     if ! command -v bat >/dev/null 2>&1; then
-        echo "Note: 'bat' not found. Using basic preview. Install bat for syntax highlighting: https://github.com/sharkdp/bat" >&2
+        log_warn "bat not found — using basic preview (install bat for syntax highlighting)"
     fi
 
     # Initialize variables
     local subdir path_only use_vscode use_windsurf use_cursor debug args glob
     parse_arguments subdir path_only use_vscode use_windsurf use_cursor debug args glob "$@"
+
+    # Activate debug mode globally so all helpers can see it
+    _FINDLINE_DEBUG=$debug
+
+    log_debug "pattern : '${args[*]:-}'"
+    log_debug "dir     : '$subdir'"
+    log_debug "glob    : '${glob:-}'"
 
     # Validate editor selection early
     validate_editor_selection "$use_vscode" "$use_windsurf" "$use_cursor" "$path_only" || return $?
@@ -309,27 +329,28 @@ function main() {
     local result
     result=$(search_with_ripgrep_and_fzf "${args[*]:-}" "$subdir" "$glob")
     if [[ -z "$result" ]]; then
+        log_info "no results — pattern='${args[*]:-}' dir='$subdir'${glob:+ glob='$glob'}"
+        if [[ -n "$glob" ]]; then
+            log_warn "glob patterns must be single-quoted to prevent shell expansion"
+            log_info  "  did you mean: --files '${glob}'"
+            log_info  "  verify files: find '${subdir}' -name '${glob##**/}' | head -5"
+            log_info  "  search all types: omit --files"
+        fi
         return 1
     fi
-    
+
     # Strip ANSI color codes from result before parsing
-    # This is necessary because ripgrep outputs with --color=always
     result=$(echo "$result" | sed 's/\x1b\[[0-9;]*m//g')
-    if [[ $debug -eq 1 ]]; then
-        echo "[findline debug] raw result after ANSI strip: $result"
-    fi
-    
+    log_debug "selected: $result"
+
     # Parse out file, line, col for goto logic
     local file line col location
     parse_result "$result" file line col location
-    
+
     if [[ $path_only -eq 1 ]]; then
         echo "$file"
     else
-        if [[ $debug -eq 1 ]]; then
-            show_debug_info "$file" "$line" "$col"
-        fi
-        
+        show_debug_info "$file" "$line" "$col"
         open_in_editor "$use_vscode" "$use_windsurf" "$use_cursor" "$debug" "$location"
     fi
 }
