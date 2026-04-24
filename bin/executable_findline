@@ -14,7 +14,7 @@
 #   - bat: For syntax-highlighted previews (optional but recommended)
 #   - One of the supported editors: VSCode, windsurf, or cursor
 #
-# Usage: findline [-h|--help] [--path-only] [--vscode|--windsurf|--cursor] [--debug] [<rg SYNOPSIS>] [--subdir <subdirectory>]
+# Usage: findline [-h|--help] [--path-only] [--vscode|--windsurf|--cursor] [--debug] [<rg SYNOPSIS>] [--subdir <subdirectory>] [--files <glob>]
 #
 # Flow:
 #   1. Parse command line arguments
@@ -39,7 +39,7 @@
 ###############
 
 function show_help() {
-    echo "Usage: findline [-h|--help] [--path-only] [--vscode|--windsurf|--cursor] [<rg SYNOPSIS>] [--subdir <subdirectory>]"
+    echo "Usage: findline [-h|--help] [--path-only] [--vscode|--windsurf|--cursor] [<rg SYNOPSIS>] [--subdir <subdirectory>] [--files <glob>]"
     echo ""
     echo "A command-line utility that combines ripgrep (rg) and fzf for a fuzzy search experience."
     echo ""
@@ -51,16 +51,18 @@ function show_help() {
     echo "      --cursor         Open the result in cursor CLI"
     echo "      --debug          Print the parsed file, line, col, and the command that would be run before executing it. Can be combined with any editor CLI."
     echo "      --subdir DIR    Limit search to the specified subdirectory"
+    echo "      --files GLOB    Only search files matching the glob pattern (e.g. '**/*.py')"
     echo ""
     echo "Examples:"
-    echo "  findline 'search pattern'                  # Open in default editor (VSCode if available)"
-    echo "  findline --vscode 'search pattern'         # Open in VSCode"
-    echo "  findline --windsurf 'search pattern'       # Open in windsurf"
-    echo "  findline --cursor 'search pattern'         # Open in cursor"
-    echo "  findline --debug --vscode 'pattern'        # Show debug info and open in VSCode"
-    echo "  findline --debug --windsurf 'pattern'      # Show debug info and open in windsurf"
-    echo "  findline --path-only 'search pattern'      # Only print file path"
+    echo "  findline 'search pattern'                          # Open in default editor (VSCode if available)"
+    echo "  findline --vscode 'search pattern'                 # Open in VSCode"
+    echo "  findline --windsurf 'search pattern'               # Open in windsurf"
+    echo "  findline --cursor 'search pattern'                 # Open in cursor"
+    echo "  findline --debug --vscode 'pattern'                # Show debug info and open in VSCode"
+    echo "  findline --debug --windsurf 'pattern'              # Show debug info and open in windsurf"
+    echo "  findline --path-only 'search pattern'              # Only print file path"
     echo "  findline --subdir src 'search pattern'"
+    echo "  findline --subdir ~/code/work/sentry --files '**/*.py' 'pattern'"
     echo ""
     echo "With --debug, you'll see the parsed file, line, column, and the exact command that would be run before it executes. Useful for troubleshooting or verifying navigation behavior."
 }
@@ -74,7 +76,8 @@ function parse_arguments() {
     local _use_cursor_var=$5
     local _debug_var=$6
     local _args_var=$7
-    
+    local _glob_var=$8
+
     # Initialize variables using eval
     eval "$_subdir_var=\".\""
     eval "$_path_only_var=0"
@@ -82,14 +85,19 @@ function parse_arguments() {
     eval "$_use_windsurf_var=0"
     eval "$_use_cursor_var=0"
     eval "$_debug_var=0"
-    
+    eval "$_glob_var=\"\""
+
     # Shift past the variable name parameters
-    shift 7
-    
+    shift 8
+
     while [[ $# -gt 0 ]]; do
         case $1 in
             --subdir)
                 eval "$_subdir_var=\"$2\""
+                shift 2
+                ;;
+            --files)
+                eval "$_glob_var=\"$2\""
                 shift 2
                 ;;
             --path-only)
@@ -128,13 +136,14 @@ function parse_arguments() {
 function search_with_ripgrep_and_fzf() {
     local search_pattern="$1"
     local subdir="$2"
-    
+    local glob_pattern="$3"
+
     # Check if subdir exists
     if [[ ! -d "$subdir" ]]; then
         echo "Error: Directory '$subdir' does not exist" >&2
         return 1
     fi
-    
+
     # Build the fzf preview command based on whether bat is available
     local preview_cmd
     if command -v bat >/dev/null 2>&1; then
@@ -143,8 +152,13 @@ function search_with_ripgrep_and_fzf() {
         # Fallback to a simple preview using sed/awk
         preview_cmd='awk "NR=={2} {printf \">\033[1;32m%s\033[0m\n\", \$0} NR!={2} && NR>={2}-5 && NR<={2}+5 {print}" {1} 2>/dev/null || echo "Preview not available"'
     fi
-    
-    command rg --color=always --line-number --no-heading --column --smart-case "${search_pattern:-}" "$subdir" \
+
+    local rg_glob_args=()
+    if [[ -n "$glob_pattern" ]]; then
+        rg_glob_args=(--glob "$glob_pattern")
+    fi
+
+    command rg --color=always --line-number --no-heading --column --smart-case "${rg_glob_args[@]}" "${search_pattern:-}" "$subdir" \
         | command fzf -d':' --ansi \
             --preview "$preview_cmd" \
             --preview-window ~8,+{2}-5
@@ -156,23 +170,25 @@ function parse_result() {
     local _line_var="$3"
     local _col_var="$4"
     local _location_var="$5"
-    
-    local file line col location
-    
-    file=$(echo "$result" | awk -F':' '{print $1}')
-    line=$(echo "$result" | awk -F':' '{print $2}')
-    col=$(echo "$result" | awk -F':' '{print $3}')
-    
-    if [[ -n "$col" ]]; then
-        location="$file:$line:$col"
+
+    # Use _-prefixed locals so they don't shadow the caller's variable names
+    # when the caller happens to use the same names (file, line, col, location).
+    local _file _line _col _location
+
+    _file=$(echo "$result" | awk -F':' '{print $1}')
+    _line=$(echo "$result" | awk -F':' '{print $2}')
+    _col=$(echo "$result" | awk -F':' '{print $3}')
+
+    if [[ -n "$_col" ]]; then
+        _location="$_file:$_line:$_col"
     else
-        location="$file:$line"
+        _location="$_file:$_line"
     fi
-    
-    eval "$_file_var=\"$file\""
-    eval "$_line_var=\"$line\""
-    eval "$_col_var=\"$col\""
-    eval "$_location_var=\"$location\""
+
+    printf -v "$_file_var"     '%s' "$_file"
+    printf -v "$_line_var"     '%s' "$_line"
+    printf -v "$_col_var"      '%s' "$_col"
+    printf -v "$_location_var" '%s' "$_location"
 }
 
 function validate_editor_selection() {
@@ -283,15 +299,15 @@ function main() {
     fi
 
     # Initialize variables
-    local subdir path_only use_vscode use_windsurf use_cursor debug args
-    parse_arguments subdir path_only use_vscode use_windsurf use_cursor debug args "$@"
+    local subdir path_only use_vscode use_windsurf use_cursor debug args glob
+    parse_arguments subdir path_only use_vscode use_windsurf use_cursor debug args glob "$@"
 
     # Validate editor selection early
     validate_editor_selection "$use_vscode" "$use_windsurf" "$use_cursor" "$path_only" || return $?
 
     # Run the ripgrep (rg) command and pipe the results to fzf
     local result
-    result=$(search_with_ripgrep_and_fzf "${args[*]:-}" "$subdir")
+    result=$(search_with_ripgrep_and_fzf "${args[*]:-}" "$subdir" "$glob")
     if [[ -z "$result" ]]; then
         return 1
     fi
@@ -299,9 +315,6 @@ function main() {
     # Strip ANSI color codes from result before parsing
     # This is necessary because ripgrep outputs with --color=always
     result=$(echo "$result" | sed 's/\x1b\[[0-9;]*m//g')
-    echo "[findline debug] raw result: $result" >&2
-    echo "[findline debug] final result after ANSI strip: $result" >&2
-    # Debug: show raw result if debug mode is on
     if [[ $debug -eq 1 ]]; then
         echo "[findline debug] raw result after ANSI strip: $result"
     fi
@@ -322,8 +335,10 @@ function main() {
 }
 
 #####################################
-## Main entry point for the script ## 
+## Main entry point for the script ##
 #####################################
 
-# run the main function with all passed arguments
-main "$@"
+# Allow sourcing for unit tests without executing main
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi
