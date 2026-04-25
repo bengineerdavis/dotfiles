@@ -48,7 +48,7 @@ import sys
 import tempfile
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -245,11 +245,16 @@ def _toml_str(data: dict) -> str:
         elif isinstance(v, float):
             lines.append(f"{k} = {v}")
         elif isinstance(v, str):
-            escaped = v.replace("\\", "\\\\").replace('"', '\\"')
+            escaped = (
+                v.replace("\\", "\\\\")
+                 .replace('"', '\\"')
+                 .replace("\n", "\\n")
+                 .replace("\r", "\\r")
+                 .replace("\t", "\\t")
+            )
             lines.append(f'{k} = "{escaped}"')
         else:
-            escaped = str(v).replace("\\", "\\\\").replace('"', '\\"')
-            lines.append(f'{k} = "{escaped}"')
+            raise TypeError(f"_toml_str: unsupported type {type(v).__name__!r} for key {k!r}")
     return "\n".join(lines) + "\n"
 
 
@@ -445,19 +450,27 @@ def llm_call(
         assert proc.stdin
         proc.stdin.write(prompt)
         proc.stdin.close()
+        # Drain stderr in a background thread to prevent pipe-buffer deadlock
+        # when the subprocess writes large amounts of progress output to stderr.
+        stderr_buf: list[str] = []
+        def _drain() -> None:
+            assert proc.stderr
+            stderr_buf.append(proc.stderr.read())
+        t = threading.Thread(target=_drain, daemon=True)
+        t.start()
         chunks: list[str] = []
         assert proc.stdout
         for chunk in proc.stdout:
             print(chunk, end="", flush=True)
             chunks.append(chunk)
         proc.wait()
+        t.join()
         if proc.returncode != 0:
-            assert proc.stderr
-            raise RuntimeError(proc.stderr.read().strip())
+            raise RuntimeError((stderr_buf[0] if stderr_buf else "").strip())
         print()
         return "".join(chunks)
     else:
-        result = subprocess.run(cmd, input=prompt, capture_output=True, text=True)
+        result = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
             raise RuntimeError(result.stderr.strip())
         return result.stdout
@@ -514,19 +527,25 @@ def llm_continue_call(
         assert proc.stdin
         proc.stdin.write(prompt)
         proc.stdin.close()
+        stderr_buf: list[str] = []
+        def _drain() -> None:
+            assert proc.stderr
+            stderr_buf.append(proc.stderr.read())
+        t = threading.Thread(target=_drain, daemon=True)
+        t.start()
         chunks: list[str] = []
         assert proc.stdout
         for chunk in proc.stdout:
             print(chunk, end="", flush=True)
             chunks.append(chunk)
         proc.wait()
+        t.join()
         if proc.returncode != 0:
-            assert proc.stderr
-            raise RuntimeError(proc.stderr.read().strip())
+            raise RuntimeError((stderr_buf[0] if stderr_buf else "").strip())
         print()
         return "".join(chunks)
     else:
-        result = subprocess.run(cmd, input=prompt, capture_output=True, text=True)
+        result = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
             raise RuntimeError(result.stderr.strip())
         return result.stdout
@@ -853,7 +872,7 @@ def _prompt_add_alias(installed: set[str]) -> str | None:
     if rec_installed:
         choices.append(questionary.Separator("── Recommended (installed) ──"))
         for mid in rec_installed:
-            note = next((n for m, _, _, n in _RECOMMENDED_MODELS if m == mid), "")
+            note = next((n for m, _, _, n, _ in _RECOMMENDED_MODELS if m == mid), "")
             choices.append(questionary.Choice(
                 title=f"{mid}  {DIM}{note}{RST}", value=mid,
             ))
@@ -1233,7 +1252,7 @@ def _disqualify_saas(model: str, reason: str) -> None:
     disqualified = state.setdefault("disqualified_saas", {})
     disqualified[model] = {
         "reason": reason,
-        "disqualified_at": __import__("datetime").datetime.utcnow().isoformat(),
+        "disqualified_at": datetime.now(timezone.utc).isoformat(),
     }
     _save_state(state)
     warn(f"SaaS judge {model!r} disqualified ({reason}). "
@@ -1251,19 +1270,20 @@ def _recheck_disqualified_saas(cfg: dict) -> None:
     For any SaaS model disqualified longer than judge_recheck_hours ago,
     try a cheap validation call.  Re-enable if it succeeds; leave banned otherwise.
     """
-    import datetime
     state = _load_state()
     disqualified = state.get("disqualified_saas", {})
     if not disqualified:
         return
 
     recheck_hours = int(cfg.get("judge_recheck_hours", 24))
-    now = datetime.datetime.utcnow()
+    now = datetime.now(timezone.utc)
     changed = False
 
     for model, info in list(disqualified.items()):
         try:
-            banned_at = datetime.datetime.fromisoformat(info["disqualified_at"])
+            banned_at = datetime.fromisoformat(info["disqualified_at"])
+            if banned_at.tzinfo is None:
+                banned_at = banned_at.replace(tzinfo=timezone.utc)
         except Exception:
             continue
         age_h = (now - banned_at).total_seconds() / 3600
@@ -1280,8 +1300,13 @@ def _recheck_disqualified_saas(cfg: dict) -> None:
                 changed = True
                 info_msg = f"SaaS judge {model!r} re-enabled (auth check passed)."
                 print(f"{GRN}{info_msg}{RST}" if _COLOR else info_msg)
+            else:
+                # Still banned; push the timestamp forward so we don't retry every invocation
+                disqualified[model]["disqualified_at"] = datetime.now(timezone.utc).isoformat()
+                changed = True
         except Exception:
-            pass  # still banned; update timestamp to avoid re-checking too soon
+            disqualified[model]["disqualified_at"] = datetime.now(timezone.utc).isoformat()
+            changed = True
 
     if changed:
         _save_state(state)
@@ -2109,7 +2134,7 @@ def find_git_root(start: Path) -> Path | None:
 
 def _git(repo: Path, *args: str, check: bool = True):
     return subprocess.run(
-        ["git", *args], cwd=repo, check=check, capture_output=True, text=True,
+        ["git", *args], cwd=repo, check=check, capture_output=True, text=True, timeout=30,
     )
 
 
@@ -2316,6 +2341,7 @@ def _run_tests_in_tmpdir(script: str, name: str, test_files: TestFiles) -> None:
                 result = subprocess.run(
                     ["pytest", str(pt), "-v", "--tb=short"],
                     env={**os.environ, "PATH": str(tmp) + ":" + os.environ.get("PATH", "")},
+                    timeout=120,
                 )
                 if result.returncode != 0:
                     warn("Some pytest tests failed.")
@@ -2334,7 +2360,7 @@ def run_bats(tests_path: Path, extra_path: str = "") -> bool:
     env = os.environ.copy()
     if extra_path:
         env["PATH"] = extra_path + ":" + env.get("PATH", "")
-    return subprocess.run(["bats", str(tests_path)], env=env).returncode == 0
+    return subprocess.run(["bats", str(tests_path)], env=env, timeout=120).returncode == 0
 
 
 # ──────────────────────────────────────────────────────────────────────────────
