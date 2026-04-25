@@ -4,6 +4,8 @@
 # Run from repo root:
 #   .bats/bats-core/bin/bats tests/findline.bats
 
+bats_require_minimum_version 1.5.0
+
 REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
 SCRIPT="$REPO_ROOT/bin/executable_findline"
 
@@ -218,6 +220,28 @@ STUB
     run bash "$SCRIPT" --path-only --subdir "$TEST_DIR/src" 'hello'
     assert_failure
     refute_output --partial 'single-quoted'
+}
+
+# ─── stream routing ──────────────────────────────────────────────────────────
+
+@test "error messages go to stderr, not stdout" {
+    setup_no_results
+    # --separate-stderr splits $output (stdout only) from $stderr
+    run --separate-stderr bash "$SCRIPT" --path-only --subdir "$TEST_DIR/src" 'hello'
+    assert_failure
+    # The 'no results' message must be on stderr
+    assert [ -n "$stderr" ]
+    [[ "$stderr" == *'no results'* ]]
+    # stdout must be empty (no file path was selected)
+    assert_output ''
+}
+
+@test "--path-only result goes to stdout, not stderr" {
+    run --separate-stderr bash "$SCRIPT" --path-only --subdir "$TEST_DIR/src" 'hello'
+    assert_success
+    assert_output 'path/to/file.py'
+    # No stray output on stderr (bat stub suppresses the bat-not-found warning)
+    assert [ -z "$stderr" ]
 }
 
 # ─── debug mode ──────────────────────────────────────────────────────────────
