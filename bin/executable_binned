@@ -1,0 +1,3095 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "typer",
+#   "questionary",
+# ]
+# ///
+# ---------------------------------------------------------------------------------------
+# Script Name:        binned
+# Description:        Turns a shell command into a tested, documented ~/bin script.
+#                     Uses the `llm` CLI for generation. On first run, interactively
+#                     sets up its own generation model and saves it to config.
+#                     Deps declared via PEP 723; uv creates an isolated venv on first run.
+#
+# License:            MIT
+# Author:             Ben Davis <ben.davis@sentry.io>
+# Created:            2026-04-24
+# Last Modified:      2026-04-24
+#
+# Usage:              binned [COMMAND] [OPTIONS]
+#                     echo "cmd" | binned
+#                     binned pending
+#                     binned resume NAME
+#                     binned config             Show / edit current config
+#
+# Dependencies:       uv (https://docs.astral.sh/uv/), llm (pip install llm)
+# Optional:           fzf, bat/batcat, bats (test runner)
+#
+# Notes:
+#   - uv auto-installs typer into an isolated per-script venv on first run
+#   - binned's own generation model is configured at ~/.binned/config.json
+#   - Run `binned config` to update settings interactively
+#   - Deferred scripts live at ~/.binned/pending/
+#   - Reminders via `at` (if available) or ~/.binned/reminders.txt fallback
+# ---------------------------------------------------------------------------------------
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import tomllib
+import shutil
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+import typer       # provided by PEP 723 / uv  # type: ignore[import-untyped]
+import questionary  # provided by PEP 723 / uv  # type: ignore[import-untyped]
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Constants
+# ──────────────────────────────────────────────────────────────────────────────
+
+VERSION = "0.1.0"
+DEFAULT_BIN_DIR = Path.home() / "bin"
+# BINNED_HOME lets tests (and --reset flows) redirect all state to a temp dir
+BINNED_DIR         = Path(os.environ.get("BINNED_HOME", str(Path.home() / ".binned")))
+PENDING_DIR        = BINNED_DIR / "pending"
+CONFIG_FILE        = BINNED_DIR / "config.toml"
+CONFIG_FILE_LEGACY = BINNED_DIR / "config.json"   # migrated on first read, then deleted
+STATE_FILE         = BINNED_DIR / "state.json"     # runtime disqualifications, separate from user config
+
+_LLM_CMD_RE = re.compile(r"\bllm\b", re.IGNORECASE)
+_LLM_MODEL_FLAG_RE = re.compile(r"(?:-m|--model)\s+(\S+)")
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ANSI Colors — auto-disabled when not a tty
+# ──────────────────────────────────────────────────────────────────────────────
+
+_COLOR = sys.stdout.isatty()
+_AUTO: bool = False  # set True by --auto/-y; all prompt_* functions return their default
+
+# Session-level judge failure tracking — reset on each binned invocation
+_SESSION_FAILURE_COUNTS: dict[str, int] = {}   # alias → number of fallback failures this session
+_SESSION_SKIP: set[str] = set()                # aliases excluded for the remainder of this session
+
+
+def _c(code: str) -> str:
+    return f"\033[{code}m" if _COLOR else ""
+
+
+RST = _c("0")
+BOLD = _c("1")
+DIM = _c("2")
+RED = _c("31")
+GRN = _c("32")
+YLW = _c("33")
+BLU = _c("34")
+CYN = _c("36")
+
+
+def err(msg: str):
+    typer.echo(f"{RED}✗{RST} {msg}", err=True)
+
+
+def ok(msg: str):
+    typer.echo(f"{GRN}✓{RST} {msg}")
+
+
+def info(msg: str):
+    typer.echo(f"{BLU}→{RST} {msg}")
+
+
+def warn(msg: str):
+    typer.echo(f"{YLW}⚠{RST}  {msg}")
+
+
+def header(msg: str):
+    width = min(shutil.get_terminal_size((72, 24)).columns, 72)
+    bar = "─" * width
+    typer.echo(f"\n{BOLD}{CYN}{bar}{RST}")
+    typer.echo(f"{BOLD}{CYN}  {msg}{RST}")
+    typer.echo(f"{BOLD}{CYN}{bar}{RST}\n")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Spinner
+# ──────────────────────────────────────────────────────────────────────────────
+
+class Spinner:
+    _FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+
+    def __init__(self, msg: str):
+        self.msg = msg
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def _spin(self):
+        i = 0
+        while not self._stop.is_set():
+            frame = self._FRAMES[i % len(self._FRAMES)]
+            print(f"\r{CYN}{frame}{RST} {self.msg}", end="", flush=True)
+            i += 1
+            time.sleep(0.08)
+        print(f"\r{' ' * (len(self.msg) + 4)}\r", end="", flush=True)
+
+    def __enter__(self):
+        if _COLOR:
+            self._thread = threading.Thread(target=self._spin, daemon=True)
+            self._thread.start()
+        else:
+            typer.echo(f"→ {self.msg}…")
+        return self
+
+    def __exit__(self, *_):
+        self._stop.set()
+        if self._thread:
+            self._thread.join()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Config
+# ──────────────────────────────────────────────────────────────────────────────
+
+_CONFIG_DEFAULTS: dict = {
+    "generation_model":      None,   # None → use llm's own default
+    "bin_dir":               str(DEFAULT_BIN_DIR),
+    "defer_minutes":         60,
+    "auto_tests":            True,
+    "judge_timeout_seconds": 180,    # per-judge timeout; larger for slow local models
+    "judge_recheck_hours":   24,     # hours before re-testing a disqualified SaaS model
+    # run_judges, judge_models, local_judge_pool, saas_judge_fallbacks are
+    # intentionally absent — their absence signals "first-run judge setup not done yet"
+}
+
+_CONFIG_DESCRIPTIONS: dict[str, str] = {
+    "generation_model":       "LLM model/alias binned uses for its OWN generation",
+    "bin_dir":                "Directory where scripts are saved",
+    "defer_minutes":          "Default reminder delay (minutes) when deferring",
+    "auto_tests":             "Automatically generate bats tests (true/false)",
+    "judge_timeout_seconds":  "Per-judge timeout in seconds (increase for large local models)",
+    "judge_recheck_hours":    "Hours before retesting a disqualified SaaS model (default 24)",
+    "run_judges":             "Run a judge panel to score generated scripts (true/false)",
+    "judge_models":           "Comma-separated aliases for the primary judge panel",
+    "local_judge_pool":       "Ordered local model pool (up to 8); round-robins when a judge fails",
+    "saas_judge_fallbacks":   "Ordered SaaS fallback models when a judge fails (comma-separated, up to 3)",
+}
+
+
+def _toml_str(data: dict) -> str:
+    """
+    Minimal TOML serializer for flat scalar dicts — avoids adding a write
+    dependency (tomllib is read-only, stdlib in Python 3.11+).
+    Handles: str, bool, int, float, None (skipped).
+    """
+    lines: list[str] = []
+    for k, v in data.items():
+        if v is None:
+            continue
+        if isinstance(v, bool):
+            lines.append(f"{k} = {'true' if v else 'false'}")
+        elif isinstance(v, int):
+            lines.append(f"{k} = {v}")
+        elif isinstance(v, float):
+            lines.append(f"{k} = {v}")
+        elif isinstance(v, str):
+            escaped = v.replace("\\", "\\\\").replace('"', '\\"')
+            lines.append(f'{k} = "{escaped}"')
+        else:
+            escaped = str(v).replace("\\", "\\\\").replace('"', '\\"')
+            lines.append(f'{k} = "{escaped}"')
+    return "\n".join(lines) + "\n"
+
+
+def load_config() -> dict:
+    # Migrate legacy JSON config → TOML on first read, then remove it
+    if not CONFIG_FILE.exists() and CONFIG_FILE_LEGACY.exists():
+        try:
+            legacy_data = json.loads(CONFIG_FILE_LEGACY.read_text())
+            BINNED_DIR.mkdir(parents=True, exist_ok=True)
+            CONFIG_FILE.write_text(_toml_str(legacy_data))
+            CONFIG_FILE_LEGACY.unlink()
+        except Exception:
+            pass  # migration failure is non-fatal; TOML file just won't exist yet
+
+    if CONFIG_FILE.exists():
+        try:
+            data = tomllib.loads(CONFIG_FILE.read_text())
+            return {**_CONFIG_DEFAULTS, **data}
+        except (tomllib.TOMLDecodeError, OSError):
+            return dict(_CONFIG_DEFAULTS)
+    return dict(_CONFIG_DEFAULTS)
+
+
+def save_config(cfg: dict) -> None:
+    BINNED_DIR.mkdir(parents=True, exist_ok=True)
+    CONFIG_FILE.write_text(_toml_str(cfg))
+
+
+def ensure_config() -> dict:
+    """
+    On first run (no config file) walk the user through initial setup so
+    binned's own generation model is always explicit, not a surprise.
+    """
+    if CONFIG_FILE.exists():
+        return load_config()
+
+    header("Welcome to binned — first-run setup")
+    typer.echo(
+        "binned uses the `llm` CLI to generate scripts. Let's configure\n"
+        "which model IT should use for that work (separate from any model\n"
+        "that ends up inside the scripts it builds).\n"
+    )
+
+    cfg = dict(_CONFIG_DEFAULTS)
+
+    # Generation model — show recommendations then use the interactive menu
+    installed = get_installed_model_ids()
+    show_model_recommendations(installed)
+    typer.echo("Choose a model from your aliases, or enter one manually below.\n")
+    selected = select_model_interactively("binned's generation model")
+    gen_model = selected or prompt_text(
+        "Or type a model/alias directly (Enter to use llm default)",
+        default="",
+    )
+    if gen_model:
+        with Spinner(f"Validating '{gen_model}'"):
+            ok_ = validate_llm_model(gen_model)
+        if ok_:
+            ok(f"'{gen_model}' is working.")
+            cfg["generation_model"] = gen_model
+        else:
+            warn(f"'{gen_model}' did not respond — saving anyway. Fix later: binned config")
+            cfg["generation_model"] = gen_model
+    else:
+        info("Using llm's default model.")
+
+    # bin_dir
+    raw_bin = prompt_text("Where to save scripts", default=str(DEFAULT_BIN_DIR))
+    cfg["bin_dir"] = raw_bin or str(DEFAULT_BIN_DIR)
+
+    # defer_minutes
+    raw_mins = prompt_text("Default defer reminder (minutes)", default="60")
+    try:
+        cfg["defer_minutes"] = int(raw_mins)
+    except ValueError:
+        cfg["defer_minutes"] = 60
+
+    save_config(cfg)
+    ok(f"Config saved → {CONFIG_FILE}")
+    typer.echo(f"  Update anytime with: {BOLD}binned config{RST}\n")
+    return cfg
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Interactive UI helpers
+# ──────────────────────────────────────────────────────────────────────────────
+
+def prompt_text(msg: str, default: str = "") -> str:
+    if _AUTO:
+        return default
+    hint = f" [{DIM}{default}{RST}]" if default else ""
+    try:
+        val = input(f"{BOLD}{msg}{RST}{hint}: ").strip()
+        return val if val else default
+    except (EOFError, KeyboardInterrupt):
+        typer.echo("")
+        raise typer.Exit(0)
+
+
+def prompt_confirm(msg: str, default: bool = True) -> bool:
+    if _AUTO:
+        return default
+    hint = f"{GRN}Y{RST}/n" if default else f"y/{RED}N{RST}"
+    try:
+        val = input(f"{BOLD}{msg}{RST} [{hint}]: ").strip().lower()
+        if not val:
+            return default
+        return val in ("y", "yes")
+    except (EOFError, KeyboardInterrupt):
+        typer.echo("")
+        raise typer.Exit(0)
+
+
+def prompt_choice(msg: str, options: list[str], default: int = 0) -> int:
+    """Arrow-key menu via questionary; falls back to numbered list if not a tty."""
+    if _AUTO:
+        return default
+    if not _COLOR:
+        # Non-interactive fallback (pipe/CI)
+        typer.echo(f"\n{BOLD}{msg}{RST}")
+        for i, opt in enumerate(options):
+            typer.echo(f"  {DIM}{i + 1}.{RST} {opt}")
+        try:
+            val = input(f"\nChoice [1–{len(options)}, default={default + 1}]: ").strip()
+            if not val:
+                return default
+            idx = int(val) - 1
+            return idx if 0 <= idx < len(options) else default
+        except (ValueError, EOFError, KeyboardInterrupt):
+            return default
+
+    choices = [
+        questionary.Choice(title=opt, value=i) for i, opt in enumerate(options)
+    ]
+    result = questionary.select(
+        msg,
+        choices=choices,
+        default=choices[default],
+        style=questionary.Style([
+            ("selected",        "fg:#00ff87 bold"),
+            ("pointer",         "fg:#00ff87 bold"),
+            ("highlighted",     "fg:#00ff87 bold"),
+            ("question",        "bold"),
+            ("answer",          "fg:#00ff87 bold"),
+        ]),
+    ).ask()
+    return result if result is not None else default
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# LLM CLI integration
+# ──────────────────────────────────────────────────────────────────────────────
+
+def require_llm():
+    if not shutil.which("llm"):
+        err("'llm' CLI not found.  Install: pip install llm")
+        raise typer.Exit(1)
+
+
+def _model_label(model: str | None) -> str:
+    """Human-readable label for transparency messages."""
+    if model:
+        return f"{BOLD}{model}{RST}"
+    return f"{DIM}llm default{RST}"
+
+
+def llm_call(
+    prompt: str,
+    system: str | None = None,
+    model: str | None = None,
+    stream: bool = False,
+    label: str = "",
+) -> str:
+    """
+    Invoke `llm` via stdin.  Prints a transparency line so the user always
+    knows which model binned is using for its own work.
+    """
+    if label:
+        info(f"[binned model: {_model_label(model)}] {label}")
+
+    cmd = ["llm"]
+    if model:
+        cmd += ["-m", model]
+    if system:
+        cmd += ["-s", system]
+
+    if stream and _COLOR:
+        proc = subprocess.Popen(
+            cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, text=True,
+        )
+        assert proc.stdin
+        proc.stdin.write(prompt)
+        proc.stdin.close()
+        chunks: list[str] = []
+        assert proc.stdout
+        for chunk in proc.stdout:
+            print(chunk, end="", flush=True)
+            chunks.append(chunk)
+        proc.wait()
+        if proc.returncode != 0:
+            assert proc.stderr
+            raise RuntimeError(proc.stderr.read().strip())
+        print()
+        return "".join(chunks)
+    else:
+        result = subprocess.run(cmd, input=prompt, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip())
+        return result.stdout
+
+
+def get_last_llm_conversation_id() -> str | None:
+    """Return the conversation_id from the most recent llm log entry."""
+    try:
+        result = subprocess.run(
+            ["llm", "logs", "-n", "1", "--json"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            return None
+        data = json.loads(result.stdout.strip())
+        if isinstance(data, list) and data:
+            return data[0].get("conversation_id")
+        if isinstance(data, dict):
+            return data.get("conversation_id")
+        return None
+    except Exception:
+        return None
+
+
+def llm_continue_call(
+    prompt: str,
+    conv_id: str | None = None,
+    model: str | None = None,
+    stream: bool = False,
+    label: str = "",
+) -> str:
+    """
+    Continue an existing llm conversation (-C CONV_ID) or the most recent one
+    (--continue).  This lets judge feedback land in the same context window as
+    the original generation so the model improves from its own prior output.
+    """
+    if label:
+        info(f"[binned model: {_model_label(model)}] {label}")
+
+    cmd = ["llm"]
+    if model:
+        cmd += ["-m", model]
+    if conv_id:
+        cmd += ["-C", conv_id]
+    else:
+        cmd += ["--continue"]
+
+    if stream and _COLOR:
+        proc = subprocess.Popen(
+            cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, text=True,
+        )
+        assert proc.stdin
+        proc.stdin.write(prompt)
+        proc.stdin.close()
+        chunks: list[str] = []
+        assert proc.stdout
+        for chunk in proc.stdout:
+            print(chunk, end="", flush=True)
+            chunks.append(chunk)
+        proc.wait()
+        if proc.returncode != 0:
+            assert proc.stderr
+            raise RuntimeError(proc.stderr.read().strip())
+        print()
+        return "".join(chunks)
+    else:
+        result = subprocess.run(cmd, input=prompt, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip())
+        return result.stdout
+
+
+def get_llm_aliases() -> dict[str, str]:
+    try:
+        out = subprocess.run(["llm", "aliases"], capture_output=True, text=True, timeout=10)
+        aliases: dict[str, str] = {}
+        for line in out.stdout.splitlines():
+            # llm aliases pads the alias column then uses " : " as separator.
+            # Split on the first run of 2+ whitespace chars followed by ": " so
+            # that alias names containing colons (e.g. qwen3.5:35b) are preserved.
+            m = re.match(r"^(.+?)\s{2,}:\s+(.+)$", line)
+            if m:
+                aliases[m.group(1).strip()] = m.group(2).strip()
+        return aliases
+    except Exception:
+        return {}
+
+
+def get_installed_model_ids() -> set[str]:
+    """
+    Parse `llm models list` and return every model ID and alias that is installed.
+    Used to annotate recommendations as available or not.
+    """
+    try:
+        out = subprocess.run(["llm", "models", "list"], capture_output=True, text=True, timeout=10)
+        found: set[str] = set()
+        for line in out.stdout.splitlines():
+            # "Provider: model-id (aliases: a, b, c)"
+            m = re.match(r"^[^:]+:\s+(\S+)(?:\s+\(aliases:\s+([^)]+)\))?", line.strip())
+            if m:
+                found.add(m.group(1))
+                if m.group(2):
+                    for alias in m.group(2).split(","):
+                        found.add(alias.strip())
+        return found
+    except Exception:
+        return set()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# System resource detection
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _detect_total_ram_gb() -> float | None:
+    """Total system RAM (GB). On Apple Silicon this is unified memory."""
+    try:
+        if sys.platform == "darwin":
+            r = subprocess.run(
+                ["sysctl", "-n", "hw.memsize"], capture_output=True, text=True, timeout=5
+            )
+            return int(r.stdout.strip()) / (1024 ** 3)
+        elif sys.platform.startswith("linux"):
+            with open("/proc/meminfo") as f:
+                for line in f:
+                    if line.startswith("MemTotal:"):
+                        return int(line.split()[1]) / (1024 ** 2)
+    except Exception:
+        pass
+    return None
+
+
+def _detect_available_ram_gb() -> float | None:
+    """
+    Currently available RAM (GB) — memory the OS can give to a new process
+    without evicting active mappings.  On macOS this is free + inactive pages;
+    on Linux it is MemAvailable from /proc/meminfo.
+    """
+    try:
+        if sys.platform == "darwin":
+            vm = subprocess.run(
+                ["vm_stat"], capture_output=True, text=True, timeout=5
+            )
+            page_size = 4096  # 4KiB pages on all macOS hardware
+            avail_pages = 0
+            for line in vm.stdout.splitlines():
+                for key in ("Pages free", "Pages inactive", "Pages speculative"):
+                    if line.startswith(key + ":"):
+                        val = re.sub(r"[^\d]", "", line.split(":")[1])
+                        if val:
+                            avail_pages += int(val)
+                        break
+            return (avail_pages * page_size) / (1024 ** 3)
+        elif sys.platform.startswith("linux"):
+            with open("/proc/meminfo") as f:
+                for line in f:
+                    if line.startswith("MemAvailable:"):
+                        return int(line.split()[1]) / (1024 ** 2)
+    except Exception:
+        pass
+    return None
+
+
+def _model_fits_in_ram(ram_needed_gb: float | None, available_gb: float, total_gb: float) -> bool:
+    """
+    True if this machine can physically run the model without hard OOM.
+
+    Greedy bias: check against TOTAL RAM minus a fixed 4 GB OS reserve, not
+    against currently-free pages.  macOS/Linux will reclaim inactive pages as
+    needed; blocking on free-pages would reject models that run fine in practice.
+    Only skip a model that genuinely cannot fit on this hardware.
+    """
+    if ram_needed_gb is None:
+        return True  # SaaS — no local memory consumed
+    return ram_needed_gb <= (total_gb - 4.0)
+
+
+def _model_ram_pressure(ram_needed_gb: float | None, available_gb: float) -> bool:
+    """True when the model needs more than what's currently free — expect paging."""
+    if ram_needed_gb is None or available_gb is None:
+        return False
+    return ram_needed_gb > available_gb
+
+
+def _filter_models_by_ram(
+    models: list[str],
+    ram_lookup: dict[str, float | None],
+) -> tuple[list[str], dict[str, str]]:
+    """
+    Return (feasible_models, {skipped_model: reason}).
+    SaaS models always pass through.  Local models are skipped only when
+    ram_needed > total - 4 GB (would hard-OOM the machine).
+    """
+    available = _detect_available_ram_gb()
+    total     = _detect_total_ram_gb()
+
+    if total is None:
+        # Can't detect RAM — pass everything through (greedy default)
+        return models, {}
+
+    feasible: list[str] = []
+    skipped: dict[str, str] = {}
+
+    for m in models:
+        if _judge_model_category(m) == "saas":
+            feasible.append(m)
+            continue
+        ram_needed = ram_lookup.get(m)
+        if ram_needed is None:
+            feasible.append(m)  # unknown model — greedy: assume it fits
+            continue
+        if _model_fits_in_ram(ram_needed, available or 0.0, total):
+            feasible.append(m)
+            if available and _model_ram_pressure(ram_needed, available):
+                warn(
+                    f"Judge {m!r} needs ~{ram_needed:.0f} GB; "
+                    f"only {available:.1f} GB currently free — memory pressure expected."
+                )
+        else:
+            skipped[m] = (
+                f"needs ~{ram_needed:.0f} GB but machine only has {total:.0f} GB total "
+                f"(would hard-OOM)"
+            )
+
+    return feasible, skipped
+
+
+# Curated list: (model_id, stars_1_to_3, category, note, ram_gb)
+# Stars reflect code/script generation quality, not general capability.
+# ram_gb: RAM (or unified memory on Apple Silicon) needed to run without swapping,
+#         at Q4_K_M quantization.  None = SaaS (no local RAM consumed).
+# Rule of thumb used: (params_B * 0.56) + 1.5 GB KV-cache overhead, rounded up.
+_RECOMMENDED_MODELS: list[tuple[str, int, str, str, float | None]] = [
+    # ── SaaS ─────────────────────────────────────────────────────────────────
+    # Graded on zero-shot performance for binned's three hardest tasks:
+    # (1) skeleton template fill-in with strict bash-only output,
+    # (2) bats test generation with setup/stubs in one shot,
+    # (3) structured key:value format compliance (_SYS_ASSESS).
+
+    ("claude-opus-4.7",      3, "saas", "Top reasoning; best zero-shot template compliance",       None),
+    ("claude-sonnet-4.6",    3, "saas", "Built & tested with this model; highest prompt alignment", None),
+    ("gemini-2.5-pro",       3, "saas", "Large context; strong structured output compliance",       None),
+    ("gpt-4.1",              3, "saas", "Precise; handles strict format constraints reliably",      None),
+    ("gpt-4o",               3, "saas", "Reliable all-rounder; well-tested for bash gen",           None),
+    ("gemini-2.5-flash",     2, "saas", "Fast; good for moderately complex commands",               None),
+    ("claude-haiku-4.5",     2, "saas", "Cheapest Anthropic; most scripts work first-try",          None),
+    ("gpt-4.1-mini",         2, "saas", "Affordable; skips boilerplate on complex commands",        None),
+    ("gpt-4.1-nano",         1, "saas", "Trivial scripts only; poor structured-format compliance",  None),
+
+    # ── Local (Ollama + llm-ollama plugin) ────────────────────────────────────
+    # ram_gb = RAM needed at Q4_K_M quant.  On Apple Silicon this is unified memory;
+    # on Linux with a GPU it is VRAM.  Used to skip models that would cause swapping.
+
+    # devstral-small-2:24b — (24 * 0.56) + 1.5 ≈ 15GB
+    ("devstral-small-2",     3, "local", "Code-agent fine-tune; best local zero-shot for scripts",  15.0),
+
+    # qwen3.5:35b — (35 * 0.56) + 1.5 ≈ 21GB
+    ("qwen3.5:35b",          3, "local", "Largest Qwen3.5; strong format compliance",               21.0),
+
+    # qwen3.5:27b — (27 * 0.56) + 1.5 ≈ 17GB
+    ("qwen3.5:27b",          3, "local", "High quality; reliable skeleton fill-in",                 17.0),
+
+    # deepseek-r1:32b — (32 * 0.56) + 1.5 ≈ 20GB (thinking tokens add KV overhead)
+    ("deepseek-r1:32b",      2, "local", "Strong reasoning; thinking tokens may leak into output",  20.0),
+
+    # qwen3.5:9b — (9 * 0.56) + 1.5 ≈ 7GB
+    ("qwen3.5:9b",           2, "local", "Good quality/size balance",                               7.0),
+
+    # mistral-small3.1:24b — same param count as devstral ≈ 15GB
+    ("mistral-small3.1:24b", 2, "local", "Solid structured output; good general bash knowledge",    15.0),
+
+    # gemma4:31b — (31 * 0.56) + 1.5 ≈ 19GB
+    ("gemma4:31b",           2, "local", "Strong instruction following; clean output format",        19.0),
+
+    # phi4:14b — (14 * 0.56) + 1.5 ≈ 10GB
+    ("phi4:14b",             2, "local", "Punches above its weight; good for most scripts",          10.0),
+
+    # gemma4:e4b — (4 * 0.56) + 1.5 ≈ 4GB
+    ("gemma4:e4b",           1, "local", "Edge efficiency variant; single-step scripts only",        4.0),
+]
+
+_STARS = {3: f"{YLW}★★★{RST}", 2: f"{YLW}★★{RST}{DIM}☆{RST}", 1: f"{DIM}★☆☆{RST}"}
+
+# Grading is based on zero-shot performance for the three tasks binned runs:
+#   (1) skeleton fill-in: follow a bash template, output the script only
+#   (2) bats tests: write setup/teardown/stubs correctly in one shot
+#   (3) format compliance: output strict key:value text for language assess
+_STAR_LEGEND = (
+    f"  {_STARS[3]}  Zero-shot: correct structure + error handling on first try;\n"
+    f"        infers edge-cases; never leaks prose into script output\n"
+    f"  {_STARS[2]}  Zero-shot: works for most commands; may need one feedback\n"
+    f"        round on complex pipelines or occasionally skip boilerplate\n"
+    f"  {_STARS[1]}  Simple single-step scripts only; unreliable on structured\n"
+    f"        output format and bats generation"
+)
+
+
+def show_model_recommendations(installed: set[str]) -> None:
+    """Print a recommendations panel above the model picker."""
+    width = min(shutil.get_terminal_size((80, 24)).columns, 80)
+    bar = "─" * width
+
+    typer.echo(f"\n{DIM}{bar}{RST}")
+    typer.echo(f"{BOLD}  Recommended models for script generation{RST}")
+    typer.echo(f"{DIM}{bar}{RST}")
+    typer.echo(f"\n{BOLD}  Rating key{RST}  (scores reflect bash script generation quality)")
+    typer.echo(_STAR_LEGEND)
+
+    for category, label in [("saas", "SaaS  (API key required)"),
+                             ("local", "Local  (Ollama + llm-ollama plugin)")]:
+        typer.echo(f"\n  {BOLD}{label}{RST}")
+        available_gb = _detect_available_ram_gb()
+        total_gb     = _detect_total_ram_gb()
+        for mid, stars, cat, note, ram_gb in _RECOMMENDED_MODELS:
+            if cat != category:
+                continue
+            is_installed = any(mid in i or i in mid for i in installed)
+            status = f"{GRN}✓ installed{RST}" if is_installed else f"{DIM}not found{RST}"
+            star_str = _STARS[stars]
+
+            # RAM annotation: fits = can run without hard-OOM; pressure = expects paging
+            ram_note = ""
+            if cat == "local" and ram_gb is not None:
+                if total_gb is not None:
+                    fits = _model_fits_in_ram(ram_gb, available_gb or 0.0, total_gb)
+                    pressure = available_gb is not None and _model_ram_pressure(ram_gb, available_gb)
+                    if fits and pressure:
+                        ram_note = f"  {YLW}~{ram_gb:.0f}GB (pressure){RST}"
+                    elif fits:
+                        ram_note = f"  {GRN}~{ram_gb:.0f}GB fits{RST}"
+                    else:
+                        ram_note = f"  {RED}~{ram_gb:.0f}GB — too large{RST}"
+                else:
+                    ram_note = f"  {DIM}~{ram_gb:.0f}GB{RST}"
+
+            typer.echo(
+                f"  {star_str}  {BOLD}{mid:<30}{RST}  {status:<22}{ram_note:<20}  {DIM}{note}{RST}"
+            )
+
+    typer.echo(f"\n{DIM}{bar}{RST}\n")
+
+
+def validate_llm_model(model: str, timeout: int = 30) -> bool:
+    try:
+        result = subprocess.run(
+            ["llm", "-m", model],
+            input="Respond with exactly the single word: ok",
+            capture_output=True, text=True, timeout=timeout,
+        )
+        return result.returncode == 0 and bool(result.stdout.strip())
+    except Exception:
+        return False
+
+
+def add_llm_alias(alias: str, model: str) -> bool:
+    try:
+        r = subprocess.run(
+            ["llm", "aliases", "set", alias, model],
+            capture_output=True, text=True, timeout=10,
+        )
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+_MENU_STYLE = questionary.Style([
+    ("selected",    "fg:#00ff87 bold"),
+    ("pointer",     "fg:#00ff87 bold"),
+    ("highlighted", "fg:#00ff87 bold"),
+    ("question",    "bold"),
+    ("answer",      "fg:#00ff87 bold"),
+    ("separator",   "fg:#6c6c6c"),
+])
+
+_ADD_NEW  = "__add_new__"
+_SKIP_SEL = "__skip__"
+
+
+def _prompt_add_alias(installed: set[str]) -> str | None:
+    """Register a new llm alias, picking the model ID from a questionary menu."""
+    typer.echo("")
+    alias = prompt_text("New alias name (e.g. 'fast', 'local')")
+    if not alias:
+        return None
+
+    # Build model choices: recommended first, then everything else installed
+    rec_ids = [mid for mid, *_ in _RECOMMENDED_MODELS]
+    rec_installed = [mid for mid in rec_ids if any(mid in i or i in mid for i in installed)]
+    other_installed = sorted(installed - set(rec_installed))
+
+    choices: list[questionary.Choice | questionary.Separator] = []
+    if rec_installed:
+        choices.append(questionary.Separator("── Recommended (installed) ──"))
+        for mid in rec_installed:
+            note = next((n for m, _, _, n in _RECOMMENDED_MODELS if m == mid), "")
+            choices.append(questionary.Choice(
+                title=f"{mid}  {DIM}{note}{RST}", value=mid,
+            ))
+    if other_installed:
+        choices.append(questionary.Separator("── Other installed ──"))
+        for mid in other_installed:
+            choices.append(questionary.Choice(title=mid, value=mid))
+    choices.append(questionary.Separator("──"))
+    choices.append(questionary.Choice(title="Enter model ID manually…", value="__manual__"))
+
+    if _COLOR and choices:
+        result = questionary.select(
+            "Select model ID for this alias:", choices=choices, style=_MENU_STYLE,
+        ).ask()
+    else:
+        result = "__manual__"
+
+    if result == "__manual__" or result is None:
+        model = prompt_text("Model ID (e.g. gpt-4o, qwen2.5-coder:7b)")
+    else:
+        model = result
+
+    if not model:
+        return None
+
+    with Spinner(f"Validating '{model}'"):
+        works = validate_llm_model(model)
+
+    if works:
+        ok(f"'{model}' is working.")
+    else:
+        warn(f"'{model}' didn't respond within timeout.")
+        if not prompt_confirm("Save alias anyway?", default=False):
+            return None
+
+    if add_llm_alias(alias, model):
+        ok(f"Alias '{alias}' → '{model}' saved.")
+    else:
+        warn(f"Couldn't save automatically. Run: llm aliases set {alias} {model}")
+    return alias
+
+
+def select_model_interactively(heading: str = "Select model alias") -> str | None:
+    """
+    Arrow-key alias selector (questionary) prefixed by a recommendations panel.
+    Falls back to a numbered list when not running in an interactive tty.
+    """
+    aliases  = get_llm_aliases()
+    installed = get_installed_model_ids()
+
+    # Show recommendations panel before the menu
+    show_model_recommendations(installed)
+
+    alias_keys = list(aliases.keys())
+
+    if _COLOR:
+        # Build questionary choices: aliases grouped by whether they're recommended
+        rec_ids = {mid for mid, *_ in _RECOMMENDED_MODELS}
+        rec_aliases   = [(k, aliases[k]) for k in alias_keys
+                         if any(aliases[k] in r or r in aliases[k] for r in rec_ids)]
+        other_aliases = [(k, aliases[k]) for k in alias_keys
+                         if (k, aliases[k]) not in rec_aliases]
+
+        choices: list[questionary.Choice | questionary.Separator] = []
+        if rec_aliases:
+            choices.append(questionary.Separator("── Your aliases (recommended models) ──"))
+            for k, v in rec_aliases:
+                choices.append(questionary.Choice(title=f"{k}  →  {v}", value=k))
+        if other_aliases:
+            choices.append(questionary.Separator("── Your other aliases ──"))
+            for k, v in other_aliases:
+                choices.append(questionary.Choice(title=f"{k}  →  {v}", value=k))
+
+        choices.append(questionary.Separator("──"))
+        choices.append(questionary.Choice(title="Add new alias…",   value=_ADD_NEW))
+        choices.append(questionary.Choice(title="Skip (keep as-is)", value=_SKIP_SEL))
+
+        selected = questionary.select(
+            heading, choices=choices, style=_MENU_STYLE,
+        ).ask()
+    else:
+        # Non-tty numbered fallback
+        all_items = alias_keys + [_ADD_NEW, _SKIP_SEL]
+        labels = (
+            [f"{k}  →  {aliases[k]}" for k in alias_keys]
+            + ["Add new alias…", "Skip (keep as-is)"]
+        )
+        typer.echo(f"\n{BOLD}{heading}{RST}")
+        for i, label in enumerate(labels, 1):
+            typer.echo(f"  {DIM}{i:3}.{RST} {label}")
+        try:
+            raw = input(f"\nChoice [1–{len(all_items)}] or Enter to cancel: ").strip()
+            idx = int(raw) - 1
+            selected = all_items[idx] if 0 <= idx < len(all_items) else _SKIP_SEL
+        except (ValueError, EOFError, KeyboardInterrupt):
+            selected = _SKIP_SEL
+
+    if selected is None or selected == _SKIP_SEL:
+        return None
+    if selected == _ADD_NEW:
+        return _prompt_add_alias(installed)
+
+    with Spinner(f"Validating '{selected}'"):
+        works = validate_llm_model(selected)
+    if works:
+        ok(f"'{selected}' is working.")
+    else:
+        warn(f"'{selected}' didn't respond — it may fail at runtime.")
+    return selected
+
+
+def detect_llm_in_command(cmd: str) -> str | None:
+    if not _LLM_CMD_RE.search(cmd):
+        return None
+    m = _LLM_MODEL_FLAG_RE.search(cmd)
+    return m.group(1) if m else "default"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# LLM system prompts
+# ──────────────────────────────────────────────────────────────────────────────
+
+_SYS_NAME = (
+    "You suggest script names. "
+    "Output ONLY the name: lowercase, kebab-case, 1–3 words, no extension, no punctuation. "
+    "Describe what the script DOES, not HOW."
+)
+
+_SYS_ASSESS = (
+    "Assess shell commands for scripting language fit. "
+    "Respond ONLY in this exact format:\n"
+    "RECOMMENDATION: bash|python|node|ruby|other\n"
+    "REWRITE_SUGGESTED: yes|no\n"
+    "REASON: <one sentence>"
+)
+
+# Kept intentionally short: the user prompt carries the full skeleton so small
+# models receive concrete structure guidance rather than abstract rules.
+_SYS_SCRIPT = (
+    "You convert shell commands into bash scripts. "
+    "Output ONLY valid bash. No markdown fences. No explanations."
+)
+
+_SYS_TESTS = """You write bats (Bash Automated Testing System) tests.
+
+Required:
+• bats_require_minimum_version 1.5.0
+• Graceful load of bats-support/bats-assert (with fallback if not installed)
+• setup() creates a tmp dir and stubs external commands via PATH manipulation
+• teardown() cleans up
+• Tests: --help exits 0; happy path; missing args → exit 1; at least one edge case
+
+Output ONLY the .bats file. No markdown. No prose."""
+
+# pytest unit tests for Python ~/bin scripts
+_SYS_PYTEST = """You write pytest unit tests for Python CLI scripts that live in ~/bin.
+
+Required:
+• At top: SCRIPT = Path(__file__).parent.parent / "<name>"
+• A run() fixture or helper: subprocess.run([SCRIPT, ...], capture_output=True, text=True)
+• Use tmp_path fixture for any file I/O
+• Test --help exits 0 and prints usage
+• Test happy path with realistic inputs
+• Test missing/invalid args → exit code 1 and stderr message
+• Use @pytest.mark.parametrize where the same assertion applies to multiple inputs
+• Import only stdlib + pytest (no extra deps)
+
+Output ONLY the pytest file. No markdown. No prose."""
+
+# bats black-box CLI tests for Python ~/bin scripts (test the interface, not internals)
+_SYS_BATS_CLI = """You write bats (Bash Automated Testing System) integration tests.
+These test the script purely as a CLI black-box — no knowledge of its internals.
+
+Required:
+• bats_require_minimum_version 1.5.0
+• Graceful load of bats-support/bats-assert (with fallback if not installed)
+• setup() sets SCRIPT="$HOME/bin/<name>" and creates a tmp dir
+• teardown() cleans up
+• Test --help exits 0; test happy path via real invocation; test bad args → exit 1
+• Stub slow/side-effectful external commands via a PATH-prefix shim in setup()
+
+Output ONLY the .bats file. No markdown. No prose."""
+
+# Pre-commit config generator/updater
+_SYS_PRECOMMIT = """You update .pre-commit-config.yaml files.
+Given the current config and a new script, add the minimal useful hooks.
+Do NOT duplicate hooks that are already present.
+Bash scripts: add shellcheck if missing.
+Python scripts: add ruff (preferred) or flake8 if missing; add mypy if the script uses type hints.
+Output ONLY the complete updated YAML. No markdown fences. No prose."""
+
+_SYS_CHANGELOG = (
+    "Write a user-facing changelog entry (1–2 sentences, plain language, past tense). "
+    "Output ONLY the entry text."
+)
+
+# Refactoring pass — applied automatically after generation and on every feedback round
+_SYS_REFACTOR = """\
+You refactor scripts to improve quality without changing behaviour.
+Rules:
+• Preserve the exact CLI interface: same flags, exit codes, stdout/stderr format
+• Bash: UPPER_SNAKE_CASE globals, lower_snake_case locals; die() for errors
+• Python: type hints on all functions; no bare excepts
+• Extract repeated logic into named functions
+• Add WHY-comments where non-obvious; strip WHAT-comments
+• Keep set -euo pipefail; keep all boilerplate sections intact
+• Do NOT add features, change output format, or break existing tests
+Output ONLY the refactored script. No markdown fences. No prose."""
+
+# One-shot assess: should this 80-100 line bash script become Python?
+_SYS_ASSESS_REWRITE = (
+    "Assess whether a bash script should be rewritten in Python. "
+    "Respond ONLY in this format:\n"
+    "REWRITE: yes|no\n"
+    "REASON: <one sentence>"
+)
+
+# Rewrite bash → Python (PEP 723 single-file script with uv shebang)
+_SYS_REWRITE_PYTHON = """\
+You rewrite bash scripts as Python CLI scripts using Typer and PEP 723.
+
+Required:
+• Shebang: #!/usr/bin/env -S uv run --script
+• PEP 723 inline deps block (always include typer; add others as needed)
+• Typer app with identical CLI interface: same flags, exit codes, --help text, examples
+• Type hints on all functions and arguments
+• subprocess.run() for any external command calls
+• Preserve all error messages, output format, and dry-run behaviour exactly
+
+Output ONLY the Python script. No markdown fences. No prose."""
+
+# Assess whether a Python script is complex enough to need a package
+_SYS_ASSESS_PROJECT = (
+    "Assess whether a Python CLI script should become a proper installable package "
+    "(uv tool install / pipx install). "
+    "It NEEDS to become a package if ANY are true: "
+    "3+ distinct logical modules that belong in separate files; "
+    "complex enough to distribute independently; "
+    "dependency management benefits from pyproject.toml. "
+    "Respond ONLY in this format:\n"
+    "NEEDS_PROJECT: yes|no\n"
+    "REASON: <one sentence>"
+)
+
+# Generate a minimal installable Python project layout
+_SYS_PROJECT_STRUCTURE = """\
+You generate minimal Python project files for a CLI tool installable via uv/pipx.
+Output ONLY a valid JSON object mapping relative file path to file content.
+Example schema:
+{
+  "pyproject.toml": "...",
+  "src/<name>/__init__.py": "...",
+  "src/<name>/cli.py": "...",
+  "src/<name>/__main__.py": "..."
+}
+Requirements for pyproject.toml:
+• Build backend: hatchling
+• Entry point: [project.scripts] <name> = "<name>.cli:app"
+• uv/pipx installable with: uv tool install . or pipx install .
+Requirements for cli.py:
+• Full Typer app with same interface as the original script
+• Type hints; proper error handling
+Requirements for __main__.py:
+• from <name>.cli import app; if __name__ == '__main__': app()
+No markdown fences inside JSON values. Output valid JSON only."""
+
+
+# Judge panel prompt — embedded here so binned can run judges without pytest
+_JUDGE_SYSTEM = """\
+You are a senior shell-script reviewer assessing a script generated by binned.
+Score on FIVE criteria (each 0–10). Return ONLY valid JSON — no prose, no markdown:
+{
+  "structure":    <int 0-10>,
+  "correctness":  <int 0-10>,
+  "safety":       <int 0-10>,
+  "style":        <int 0-10>,
+  "completeness": <int 0-10>,
+  "verdict":      "pass" | "needs-work" | "fail",
+  "note":         "<one sentence on biggest strength or weakness>"
+}
+Rubric (10=perfect, 5=partial, 0=missing):
+  structure    shebang, set -euo pipefail, die(), usage() with --help/--verbose/--dry-run
+  correctness  implements the described command correctly including edge cases
+  safety       all vars quoted, no injection risk, dangerous ops guarded
+  style        UPPER_SNAKE globals, lower_snake locals, WHY-comments not WHAT
+  completeness all skeleton sections filled; realistic examples; dry-run works
+verdict: pass ≥7.0 mean, needs-work ≥5.0, fail <5.0"""
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Judge panel helpers
+# ──────────────────────────────────────────────────────────────────────────────
+
+from typing import NamedTuple  # already imported above via __future__ but explicit here
+
+
+class JudgeScore(NamedTuple):
+    model: str
+    structure: int
+    correctness: int
+    safety: int
+    style: int
+    completeness: int
+    verdict: str
+    note: str
+    mean: float
+
+
+def _judge_model_category(alias: str) -> str:
+    """Classify a model alias as 'local' or 'saas' using _RECOMMENDED_MODELS + model ID heuristics."""
+    # Check curated list first (most reliable)
+    for mid, _stars, category, _note, _ram in _RECOMMENDED_MODELS:
+        if mid == alias or mid.startswith(alias) or alias.startswith(mid.split(":")[0]):
+            return category
+    # Fall back to model ID heuristics via alias resolution
+    aliases = get_llm_aliases()
+    model_id = aliases.get(alias, alias).lower()
+    for saas_pat in ("anthropic/", "gpt-", "gemini/", "openai/", "claude", "mistral.ai"):
+        if saas_pat in model_id:
+            return "saas"
+    return "local"
+
+
+def _split_judge_models(models: list[str]) -> tuple[list[str], list[str]]:
+    """Return (local_judges, saas_judges) from a flat list of aliases."""
+    local, saas = [], []
+    for m in models:
+        (saas if _judge_model_category(m) == "saas" else local).append(m)
+    return local, saas
+
+
+def _best_fallback_local(installed: set[str], exclude: set[str]) -> str | None:
+    """Find the best available local judge not already in the panel."""
+    available_gb = _detect_available_ram_gb()
+    total_gb     = _detect_total_ram_gb()
+    for mid, stars, category, _, ram_gb in _RECOMMENDED_MODELS:
+        if category != "local" or stars < 2 or mid in exclude:
+            continue
+        if not any(mid in iid or iid.startswith(mid.split(":")[0]) for iid in installed):
+            continue
+        if total_gb and ram_gb and not _model_fits_in_ram(ram_gb, available_gb or 0.0, total_gb):
+            continue  # would hard-OOM
+        return mid
+    return None
+
+
+# ── Auth disqualification state ────────────────────────────────────────────────
+
+_AUTH_PATTERNS = re.compile(
+    r"no (api )?key|api key|401|403|unauthorized|forbidden|invalid.*(token|key)|"
+    r"authentication (failed|error)|key not found|access denied",
+    re.IGNORECASE,
+)
+
+
+def _is_auth_error(text: str) -> bool:
+    return bool(_AUTH_PATTERNS.search(text))
+
+
+def _load_state() -> dict:
+    if STATE_FILE.exists():
+        try:
+            return json.loads(STATE_FILE.read_text())
+        except Exception:
+            pass
+    return {}
+
+
+def _save_state(state: dict) -> None:
+    BINNED_DIR.mkdir(parents=True, exist_ok=True)
+    STATE_FILE.write_text(json.dumps(state, indent=2))
+
+
+def _disqualify_saas(model: str, reason: str) -> None:
+    """Persistently ban a SaaS model from the judge pool until recheck passes."""
+    state = _load_state()
+    disqualified = state.setdefault("disqualified_saas", {})
+    disqualified[model] = {
+        "reason": reason,
+        "disqualified_at": __import__("datetime").datetime.utcnow().isoformat(),
+    }
+    _save_state(state)
+    warn(f"SaaS judge {model!r} disqualified ({reason}). "
+         f"Will recheck after judge_recheck_hours. "
+         f"Run `binned config` to adjust recheck interval.")
+
+
+def _get_disqualified_saas() -> set[str]:
+    state = _load_state()
+    return set(state.get("disqualified_saas", {}).keys())
+
+
+def _recheck_disqualified_saas(cfg: dict) -> None:
+    """
+    For any SaaS model disqualified longer than judge_recheck_hours ago,
+    try a cheap validation call.  Re-enable if it succeeds; leave banned otherwise.
+    """
+    import datetime
+    state = _load_state()
+    disqualified = state.get("disqualified_saas", {})
+    if not disqualified:
+        return
+
+    recheck_hours = int(cfg.get("judge_recheck_hours", 24))
+    now = datetime.datetime.utcnow()
+    changed = False
+
+    for model, info in list(disqualified.items()):
+        try:
+            banned_at = datetime.datetime.fromisoformat(info["disqualified_at"])
+        except Exception:
+            continue
+        age_h = (now - banned_at).total_seconds() / 3600
+        if age_h < recheck_hours:
+            continue
+        # Attempt a trivial call to see if the key is now present
+        try:
+            result = subprocess.run(
+                ["llm", "-m", model, "ping"],
+                capture_output=True, text=True, timeout=15,
+            )
+            if result.returncode == 0:
+                del disqualified[model]
+                changed = True
+                info_msg = f"SaaS judge {model!r} re-enabled (auth check passed)."
+                print(f"{GRN}{info_msg}{RST}" if _COLOR else info_msg)
+        except Exception:
+            pass  # still banned; update timestamp to avoid re-checking too soon
+
+    if changed:
+        _save_state(state)
+
+
+# ── Session failure tracking helpers ──────────────────────────────────────────
+
+_SESSION_FAIL_THRESHOLD = 2  # failures before a model is skipped for the session
+
+
+def _record_session_failure(alias: str) -> None:
+    _SESSION_FAILURE_COUNTS[alias] = _SESSION_FAILURE_COUNTS.get(alias, 0) + 1
+    if _SESSION_FAILURE_COUNTS[alias] >= _SESSION_FAIL_THRESHOLD:
+        _SESSION_SKIP.add(alias)
+        warn(f"Judge {alias!r} failed {_SESSION_FAILURE_COUNTS[alias]} times — "
+             f"skipping for the rest of this session.")
+
+
+def _get_judge_fallback(
+    failed_alias: str,
+    cfg: dict,
+    exclude: set[str],
+) -> str | None:
+    """
+    Return the next fallback model for a failed judge, or None.
+
+    Local failures: round-robin through `local_judge_pool` (ordered pool of up to 8),
+    skipping models already tried or session-skipped.  Falls back to
+    `_best_fallback_local` heuristic if the pool is empty or exhausted.
+
+    SaaS failures: iterate `saas_judge_fallbacks` in order, skipping disqualified
+    and session-skipped models.
+    """
+    category = _judge_model_category(failed_alias)
+    available_gb = _detect_available_ram_gb()
+    total_gb     = _detect_total_ram_gb()
+    ram_lookup   = {mid: ram for mid, _s, _c, _n, ram in _RECOMMENDED_MODELS}
+    disqualified = _get_disqualified_saas()
+    skip = exclude | _SESSION_SKIP
+
+    if category == "local":
+        pool_raw = cfg.get("local_judge_pool", "") or ""
+        pool = [m.strip() for m in pool_raw.split(",") if m.strip()]
+        for m in pool:
+            if m in skip:
+                continue
+            ram_gb = ram_lookup.get(m)
+            if total_gb and ram_gb and not _model_fits_in_ram(ram_gb, available_gb or 0.0, total_gb):
+                continue
+            return m
+        # Exhausted pool — use curated heuristic
+        installed = get_installed_model_ids()
+        return _best_fallback_local(installed, skip)
+    else:
+        fallbacks_raw = cfg.get("saas_judge_fallbacks", "") or ""
+        for m in (m.strip() for m in fallbacks_raw.split(",") if m.strip()):
+            if m not in skip and m not in disqualified:
+                return m
+        return None
+
+
+def _is_preapproved_fallback(model: str, cfg: dict) -> bool:
+    """True if the model is in either the local pool or the SaaS fallback list."""
+    for key in ("local_judge_pool", "saas_judge_fallbacks"):
+        raw = cfg.get(key, "") or ""
+        if model in [m.strip() for m in raw.split(",") if m.strip()]:
+            return True
+    return False
+
+
+def _run_single_judge(
+    alias: str, script: str, name: str, timeout_s: int = 180, max_retries: int = 2
+) -> JudgeScore | None:
+    """
+    Ask one judge model to score the script.
+    Retries up to max_retries times with exponential backoff (1 s, 2 s…) before
+    giving up and returning None.
+
+    Auth errors (no key, 401/403, etc.) are detected immediately — no retry is
+    attempted and SaaS models are persistently disqualified.
+    """
+    prompt = (
+        f"Script name: {name}\n\nScript:\n```\n{script}\n```\n\nScore this script."
+    )
+    last_exc: Exception | None = None
+    category = _judge_model_category(alias)
+
+    for attempt in range(max_retries + 1):
+        try:
+            result = subprocess.run(
+                ["llm", "-m", alias, "--system", _JUDGE_SYSTEM, prompt],
+                capture_output=True, text=True, timeout=timeout_s,
+            )
+            if result.returncode != 0:
+                stderr_text = result.stderr[:400]
+                # Auth errors are permanent for SaaS — disqualify immediately, don't retry
+                if category != "local" and _is_auth_error(stderr_text):
+                    _disqualify_saas(alias, f"auth error: {stderr_text[:120].strip()}")
+                    return None
+                raise RuntimeError(stderr_text)
+            raw = result.stdout.strip()
+            raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.MULTILINE)
+            raw = re.sub(r"```\s*$", "", raw, flags=re.MULTILINE).strip()
+            data = json.loads(raw)
+            scores = [data["structure"], data["correctness"], data["safety"],
+                      data["style"], data["completeness"]]
+            return JudgeScore(
+                model=alias,
+                structure=int(data["structure"]),
+                correctness=int(data["correctness"]),
+                safety=int(data["safety"]),
+                style=int(data["style"]),
+                completeness=int(data["completeness"]),
+                verdict=data.get("verdict", "needs-work"),
+                note=data.get("note", ""),
+                mean=sum(scores) / len(scores),
+            )
+        except Exception as exc:
+            last_exc = exc
+            if attempt < max_retries:
+                wait_s = 2 ** attempt  # 1 s, 2 s, …
+                warn(
+                    f"Judge {alias!r} attempt {attempt + 1}/{max_retries + 1} failed "
+                    f"— retrying in {wait_s}s… ({exc})"
+                )
+                time.sleep(wait_s)
+    warn(f"Judge {alias!r} exhausted {max_retries + 1} attempt(s): {last_exc}")
+    return None
+
+
+def _run_judge_panel(
+    script: str, name: str, judges: list[str],
+    fallback_on_error: bool = True,
+    timeout_s: int = 180,
+    cfg: dict | None = None,
+) -> list[JudgeScore]:
+    """
+    Run all judges in parallel.  When a judge fails after retries:
+      1. Look up the next model in the appropriate pool/fallback list,
+         excluding session-skipped and persistently-disqualified models.
+      2. If it is pre-approved (in config) or _AUTO is set, use it silently.
+      3. Otherwise prompt the user to confirm before running the fallback.
+
+    Disqualified SaaS models that are older than judge_recheck_hours are
+    re-validated at panel start; passing models are re-admitted automatically.
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    effective_cfg = cfg or {}
+
+    # Re-check any disqualified SaaS models that have aged out
+    _recheck_disqualified_saas(effective_cfg)
+
+    # Drop judges that are already session-skipped or persistently disqualified
+    disqualified = _get_disqualified_saas()
+    active_judges = [
+        m for m in judges if m not in _SESSION_SKIP and m not in disqualified
+    ]
+    skipped = set(judges) - set(active_judges)
+    if skipped:
+        warn(f"Skipping judges (session-skip or disqualified): {', '.join(sorted(skipped))}")
+
+    used: set[str] = set(active_judges) | skipped
+    results: list[JudgeScore] = []
+
+    if not active_judges:
+        warn("No active judges to run.")
+        return results
+
+    with ThreadPoolExecutor(max_workers=max(len(active_judges), 1)) as pool:
+        futures = {
+            pool.submit(_run_single_judge, m, script, name, timeout_s): m
+            for m in active_judges
+        }
+        for fut in as_completed(futures):
+            alias = futures[fut]
+            score = fut.result()
+            if score is not None:
+                results.append(score)
+            elif fallback_on_error:
+                _record_session_failure(alias)
+                fallback = _get_judge_fallback(alias, effective_cfg, used)
+                if not fallback:
+                    continue
+                preapproved = _is_preapproved_fallback(fallback, effective_cfg)
+                if preapproved or _AUTO:
+                    info(
+                        f"Judge {alias!r} failed — using "
+                        f"{'pre-approved' if preapproved else 'auto'} fallback {fallback!r}"
+                    )
+                    use_it = True
+                else:
+                    use_it = prompt_confirm(
+                        f"Judge {alias!r} failed. Use fallback {fallback!r}?",
+                        default=True,
+                    )
+                if use_it:
+                    used.add(fallback)
+                    fb_score = _run_single_judge(fallback, script, name, timeout_s)
+                    if fb_score is not None:
+                        results.append(fb_score)
+                    else:
+                        # Fallback also failed — count it toward session skip
+                        _record_session_failure(fallback)
+
+    if not results:
+        warn("All judges in this panel returned no scores.")
+    return sorted(results, key=lambda s: s.mean, reverse=True)
+
+
+def _print_judge_report(scores: list[JudgeScore]) -> None:
+    if not scores:
+        warn("No judge scores returned.")
+        return
+    panel_mean = sum(s.mean for s in scores) / len(scores)
+    bar = "─" * min(shutil.get_terminal_size((80, 24)).columns, 72)
+    typer.echo(f"\n{DIM}{bar}{RST}")
+    for s in scores:
+        icon = {"pass": f"{GRN}✓{RST}", "needs-work": f"{YLW}~{RST}", "fail": f"{RED}✗{RST}"}.get(
+            s.verdict, "?"
+        )
+        cat = f"{DIM}[local]{RST}" if _judge_model_category(s.model) == "local" else f"{DIM}[saas]{RST}"
+        typer.echo(
+            f"  {icon} {BOLD}{s.model:<34}{RST}{cat}  mean={s.mean:.1f}  [{s.verdict}]"
+        )
+        typer.echo(
+            f"    struct={s.structure}  correct={s.correctness}  "
+            f"safety={s.safety}  style={s.style}  complete={s.completeness}"
+        )
+        typer.echo(f"    {DIM}↳ {s.note}{RST}")
+    typer.echo(f"{DIM}{bar}{RST}")
+    verdict_icon = f"{GRN}✓{RST}" if panel_mean >= 7.0 else f"{YLW}~{RST}" if panel_mean >= 5.0 else f"{RED}✗{RST}"
+    typer.echo(f"  Panel mean: {BOLD}{panel_mean:.1f}/10{RST}  {verdict_icon}")
+    typer.echo(f"{DIM}{bar}{RST}\n")
+
+
+def _ensure_judge_prefs(cfg: dict) -> tuple[bool, list[str], list[str]]:
+    """
+    Return (should_run, local_judges, saas_judges).
+    On first call (run_judges absent from config), shows a one-time warning
+    and saves the user's preference so they're never surprised by API costs.
+    """
+    # First-run detection: 'run_judges' key absent from on-disk config
+    if "run_judges" not in cfg:
+        typer.echo()
+        header("Judge Panel — first-time setup")
+        typer.echo(
+            "binned can run a panel of LLM models to score generated scripts on:\n"
+            "  structure, correctness, safety, style, completeness (0–10 each)\n\n"
+            f"  {DIM}• Local models  — free, run on your hardware{RST}\n"
+            f"  {DIM}• SaaS judges   — cost API tokens; only run on your final approved version{RST}\n"
+            f"  {DIM}• If a SaaS judge is unavailable, a local fallback is used automatically{RST}\n"
+        )
+        run = prompt_confirm("Enable judge panel by default?", default=True)
+        cfg["run_judges"] = run
+
+        if run and not cfg.get("judge_models"):
+            installed    = get_installed_model_ids()
+            available_gb = _detect_available_ram_gb()
+            total_gb     = _detect_total_ram_gb()
+            aliases      = get_llm_aliases()
+
+            # Collect available models in RAM-fit order, split by category
+            avail_local: list[str] = []
+            avail_saas:  list[str] = []
+            for mid, stars, cat, _, ram_gb in _RECOMMENDED_MODELS:
+                if stars < 2:
+                    continue
+                is_inst = any(mid in iid or iid.startswith(mid.split(":")[0]) for iid in installed)
+                is_alias = mid in aliases
+                if not (is_inst or is_alias):
+                    continue
+                if cat == "local" and total_gb and ram_gb and not _model_fits_in_ram(ram_gb, available_gb or 0.0, total_gb):
+                    continue
+                (avail_local if cat == "local" else avail_saas).append(mid)
+
+            # ── Primary judges (up to 3 total) ───────────────────────────────
+            primary_local = avail_local[:2]   # prefer 2 local judges
+            primary_saas  = avail_saas[:1]    # + 1 SaaS for calibration
+            default_primary = ",".join(primary_local + primary_saas) or "devstral-small-2,qwen3.5,claude-sonnet-4.6"
+            judges_raw = prompt_text(
+                "Primary judge aliases (comma-separated, local first for cost)",
+                default=default_primary,
+            )
+            cfg["judge_models"] = judges_raw
+
+            # ── Local fallback pool (up to 8, round-robin on failure) ────────
+            typer.echo(
+                f"\n{DIM}Local fallback pool — models tried in order when a local judge fails.{RST}\n"
+                f"{DIM}Round-robin: each failure picks the next unused model from this list.{RST}\n"
+            )
+            # Exclude primary judges; fill pool with next best available locals
+            primary_set = {m.strip() for m in judges_raw.split(",") if m.strip()}
+            pool_candidates = [m for m in avail_local if m not in primary_set][:8]
+            # If pool is short, pad from curated list (may not be installed)
+            if len(pool_candidates) < 3:
+                for mid, _, cat, _, _ in _RECOMMENDED_MODELS:
+                    if cat == "local" and mid not in primary_set and mid not in pool_candidates:
+                        pool_candidates.append(mid)
+                    if len(pool_candidates) >= 8:
+                        break
+            default_pool = ",".join(pool_candidates[:8]) if pool_candidates else "qwen3.5:9b,phi4:14b,gemma4:e4b"
+            pool_raw = prompt_text(
+                "Local fallback pool (up to 8, ordered best→fastest)",
+                default=default_pool,
+            )
+            cfg["local_judge_pool"] = pool_raw
+
+            # ── SaaS fallback order (up to 3) ────────────────────────────────
+            saas_fallback_candidates = [m for m in avail_saas if m not in primary_set][:3]
+            default_saas_fb = ",".join(saas_fallback_candidates) if saas_fallback_candidates else ""
+            if default_saas_fb:
+                saas_fb_raw = prompt_text(
+                    "SaaS fallback order (up to 3, used when a SaaS judge fails)",
+                    default=default_saas_fb,
+                )
+                cfg["saas_judge_fallbacks"] = saas_fb_raw
+
+        save_config(cfg)
+        if not run:
+            info("Judge panel disabled. Re-enable with: binned config")
+            return False, [], []
+
+    if not cfg.get("run_judges", True):
+        return False, [], []
+
+    raw = cfg.get("judge_models", "") or ""
+    all_models = [m.strip() for m in raw.split(",") if m.strip()]
+    if not all_models:
+        return False, [], []
+
+    # Build RAM lookup from curated list
+    ram_lookup: dict[str, float | None] = {
+        mid: ram for mid, _s, _c, _n, ram in _RECOMMENDED_MODELS
+    }
+    feasible, skipped = _filter_models_by_ram(all_models, ram_lookup)
+    for m, reason in skipped.items():
+        warn(f"Skipping judge {m!r}: {reason}")
+
+    local, saas = _split_judge_models(feasible)
+    return True, local, saas
+
+
+def _apply_judge_feedback(
+    script: str, name: str, scores: list[JudgeScore],
+    conv_id: str | None, gen_model: str | None,
+) -> str:
+    """
+    Feed judge notes back into the generation conversation and return an improved
+    script.  Uses llm -C <conv_id> so the model sees its own prior output as
+    context — the judge critique lands as a follow-up turn in the same thread.
+    Falls back to the unmodified script on any failure.
+    """
+    if not scores:
+        return script
+
+    panel_mean = sum(s.mean for s in scores) / len(scores)
+    notes = "\n".join(
+        f"- {s.model} (mean={s.mean:.1f}, verdict={s.verdict}): {s.note}"
+        for s in scores
+    )
+    prompt = (
+        f"A panel of {len(scores)} judge(s) reviewed the script and gave these notes:\n\n"
+        f"{notes}\n\n"
+        f"Panel mean: {panel_mean:.1f}/10\n\n"
+        f"Current script for reference:\n```\n{script}\n```\n\n"
+        f"Please revise the script to address these issues. "
+        f"Output ONLY the improved script. No markdown fences. No prose."
+    )
+    try:
+        improved = llm_continue_call(
+            prompt, conv_id=conv_id, model=gen_model, stream=True,
+            label=f"Applying judge feedback to {name}…",
+        )
+        return improved.strip() or script
+    except Exception as exc:
+        warn(f"Judge feedback application failed ({exc}) — keeping current version.")
+        return script
+
+
+def _suggest_feedback_hints(
+    script: str, name: str, lang: str,
+    judge_scores: list[JudgeScore] | None = None,
+) -> None:
+    """
+    Print targeted hints about where user feedback would add the most value,
+    based on static script analysis and (optionally) judge dimension scores.
+    Called before the 'Changes needed?' prompt to guide feedback quality.
+    """
+    hints: list[str] = []
+
+    # Static hints from script content
+    if re.search(r"\[add example\]|\[example\]|TODO:", script, re.IGNORECASE):
+        hints.append("Fill in any [example] or TODO placeholders in usage/comments")
+    if lang == "bash" and not re.search(r"--dry-run", script):
+        hints.append("Consider whether a --dry-run flag would be useful here")
+    if lang == "bash" and not re.search(r"\bdie\s*\(", script):
+        hints.append("Error handling may be thin — is die() used for all failure paths?")
+    if re.search(r'(rm|rmdir|drop|truncate|DELETE)\b', script) and not re.search(r'dry.run|DRY', script):
+        hints.append("Destructive operations detected — confirm --dry-run guards them")
+
+    # Judge dimension hints (when scores are available)
+    if judge_scores:
+        dim_hints = {
+            "structure":    "boilerplate (shebang, set -euo pipefail, die, usage, --dry-run)",
+            "correctness":  "does it fully implement the original command's behaviour?",
+            "safety":       "variable quoting, injection risks, guarded destructive ops",
+            "style":        "UPPER_SNAKE globals, lower_snake locals, WHY-comments not WHAT",
+            "completeness": "placeholder fill-in, realistic examples, dry-run path",
+        }
+        for dim in ("structure", "correctness", "safety", "style", "completeness"):
+            avg = sum(getattr(s, dim) for s in judge_scores) / len(judge_scores)
+            if avg < 7.0:
+                hints.append(
+                    f"{dim.capitalize()} scored {avg:.1f}/10 — {dim_hints[dim]}"
+                )
+
+    if hints:
+        bar = "─" * 60
+        typer.echo(f"\n{DIM}{bar}")
+        typer.echo("  Feedback hints (areas judges/analysis flagged):")
+        for h in hints:
+            typer.echo(f"  • {h}")
+        typer.echo(f"{bar}{RST}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Generation helpers
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _sanitize_name(raw: str) -> str:
+    name = re.sub(r"[^a-z0-9-]", "-", raw.lower().strip())
+    return re.sub(r"-+", "-", name).strip("-") or "my-script"
+
+
+def suggest_name(cmd: str, gen_model: str | None) -> str:
+    try:
+        raw = llm_call(
+            f"Suggest a script name for:\n\n{cmd}",
+            system=_SYS_NAME, model=gen_model,
+        )
+        return _sanitize_name(raw)
+    except Exception:
+        return "my-script"
+
+
+def assess_language(cmd: str, gen_model: str | None) -> tuple[str, str, bool]:
+    try:
+        raw = llm_call(
+            f"Assess this command:\n\n{cmd}",
+            system=_SYS_ASSESS, model=gen_model,
+        )
+        fields: dict[str, str] = {}
+        for line in raw.strip().splitlines():
+            if ":" in line:
+                k, v = line.split(":", 1)
+                fields[k.strip().upper()] = v.strip()
+        lang = fields.get("RECOMMENDATION", "bash").lower()
+        reason = fields.get("REASON", "")
+        rewrite = fields.get("REWRITE_SUGGESTED", "no").lower() == "yes"
+        return lang, reason, rewrite
+    except Exception:
+        return "bash", "", False
+
+
+def _script_prompt(cmd: str, name: str, alias_note: str) -> str:
+    """
+    Skeleton-based prompt that works across model sizes.
+
+    Large models: the skeleton anchors structure while leaving room for quality.
+    Small models: concrete fill-in-the-blank format beats abstract rules.
+
+    The skeleton is in the USER turn (not system) so it's always seen, even by
+    models that de-prioritise or ignore system prompts.
+    """
+    return f"""\
+Convert this shell command into a ~/bin/{name} bash script.
+
+<command>
+{cmd}
+</command>
+{alias_note}
+Complete the script below — fill every placeholder, then output the finished script:
+
+#!/usr/bin/env bash
+# Script Name:  {name}
+# Description:  [one-line description of what this script does]
+# Usage:        {name} [--help] [--verbose] [--dry-run] [ARGS…]
+#               [add one real example per distinct use-case]
+# Dependencies: [list every external tool this script calls]
+
+set -euo pipefail
+
+die()   {{ echo "[ERROR] $*" >&2; exit 1; }}
+VERBOSE=0
+log_v() {{ [[ $VERBOSE -eq 1 ]] && echo "$*" >&2 || true; }}
+
+usage() {{
+  cat <<EOF
+Usage: {name} [OPTIONS] [ARGS…]
+
+[describe what the script does in 1–3 sentences]
+
+Options:
+  -h, --help      Show this help and exit
+  -v, --verbose   Print debug info to stderr
+      --dry-run   Show what would happen without doing it
+
+Examples:
+  [realistic example 1]
+  [realistic example 2]
+EOF
+}}
+
+# ── argument parsing ────────────────────────────────────────────────────────
+# [parse --help/-h, --verbose/-v, --dry-run; call die() for unknown flags]
+
+# ── main logic ──────────────────────────────────────────────────────────────
+# [implement the command's logic in named functions]
+# Rules: UPPER_SNAKE_CASE globals, lower_snake_case locals
+#        errors → die(); output → stdout; --dry-run → print, don't act
+#        comments explain WHY non-obvious things happen, not WHAT
+
+# ── entry point ─────────────────────────────────────────────────────────────
+# [call main functions here]
+"""
+
+
+def generate_script(
+    cmd: str, name: str, gen_model: str | None,
+    script_model_alias: str | None = None,
+    stream: bool = True,
+) -> str:
+    alias_note = (
+        f"\nNOTE: This script calls `llm`. "
+        f"Use alias '{script_model_alias}' for every llm invocation: llm -m {script_model_alias} …\n"
+        if script_model_alias else ""
+    )
+    return llm_call(
+        _script_prompt(cmd, name, alias_note),
+        system=_SYS_SCRIPT, model=gen_model, stream=stream,
+        label=f"Generating {name}…",
+    )
+
+
+def detect_script_language(script: str) -> str:
+    """Return 'python' or 'bash' by inspecting the shebang line."""
+    first = script.lstrip().splitlines()[0] if script.strip() else ""
+    if "python" in first:
+        return "python"
+    # Fallback: presence of Python-specific top-level syntax
+    if re.search(r"^(?:import |from \S+ import |def |class )\S", script, re.MULTILINE):
+        return "python"
+    return "bash"
+
+
+# TestFiles maps a repo-relative path (e.g. "tests/foo.bats") to file content.
+TestFiles = dict[str, str]
+
+
+def generate_test_files(
+    script: str, name: str, lang: str, gen_model: str | None
+) -> TestFiles:
+    """
+    Generate all test files for a script.
+
+    Bash  → one bats file.
+    Python → pytest unit tests  +  bats black-box CLI tests.
+    Both types are run against the generated script, covering complementary
+    concerns: pytest tests internal logic; bats tests the shell interface.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    safe = name.replace("-", "_")
+    results: TestFiles = {}
+
+    def _bats_bash() -> tuple[str, str]:
+        content = llm_call(
+            f"Write bats tests for ~/bin/{name}:\n\n{script}",
+            system=_SYS_TESTS, model=gen_model,
+            label=f"Generating bats tests for {name}…",
+        )
+        return f"tests/{name}.bats", content
+
+    def _pytest() -> tuple[str, str]:
+        content = llm_call(
+            f"Write pytest unit tests for ~/bin/{name}:\n\n{script}",
+            system=_SYS_PYTEST, model=gen_model,
+            label=f"Generating pytest tests for {name}…",
+        )
+        return f"tests/test_{safe}.py", content
+
+    def _bats_cli() -> tuple[str, str]:
+        content = llm_call(
+            f"Write bats CLI integration tests for ~/bin/{name} (Python script):\n\n{script}",
+            system=_SYS_BATS_CLI, model=gen_model,
+            label=f"Generating bats CLI tests for {name}…",
+        )
+        return f"tests/{name}.bats", content
+
+    tasks = [_bats_bash] if lang == "bash" else [_pytest, _bats_cli]
+
+    with ThreadPoolExecutor(max_workers=len(tasks)) as pool:
+        futures = [pool.submit(t) for t in tasks]
+        for fut in futures:
+            try:
+                rel_path, content = fut.result()
+                if content.strip():
+                    results[rel_path] = content
+            except Exception:
+                pass
+
+    return results
+
+
+def find_precommit_config(start: Path) -> Path | None:
+    """Walk up from start looking for .pre-commit-config.yaml."""
+    for p in [start, *start.parents]:
+        candidate = p / ".pre-commit-config.yaml"
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def update_precommit_config(
+    config_path: Path, name: str, script: str, lang: str, gen_model: str | None
+):
+    """Generate updated pre-commit config via llm, preview, and save on confirm."""
+    current = config_path.read_text() if config_path.exists() else ""
+    preview_lines = "\n".join(script.splitlines()[:20])
+    prompt = (
+        f"Current .pre-commit-config.yaml:\n{current or '(empty)'}\n\n"
+        f"New script: {name}  language: {lang}\n"
+        f"Script preview:\n{preview_lines}\n\n"
+        "Add appropriate pre-commit hooks for this script."
+    )
+    try:
+        updated = llm_call(
+            prompt, system=_SYS_PRECOMMIT, model=gen_model,
+            label="Updating pre-commit config…",
+        )
+        if not updated.strip():
+            warn("Pre-commit update produced no output.")
+            return
+        preview_content(updated, filename=".pre-commit-config.yaml")
+        if prompt_confirm("Save updated .pre-commit-config.yaml?", default=True):
+            config_path.write_text(updated)
+            ok(f"Updated {config_path}")
+    except Exception as exc:
+        warn(f"Pre-commit update failed: {exc}")
+
+
+def generate_changelog_entry(name: str, script: str, gen_model: str | None) -> str:
+    preview = "\n".join(script.splitlines()[:25])
+    try:
+        return llm_call(
+            f"Script: {name}\n\nContent:\n{preview}",
+            system=_SYS_CHANGELOG, model=gen_model,
+            label="Generating changelog entry…",
+        ).strip()
+    except Exception:
+        return f"Added {name} script to ~/bin."
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Preview
+# ──────────────────────────────────────────────────────────────────────────────
+
+def preview_content(content: str, filename: str = "script.sh"):
+    bat = shutil.which("bat") or shutil.which("batcat")
+    if bat:
+        try:
+            subprocess.run(
+                [bat, "--paging=never", "--style=numbers,header",
+                 "--file-name", filename, "-"],
+                input=content, text=True,
+            )
+            return
+        except Exception:
+            pass
+    width = min(shutil.get_terminal_size((72, 24)).columns, 72)
+    sep = "─" * width
+    typer.echo(f"\n{DIM}{sep}{RST}")
+    typer.echo(content)
+    typer.echo(f"{DIM}{sep}{RST}\n")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Pending / defer
+# ──────────────────────────────────────────────────────────────────────────────
+
+def save_pending(name: str, cmd: str, script: str, test_files: TestFiles) -> Path:
+    PENDING_DIR.mkdir(parents=True, exist_ok=True)
+    state = {
+        "name": name, "cmd": cmd, "script": script,
+        "test_files": test_files, "saved_at": datetime.now().isoformat(),
+    }
+    p = PENDING_DIR / f"{name}.json"
+    p.write_text(json.dumps(state, indent=2))
+    return p
+
+
+def load_pending(name: str) -> dict | None:
+    p = PENDING_DIR / f"{name}.json"
+    if not p.exists():
+        return None
+    try:
+        state = json.loads(p.read_text())
+        # Migrate old format: "tests": "<bats string>" → "test_files": {…}
+        if "test_files" not in state:
+            old = state.pop("tests", "")
+            state["test_files"] = {f"tests/{name}.bats": old} if old else {}
+        return state
+    except Exception:
+        return None
+
+
+def delete_pending(name: str):
+    p = PENDING_DIR / f"{name}.json"
+    if p.exists():
+        p.unlink()
+
+
+def list_pending() -> list[dict]:
+    if not PENDING_DIR.exists():
+        return []
+    out = []
+    for f in PENDING_DIR.glob("*.json"):
+        try:
+            out.append(json.loads(f.read_text()))
+        except Exception:
+            pass
+    return sorted(out, key=lambda x: x.get("saved_at", ""))
+
+
+def schedule_reminder(name: str, minutes: int):
+    resume_cmd = f"binned --resume {name}"
+    if shutil.which("at"):
+        if sys.platform == "darwin":
+            notify = (
+                f"osascript -e 'display notification "
+                f"\"Ready: {resume_cmd}\" with title \"binned\"' 2>/dev/null"
+                f" || echo 'Run: {resume_cmd}'"
+            )
+        else:
+            notify = (
+                f"notify-send 'binned' 'Ready: {resume_cmd}' 2>/dev/null"
+                f" || echo 'Run: {resume_cmd}'"
+            )
+        try:
+            r = subprocess.run(
+                ["at", f"now + {minutes} minutes"],
+                input=notify, text=True, capture_output=True, timeout=10,
+            )
+            if r.returncode == 0:
+                ok(f"Reminder set for {minutes} min from now (via 'at').")
+                return
+        except Exception:
+            pass
+
+    note_file = BINNED_DIR / "reminders.txt"
+    BINNED_DIR.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+    with note_file.open("a") as fh:
+        fh.write(f"[{ts}] {resume_cmd}\n")
+    warn(f"'at' unavailable — reminder written to {note_file}")
+    info(f"When ready: {BOLD}{resume_cmd}{RST}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Save to ~/bin
+# ──────────────────────────────────────────────────────────────────────────────
+
+def save_script(
+    name: str, script: str, test_files: TestFiles, bin_dir: Path,
+) -> tuple[Path, list[Path]]:
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    sp = bin_dir / name
+    sp.write_text(script)
+    sp.chmod(0o755)
+
+    saved: list[Path] = []
+    for rel, content in test_files.items():
+        if content.strip():
+            tp = bin_dir / rel
+            tp.parent.mkdir(parents=True, exist_ok=True)
+            tp.write_text(content)
+            saved.append(tp)
+
+    return sp, saved
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Git integration
+# ──────────────────────────────────────────────────────────────────────────────
+
+def find_git_root(start: Path) -> Path | None:
+    for p in [start, *start.parents]:
+        if (p / ".git").exists():
+            return p
+    return None
+
+
+def _git(repo: Path, *args: str, check: bool = True):
+    return subprocess.run(
+        ["git", *args], cwd=repo, check=check, capture_output=True, text=True,
+    )
+
+
+def git_commit(repo: Path, files: list[Path], name: str, body: str):
+    rel = [str(f.relative_to(repo)) for f in files if f and f.exists()]
+    if not rel:
+        return
+    _git(repo, "add", *rel)
+    if _git(repo, "diff", "--staged", "--quiet", check=False).returncode == 0:
+        info("Nothing staged to commit.")
+        return
+    _git(repo, "commit", "-m", f"feat(bin): add {name} script\n\n{body}")
+    ok(f"Committed: feat(bin): add {name} script")
+
+
+def git_commit_fix(repo: Path, files: list[Path], name: str, feedback: str):
+    rel = [str(f.relative_to(repo)) for f in files if f and f.exists()]
+    if not rel:
+        return
+    _git(repo, "add", *rel)
+    if _git(repo, "diff", "--staged", "--quiet", check=False).returncode == 0:
+        return
+    _git(repo, "commit", "-m", f"fix(bin): revise {name} from feedback\n\n{feedback[:200]}")
+    ok("Fix commit created.")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Changelog
+# ──────────────────────────────────────────────────────────────────────────────
+
+def update_changelog(bin_dir: Path, name: str, entry: str):
+    cl = bin_dir / "CHANGELOG.md"
+    if not cl.exists():
+        return
+    date = datetime.now().strftime("%Y-%m-%d")
+    cl.write_text(f"\n## {date}\n\n- **{name}**: {entry}\n" + cl.read_text())
+    ok("CHANGELOG.md updated.")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Refactor / rewrite / project helpers
+# ──────────────────────────────────────────────────────────────────────────────
+
+def count_effective_lines(script: str) -> int:
+    """Non-blank, non-comment lines — a proxy for logical complexity."""
+    return sum(
+        1 for line in script.splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    )
+
+
+def preview_diff(old: str, new: str, name: str) -> None:
+    """Show a unified diff between two script versions."""
+    import difflib
+    if old.strip() == new.strip():
+        ok(f"No changes in refactored {name}.")
+        return
+    diff = "".join(difflib.unified_diff(
+        old.splitlines(keepends=True),
+        new.splitlines(keepends=True),
+        fromfile=f"{name} (before)",
+        tofile=f"{name} (after)",
+    ))
+    typer.echo(f"\n{BOLD}Changes:{RST}")
+    bat = shutil.which("bat") or shutil.which("batcat")
+    if bat:
+        subprocess.run(
+            [bat, "--language=diff", "--style=numbers,grid", "--pager=never", "-"],
+            input=diff, text=True,
+        )
+    else:
+        typer.echo(diff)
+
+
+def refactor_script(
+    script: str, name: str, lang: str, gen_model: str | None, feedback: str = ""
+) -> str:
+    """Run a refactoring pass; optionally fold in user feedback at the same time."""
+    extra = f"\n\nAdditionally apply this feedback:\n{feedback}" if feedback.strip() else ""
+    return llm_call(
+        f"Refactor this {lang} script ({name}):\n\n{script}{extra}",
+        system=_SYS_REFACTOR, model=gen_model, stream=True,
+        label=f"Refactoring {name}…",
+    )
+
+
+def assess_rewrite_threshold(script: str, name: str, gen_model: str | None) -> tuple[bool, str]:
+    """LLM decides whether an 80-100 effective-line bash script warrants Python."""
+    try:
+        lines = count_effective_lines(script)
+        raw = llm_call(
+            f"Script ({name}, {lines} effective lines):\n\n{script}\n\nShould this be rewritten in Python?",
+            system=_SYS_ASSESS_REWRITE, model=gen_model,
+        )
+        fields: dict[str, str] = {}
+        for line in raw.strip().splitlines():
+            if ":" in line:
+                k, v = line.split(":", 1)
+                fields[k.strip().upper()] = v.strip()
+        return fields.get("REWRITE", "no").lower() == "yes", fields.get("REASON", "")
+    except Exception:
+        return False, ""
+
+
+def rewrite_as_python(script: str, name: str, gen_model: str | None) -> str:
+    """Convert a bash script to a PEP 723 Python CLI script (uv shebang, Typer)."""
+    return llm_call(
+        f"Rewrite this bash script as a Python CLI script:\n\n{script}",
+        system=_SYS_REWRITE_PYTHON, model=gen_model, stream=True,
+        label=f"Rewriting {name} as Python…",
+    )
+
+
+def assess_project_complexity(script: str, name: str, gen_model: str | None) -> tuple[bool, str]:
+    """Decide if a Python script needs a proper installable package structure."""
+    try:
+        raw = llm_call(
+            f"Script ({name}):\n\n{script}\n\nDoes this need a proper Python package?",
+            system=_SYS_ASSESS_PROJECT, model=gen_model,
+        )
+        fields: dict[str, str] = {}
+        for line in raw.strip().splitlines():
+            if ":" in line:
+                k, v = line.split(":", 1)
+                fields[k.strip().upper()] = v.strip()
+        return fields.get("NEEDS_PROJECT", "no").lower() == "yes", fields.get("REASON", "")
+    except Exception:
+        return False, ""
+
+
+def generate_project_files(name: str, script: str, gen_model: str | None) -> dict[str, str]:
+    """Ask an LLM to produce a full installable Python project layout as JSON."""
+    try:
+        raw = llm_call(
+            f"Generate project files for this CLI script named '{name}':\n\n{script}",
+            system=_SYS_PROJECT_STRUCTURE, model=gen_model,
+            label=f"Generating project structure for {name}…",
+        )
+        raw = re.sub(r"^```(?:json)?\s*", "", raw.strip(), flags=re.MULTILINE)
+        raw = re.sub(r"```\s*$", "", raw, flags=re.MULTILINE).strip()
+        return json.loads(raw)
+    except Exception:
+        return {}
+
+
+def _setup_python_project(name: str, script: str, gen_model: str | None, bin_dir: Path) -> None:
+    """Interactive flow to scaffold a proper installable Python package."""
+    header(f"Python package: {name}")
+    project_files = generate_project_files(name, script, gen_model)
+    if not project_files:
+        err("Project file generation failed.")
+        return
+
+    default_dir = Path.home() / "projects" / name
+    dest = Path(prompt_text("Project directory", default=str(default_dir)))
+
+    if dest.exists():
+        warn(f"{dest} already exists.")
+        if not prompt_confirm("Overwrite?", default=False):
+            return
+
+    for rel, content in project_files.items():
+        target = dest / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content)
+        ok(f"Written → {target}")
+
+    if prompt_confirm("Initialize git repository?", default=True):
+        subprocess.run(["git", "init", str(dest)], check=False)
+        subprocess.run(["git", "-C", str(dest), "add", "."], check=False)
+        subprocess.run(
+            ["git", "-C", str(dest), "commit", "-m", f"feat: initial {name} package"],
+            check=False,
+        )
+        ok(f"Git repository initialized at {dest}")
+
+    typer.echo(f"\n{BOLD}To install:{RST}")
+    typer.echo(f"  uv tool install {dest}")
+    typer.echo(f"  # or: pipx install {dest}")
+
+
+def _run_tests_in_tmpdir(script: str, name: str, test_files: TestFiles) -> None:
+    """Run bats + pytest for a script inside a temporary directory."""
+    bats_key   = next((k for k in test_files if k.endswith(".bats")), None)
+    pytest_key = next((k for k in test_files if k.endswith(".py")), None)
+    if not test_files:
+        return
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
+        ts = tmp / name
+        ts.write_text(script)
+        ts.chmod(0o755)
+
+        if bats_key:
+            tt = tmp / f"{name}.bats"
+            tt.write_text(test_files[bats_key])
+            if not run_bats(tt, extra_path=str(tmp)):
+                warn("Some bats tests failed.")
+
+        if pytest_key:
+            if shutil.which("pytest"):
+                pt = tmp / f"test_{name.replace('-', '_')}.py"
+                pt.write_text(test_files[pytest_key])
+                result = subprocess.run(
+                    ["pytest", str(pt), "-v", "--tb=short"],
+                    env={**os.environ, "PATH": str(tmp) + ":" + os.environ.get("PATH", "")},
+                )
+                if result.returncode != 0:
+                    warn("Some pytest tests failed.")
+            else:
+                warn("'pytest' not found — skipping Python tests. pip install pytest")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Test runner
+# ──────────────────────────────────────────────────────────────────────────────
+
+def run_bats(tests_path: Path, extra_path: str = "") -> bool:
+    if not shutil.which("bats"):
+        warn("'bats' not found — skipping. https://github.com/bats-core/bats-core")
+        return True
+    env = os.environ.copy()
+    if extra_path:
+        env["PATH"] = extra_path + ":" + env.get("PATH", "")
+    return subprocess.run(["bats", str(tests_path)], env=env).returncode == 0
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Core workflow
+# ──────────────────────────────────────────────────────────────────────────────
+
+def run_generate(cmd: str, cfg: dict, override_model: str | None = None):
+    require_llm()
+
+    bin_dir = Path(cfg.get("bin_dir", DEFAULT_BIN_DIR))
+    gen_model: str | None = override_model or cfg.get("generation_model") or None
+    defer_mins: int = int(cfg.get("defer_minutes", 60))
+    auto_tests: bool = bool(cfg.get("auto_tests", True))
+
+    header("binned — command → ~/bin script")
+    typer.echo(f"{DIM}Command:{RST}\n  {cmd}\n")
+    info(f"Generation model: {_model_label(gen_model)}")
+
+    # ── 1. LLM detection in the command ───────────────────────────────────────
+    script_model_alias: str | None = None
+    detected = detect_llm_in_command(cmd)
+    if detected:
+        info(f"LLM call detected in command (model flag: {BOLD}{detected}{RST}).")
+        typer.echo("Select the alias the generated script should use for its llm calls:\n")
+        script_model_alias = select_model_interactively("Model alias for generated script")
+        if script_model_alias:
+            ok(f"Generated script will use: -m {script_model_alias}")
+        else:
+            info("Keeping the model reference from the original command.")
+
+    # ── 2. Parallel: assess + name (both fast, independent) ───────────────────
+    from concurrent.futures import ThreadPoolExecutor
+
+    header("Analyzing…")
+    lang = reason = ""
+    rewrite = False
+    suggested_name = "my-script"
+
+    with Spinner(f"[binned model: {_model_label(gen_model)}] assessing + naming"):
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            f_assess = pool.submit(assess_language, cmd, gen_model)
+            f_name = pool.submit(suggest_name, cmd, gen_model)
+            lang, reason, rewrite = f_assess.result()
+            suggested_name = f_name.result()
+
+    if rewrite and lang != "bash":
+        typer.echo()
+        warn(f"{BOLD}{lang.upper()}{RST} might be a better fit.")
+        if reason:
+            typer.echo(f"  {DIM}{reason}{RST}")
+        if not prompt_confirm("Generate as bash anyway?", default=True):
+            info(f"Noted — generating bash for now; rewrite in {lang} later.")
+    elif reason:
+        ok(f"Bash is a good fit.  {DIM}{reason}{RST}")
+
+    # ── 3. Name ───────────────────────────────────────────────────────────────
+    raw = prompt_text("Script name", default=suggested_name)
+    name = _sanitize_name(raw) if raw else suggested_name
+
+    target = bin_dir / name
+    if target.exists():
+        warn(f"{bin_dir}/{name} already exists.")
+        if not prompt_confirm("Overwrite?", default=False):
+            raw = prompt_text("Different name")
+            name = _sanitize_name(raw) if raw else name
+
+    # ── 4. Generate script (streaming) ────────────────────────────────────────
+    header(f"Generating {name}…")
+    try:
+        script = generate_script(cmd, name, gen_model, script_model_alias, stream=True)
+    except Exception as exc:
+        err(f"Script generation failed: {exc}")
+        raise typer.Exit(1)
+    # Capture immediately — subsequent llm calls would overwrite the last conv ID
+    gen_conv_id: str | None = get_last_llm_conversation_id()
+
+    # ── 5. Rewrite threshold + refactor pass ──────────────────────────────────
+    script_lang = detect_script_language(script)
+
+    # Length-based language upgrade: bash → Python
+    if script_lang == "bash":
+        effective = count_effective_lines(script)
+        do_python_rewrite = False
+
+        if effective > 100:
+            warn(
+                f"Script is {effective} effective lines "
+                f"(threshold: 100) — recommending Python rewrite."
+            )
+            do_python_rewrite = prompt_confirm("Rewrite as Python?", default=True)
+        elif effective >= 80:
+            with Spinner(
+                f"[binned model: {_model_label(gen_model)}] "
+                f"assessing Python rewrite ({effective} effective lines)…"
+            ):
+                should, rw_reason = assess_rewrite_threshold(script, name, gen_model)
+            if should:
+                warn(f"Python rewrite suggested ({effective} lines): {rw_reason}")
+                do_python_rewrite = prompt_confirm("Rewrite as Python?", default=True)
+
+        if do_python_rewrite:
+            try:
+                script = rewrite_as_python(script, name, gen_model)
+                script_lang = detect_script_language(script)
+            except Exception as exc:
+                warn(f"Python rewrite failed ({exc}) — keeping bash version.")
+
+    # Project complexity check (Python only)
+    if script_lang == "python":
+        with Spinner(f"[binned model: {_model_label(gen_model)}] assessing project complexity…"):
+            needs_proj, proj_reason = assess_project_complexity(script, name, gen_model)
+        if needs_proj:
+            warn(f"Project structure suggested: {proj_reason}")
+            if prompt_confirm("Generate as an installable Python package?", default=False):
+                _setup_python_project(name, script, gen_model, bin_dir)
+                return
+
+    # Refactor pass — always run; show diff so user sees what changed
+    header(f"Refactoring {name}…")
+    try:
+        refactored = refactor_script(script, name, script_lang, gen_model)
+        if refactored.strip() and refactored.strip() != script.strip():
+            preview_diff(script, refactored, name)
+            if prompt_confirm("Use refactored version?", default=True):
+                script = refactored
+                script_lang = detect_script_language(script)
+        else:
+            ok("Refactor produced no structural changes.")
+    except Exception as exc:
+        warn(f"Refactor pass failed ({exc}) — using original.")
+
+    # ── 6. Generate tests ─────────────────────────────────────────────────────
+    test_files: TestFiles = {}
+    if auto_tests:
+        label = f"[binned model: {_model_label(gen_model)}] generating tests ({script_lang})"
+        with Spinner(label):
+            test_files = generate_test_files(script, name, script_lang, gen_model)
+        if test_files:
+            for rel in test_files:
+                ok(f"Tests generated → {rel}")
+        else:
+            warn("Test generation produced no output.")
+
+    # ── 7. Preview ────────────────────────────────────────────────────────────
+    header(f"Preview: {name}")
+    preview_content(script, filename=name)
+    if test_files and prompt_confirm("Show tests?", default=False):
+        for rel, content in test_files.items():
+            preview_content(content, filename=rel.split("/")[-1])
+
+    # ── 8. Action ─────────────────────────────────────────────────────────────
+    choice = prompt_choice(
+        "What next?",
+        ["Review & test now", "Defer — save and remind me later", "Cancel"],
+        default=0,
+    )
+
+    if choice == 2:
+        info("Cancelled — nothing saved.")
+        return
+
+    if choice == 1:
+        save_pending(name, cmd, script, test_files)
+        try:
+            mins = int(prompt_text("Remind me in how many minutes?", default=str(defer_mins)))
+        except ValueError:
+            mins = defer_mins
+        schedule_reminder(name, mins)
+        ok(f"Deferred. Resume with: {BOLD}binned --resume {name}{RST}")
+        return
+
+    _review_and_finalize(name, cmd, script, test_files, bin_dir, gen_model, cfg=cfg, conv_id=gen_conv_id)
+
+
+def _review_and_finalize(
+    name: str, cmd: str, script: str, test_files: TestFiles,
+    bin_dir: Path, gen_model: str | None,
+    cfg: dict | None = None,
+    conv_id: str | None = None,
+):
+    lang = detect_script_language(script)
+
+    # ── Code review ───────────────────────────────────────────────────────────
+    header(f"Code Review: {name}  {DIM}[{lang}]{RST}")
+    info(f"Original command: {cmd}")
+    preview_content(script, filename=name)
+
+    # ── Run tests in temp dir ─────────────────────────────────────────────────
+    if test_files and prompt_confirm("Run tests now?", default=True):
+        _run_tests_in_tmpdir(script, name, test_files)
+
+    # ── User testing steps ────────────────────────────────────────────────────
+    header("User Testing")
+    typer.echo(f"Steps to test {BOLD}{name}{RST}:")
+    typer.echo("  1. Confirm ~/bin is on PATH:  echo $PATH | tr ':' '\\n' | grep bin")
+    typer.echo(f"  2. Run: {BOLD}{name} --help{RST}")
+    typer.echo("  3. Try a real invocation based on your original command\n")
+
+    # Save now so the user can run it interactively
+    script_path, test_paths = save_script(name, script, test_files, bin_dir)
+    ok(f"Saved  → {script_path}")
+    for tp in test_paths:
+        ok(f"Tests  → {tp}")
+
+    if shutil.which("code") and prompt_confirm("Open in VS Code?", default=False):
+        subprocess.Popen(["code", str(script_path)])
+
+    # ── Iterative feedback loop ────────────────────────────────────────────────
+    fix_script     = script
+    fix_test_files = test_files
+    fix_lang       = lang
+    had_feedback   = False
+    last_feedback  = ""
+    latest_scores: list[JudgeScore] = []  # updated by judge panel; used for hints
+
+    while True:
+        header("Feedback")
+        info("Test the script live, then return here.")
+        # Show targeted hints so feedback is as useful as possible
+        _suggest_feedback_hints(fix_script, name, fix_lang, latest_scores or None)
+        feedback = prompt_text("Changes needed? (Enter to finish)")
+
+        if not feedback.strip():
+            break
+
+        had_feedback  = True
+        last_feedback = feedback
+
+        # Apply feedback via refactor pass (combines revision + structural cleanup)
+        header("Applying feedback + refactoring…")
+        try:
+            revised = refactor_script(fix_script, name, fix_lang, gen_model, feedback=feedback)
+            preview_diff(fix_script, revised, name)
+
+            fix_lang = detect_script_language(revised)
+            with Spinner(f"[binned model: {_model_label(gen_model)}] regenerating tests"):
+                new_test_files = generate_test_files(revised, name, fix_lang, gen_model)
+
+            if new_test_files and prompt_confirm("Run tests on revised version?", default=True):
+                _run_tests_in_tmpdir(revised, name, new_test_files)
+
+            action = prompt_choice(
+                "What next?",
+                ["Accept this revision", "Request more changes", "Discard — revert to previous"],
+                default=0,
+            )
+
+            if action == 0:  # Accept
+                fix_script     = revised
+                fix_test_files = new_test_files
+                script_path, test_paths = save_script(name, fix_script, fix_test_files, bin_dir)
+                ok("Revised script saved.")
+                break
+            elif action == 1:  # More changes
+                fix_script     = revised
+                fix_test_files = new_test_files
+                script_path, test_paths = save_script(name, fix_script, fix_test_files, bin_dir)
+                continue
+            else:  # Discard
+                ok("Keeping previous version.")
+                break
+
+        except Exception as exc:
+            err(f"Feedback revision failed: {exc}")
+            break
+
+    # ── Judge panel ───────────────────────────────────────────────────────────
+    should_judge, local_judges, saas_judges = _ensure_judge_prefs(cfg or load_config())
+
+    if should_judge:
+        judge_timeout = int((cfg or load_config()).get("judge_timeout_seconds", 180))
+        # Local judges run first (free, fast) so the user gets early signal
+        local_scores: list[JudgeScore] = []
+        if local_judges:
+            header(f"Judge Panel — local  {DIM}({len(local_judges)} model{'s' if len(local_judges)!=1 else ''}){RST}")
+            with Spinner(f"Running {len(local_judges)} local judge(s)…"):
+                local_scores = _run_judge_panel(fix_script, name, local_judges, timeout_s=judge_timeout, cfg=(cfg or load_config()))
+            _print_judge_report(local_scores)
+
+        # Confirm before running SaaS judges (costs tokens)
+        all_scores: list[JudgeScore] = list(local_scores)
+        if saas_judges:
+            if prompt_confirm(
+                f"Run {len(saas_judges)} SaaS judge(s) for final verdict? (costs API tokens)",
+                default=True,
+            ):
+                header(f"Judge Panel — final  {DIM}(SaaS + local){RST}")
+                with Spinner(f"Running {len(saas_judges)} SaaS judge(s)…"):
+                    saas_scores = _run_judge_panel(fix_script, name, saas_judges, timeout_s=judge_timeout, cfg=(cfg or load_config()))
+                all_scores = all_scores + saas_scores
+                _print_judge_report(all_scores)
+
+        # Feed judge notes back to the generation model automatically
+        if all_scores:
+            latest_scores = all_scores
+            panel_mean = sum(s.mean for s in all_scores) / len(all_scores)
+            if panel_mean < 5.0:
+                warn(f"Panel mean {panel_mean:.1f} is below 5.0 — applying judge feedback automatically.")
+            if panel_mean < 9.0:
+                # Always try to improve unless the score is already near-perfect
+                header(f"Applying judge feedback to {name}…")
+                improved = _apply_judge_feedback(fix_script, name, all_scores, conv_id, gen_model)
+                if improved.strip() and improved.strip() != fix_script.strip():
+                    preview_diff(fix_script, improved, name)
+                    if prompt_confirm("Accept judge-improved version?", default=True):
+                        fix_script = improved
+                        fix_lang = detect_script_language(fix_script)
+                        script_path, test_paths = save_script(name, fix_script, fix_test_files, bin_dir)
+                        ok("Judge-improved version saved.")
+                else:
+                    ok("Judge feedback produced no structural changes.")
+
+    # ── Git ───────────────────────────────────────────────────────────────────
+    git_root = find_git_root(bin_dir)
+    committed_files = [script_path, *test_paths]
+
+    if git_root and prompt_confirm(f"Create git commit for {name}?", default=True):
+        with Spinner(f"[binned model: {_model_label(gen_model)}] generating changelog entry"):
+            entry = generate_changelog_entry(name, fix_script, gen_model)
+        git_commit(git_root, committed_files, name, entry)
+        update_changelog(bin_dir, name, entry)
+        if had_feedback and prompt_confirm("Create separate fix commit?", default=True):
+            git_commit_fix(git_root, committed_files, name, last_feedback)
+    elif not git_root:
+        info(f"{bin_dir} is not in a git repo (git init {bin_dir} to enable commits).")
+
+    # ── Pre-commit ────────────────────────────────────────────────────────────
+    precommit_cfg = find_precommit_config(git_root or bin_dir)
+    if precommit_cfg:
+        if prompt_confirm(f"Update {precommit_cfg.name} for {name}?", default=True):
+            update_precommit_config(precommit_cfg, name, fix_script, lang, gen_model)
+            if git_root:
+                committed_files.append(precommit_cfg)
+    else:
+        info(
+            f"No .pre-commit-config.yaml found. "
+            f"Add one and run {BOLD}binned resume {name}{RST} to update it."
+        )
+
+    # ── Done ──────────────────────────────────────────────────────────────────
+    header("Done!")
+    ok(f"{bin_dir}/{name} is ready.")
+    typer.echo(f"\n  Run:    {BOLD}{name} --help{RST}")
+    typer.echo(f"  Script: {script_path}")
+    for tp in test_paths:
+        typer.echo(f"  Tests:  {tp}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Typer app
+# ──────────────────────────────────────────────────────────────────────────────
+
+app = typer.Typer(
+    name="binned",
+    help="Turn a shell command into a tested ~/bin script.",
+    add_completion=False,
+    # allow_extra_args + ignore_unknown_options let a free-text shell command
+    # (which may contain flags like -i or --delete) arrive via ctx.args without
+    # shadowing registered subcommand names (config, refactor, etc.).
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+)
+
+
+@app.command("config")
+def cmd_config(
+    reset: bool = typer.Option(
+        False, "--reset",
+        help="Delete all saved settings and re-run first-time setup on next invocation",
+    ),
+):
+    """Show and interactively update binned's own settings."""
+    if reset:
+        if CONFIG_FILE.exists():
+            if prompt_confirm(f"Delete {CONFIG_FILE} and reset all settings?", default=False):
+                CONFIG_FILE.unlink()
+                ok(f"Config deleted — first-time setup will run on next invocation.")
+                info(f"Set BINNED_HOME to redirect config in tests: BINNED_HOME=/tmp/test binned …")
+        else:
+            info("No config file found — already at defaults.")
+        return
+
+    cfg = load_config()
+    header("binned config")
+    for key, desc in _CONFIG_DESCRIPTIONS.items():
+        val = cfg.get(key, _CONFIG_DEFAULTS.get(key))
+        typer.echo(f"  {BOLD}{key:<20}{RST} {DIM}{val}{RST}")
+        typer.echo(f"  {' ' * 20} {desc}\n")
+
+    if not prompt_confirm("Edit settings?", default=False):
+        return
+
+    for key, desc in _CONFIG_DESCRIPTIONS.items():
+        current = str(cfg.get(key, _CONFIG_DEFAULTS.get(key) or ""))
+        if key == "generation_model":
+            typer.echo(f"\n{desc}")
+            new_val = prompt_text(f"  {key}", default=current)
+            if new_val and new_val != current:
+                with Spinner(f"Validating '{new_val}'"):
+                    works = validate_llm_model(new_val)
+                if works:
+                    ok(f"'{new_val}' is working.")
+                else:
+                    warn(f"'{new_val}' didn't respond — saving anyway.")
+            cfg[key] = new_val or None
+        elif key == "auto_tests":
+            cfg[key] = prompt_confirm(f"  {desc}?", default=bool(cfg.get(key, True)))
+        elif key == "run_judges":
+            cfg[key] = prompt_confirm(f"  {desc}?", default=bool(cfg.get(key, True)))
+        elif key in ("defer_minutes", "judge_timeout_seconds"):
+            new_val = prompt_text(f"  {key} ({desc})", default=current)
+            try:
+                cfg[key] = int(new_val)
+            except ValueError:
+                cfg[key] = _CONFIG_DEFAULTS.get(key, 60)
+        else:
+            new_val = prompt_text(f"  {key} ({desc})", default=current)
+            cfg[key] = new_val
+
+    save_config(cfg)
+    ok(f"Config saved → {CONFIG_FILE}")
+
+
+@app.command("pending")
+def cmd_pending():
+    """List deferred scripts."""
+    items = list_pending()
+    if not items:
+        info("No deferred scripts.")
+        return
+    header("Deferred Scripts")
+    for item in items:
+        ts = item.get("saved_at", "")[:16].replace("T", " ")
+        typer.echo(f"  {BOLD}{item['name']:<22}{RST} {DIM}saved {ts}{RST}")
+    typer.echo(f"\nResume with: {BOLD}binned resume NAME{RST}")
+
+
+@app.command("refactor")
+def cmd_refactor(
+    name: str = typer.Argument(..., help="Name of the script in ~/bin to refactor"),
+    model: Optional[str] = typer.Option(
+        None, "--model", "-m", help="Generation model override"
+    ),
+    auto: bool = typer.Option(
+        False, "--auto", "-y", help="Skip interactive prompts, accept all defaults"
+    ),
+):
+    """Iteratively refactor an existing ~/bin script until satisfied."""
+    global _AUTO
+    _AUTO = auto
+    cfg = ensure_config()
+    gen_model: str | None = model or cfg.get("generation_model") or None
+    bin_dir = Path(cfg.get("bin_dir", DEFAULT_BIN_DIR))
+    script_path = bin_dir / name
+
+    if not script_path.exists():
+        err(f"Script not found: {script_path}")
+        raise typer.Exit(1)
+
+    original_script = script_path.read_text()
+    lang = detect_script_language(original_script)
+
+    header(f"Refactoring: {name}  {DIM}[{lang}]{RST}")
+    preview_content(original_script, filename=name)
+
+    # Find existing test files relative to bin_dir's parent (repo root)
+    safe = name.replace("-", "_")
+    existing_test_files: TestFiles = {}
+    for rel in (f"tests/{name}.bats", f"tests/test_{safe}.py"):
+        for search_root in (bin_dir.parent, find_git_root(bin_dir) or bin_dir.parent):
+            p = search_root / rel
+            if p.exists():
+                existing_test_files[rel] = p.read_text()
+                break
+
+    # Initial refactor pass
+    current_script = original_script
+    current_lang   = lang
+    had_feedback   = False
+    last_feedback  = ""
+    refactor_scores: list[JudgeScore] = []
+
+    try:
+        current_script = refactor_script(original_script, name, lang, gen_model)
+        preview_diff(original_script, current_script, name)
+    except Exception as exc:
+        err(f"Initial refactor failed: {exc}")
+        raise typer.Exit(1)
+
+    # Capture conv_id right after the initial refactor so judge feedback lands in context
+    refactor_conv_id: str | None = get_last_llm_conversation_id()
+
+    if existing_test_files and prompt_confirm("Run existing tests against refactored version?", default=True):
+        _run_tests_in_tmpdir(current_script, name, existing_test_files)
+
+    # Iterative feedback loop
+    while True:
+        _suggest_feedback_hints(current_script, name, current_lang, refactor_scores or None)
+        feedback = prompt_text("Changes needed? (Enter to accept and save)")
+
+        if not feedback.strip():
+            break
+
+        had_feedback  = True
+        last_feedback = feedback
+
+        try:
+            revised = refactor_script(current_script, name, current_lang, gen_model, feedback=feedback)
+            preview_diff(current_script, revised, name)
+
+            if existing_test_files and prompt_confirm("Run tests?", default=True):
+                _run_tests_in_tmpdir(revised, name, existing_test_files)
+
+            action = prompt_choice(
+                "What next?",
+                ["Accept this revision", "Request more changes", "Discard — revert to previous"],
+                default=0,
+            )
+            if action == 0:
+                current_script = revised
+                break
+            elif action == 1:
+                current_script = revised
+                continue
+            else:
+                ok("Reverting to previous version.")
+                break
+        except Exception as exc:
+            err(f"Revision failed: {exc}")
+            break
+
+    # ── Judge panel ───────────────────────────────────────────────────────────
+    should_judge, local_judges, saas_judges = _ensure_judge_prefs(cfg)
+
+    if should_judge:
+        judge_timeout_r = int(cfg.get("judge_timeout_seconds", 180))
+        local_scores_r: list[JudgeScore] = []
+        if local_judges:
+            header(f"Judge Panel — local  {DIM}({len(local_judges)} model{'s' if len(local_judges)!=1 else ''}){RST}")
+            with Spinner(f"Running {len(local_judges)} local judge(s)…"):
+                local_scores_r = _run_judge_panel(current_script, name, local_judges, timeout_s=judge_timeout_r, cfg=cfg)
+            _print_judge_report(local_scores_r)
+
+        all_scores_r: list[JudgeScore] = list(local_scores_r)
+        if saas_judges:
+            if prompt_confirm(
+                f"Run {len(saas_judges)} SaaS judge(s) for final verdict? (costs API tokens)",
+                default=True,
+            ):
+                with Spinner(f"Running {len(saas_judges)} SaaS judge(s)…"):
+                    saas_scores_r = _run_judge_panel(current_script, name, saas_judges, timeout_s=judge_timeout_r, cfg=cfg)
+                all_scores_r = all_scores_r + saas_scores_r
+                _print_judge_report(all_scores_r)
+
+        if all_scores_r:
+            refactor_scores = all_scores_r
+            panel_mean = sum(s.mean for s in all_scores_r) / len(all_scores_r)
+            if panel_mean < 5.0:
+                warn(f"Panel mean {panel_mean:.1f} is below 5.0 — applying judge feedback automatically.")
+            if panel_mean < 9.0:
+                header(f"Applying judge feedback to {name}…")
+                improved = _apply_judge_feedback(
+                    current_script, name, all_scores_r, refactor_conv_id, gen_model
+                )
+                if improved.strip() and improved.strip() != current_script.strip():
+                    preview_diff(current_script, improved, name)
+                    if prompt_confirm("Accept judge-improved version?", default=True):
+                        current_script = improved
+                        current_lang = detect_script_language(current_script)
+                        ok("Judge-improved version accepted.")
+                else:
+                    ok("Judge feedback produced no structural changes.")
+
+    # Save accepted version
+    script_path.write_text(current_script)
+    script_path.chmod(0o755)
+    ok(f"Saved refactored {name} → {script_path}")
+
+    # Git commit
+    git_root = find_git_root(bin_dir)
+    commit_files: list[Path] = [script_path]
+
+    if git_root and prompt_confirm(f"Commit refactored {name}?", default=True):
+        with Spinner(f"[binned model: {_model_label(gen_model)}] generating changelog entry"):
+            entry = generate_changelog_entry(name, current_script, gen_model)
+        git_commit(git_root, commit_files, name, entry)
+        if had_feedback and prompt_confirm("Create separate fix commit?", default=True):
+            git_commit_fix(git_root, commit_files, name, last_feedback)
+
+    header("Done!")
+    ok(f"{name} refactored and saved.")
+    typer.echo(f"\n  Run:    {BOLD}{name} --help{RST}")
+    typer.echo(f"  Script: {script_path}")
+
+
+@app.command("self-improve")
+def cmd_self_improve(
+    model: Optional[str] = typer.Option(
+        None, "--model", "-m", help="Generation model override"
+    ),
+    auto: bool = typer.Option(
+        False, "--auto", "-y", help="Skip interactive prompts, accept all defaults"
+    ),
+):
+    """Refactor binned itself using the refactor command — self-improvement loop."""
+    global _AUTO
+    _AUTO = auto
+    # binned is deployed from chezmoi; prefer the source so chezmoi apply propagates the fix
+    chezmoi_src = Path.home() / ".local" / "share" / "chezmoi" / "bin" / "executable_binned"
+    deployed    = Path.home() / "bin" / "binned"
+    src_path = chezmoi_src if chezmoi_src.exists() else deployed
+
+    header("binned self-improvement")
+    typer.echo(
+        f"  Refactoring: {src_path}\n"
+        f"  Changes will be written to that file.\n"
+        f"  {'Run chezmoi apply ~/bin/binned to deploy.' if src_path == chezmoi_src else ''}\n"
+    )
+    if not prompt_confirm("Proceed?", default=True):
+        return
+
+    cfg = ensure_config()
+    gen_model: str | None = model or cfg.get("generation_model") or None
+    bin_dir = Path(cfg.get("bin_dir", DEFAULT_BIN_DIR))
+    original = src_path.read_text()
+    lang = "python"
+
+    # Find existing tests for binned
+    safe = "binned"
+    existing_test_files: TestFiles = {}
+    for rel in ("tests/binned.bats", "tests/test_binned_property.py"):
+        for root in (chezmoi_src.parent.parent, find_git_root(bin_dir) or bin_dir.parent):
+            p = root / rel
+            if p.exists():
+                existing_test_files[rel] = p.read_text()
+                break
+
+    current_script = original
+    current_lang   = lang
+    had_feedback   = False
+    last_feedback  = ""
+    self_improve_scores: list[JudgeScore] = []
+
+    try:
+        current_script = refactor_script(original, "binned", lang, gen_model)
+        preview_diff(original, current_script, "binned")
+    except Exception as exc:
+        err(f"Initial refactor failed: {exc}")
+        raise typer.Exit(1)
+
+    self_conv_id: str | None = get_last_llm_conversation_id()
+
+    if existing_test_files and prompt_confirm("Run existing tests against refactored binned?", default=True):
+        _run_tests_in_tmpdir(current_script, "binned", existing_test_files)
+
+    while True:
+        _suggest_feedback_hints(current_script, "binned", current_lang, self_improve_scores or None)
+        feedback = prompt_text("Changes needed? (Enter to accept and save)")
+        if not feedback.strip():
+            break
+
+        had_feedback  = True
+        last_feedback = feedback
+        try:
+            revised = refactor_script(current_script, "binned", current_lang, gen_model, feedback=feedback)
+            preview_diff(current_script, revised, "binned")
+            if existing_test_files and prompt_confirm("Run tests?", default=True):
+                _run_tests_in_tmpdir(revised, "binned", existing_test_files)
+            action = prompt_choice(
+                "What next?",
+                ["Accept this revision", "Request more changes", "Discard — revert to previous"],
+                default=0,
+            )
+            if action == 0:
+                current_script = revised
+                break
+            elif action == 1:
+                current_script = revised
+                continue
+            else:
+                ok("Reverting.")
+                break
+        except Exception as exc:
+            err(f"Revision failed: {exc}")
+            break
+
+    # Judge panel
+    should_judge, local_judges, saas_judges = _ensure_judge_prefs(cfg)
+    if should_judge:
+        judge_timeout_s = int(cfg.get("judge_timeout_seconds", 180))
+        local_scores_s: list[JudgeScore] = []
+        if local_judges:
+            header(f"Judge Panel — local  {DIM}({len(local_judges)} model{'s' if len(local_judges)!=1 else ''}){RST}")
+            with Spinner(f"Running {len(local_judges)} local judge(s)…"):
+                local_scores_s = _run_judge_panel(current_script, "binned", local_judges, timeout_s=judge_timeout_s, cfg=cfg)
+            _print_judge_report(local_scores_s)
+        all_scores_s: list[JudgeScore] = list(local_scores_s)
+        if saas_judges and prompt_confirm(
+            f"Run {len(saas_judges)} SaaS judge(s)? (costs tokens)", default=True
+        ):
+            with Spinner("Running SaaS judges…"):
+                saas_scores_s = _run_judge_panel(current_script, "binned", saas_judges, timeout_s=judge_timeout_s, cfg=cfg)
+            all_scores_s = all_scores_s + saas_scores_s
+            _print_judge_report(all_scores_s)
+        if all_scores_s:
+            self_improve_scores = all_scores_s
+            panel_mean_s = sum(s.mean for s in all_scores_s) / len(all_scores_s)
+            if panel_mean_s < 9.0:
+                header("Applying judge feedback to binned…")
+                improved_s = _apply_judge_feedback(
+                    current_script, "binned", all_scores_s, self_conv_id, gen_model
+                )
+                if improved_s.strip() and improved_s.strip() != current_script.strip():
+                    preview_diff(current_script, improved_s, "binned")
+                    if prompt_confirm("Accept judge-improved version?", default=True):
+                        current_script = improved_s
+                        current_lang = detect_script_language(current_script)
+                        ok("Judge-improved version accepted.")
+
+    # Validate AST before writing (Python safety check)
+    try:
+        import ast as _ast
+        _ast.parse(current_script)
+    except SyntaxError as exc:
+        err(f"Refactored script has a syntax error — NOT saving: {exc}")
+        raise typer.Exit(1)
+
+    src_path.write_text(current_script)
+    ok(f"Saved → {src_path}")
+
+    if src_path == chezmoi_src:
+        if prompt_confirm("Run chezmoi apply ~/bin/binned to deploy?", default=True):
+            subprocess.run(["chezmoi", "apply", str(deployed)], check=False)
+            ok(f"Deployed to {deployed}")
+
+    git_root = find_git_root(src_path.parent)
+    if git_root and prompt_confirm("Commit self-improvement?", default=True):
+        with Spinner("Generating changelog entry…"):
+            entry = generate_changelog_entry("binned", current_script, gen_model)
+        git_commit(git_root, [src_path], "binned", entry)
+        if had_feedback:
+            git_commit_fix(git_root, [src_path], "binned", last_feedback)
+
+
+@app.command("resume")
+def cmd_resume(name: str = typer.Argument(..., help="Name of deferred script")):
+    """Resume a deferred script."""
+    state = load_pending(name)
+    if not state:
+        err(f"No deferred script named '{name}'. Run: binned pending")
+        raise typer.Exit(1)
+    cfg = ensure_config()
+    header(f"Resuming: {name}")
+    _review_and_finalize(
+        state["name"], state["cmd"], state["script"], state.get("test_files", {}),
+        Path(cfg.get("bin_dir", DEFAULT_BIN_DIR)),
+        cfg.get("generation_model") or None,
+        cfg=cfg,
+    )
+    delete_pending(name)
+
+
+@app.callback(invoke_without_command=True)
+def main(
+    ctx: typer.Context,
+    model: Optional[str] = typer.Option(
+        None, "--model", "-m",
+        help="Override the LLM model binned uses for THIS run (not saved by default)",
+    ),
+    save: bool = typer.Option(
+        False, "--save",
+        help="Save current --model (and other flags) as permanent defaults in config",
+    ),
+    auto: bool = typer.Option(
+        False, "--auto", "-y",
+        help="Skip all interactive prompts, accepting defaults (useful for scripting/CI)",
+    ),
+    version: bool = typer.Option(False, "--version", "-V", help="Show version and exit"),
+):
+    """Turn a shell command into a tested ~/bin script.
+
+    Pass the shell command as trailing arguments:
+
+        binned "ffmpeg -i in.mp4 -vn out.mp3"
+        binned find . -name '*.log' -mtime +7 -delete
+
+    Subcommands (config, refactor, self-improve, pending, resume) are separate
+    from the shell command and are never treated as commands to automate.
+    """
+    global _AUTO
+    _AUTO = auto
+
+    if version:
+        typer.echo(f"binned {VERSION}")
+        return
+
+    if ctx.invoked_subcommand is not None:
+        return
+
+    cfg = ensure_config()
+
+    if save and model:
+        cfg["generation_model"] = model
+        save_config(cfg)
+        ok(f"generation_model saved → {model}")
+        if not ctx.args:
+            return
+
+    override = model or None
+
+    # Shell command arrives as ctx.args (everything after binned's own options).
+    # Also accept from stdin pipe (e.g.  echo "cmd" | binned).
+    cmd = " ".join(ctx.args).strip()
+    if not cmd and not sys.stdin.isatty():
+        cmd = sys.stdin.read().strip()
+
+    if not cmd:
+        typer.echo(ctx.get_help())
+        raise typer.Exit(0)
+
+    run_generate(cmd, cfg, override_model=override)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    app()
