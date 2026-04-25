@@ -38,6 +38,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import tomllib
@@ -66,6 +67,7 @@ PENDING_DIR        = BINNED_DIR / "pending"
 CONFIG_FILE        = BINNED_DIR / "config.toml"
 CONFIG_FILE_LEGACY = BINNED_DIR / "config.json"   # migrated on first read, then deleted
 STATE_FILE         = BINNED_DIR / "state.json"     # runtime disqualifications, separate from user config
+LOG_DIR            = BINNED_DIR / "logs"           # one file per invocation
 
 _LLM_CMD_RE = re.compile(r"\bllm\b", re.IGNORECASE)
 _LLM_MODEL_FLAG_RE = re.compile(r"(?:-m|--model)\s+(\S+)")
@@ -75,7 +77,9 @@ _LLM_MODEL_FLAG_RE = re.compile(r"(?:-m|--model)\s+(\S+)")
 # ──────────────────────────────────────────────────────────────────────────────
 
 _COLOR = sys.stdout.isatty()
-_AUTO: bool = False  # set True by --auto/-y; all prompt_* functions return their default
+_AUTO: bool = False       # set True by --auto/-y; all prompt_* functions return their default
+_VERBOSITY: int = 0       # 0=always-visible only, 1=+debug (-v), 2+=+trace (-vv/-vvv)
+_session_log: logging.Logger | None = None   # file logger; initialised in _init_logging()
 
 # Session-level judge failure tracking — reset on each binned invocation
 _SESSION_FAILURE_COUNTS: dict[str, int] = {}   # alias → number of fallback failures this session
@@ -96,20 +100,59 @@ BLU = _c("34")
 CYN = _c("36")
 
 
+def _init_logging(verbosity: int) -> None:
+    """Create a per-session log file and set the global verbosity level."""
+    global _VERBOSITY, _session_log
+    _VERBOSITY = verbosity
+    try:
+        LOG_DIR.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_path = LOG_DIR / f"session_{ts}_{os.getpid()}.log"
+        handler = logging.FileHandler(log_path, encoding="utf-8")
+        handler.setLevel(logging.DEBUG)
+        handler.setFormatter(
+            logging.Formatter("%(asctime)s %(levelname)-8s %(message)s", datefmt="%H:%M:%S")
+        )
+        logger = logging.getLogger("binned")
+        logger.setLevel(logging.DEBUG)
+        logger.propagate = False
+        logger.addHandler(handler)
+        _session_log = logger
+        _session_log.info(f"binned {VERSION} started pid={os.getpid()} verbosity={verbosity}")
+    except OSError:
+        pass  # log dir not writable — continue silently
+
+
+def _log(level: int, msg: str) -> None:
+    if _session_log:
+        _session_log.log(level, msg)
+
+
 def err(msg: str):
     typer.echo(f"{RED}✗{RST} {msg}", err=True)
+    _log(logging.ERROR, msg)
 
 
 def ok(msg: str):
     typer.echo(f"{GRN}✓{RST} {msg}")
+    _log(logging.INFO, f"ok: {msg}")
 
 
 def info(msg: str):
     typer.echo(f"{BLU}→{RST} {msg}")
+    _log(logging.INFO, msg)
 
 
 def warn(msg: str):
     typer.echo(f"{YLW}⚠{RST}  {msg}")
+    _log(logging.WARNING, msg)
+
+
+def debug(msg: str):
+    """Shown at -v (verbosity ≥ 1); always written to the session log."""
+    if _VERBOSITY >= 1:
+        typer.echo(f"{DIM}⋯  {msg}{RST}")
+    _log(logging.DEBUG, msg)
 
 
 def header(msg: str):
@@ -118,6 +161,7 @@ def header(msg: str):
     typer.echo(f"\n{BOLD}{CYN}{bar}{RST}")
     typer.echo(f"{BOLD}{CYN}  {msg}{RST}")
     typer.echo(f"{BOLD}{CYN}{bar}{RST}\n")
+    _log(logging.INFO, f"── {msg} ──")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -391,6 +435,7 @@ def llm_call(
         cmd += ["-m", model]
     if system:
         cmd += ["-s", system]
+    debug(f"llm_call cmd={cmd!r} prompt_len={len(prompt)}")
 
     if stream and _COLOR:
         proc = subprocess.Popen(
@@ -459,6 +504,7 @@ def llm_continue_call(
         cmd += ["--cid", conv_id]
     else:
         cmd += ["--continue"]
+    debug(f"llm_continue_call cmd={cmd!r} conv_id={conv_id!r} prompt_len={len(prompt)}")
 
     if stream and _COLOR:
         proc = subprocess.Popen(
@@ -1322,6 +1368,7 @@ def _run_single_judge(
     )
     last_exc: Exception | None = None
     category = _judge_model_category(alias)
+    debug(f"judge {alias!r} category={category!r} timeout={timeout_s}s")
 
     for attempt in range(max_retries + 1):
         try:
@@ -1334,6 +1381,7 @@ def _run_single_judge(
                 # Auth errors are permanent for SaaS — disqualify immediately, don't retry
                 if category != "local" and _is_auth_error(stderr_text):
                     _disqualify_saas(alias, f"auth error: {stderr_text[:120].strip()}")
+                    debug(f"judge {alias!r} disqualified: {stderr_text[:80]!r}")
                     return None
                 raise RuntimeError(stderr_text)
             raw = result.stdout.strip()
@@ -1342,7 +1390,7 @@ def _run_single_judge(
             data = json.loads(raw)
             scores = [data["structure"], data["correctness"], data["safety"],
                       data["style"], data["completeness"]]
-            return JudgeScore(
+            score = JudgeScore(
                 model=alias,
                 structure=int(data["structure"]),
                 correctness=int(data["correctness"]),
@@ -1353,8 +1401,11 @@ def _run_single_judge(
                 note=data.get("note", ""),
                 mean=sum(scores) / len(scores),
             )
+            debug(f"judge {alias!r} scores={scores} mean={score.mean:.1f} verdict={score.verdict!r}")
+            return score
         except Exception as exc:
             last_exc = exc
+            debug(f"judge {alias!r} attempt {attempt + 1} error: {exc}")
             if attempt < max_retries:
                 wait_s = 2 ** attempt  # 1 s, 2 s, …
                 warn(
@@ -1397,6 +1448,7 @@ def _run_judge_panel(
     skipped = set(judges) - set(active_judges)
     if skipped:
         warn(f"Skipping judges (session-skip or disqualified): {', '.join(sorted(skipped))}")
+    debug(f"judge panel: active={active_judges} skipped={sorted(skipped)} timeout={timeout_s}s")
 
     used: set[str] = set(active_judges) | skipped
     results: list[JudgeScore] = []
@@ -1589,7 +1641,9 @@ def _ensure_judge_prefs(cfg: dict) -> tuple[bool, list[str], list[str]]:
             if m not in already:
                 local.append(m)
                 already.add(m)
+                debug(f"judge top-up from pool: added {m!r} (panel was below minimum {min_judges})")
 
+    debug(f"judge prefs: local={local} saas={saas}")
     return True, local, saas
 
 
@@ -3057,6 +3111,10 @@ def main(
         False, "--auto", "-y",
         help="Skip all interactive prompts, accepting defaults (useful for scripting/CI)",
     ),
+    verbose: int = typer.Option(
+        0, "--verbose", "-v", count=True,
+        help="Increase verbosity: -v shows debug output, -vv/-vvv adds trace detail",
+    ),
     version: bool = typer.Option(False, "--version", "-V", help="Show version and exit"),
 ):
     """Turn a shell command into a tested ~/bin script.
@@ -3071,6 +3129,7 @@ def main(
     """
     global _AUTO
     _AUTO = auto
+    _init_logging(verbose)
 
     if version:
         typer.echo(f"binned {VERSION}")
