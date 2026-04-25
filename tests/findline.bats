@@ -271,3 +271,63 @@ STUB
     assert_success
     refute_output --partial '[debug]'
 }
+
+# ─── flag-ordering permutations (table-driven) ───────────────────────────────
+#
+# parse_arguments breaks at the first positional arg, so all flags must precede
+# the search pattern.  There are 3! = 6 orderings of --subdir, --files, and
+# --path-only; every one should produce the same parsed state.
+
+@test "parse_arguments: glob is set for all 6 flag orderings before pattern" {
+    source "$SCRIPT"
+
+    local -a permutations=(
+        "--subdir /tmp --files '*.py' --path-only"
+        "--subdir /tmp --path-only --files '*.py'"
+        "--files '*.py' --subdir /tmp --path-only"
+        "--files '*.py' --path-only --subdir /tmp"
+        "--path-only --subdir /tmp --files '*.py'"
+        "--path-only --files '*.py' --subdir /tmp"
+    )
+
+    for flags in "${permutations[@]}"; do
+        local subdir path_only use_vscode use_windsurf use_cursor debug args glob
+        eval "parse_arguments subdir path_only use_vscode use_windsurf use_cursor debug args glob $flags pattern"
+        [ "$glob"      = '*.py' ] || fail "glob='$glob' expected '*.py'    — ordering: $flags"
+        [ "$subdir"    = '/tmp' ] || fail "subdir='$subdir' expected '/tmp' — ordering: $flags"
+        [ "$path_only" = '1'    ] || fail "path_only='$path_only' expected '1' — ordering: $flags"
+    done
+}
+
+@test "integration: --glob reaches rg for all 6 flag orderings" {
+    local -a permutations=(
+        "--path-only --subdir $TEST_DIR/src --files '*.py'"
+        "--subdir $TEST_DIR/src --path-only --files '*.py'"
+        "--subdir $TEST_DIR/src --files '*.py' --path-only"
+        "--files '*.py' --subdir $TEST_DIR/src --path-only"
+        "--files '*.py' --path-only --subdir $TEST_DIR/src"
+        "--path-only --files '*.py' --subdir $TEST_DIR/src"
+    )
+
+    for flags in "${permutations[@]}"; do
+        rm -f "$RG_ARGS_LOG"
+        eval "run bash \"$SCRIPT\" $flags hello"
+        assert_success
+        grep -Fxq -- '--glob' "$RG_ARGS_LOG" \
+            || fail "--glob missing from rg args — ordering: $flags"
+        grep -Fxq -- '*.py' "$RG_ARGS_LOG" \
+            || fail "'*.py' missing from rg args — ordering: $flags"
+    done
+}
+
+# Documents a known parser limitation: the flag loop breaks at the first
+# positional arg, so any option flag placed after the search pattern is silently
+# ignored.  If the parser is ever fixed to support intermixed flags, this test
+# should be updated to assert glob='*.py' instead.
+@test "known limitation: --files placed after pattern is not parsed" {
+    source "$SCRIPT"
+    local subdir path_only use_vscode use_windsurf use_cursor debug args glob
+    parse_arguments subdir path_only use_vscode use_windsurf use_cursor debug args glob \
+        pattern --files '*.py'
+    [ -z "$glob" ] || fail "parser now handles flags-after-pattern; update this test"
+}
