@@ -456,7 +456,7 @@ def llm_continue_call(
     if model:
         cmd += ["-m", model]
     if conv_id:
-        cmd += ["-C", conv_id]
+        cmd += ["--cid", conv_id]
     else:
         cmd += ["--continue"]
 
@@ -1576,6 +1576,20 @@ def _ensure_judge_prefs(cfg: dict) -> tuple[bool, list[str], list[str]]:
         warn(f"Skipping judge {m!r}: {reason}")
 
     local, saas = _split_judge_models(feasible)
+
+    # Ensure minimum 3 judges total; top up from local_judge_pool if short.
+    min_judges = 3
+    if len(local) + len(saas) < min_judges:
+        pool_raw = cfg.get("local_judge_pool", "") or ""
+        pool = [m.strip() for m in pool_raw.split(",") if m.strip()]
+        already = set(local) | set(saas)
+        for m in pool:
+            if len(local) + len(saas) >= min_judges:
+                break
+            if m not in already:
+                local.append(m)
+                already.add(m)
+
     return True, local, saas
 
 
