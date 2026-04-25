@@ -15,9 +15,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-import sys
-import tempfile
-import shutil
 import pathlib
 
 import pytest
@@ -27,7 +24,6 @@ BINNED = pathlib.Path.home() / "bin" / "binned"
 
 def _run(args: list[str], *, env_extra: dict | None = None, input_text: str | None = None) -> subprocess.CompletedProcess:
     env = os.environ.copy()
-    env["BINNED_HOME"] = env.get("_BINNED_TEST_HOME", "")
     if env_extra:
         env.update(env_extra)
     return subprocess.run(
@@ -37,14 +33,11 @@ def _run(args: list[str], *, env_extra: dict | None = None, input_text: str | No
     )
 
 
-@pytest.fixture(autouse=True, scope="module")
-def _tmp_binned_home():
-    """Redirect all binned state to a temp dir for the duration of this module."""
-    tmp = tempfile.mkdtemp(prefix="binned_cli_test_")
-    os.environ["_BINNED_TEST_HOME"] = tmp
-    yield tmp
-    shutil.rmtree(tmp, ignore_errors=True)
-    os.environ.pop("_BINNED_TEST_HOME", None)
+@pytest.fixture(autouse=True)
+def _tmp_binned_home(tmp_path, monkeypatch):
+    """Isolate each test's binned state in its own temp dir."""
+    monkeypatch.setenv("BINNED_HOME", str(tmp_path))
+    return tmp_path
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -69,7 +62,7 @@ def test_no_args_shows_help():
 def test_version_flag():
     result = _run(["--version"])
     assert result.returncode == 0
-    assert "binned" in result.stdout.lower() or result.stdout.strip() != ""
+    assert "binned" in result.stdout.lower(), f"expected 'binned' in version output, got: {result.stdout!r}"
 
 
 # ── Subcommand routing ────────────────────────────────────────────────────────
