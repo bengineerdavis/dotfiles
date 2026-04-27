@@ -38,3 +38,5 @@ python = "latest"
 # https://aider.chat/docs/install.html
 "pipx:aider-chat" = { version = "latest", uvx_args = "--python 3.12 --force" }
 prek = "latest"
+"pipx:trash-cli" = "latest"
+lazygit = "latest"
