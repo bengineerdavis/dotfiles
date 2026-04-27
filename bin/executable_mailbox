@@ -93,10 +93,24 @@ def main(attachments_pattern: str, output_file: str, logfile: str):
 
 
 if __name__ == "__main__":
-	parser = argparse.ArgumentParser(description="Generate markdown summary from email attachments using llm-ctx.")
-	parser.add_argument("attachments", nargs="?", default="./attachments/**", help="attachments path or glob")
-	parser.add_argument("output", nargs="?", default="mail.md", help="output markdown file")
+	parser = argparse.ArgumentParser(
+		description="Generate markdown summary from email attachments using llm-ctx.",
+		epilog=(
+			"Examples:\n"
+			"  mailbox                          # use ./attachments/** → mail.md\n"
+			"  mailbox ./emails/**              # custom glob → mail.md\n"
+			"  mailbox ./emails/** summary.md   # custom glob and output file"
+		),
+		formatter_class=argparse.RawDescriptionHelpFormatter,
+	)
+	parser.add_argument("attachments", nargs="?", help="attachments path or glob (default: ./attachments/**)")
+	parser.add_argument("output", nargs="?", help="output markdown file (default: mail.md)")
 	args = parser.parse_args()
+
+	if args.attachments is None and args.output is None:
+		parser.print_help()
+		sys.exit(0)
+
 	LOGFILE = os.path.join(os.getcwd(), "mailbox.log")
-	main(args.attachments, args.output, LOGFILE)
+	main(args.attachments or "./attachments/**", args.output or "mail.md", LOGFILE)
 

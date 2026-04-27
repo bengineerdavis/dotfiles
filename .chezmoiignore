@@ -12,3 +12,11 @@ tests/
 .bats/
 .github
 .gitmodules
+
+# Dev tooling — tracked in git but not deployed to home
+.claude
+.gitignore
+.hypothesis
+.pytest_cache
+pytest.ini
+smartparts/
