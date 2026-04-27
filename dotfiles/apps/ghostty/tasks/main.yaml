@@ -1,12 +1,12 @@
-  🤖 generate tasks/main.yaml router: ghostty
-  🤖 trying: devstral-small-2:24b
-  🤖 ✅ success: devstral-small-2:24b
----
+# 🤖 generate tasks/main.yaml router: ghostty
+# 🤖 trying: devstral-small-2:24b
+# 🤖 ✅ success: devstral-small-2:24b
+
 # apps/ghostty/tasks/main.yaml
 - name: "Import install tasks"
   ansible.builtin.import_tasks: install.yaml
-  tags: [install, provision]
+  tags: [ install, provision ]
 
 - name: "Import remove tasks"
   ansible.builtin.import_tasks: remove.yaml
-  tags: [remove]
+  tags: [ remove ]
