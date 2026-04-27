@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# -------------------------------------------------------------------------------------------
+# Script Name:        build-context
+# Description:        This script analyzes multiple source documents (attachments) and uses a Large Language Model (LLM) to generate a comprehensive, structured markdown digest designed for summarizing support ticket context.
+#
+# License:            MIT
+# Author:             Ben Davis <bengineerdavis@gmail.com>
+# Credits:            
+# Created:            2026-04-10
+# Last Modified:      2026-04-10
+#
+# Usage:              ./build-context [attachments] [output_file.md]
+#
+# Notes:
+#   - Requires the `llm-ctx` utility to be installed and accessible in the system PATH.
+#   - The script uses a hardcoded model name (`gemma4:31b`) for context generation.
+#   - $1 (attachments) should be a glob pattern (e.g., "./**") or specific file paths.
+#   - $2 (output_file.md) defines where the resulting markdown digest will be saved.
+#
+# -------------------------------------------------------------------------------------------
+PROMPT=$(cat <<'PROMPT'
+Your task is to review all documents here, including previously defined contexts
+and create a detected, easy to read, and accurate digest of the information. Generally,
+this will be in the context of support, so you're role is as a colleague or experience managed
+in support reviewing these items and creating a well-formatted markdown document that both summarizes
+what has happened, captures the chronological series of events, and extracts important questions
+analysis and next steps for the given support ticket. 
+
+Please provide this as a well-formatted markdown document.
+
+In summary, I need a detailed digest the provides intepreted context from all of the available data
+with important action items, observations, and questions I should use to help me resolve the ticket
+with the customer.
+PROMPT
+)
+MODEL="gemma4:31b"
+
+ATTACHMENTS=${1-"./**"}
+OUTPUT_FILE=${2-"context.md"}
+
+llm-ctx -v -m "$MODEL" "$ATTACHMENTS" -- "$PROMPT" > "$OUTPUT_FILE"

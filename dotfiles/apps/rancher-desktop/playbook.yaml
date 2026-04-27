@@ -1,0 +1,23 @@
+  🤖 rewrite to template: apps/rancher-desktop/playbook.yaml
+  🤖 trying: devstral-small-2:24b
+  🤖 ✅ success: devstral-small-2:24b
+---
+# apps/rancher-desktop/playbook.yaml
+# Standalone runner for this topic role.
+# Usage: ansible-playbook apps/<topic>/playbook.yaml [--tags install|remove]
+#
+# Assumes package managers are already bootstrapped.
+# For a fresh machine use the parent playbook with --tags provision instead.
+
+- name: "Run rancher-desktop role standalone"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: false
+
+  vars:
+    homebrew_prefix: "{{ '/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local' }}"
+    user_appdir: "{{ ansible_facts['env']['HOME'] }}/Applications"
+
+  roles:
+    - role: apps/rancher-desktop

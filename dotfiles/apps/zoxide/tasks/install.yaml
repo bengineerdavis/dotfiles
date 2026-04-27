@@ -1,0 +1,43 @@
+# apps/zoxide/tasks/install.yaml
+# Package installation tasks. Be explicit about which package manager is used.
+# Use when: conditions to guard each block by OS/arch.
+# Do NOT put upgrade logic here — upgrades are owned by system roles (homebrew, apt).
+# Do NOT put config/symlink tasks here — those are owned by chezmoi.
+
+# ── macOS (Homebrew) ────────────────────────────────────────────────────────────
+- name: "Install zoxide via Homebrew (macOS)"
+  community.general.homebrew:
+    name: zoxide
+    state: present
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# ── macOS (Homebrew Cask) ─────────────────────────────────────────────────────
+# - name: "Install zoxide via Homebrew Cask (macOS)"
+#   community.general.homebrew_cask:
+#     name: zoxide
+#     state: present
+#     install_options: "appdir={{ user_appdir }}"
+#   when: ansible_facts['os_family'] == 'Darwin'
+
+# ── Linux (apt) ─────────────────────────────────────────────────────────────────
+# - name: "Install zoxide via apt (Linux)"
+#   ansible.builtin.apt:
+#     name: zoxide
+#     state: present
+#   become: true
+#   when: ansible_facts['os_family'] == 'Debian'
+
+# ── Linux (snap) ─────────────────────────────────────────────────────────────────
+# - name: "Install zoxide via snap (Linux)"
+#   community.general.snap:
+#     name: zoxide
+#     state: present
+#   become: true
+#   when: ansible_facts['os_family'] == 'Debian'
+
+# ── Docker ──────────────────────────────────────────────────────────────────────
+# - name: "Pull zoxide Docker image"
+#   community.docker.docker_image:
+#     name: zoxide:latest
+#     source: pull
+#   when: install_method | default('') == 'docker'

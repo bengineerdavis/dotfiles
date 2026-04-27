@@ -1,0 +1,26 @@
+# apps/homebrew/tasks/upgrade.yaml
+# System-level Homebrew upgrade. Topics do NOT own upgrade logic.
+# Runs on --tags upgrade or as part of --tags provision.
+
+- name: "Upgrade: update Homebrew and upgrade all formulae"
+  community.general.homebrew:
+    update_homebrew: true
+    upgrade_all: true
+    upgrade_options: greedy
+    path: "{{ homebrew_prefix }}/bin"
+  register: brew_upgrade_result
+  become: false
+
+- name: "Upgrade: upgrade all Homebrew casks"
+  community.general.homebrew_cask:
+    update_homebrew: false
+    upgrade_all: true
+    greedy: true
+  register: brew_cask_upgrade_result
+  become: false
+
+- name: "Upgrade: report changed formulae"
+  ansible.builtin.debug:
+    msg: |
+      Formulae upgraded: {{ brew_upgrade_result.changed_pkgs | default([]) | join(', ') or 'none' }}
+      Casks upgraded   : {{ brew_cask_upgrade_result.changed_pkgs | default([]) | join(', ') or 'none' }}

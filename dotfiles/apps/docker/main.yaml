@@ -1,0 +1,46 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# apps/docker/tasks/bootstrap.yaml
+# ──────────────────────────────────────────────────────────────────────────────
+# Ensures Docker daemon is available. Explicit check — no drift tolerated.
+# On macOS: expects Rancher Desktop (not Docker Desktop).
+# On Linux: installs Docker Engine via apt.
+
+- name: "Bootstrap: check Docker CLI is available"
+  ansible.builtin.stat:
+    path: /usr/local/bin/docker
+  register: docker_stat
+
+- name: "Bootstrap: Docker already present"
+  ansible.builtin.debug:
+    msg: "✅ Docker CLI found — no action needed."
+  when: docker_stat.stat.exists
+
+# ── macOS: Rancher Desktop provides Docker CLI ────────────────────────────────
+- name: "Bootstrap: check Rancher Desktop on macOS"
+  ansible.builtin.stat:
+    path: /Applications/Rancher Desktop.app
+  register: rancher_stat
+  when:
+    - not docker_stat.stat.exists
+    - ansible_facts['os_family'] == 'Darwin'
+
+- name: "Bootstrap: warn if Docker CLI and Rancher Desktop both missing (macOS)"
+  ansible.builtin.debug:
+    msg: |
+      ⚠️  Docker CLI not found and Rancher Desktop not installed.
+      Run the rancher-desktop topic role to install it:
+        ansible-playbook apps/rancher-desktop/playbook.yaml --tags install
+  when:
+    - not docker_stat.stat.exists
+    - ansible_facts['os_family'] == 'Darwin'
+    - not rancher_stat.stat.exists
+
+# ── Linux: install Docker Engine via apt ─────────────────────────────────────
+# TODO: implement Docker Engine install for Linux
+# Reference: https://docs.docker.com/engine/install/ubuntu/
+- name: "Bootstrap: TODO Docker Engine install (Linux)"
+  ansible.builtin.debug:
+    msg: "TODO: implement Docker Engine bootstrap for Linux"
+  when:
+    - not docker_stat.stat.exists
+    - ansible_facts['os_family'] == 'Debian'

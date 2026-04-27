@@ -1,0 +1,15 @@
+# apps/rectangle/tasks/install.yaml
+- name: "Install rectangle via Homebrew Cask (macOS)"
+  community.general.homebrew_cask:
+    name: rectangle
+    state: present
+    install_options: "appdir={{ user_appdir }}"
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# EMPTY
+
+# EMPTY
+
+# EMPTY
+
+# EMPTY

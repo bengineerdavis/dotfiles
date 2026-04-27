@@ -1,0 +1,4 @@
+
+
+export GSETTINGS_SCHEMA_DIR="/opt/homebrew/share/glib-2.0/schemas"
+glib-compile-schemas $GSETTINGS_SCHEMA_DIR

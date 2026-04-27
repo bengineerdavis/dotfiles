@@ -1,0 +1,15 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# apps/docker/tasks/main.yaml — Docker role task router
+# ──────────────────────────────────────────────────────────────────────────────
+
+- name: "Docker: bootstrap"
+  ansible.builtin.import_tasks: bootstrap.yaml
+  tags: [bootstrap, provision]
+
+- name: "Docker: prerequisites"
+  ansible.builtin.import_tasks: prerequisites.yaml
+  tags: [prerequisites, provision]
+
+- name: "Docker: upgrade"
+  ansible.builtin.import_tasks: upgrade.yaml
+  tags: [upgrade, provision]

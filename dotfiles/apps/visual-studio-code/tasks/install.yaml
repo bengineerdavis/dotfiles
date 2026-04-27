@@ -1,0 +1,48 @@
+  🤖 rewrite to template: apps/visual-studio-code/tasks/install.yaml
+  🤖 trying: devstral-small-2:24b
+  🤖 ✅ success: devstral-small-2:24b
+```yaml
+# apps/visual-studio-code/tasks/install.yaml
+# Package installation tasks. Be explicit about which package manager is used.
+# Use when: conditions to guard each block by OS/arch.
+# Do NOT put upgrade logic here — upgrades are owned by system roles (homebrew, apt).
+# Do NOT put config/symlink tasks here — those are owned by chezmoi.
+
+# ── macOS (Homebrew Cask) ─────────────────────────────────────────────────────
+- name: "Install visual-studio-code via Homebrew Cask (macOS)"
+  community.general.homebrew_cask:
+    name: visual-studio-code
+    state: present
+    install_options: "appdir={{ user_appdir }}"
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# # ── macOS (Homebrew) ────────────────────────────────────────────────────────
+# # - name: "Install visual-studio-code via Homebrew (macOS)"
+# #   community.general.homebrew:
+# #     name: visual-studio-code
+# #     state: present
+# #   when: ansible_facts['os_family'] == 'Darwin'
+
+# # ── Linux (apt) ─────────────────────────────────────────────────────────────
+# # - name: "Install visual-studio-code via apt (Linux)"
+# #   ansible.builtin.apt:
+# #     name: visual-studio-code
+# #     state: present
+# #   become: true
+# #   when: ansible_facts['os_family'] == 'Debian'
+
+# # ── Linux (snap) ────────────────────────────────────────────────────────────
+# # - name: "Install visual-studio-code via snap (Linux)"
+# #   community.general.snap:
+# #     name: visual-studio-code
+# #     state: present
+# #   become: true
+# #   when: ansible_facts['os_family'] == 'Debian'
+
+# # ── Docker ──────────────────────────────────────────────────────────────────
+# # - name: "Pull visual-studio-code Docker image"
+# #   community.docker.docker_image:
+# #     name: visual-studio-code:latest
+# #     source: pull
+# #   when: install_method | default('') == 'docker'
+```

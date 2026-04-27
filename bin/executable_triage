@@ -1,0 +1,534 @@
+#!/usr/bin/env python3
+"""
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                        triage.py  —  v1.1                                  ║
+║         Support email → manager briefing memo via LLM                      ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+Reads a raw support email from stdin. Calls an LLM to produce a structured
+manager briefing memo containing:
+
+  • Rephrased issue (plain language, corrected terminology)
+  • Background context pulled from official documentation
+  • Gap analysis — what the user failed to provide and why it matters
+  • Confidence score (0–100%) with routing recommendation
+  • One recommended next step
+
+Zero dependencies beyond Python 3.11+ stdlib.
+Local provider requires the 'llm' CLI (llm.datasette.io).
+Cloud providers use urllib only — no pip installs needed.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROVIDERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Provider      How it runs         Requirement
+  ──────────    ──────────────────  ──────────────────────────────────────────
+  local         llm CLI subprocess  'llm' installed + model pulled
+  claude        urllib (HTTP)       ANTHROPIC_API_KEY env var
+  perplexity    urllib (HTTP)       PERPLEXITY_API_KEY env var
+  gemini        urllib (HTTP)       GEMINI_API_KEY env var
+
+  Default provider: local
+  Default local model: mistral
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+LOCAL PROVIDER SETUP (llm.datasette.io)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # 1. Install the llm CLI
+  pip install llm
+
+  # 2. Install the Ollama plugin (runs models locally via Ollama)
+  llm install llm-ollama
+
+  # 3. Install Ollama itself (if not already)
+  https://ollama.com/download
+
+  # 4. Pull a model
+  ollama pull mistral       ← default for this script
+  ollama pull llama3
+  ollama pull phi3
+
+  # 5. Verify
+  llm models list           ← should show ollama/mistral etc.
+  echo "test" | llm -m ollama/mistral "say hi"
+
+  Note: 'llm' supports many backends beyond Ollama (llm-gpt4all,
+  llm-mlc, llm-llamafile, etc). Any model visible in 'llm models list'
+  works with --model. See: https://llm.datasette.io/en/stable/plugins/
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+QUICK START
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # Make executable (once)
+  chmod +x triage.py
+
+  # Local — mistral (default, no API key needed)
+  cat email.txt | ./triage.py
+
+  # Local — different model
+  cat email.txt | ./triage.py --model ollama/llama3
+
+  # Claude (cloud)
+  export ANTHROPIC_API_KEY=sk-ant-...
+  cat email.txt | ./triage.py --provider claude
+
+  # Perplexity (cloud)
+  export PERPLEXITY_API_KEY=pplx-...
+  cat email.txt | ./triage.py --provider perplexity
+
+  # Gemini (cloud), override model
+  export GEMINI_API_KEY=...
+  cat email.txt | ./triage.py --provider gemini --model gemini-1.5-pro
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RETARGETING TO ANOTHER PLATFORM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Swap --platform and --docs together to retarget doc research to any SaaS.
+
+  # Stripe
+  cat email.txt | ./triage.py \\
+    --platform "Stripe" \\
+    --docs "https://docs.stripe.com" "https://stripe.com/docs/api"
+
+  # Datadog
+  cat email.txt | ./triage.py \\
+    --platform "Datadog" \\
+    --docs "https://docs.datadoghq.com"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUTPUT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Memo → stdout. Status/errors → stderr. Piping stays clean.
+
+  cat email.txt | ./triage.py > memo.md
+  cat email.txt | ./triage.py | tee memo.md
+  cat email.txt | ./triage.py | pbcopy          # macOS clipboard
+  cat email.txt | ./triage.py | xclip -selection clipboard  # Linux
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CONFIDENCE SCORE GUIDE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ~80–100%   Proceed to investigation. No follow-up needed.
+  ~60–79%    Send one targeted follow-up question, then investigate.
+  ~0–59%     Blocked. Follow-up required before any investigation.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FLAGS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  --provider   local | claude | perplexity | gemini   (default: local)
+  --model      Override default model for chosen provider
+  --platform   Product platform label                 (default: Sentry.io)
+  --docs       Space-separated doc URLs               (default: Sentry.io docs)
+  --help       Show this message and exit
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from datetime import date
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+LOCAL_DEFAULT_MODEL = "ollama/mistral"
+
+SENTRY_DOCS = [
+    "https://docs.sentry.io",
+    "https://develop.sentry.dev",
+    "https://sentry.io/changelog",
+]
+
+LLM_INSTALL_INSTRUCTIONS = """\
+[triage] 'llm' is not installed or not on PATH.
+
+The local provider requires the llm CLI (https://llm.datasette.io).
+
+To set it up:
+
+  # 1. Install llm
+  pip install llm
+
+  # 2. Install the Ollama plugin
+  llm install llm-ollama
+
+  # 3. Install Ollama (if not already)
+  https://ollama.com/download
+
+  # 4. Pull mistral (default model)
+  ollama pull mistral
+
+  # 5. Verify
+  llm models list
+
+Alternatively, use a cloud provider (no llm required):
+  cat email.txt | ./triage.py --provider claude      # needs ANTHROPIC_API_KEY
+  cat email.txt | ./triage.py --provider perplexity  # needs PERPLEXITY_API_KEY
+  cat email.txt | ./triage.py --provider gemini      # needs GEMINI_API_KEY
+"""
+
+# ---------------------------------------------------------------------------
+# Cloud provider config
+# ---------------------------------------------------------------------------
+
+CLOUD_PROVIDERS = {
+    "claude": {
+        "env": "ANTHROPIC_API_KEY",
+        "url": "https://api.anthropic.com/v1/messages",
+        "model": "claude-sonnet-4-20250514",
+        "headers": lambda key: {
+            "Content-Type": "application/json",
+            "x-api-key": key,
+            "anthropic-version": "2023-06-01",
+        },
+        "body": lambda model, system, user: {
+            "model": model,
+            "max_tokens": 2048,
+            "system": system,
+            "messages": [{"role": "user", "content": user}],
+        },
+        "extract": lambda d: d["content"][0]["text"],
+    },
+    "perplexity": {
+        "env": "PERPLEXITY_API_KEY",
+        "url": "https://api.perplexity.ai/chat/completions",
+        "model": "sonar-pro",
+        "headers": lambda key: {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {key}",
+        },
+        "body": lambda model, system, user: {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        },
+        "extract": lambda d: d["choices"][0]["message"]["content"],
+    },
+    "gemini": {
+        "env": "GEMINI_API_KEY",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}",
+        "model": "gemini-2.0-flash",
+        "headers": lambda _: {"Content-Type": "application/json"},
+        "body": lambda model, system, user: {
+            "system_instruction": {"parts": [{"text": system}]},
+            "contents": [{"parts": [{"text": user}]}],
+        },
+        "extract": lambda d: d["candidates"][0]["content"]["parts"][0]["text"],
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Prompt
+# ---------------------------------------------------------------------------
+
+SYSTEM_PROMPT = """\
+You are a senior support engineering manager at a SaaS company.
+Your job is to produce a manager briefing memo from a raw user support email.
+Be direct. No filler. Every sentence must be load-bearing.
+Run all internal reasoning phases silently. Only output the final memo.\
+"""
+
+
+def build_prompt(email: str, platform: str, docs: list[str], today: str) -> str:
+    docs_block = "\n".join(f"- {d}" for d in docs)
+    checklist = "\n".join(
+        [
+            "   - [ ] Plan / org slug or region",
+            "   - [ ] SDK name + version",
+            "   - [ ] Platform / language / framework",
+            "   - [ ] Reproduction steps or event/issue ID",
+            "   - [ ] Expected vs. actual behavior",
+            "   - [ ] When the problem started",
+            "   - [ ] Any recent changes (deploys, config, SDK upgrades)",
+        ]
+    )
+
+    return f"""## INPUTS
+
+USER_EMAIL:
+\"\"\"
+{email.strip()}
+\"\"\"
+
+PLATFORM: {platform}
+
+DOC_SOURCES:
+{docs_block}
+
+TODAY: {today}
+
+---
+
+## PHASE 0 — Parse & Classify (silent)
+
+Reason through the following; carry conclusions into the memo:
+1. Issue class: configuration, SDK bug, data ingestion, billing, integration failure, or unclear?
+2. Product surface: which feature area is implicated?
+3. User sophistication: beginner / intermediate / advanced?
+4. Completeness check — has the user provided:
+{checklist}
+
+---
+
+## PHASE 1 — Documentation Research (silent)
+
+Using DOC_SOURCES, find the most relevant official docs for the issue class and surface from Phase 0.
+For each gap in the user report, find the doc section explaining why that field is diagnostic.
+If platform is Sentry.io, also check the changelog for recent regressions matching the behavior.
+Carry 2–4 sourced findings into the memo as background context.
+
+---
+
+## PHASE 2 — Confidence Scoring (silent)
+
+Score the incoming report on four dimensions (1–5 each):
+- Reproducibility: can we reproduce from what's given?
+- Specificity: is the issue clearly scoped?
+- Technical completeness: SDK/version/platform present?
+- Context sufficiency: enough to route without follow-up?
+
+Overall confidence = (sum / 20) × 100 → express as ~XX%
+Thresholds: ≥80% proceed | 60–79% one follow-up needed | <60% blocked
+
+---
+
+## OUTPUT — Manager Briefing Memo
+
+Produce exactly this structure:
+
+---
+**SUPPORT BRIEF**
+**Date**: {today}
+**Platform**: {platform}
+**Issue class**: [from Phase 0]
+**Product surface**: [from Phase 0]
+**Confidence**: ~XX% · [proceed / one follow-up needed / blocked pending info]
+
+### What the user is reporting
+[2–3 sentences. Plain language. Rephrase accurately and simply. Note any incorrect terminology.]
+
+### Background context (from docs)
+[2–4 bullets. Each grounded in a DOC_SOURCES finding. Format: **Finding** — why it matters. Include source URL.]
+
+### What's missing
+[Bulleted gaps from Phase 0 checklist. Each: what's missing + why it blocks investigation.]
+[If nothing missing: "No critical gaps — sufficient to investigate."]
+
+### Rephrased issue (ticket title)
+> [One precise sentence. Usable as a ticket title or Slack summary.]
+
+### Recommended next step
+[One action: "Begin investigation — [what to check first]" or "Send follow-up asking for: [items]."]
+---
+
+## INTERNAL SELF-CRITIQUE (silent — revise before outputting, never show this section)
+
+Score the memo:
+- Accuracy: does the rephrased issue faithfully represent the email? (1–5)
+- Conciseness: is every sentence load-bearing? (1–5)
+- Actionability: can an engineer act without re-reading the original? (1–5)
+
+If any score ≤3, revise that section. Do not include this check in output.
+"""
+
+
+# ---------------------------------------------------------------------------
+# Local runner (llm CLI)
+# ---------------------------------------------------------------------------
+
+
+def check_llm_installed() -> None:
+    """Exit with install instructions if 'llm' is not on PATH."""
+    if shutil.which("llm") is None:
+        sys.exit(LLM_INSTALL_INSTRUCTIONS)
+
+
+def run_local(model: str, system: str, user: str) -> str:
+    """
+    Calls: llm -m <model> --system <system> <user_prompt>
+
+    llm template used:
+      llm [OPTIONS] PROMPT
+        -m / --model   Model name as shown in 'llm models list'
+        --system       System prompt string
+    """
+    cmd = ["llm", "-m", model, "--system", system, user]
+
+    print(f"[triage] cmd: {' '.join(cmd[:4])} <prompt>", file=sys.stderr)
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        # Surface llm's own error message — often contains the model name typo
+        # or a missing plugin hint
+        sys.exit(
+            f"[triage] llm exited with code {e.returncode}.\n"
+            f"stderr: {e.stderr.strip()}\n\n"
+            f"Tip: run 'llm models list' to see available models.\n"
+            f"     run 'llm install llm-ollama' if ollama models are missing."
+        )
+    except FileNotFoundError:
+        # Shouldn't reach here after check_llm_installed(), but just in case
+        sys.exit(LLM_INSTALL_INSTRUCTIONS)
+
+
+# ---------------------------------------------------------------------------
+# Cloud runner (urllib)
+# ---------------------------------------------------------------------------
+
+
+def run_cloud(provider: str, model: str, api_key: str, system: str, user: str) -> str:
+    cfg = CLOUD_PROVIDERS[provider]
+    url = cfg["url"].format(model=model, key=api_key)
+
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(cfg["body"](model, system, user)).encode(),
+        headers=cfg["headers"](api_key),
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req) as resp:
+            return cfg["extract"](json.loads(resp.read().decode()))
+    except urllib.error.HTTPError as e:
+        sys.exit(f"[triage] HTTP {e.code}: {e.read().decode()}")
+    except urllib.error.URLError as e:
+        sys.exit(f"[triage] Network error: {e.reason}")
+    except (KeyError, IndexError) as e:
+        sys.exit(f"[triage] Unexpected response shape: {e}")
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        prog="triage.py",
+        description="Triage a support email into a manager briefing memo.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__,
+    )
+    p.add_argument(
+        "--provider",
+        choices=["local", "claude", "perplexity", "gemini"],
+        default="local",
+        metavar="PROVIDER",
+        help=(
+            "LLM provider. One of: local, claude, perplexity, gemini. "
+            "'local' uses the llm CLI (llm.datasette.io) with a locally "
+            "running model — no API key needed. Cloud providers require "
+            "their respective env vars — see --help for details. "
+            "(default: local)"
+        ),
+    )
+    p.add_argument(
+        "--model",
+        default=None,
+        metavar="MODEL",
+        help=(
+            "Override the provider's default model. "
+            "For local: any model shown in 'llm models list' "
+            "(e.g. ollama/llama3, ollama/phi3). "
+            "Default local model: ollama/mistral. "
+            "Cloud defaults: claude=claude-sonnet-4-20250514, "
+            "perplexity=sonar-pro, gemini=gemini-2.0-flash."
+        ),
+    )
+    p.add_argument(
+        "--platform",
+        default="Sentry.io",
+        metavar="NAME",
+        help=(
+            "Product platform the email is about. Stamped on the memo and "
+            "used to focus the doc research phase. "
+            "Change together with --docs to retarget to any SaaS product. "
+            "(default: Sentry.io)"
+        ),
+    )
+    p.add_argument(
+        "--docs",
+        nargs="+",
+        default=None,
+        metavar="URL",
+        help=(
+            "One or more official documentation URLs for the research phase. "
+            "Replaces the default Sentry.io doc set when provided. "
+            "Example: --docs https://docs.stripe.com https://stripe.com/docs/api"
+        ),
+    )
+    return p.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+
+    if sys.stdin.isatty():
+        sys.exit(
+            "[triage] No input detected.\n"
+            "  Pipe an email file:  cat email.txt | ./triage.py\n"
+            "  Run --help for full usage."
+        )
+
+    email = sys.stdin.read()
+    if not email.strip():
+        sys.exit("[triage] stdin was empty.")
+
+    docs = args.docs or SENTRY_DOCS
+    today = date.today().isoformat()
+    system = SYSTEM_PROMPT
+    user = build_prompt(email, args.platform, docs, today)
+
+    if args.provider == "local":
+        check_llm_installed()
+        model = args.model or LOCAL_DEFAULT_MODEL
+        print(
+            f"[triage] provider=local  model={model}  platform={args.platform}",
+            file=sys.stderr,
+        )
+        memo = run_local(model, system, user)
+
+    else:
+        cfg = CLOUD_PROVIDERS[args.provider]
+        api_key = os.environ.get(cfg["env"], "").strip()
+        if not api_key:
+            sys.exit(
+                f"[triage] Missing env var: {cfg['env']}\n"
+                f"  export {cfg['env']}=<your-key>"
+            )
+        model = args.model or cfg["model"]
+        print(
+            f"[triage] provider={args.provider}  model={model}  platform={args.platform}",
+            file=sys.stderr,
+        )
+        memo = run_cloud(args.provider, model, api_key, system, user)
+
+    print(memo)
+
+
+if __name__ == "__main__":
+    main()

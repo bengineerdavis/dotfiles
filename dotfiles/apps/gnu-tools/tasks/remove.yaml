@@ -1,0 +1,33 @@
+# apps/gnu-tools/tasks/remove.yaml
+# Explicit uninstall tasks. Never run as part of provision or install.
+# Only invoked via --tags remove.
+# Mirror the install.yaml structure — one block per package manager.
+
+# ── macOS (Homebrew) ──────────────────────────────────────────────────────────
+# - name: "Remove gnu-tools via Homebrew (macOS)"
+#   community.general.homebrew:
+#     name: gnu-tools
+#     state: absent
+#   when: ansible_facts['os_family'] == 'Darwin'
+
+# ── macOS (Homebrew Cask) ─────────────────────────────────────────────────────
+# - name: "Remove gnu-tools via Homebrew Cask (macOS)"
+#   community.general.homebrew_cask:
+#     name: gnu-tools
+#     state: absent
+#   when: ansible_facts['os_family'] == 'Darwin'
+
+# ── Linux (apt) ───────────────────────────────────────────────────────────────
+# - name: "Remove gnu-tools via apt (Linux)"
+#   ansible.builtin.apt:
+#     name: gnu-tools
+#     state: absent
+#   become: true
+#   when: ansible_facts['os_family'] == 'Debian'
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+# - name: "Remove gnu-tools Docker image"
+#   community.docker.docker_image:
+#     name: gnu-tools:latest
+#     state: absent
+#   when: install_method | default('') == 'docker'

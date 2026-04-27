@@ -1,0 +1,43 @@
+# apps/rancher-desktop/tasks/install.yaml
+# Package installation tasks. Be explicit about which package manager is used.
+# Use when: conditions to guard each block by OS/arch.
+# Do NOT put upgrade logic here — upgrades are owned by system roles (homebrew, apt).
+# Do NOT put config/symlink tasks here — those are owned by chezmoi.
+
+# ── macOS (Homebrew) ──────────────────────────────────────────────────────────
+# - name: "Install rancher-desktop via Homebrew (macOS)"
+#   community.general.homebrew:
+#     name: rancher-desktop
+#     state: present
+#   when: ansible_facts['os_family'] == 'Darwin'
+
+# ── macOS (Homebrew Cask) ─────────────────────────────────────────────────────
+# - name: "Install rancher-desktop via Homebrew Cask (macOS)"
+#   community.general.homebrew_cask:
+#     name: rancher-desktop
+#     state: present
+#     install_options: "appdir={{ user_appdir }}"
+#   when: ansible_facts['os_family'] == 'Darwin'
+
+# ── Linux (apt) ───────────────────────────────────────────────────────────────
+# - name: "Install rancher-desktop via apt (Linux)"
+#   ansible.builtin.apt:
+#     name: rancher-desktop
+#     state: present
+#   become: true
+#   when: ansible_facts['os_family'] == 'Debian'
+
+# ── Linux (snap) ─────────────────────────────────────────────────────────────
+# - name: "Install rancher-desktop via snap (Linux)"
+#   community.general.snap:
+#     name: rancher-desktop
+#     state: present
+#   become: true
+#   when: ansible_facts['os_family'] == 'Debian'
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+# - name: "Pull rancher-desktop Docker image"
+#   community.docker.docker_image:
+#     name: rancher-desktop:latest
+#     source: pull
+#   when: install_method | default('') == 'docker'

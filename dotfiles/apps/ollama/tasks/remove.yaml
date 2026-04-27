@@ -1,0 +1,199 @@
+# uninstall_ollama_tasks.yaml
+#
+# Task list to remove Ollama GUI + CLI (cask-based) from macOS for the current user.
+# Caller playbook is responsible for hosts/gather_facts and vars.
+#
+# Expected vars (all optional):
+#   ollama_confirm_uninstall: bool (default: false)
+#   ollama_remove_models: "yes" | "no" | "auto" (default: "auto")
+
+- name: Confirm uninstall
+  ansible.builtin.pause:
+    prompt: "Are you sure you want to COMPLETELY uninstall Ollama? (yes/no)"
+    echo: yes
+  register: ollama_uninstall_answer
+  tags: [remove]
+
+- name: Abort uninstall if not confirmed
+  ansible.builtin.fail:
+    msg: "Ollama uninstall aborted."
+  when: ollama_uninstall_answer.user_input | lower != 'yes'
+  tags: [remove]
+
+- name: Ensure running only on macOS
+  ansible.builtin.fail:
+    msg: "This uninstall task list currently only supports macOS."
+  when: ansible_facts['os_family'] != "Darwin"
+
+- name: Set effective model removal choice (from var or prompt)
+  ansible.builtin.set_fact:
+    ollama_remove_models_effective: >-
+      {{
+        (ollama_remove_models | default('auto')) == 'yes'
+        or (
+          (ollama_remove_models | default('auto')) == 'auto'
+          and (ollama_remove_models_answer | default('no') | lower == 'yes')
+        )
+      }}
+
+# --- Stop launch agent / service (best-effort) -------------------------------
+
+- name: Try to disable Ollama launch agent at login
+  ansible.builtin.shell: |
+    launchctl disable gui/$(id -u)/com.ollama.ollama || true
+  args:
+    executable: /bin/bash
+  register: ollama_disable_result
+  failed_when: false
+  changed_when: false
+
+- name: Try to bootout Ollama launch agent for current user
+  ansible.builtin.shell: |
+    launchctl bootout gui/$(id -u)/com.ollama.ollama || true
+  args:
+    executable: /bin/bash
+  register: ollama_bootout_result
+  failed_when: false
+  changed_when: false
+
+- name: Note if disabling/bootout of agent had issues
+  ansible.builtin.debug:
+    msg: >
+      NOTICE: Issues while disabling/booting out Ollama launch agent.
+      disable stdout={{ ollama_disable_result.stdout | default('') }},
+      disable stderr={{ ollama_disable_result.stderr | default('') }},
+      bootout stdout={{ ollama_bootout_result.stdout | default('') }},
+      bootout stderr={{ ollama_bootout_result.stderr | default('') }}.
+
+# --- Remove GUI app via Homebrew cask + leftovers ----------------------------
+
+- name: Remove Ollama GUI app via Homebrew cask
+  community.general.homebrew_cask:
+    name: ollama
+    state: absent
+  become: false
+
+- name: Remove Ollama.app from /Applications (if still present)
+  ansible.builtin.file:
+    path: "/Applications/Ollama.app"
+    state: absent
+
+- name: Remove default ollama CLI symlink
+  ansible.builtin.file:
+    path: "/usr/local/bin/ollama"
+    state: absent
+  become: true
+
+# --- Zsh completion cleanup ---------------------------------------------------
+
+# Remove the symlink used by fpath
+- name: Remove Ollama Zsh completion symlink from ~/.zsh_completions
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.zsh_completions/_ollama"
+    state: absent
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_zsh
+
+# Remove the source file in the dotfiles topic
+- name: Remove Ollama Zsh completion file from dotfiles topic
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/dotfiles/apps/ollama/_ollama_zsh_completion"
+    state: absent
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_zsh
+
+# Optionally remove the temporary checksum/download file
+- name: Remove temporary Ollama completion file
+  ansible.builtin.file:
+    path: "/tmp/_ollama.zsh"
+    state: absent
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_zsh
+
+# --- Optional: models and data (~/.ollama) -----------------------------------
+
+- name: Remove Ollama models and data directory (~/.ollama)
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.ollama"
+    state: absent
+  when: ollama_remove_models_effective
+
+- name: Skip removal of models (~/.ollama) and report
+  ansible.builtin.debug:
+    msg: "Keeping Ollama models in {{ ansible_facts['env']['HOME'] }}/.ollama (per user choice)."
+  when: not ollama_remove_models_effective
+
+# --- User cache / app state cleanup ------------------------------------------
+
+- name: Remove Ollama Application Support directory
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/Library/Application Support/Ollama"
+    state: absent
+
+- name: Remove Ollama saved application state
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/Library/Saved Application State/com.electron.ollama.savedState"
+    state: absent
+
+- name: Remove Ollama main cache directory
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/Library/Caches/ollama"
+    state: absent
+
+- name: Remove Ollama Electron cache directory
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/Library/Caches/com.electron.ollama"
+    state: absent
+
+- name: Remove Ollama WebKit data
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/Library/WebKit/com.electron.ollama"
+    state: absent
+
+# --- Launch agent plist cleanup ----------------------------------------------
+
+- name: Remove Ollama launch agent plist from user LaunchAgents
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents/com.ollama.ollama.plist"
+    state: absent
+
+# --- Verification of removal --------------------------------------------------
+
+- name: Check remaining Ollama-related paths
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "/Applications/Ollama.app"
+    - "/usr/local/bin/ollama"
+    - "{{ ansible_facts['env']['HOME'] }}/.ollama"
+    - "{{ ansible_facts['env']['HOME'] }}/Library/Application Support/Ollama"
+    - "{{ ansible_facts['env']['HOME'] }}/Library/Saved Application State/com.electron.ollama.savedState"
+    - "{{ ansible_facts['env']['HOME'] }}/Library/Caches/ollama"
+    - "{{ ansible_facts['env']['HOME'] }}/Library/Caches/com.electron.ollama"
+    - "{{ ansible_facts['env']['HOME'] }}/Library/WebKit/com.electron.ollama"
+    - "{{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents/com.ollama.ollama.plist"
+  register: ollama_removal_stats
+
+- name: Warn if any Ollama paths still exist after uninstall
+  ansible.builtin.debug:
+    msg: >
+      WARNING: The following Ollama-related paths still exist after uninstall:
+      {{
+        ollama_removal_stats.results
+        | selectattr('stat.exists', 'equalto', true)
+        | map(attribute='stat.path')
+        | list
+      }}
+  when: >
+    ollama_removal_stats.results
+    | selectattr('stat.exists', 'equalto', true)
+    | list
+    | length > 0
+
+- name: Report completion of Ollama uninstall
+  ansible.builtin.debug:
+    msg: >-
+      Ollama uninstall complete for user {{ ansible_facts['env']['USER'] }}.
+      Models removed={{ ollama_remove_models_effective }}.
+
+# TODO: add uninstall task list for Linux?

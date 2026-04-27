@@ -18,8 +18,7 @@
 #   - Does not require sudo or root privileges.
 #   - If VS Code is not installed or the path is incorrect, the script will fail with a command not found error.
 #
------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 #!/usr/bin/env bash
 /opt/homebrew/bin/code --wait "$@"
----

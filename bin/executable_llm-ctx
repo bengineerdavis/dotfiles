@@ -1,0 +1,348 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "llm",
+#   "files-to-prompt",
+#   "llm-ollama",
+# ]
+# ///
+# -----------------------------------------------------------------------------
+# Script Name:        llm-ctx
+# Description:        Smart context assembler for llm. Classifies files by type,
+#                     routes text through files-to-prompt and binaries as native
+#                     attachments (multimodal models) or pre-processes them to
+#                     text (text-only models) before passing everything to llm.
+#
+# Usage:              llm-ctx [OPTIONS] GLOB... -- "your prompt"
+#
+# Options:
+#   -m, --model MODEL  Model to use. Defaults to llm's configured default.
+#   --cxml             Force Claude XML format for text context.
+#   -v                 Info logging (files classified, model used, steps taken).
+#   -vv                Debug logging (full commands, subprocess output, etc).
+#
+# Examples:
+#   llm-ctx "src/**/*.py" "docs/*.md" -- "review this code"
+#   llm-ctx -m gemini-2.0-flash "*.py" "*.png" -- "explain what this does"
+#   llm-ctx -vv "**/*" -- "summarize the project"
+#
+# Dependencies:       llm, files-to-prompt (both must be on PATH)
+# -----------------------------------------------------------------------------
+
+import argparse
+import logging
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+import llm
+
+BINARY_EXTS = {
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".pdf",
+    ".mp4",
+    ".mp3",
+    ".wav",
+}
+PREPROCESS_MODEL = "qwen3-vl"
+
+log = logging.getLogger("llm-ctx")
+
+
+def info(msg: str) -> None:
+    """Always-visible user messages, written to stderr."""
+    print(msg, file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# Logging setup
+# ---------------------------------------------------------------------------
+
+
+def setup_logging(verbosity: int) -> None:
+    """Configure logging based on -v / -vv count."""
+    level = {0: logging.ERROR, 1: logging.INFO, 2: logging.DEBUG}.get(
+        verbosity, logging.DEBUG
+    )
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(logging.Formatter("%(levelname)s  %(message)s"))
+    logging.getLogger().addHandler(handler)
+    logging.getLogger().setLevel(level)
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def get_default_model() -> str:
+    """Return the model id llm has set as default, or empty string."""
+    try:
+        result = subprocess.run(
+            ["llm", "models", "default"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        model = result.stdout.strip()
+        log.debug("llm default model: %r", model)
+        return model
+    except subprocess.CalledProcessError as e:
+        log.debug("Could not read llm default model: %s", e)
+        return ""
+
+
+def is_multimodal(model_id: str) -> bool:
+    """Return True if the model exposes attachment_types."""
+    try:
+        model = llm.get_model(model_id) if model_id else llm.get_model()
+        types = getattr(model, "attachment_types", None)
+        if types:
+            log.debug("Model %r attachment_types: %s", model_id, sorted(types))
+        else:
+            log.debug("Model %r has no attachment_types (text-only)", model_id)
+        return bool(types)
+    except Exception as e:
+        log.debug("is_multimodal check failed for %r: %s", model_id, e)
+        return False
+
+
+def classify_files(globs: list[str]) -> tuple[list[Path], list[Path]]:
+    """Expand globs and split into (text_files, binary_files)."""
+    text, binary = [], []
+    for pattern in globs:
+        matches = list(Path(".").glob(pattern))
+        if not matches:
+            log.warning("No files matched: %s", pattern)
+        for path in sorted(matches):
+            if not path.is_file():
+                log.debug("Skipping non-file: %s", path)
+                continue
+            bucket = binary if path.suffix.lower() in BINARY_EXTS else text
+            bucket.append(path)
+            log.debug(
+                "Classified %s → %s", path, "binary" if bucket is binary else "text"
+            )
+    log.info(
+        "Classified %d text file(s) and %d binary file(s)",
+        len(text),
+        len(binary),
+    )
+    return text, binary
+
+
+def auto_format(model_id: str) -> str:
+    """Pick --cxml for Claude models, --markdown otherwise."""
+    fmt = "--cxml" if model_id.startswith("claude") else "--markdown"
+    log.debug("Auto-selected text format: %s", fmt)
+    return fmt
+
+
+def preprocess_binary(path: Path, out: tempfile.NamedTemporaryFile) -> None:
+    """Run a capable model over a binary file and append extracted text."""
+    ext = path.suffix.lower()
+    log.info("Pre-processing binary: %s", path)
+
+    if ext == ".pdf":
+        cmd = [
+            "llm",
+            "-f",
+            f"pdf:{path}",
+            "Extract all text content verbatim.",
+            "-m",
+            PREPROCESS_MODEL,
+        ]
+    elif ext in {".png", ".jpg", ".jpeg", ".gif", ".webp"}:
+        cmd = [
+            "llm",
+            "Describe this image in full detail.",
+            "-a",
+            str(path),
+            "-m",
+            PREPROCESS_MODEL,
+        ]
+    elif ext in {".mp3", ".wav"}:
+        cmd = ["llm", "Transcribe this audio.", "-a", str(path), "-m", PREPROCESS_MODEL]
+    else:
+        log.warning("Unsupported binary type, skipping: %s", path)
+        out.write(f"## {path.name}\n(Unsupported binary type, skipped)\n\n".encode())
+        return
+
+    log.debug("Pre-process command: %s", " ".join(cmd))
+    out.write(f"## {path.name}\n".encode())
+    try:
+        result = subprocess.run(cmd, capture_output=True, check=True)
+        log.debug("Pre-process stdout (%d bytes)", len(result.stdout))
+        out.write(result.stdout)
+    except subprocess.CalledProcessError as e:
+        msg = e.stderr.decode().strip()
+        log.warning("Extraction failed for %s: %s", path, msg)
+        out.write(f"(Extraction failed: {msg})\n".encode())
+    out.write(b"\n")
+
+
+def run_files_to_prompt(paths: list[Path], fmt: str) -> bytes:
+    """Run files-to-prompt over text files and return its stdout."""
+    cmd = ["files-to-prompt", fmt, *[str(p) for p in paths]]
+    log.debug("files-to-prompt command: %s", " ".join(cmd))
+    result = subprocess.run(cmd, capture_output=True, check=True)
+    log.info(
+        "files-to-prompt produced %d bytes of context from %d file(s)",
+        len(result.stdout),
+        len(paths),
+    )
+    log.debug("files-to-prompt stderr: %s", result.stderr.decode().strip())
+    return result.stdout
+
+
+def build_llm_cmd(
+    prompt: str,
+    model_id: str,
+    attachment_paths: list[Path],
+) -> list[str]:
+    cmd = ["llm", prompt]
+    if model_id:
+        cmd += ["-m", model_id]
+    for path in attachment_paths:
+        cmd += ["-a", str(path)]
+    log.debug("llm command: %s", " ".join(cmd))
+    return cmd
+
+
+# ---------------------------------------------------------------------------
+# Argument parser
+# ---------------------------------------------------------------------------
+
+
+def make_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="llm-ctx",
+        description=(
+            "Smart context assembler for llm.\n\n"
+            "Classifies files matched by GLOB patterns into text and binary.\n"
+            "Text files are routed through files-to-prompt; binary files are\n"
+            "sent as native attachments to multimodal models, or pre-processed\n"
+            f"to text via {PREPROCESS_MODEL} for text-only models."
+        ),
+        epilog=(
+            "examples:\n"
+            '  llm-ctx "src/**/*.py" "docs/*.md" -- "review this code"\n'
+            '  llm-ctx -m gemini-2.0-flash "*.py" "*.png" -- "explain this"\n'
+            '  llm-ctx -vv "**/*" -- "summarize the project"'
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("globs", nargs="*", help="File glob patterns to include.")
+    parser.add_argument(
+        "-m",
+        "--model",
+        default="",
+        help="Model to use (default: llm's configured default).",
+    )
+    parser.add_argument(
+        "--cxml",
+        action="store_true",
+        help="Force Claude XML format for text context "
+        "(auto-selected for claude* models).",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="-v for INFO+WARNING, -vv for DEBUG.",
+    )
+    return parser
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+
+def main() -> None:
+    # Split on "--" before argparse so the prompt isn't treated as a flag.
+    try:
+        sep = sys.argv.index("--")
+        argv = sys.argv[1:sep]
+        prompt = " ".join(sys.argv[sep + 1 :])
+    except ValueError:
+        info('Error: prompt required — use -- "your prompt" at the end.')
+        sys.exit(1)
+
+    parser = argparse.ArgumentParser(
+        description="Smart context assembler for llm.",
+        epilog='Example: llm-ctx "src/**/*.py" "*.png" -- "review this"',
+    )
+    parser.add_argument("globs", nargs="+", help="File globs to include.")
+    parser.add_argument("-m", "--model", default="", help="Model to use.")
+    parser.add_argument(
+        "--cxml", action="store_true", help="Force Claude XML format for text context."
+    )
+    parser.add_argument(
+        "-v", "--verbose", action="count", default=0, help="-v for info, -vv for debug."
+    )
+
+    args = parser.parse_args(argv)
+    setup_logging(args.verbose)
+
+    if not prompt:
+        info("Error: prompt cannot be empty.")
+        sys.exit(1)
+
+    model_id = args.model or get_default_model()
+    fmt = "--cxml" if args.cxml else auto_format(model_id)
+    multimodal = is_multimodal(model_id)
+
+    log.info("Model: %s", model_id or "(llm default)")
+    log.info("Text format: %s", fmt)
+    log.info("Multimodal: %s", multimodal)
+
+    text_files, binary_files = classify_files(args.globs)
+    attachment_paths: list[Path] = []
+    tmp_path: Path | None = None
+
+    if binary_files:
+        if multimodal:
+            log.info(
+                "Using native attachments for %d binary file(s)", len(binary_files)
+            )
+            attachment_paths = binary_files
+        else:
+            info(
+                f"ℹ️  '{model_id}' is text-only — pre-processing "
+                f"{len(binary_files)} binary file(s) via {PREPROCESS_MODEL}..."
+            )
+            with tempfile.NamedTemporaryFile(
+                suffix=".md", prefix="llm-ctx-binary-", delete=False
+            ) as tmp:
+                tmp_path = Path(tmp.name)
+                for f in binary_files:
+                    preprocess_binary(f, tmp)
+            log.debug("Binary context written to: %s", tmp_path)
+            text_files.append(tmp_path)
+
+    llm_cmd = build_llm_cmd(prompt, model_id, attachment_paths)
+
+    try:
+        if text_files:
+            ftp_output = run_files_to_prompt(text_files, fmt)
+            log.info("Sending %d bytes of text context to llm", len(ftp_output))
+            subprocess.run(llm_cmd, input=ftp_output, check=True)
+        else:
+            log.info("No text files — sending prompt with attachments only")
+            subprocess.run(llm_cmd, check=True)
+    finally:
+        if tmp_path:
+            log.debug("Cleaning up temp file: %s", tmp_path)
+            tmp_path.unlink(missing_ok=True)
+
+
+if __name__ == "__main__":
+    main()

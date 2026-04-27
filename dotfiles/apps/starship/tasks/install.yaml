@@ -1,0 +1,11 @@
+  🤖 rewrite to template: apps/starship/tasks/install.yaml
+  🤖 trying: devstral-small-2:24b
+  🤖 ✅ success: devstral-small-2:24b
+```yaml
+# apps/starship/tasks/install.yaml
+# Package installation tasks. Be explicit about which package manager is used.
+# Use when: conditions to guard each block by OS/arch.
+# Do NOT put upgrade logic here — upgrades are owned by system roles (homebrew, apt).
+# Do NOT put config/symlink tasks here — those are owned by chezmoi.
+
+# ── macOS (Homebrew) ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────

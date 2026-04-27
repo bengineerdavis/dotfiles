@@ -7,3 +7,8 @@ crontab/**
 {{ if ne .chezmoi.os "darwin" }}
 .zprofile
 {{ end }}
+.pre-commit-config.yaml
+tests/
+.bats/
+.github
+.gitmodules

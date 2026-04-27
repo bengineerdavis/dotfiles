@@ -1,0 +1,12 @@
+# apps/rectangle/tasks/remove.yaml
+- name: "Remove rectangle via Homebrew Cask (macOS)"
+  community.general.homebrew_cask:
+    name: rectangle
+    state: absent
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# EMPTY
+
+# EMPTY
+
+# EMPTY

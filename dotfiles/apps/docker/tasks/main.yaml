@@ -1,0 +1,33 @@
+# apps/docker/tasks/main.yaml — Docker role task router
+# System role — handles Docker daemon and image lifecycle.
+# Called by parent playbook with explicit tags.
+
+- name: "Docker: bootstrap"
+  ansible.builtin.import_tasks: bootstrap.yaml
+  tags: [bootstrap, provision]
+
+- name: "Docker: prerequisites"
+  ansible.builtin.import_tasks: prerequisites.yaml
+  tags: [prerequisites, provision]
+
+- name: "Docker: upgrade"
+  ansible.builtin.import_tasks: upgrade.yaml
+  tags: [upgrade, provision]
+
+- name: "Docker: install"
+  ansible.builtin.import_tasks: install.yaml
+  tags: [install, provision]
+
+- name: "Docker: remove"
+  ansible.builtin.import_tasks: remove.yaml
+  tags: [remove]
+
+# ── Linux: install Docker Engine via apt ─────────────────────────────────────
+# TODO: implement Docker Engine install for Linux
+# Reference: https://docs.docker.com/engine/install/ubuntu/
+- name: "Bootstrap: TODO Docker Engine install (Linux)"
+  ansible.builtin.debug:
+    msg: "TODO: implement Docker Engine bootstrap for Linux"
+  when:
+    - not docker_stat.stat.exists
+    - ansible_facts['os_family'] == 'Debian'

@@ -1,0 +1,23 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# apps/apt/tasks/prerequisites.yaml
+# ──────────────────────────────────────────────────────────────────────────────
+# TODO: install core packages required before any topic installs.
+
+- name: "Prerequisites: update apt cache"
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+
+- name: "Prerequisites: install core apt packages"
+  ansible.builtin.apt:
+    name:
+      - git
+      - curl
+      - wget
+      - ca-certificates
+      - gnupg
+      - software-properties-common
+      - build-essential
+    state: present
+  become: true

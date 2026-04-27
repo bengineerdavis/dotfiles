@@ -1,0 +1,19 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# apps/apt/tasks/upgrade.yaml
+# ──────────────────────────────────────────────────────────────────────────────
+# System-level apt upgrade. Topics do NOT own upgrade logic.
+
+- name: "Upgrade: update apt cache"
+  ansible.builtin.apt:
+    update_cache: true
+  become: true
+
+- name: "Upgrade: upgrade all apt packages"
+  ansible.builtin.apt:
+    upgrade: dist
+  become: true
+  register: apt_upgrade_result
+
+- name: "Upgrade: report"
+  ansible.builtin.debug:
+    msg: "apt upgrade complete — changed: {{ apt_upgrade_result.changed }}"

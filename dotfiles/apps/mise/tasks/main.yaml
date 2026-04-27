@@ -37,14 +37,3 @@
   tags:
     - mise
     - config
-
-- name: "Symlink ~/.config/mise/config.toml [optional]"
-  file:
-    src: "{{ playbook_dir }}/apps/mise/files/.config/mise/config.toml"
-    dest: "{{ ansible_user_dir }}/.config/mise/config.toml"
-    state: link
-  # when:
-  #   - mise_manage_global_config | default(true) | bool
-  tags:
-    - mise
-    - config

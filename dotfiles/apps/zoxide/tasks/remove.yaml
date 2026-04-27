@@ -1,0 +1,33 @@
+# apps/zoxide/tasks/remove.yaml
+# Explicit uninstall tasks. Never run as part of provision or install.
+# Only invoked via --tags remove.
+# Mirror the install.yaml structure — one block per package manager.
+
+# ── macOS (Homebrew) ────────────────────────────────────────────────────────────
+- name: "Remove zoxide via Homebrew (macOS)"
+  community.general.homebrew:
+    name: zoxide
+    state: absent
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# ── macOS (Homebrew Cask) ───────────────────────────────────────────────────────
+# - name: "Remove zoxide via Homebrew Cask (macOS)"
+#   community.general.homebrew_cask:
+#     name: zoxide
+#     state: absent
+#   when: ansible_facts['os_family'] == 'Darwin'
+
+# ── Linux (apt) ──────────────────────────────────────────────────────────────────
+# - name: "Remove zoxide via apt (Linux)"
+#   ansible.builtin.apt:
+#     name: zoxide
+#     state: absent
+#   become: true
+#   when: ansible_facts['os_family'] == 'Debian'
+
+# ── Docker ──────────────────────────────────────────────────────────────────────
+# - name: "Remove zoxide Docker image"
+#   community.docker.docker_image:
+#     name: zoxide:latest
+#     state: absent
+#   when: install_method | default('') == 'docker'

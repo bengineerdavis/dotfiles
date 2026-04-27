@@ -1,0 +1,28 @@
+repos:
+  # 1. Lint all shell scripts found anywhere in the repo
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        # Match bash/sh scripts anywhere — by extension or shebang
+        types: [shell]
+
+  # 2. Discover and run BATS tests for any staged shell script
+  #    Convention: <subdir>/foo.sh → tests/foo.bats
+  #    Scripts with no matching .bats file are flagged by the runner.
+  - repo: local
+    hooks:
+      - id: bats
+        name: BATS — shell script tests
+        language: script
+        entry: scripts/run-bats.sh
+        types: [shell]
+        exclude: >-
+          (?x)^(
+            tests/|                       # test files are not subjects
+            scripts/run-bats\.sh|         # the runner itself
+            scripts/run-shellharden\.sh   # shellharden helper
+          )$
+        files: ^(bin|scripts)/
+        pass_filenames: false # runner pulls staged files itself via git
+        stages: [pre-commit, pre-push]
