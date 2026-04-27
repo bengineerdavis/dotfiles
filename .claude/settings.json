@@ -68,7 +68,27 @@
       "Bash(git -C /Users/ben.davis/.local/share/chezmoi status --short)",
       "Bash(git -C /Users/ben.davis/.local/share/chezmoi add .chezmoiignore)",
       "Bash(git -C /Users/ben.davis/.local/share/chezmoi diff .claude/settings.json)",
-      "Bash(git -C /Users/ben.davis/.local/share/chezmoi add .claude/settings.json)"
+      "Bash(git -C /Users/ben.davis/.local/share/chezmoi add .claude/settings.json)",
+      "Bash(llm --help)",
+      "Bash(llm prompt *)",
+      "Bash(llm logs *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(list\\(d[0].keys\\(\\)\\)\\)\")",
+      "Bash(python -m pytest tests/binned/ -x -q)",
+      "Bash(python3 -c \"import ast; ast.parse\\(open\\('/Users/ben.davis/.local/share/chezmoi/bin/executable_binned'\\).read\\(\\)\\); print\\('syntax ok'\\)\")",
+      "Bash(~/bin/binned --version)",
+      "Bash(~/bin/binned -v --version)",
+      "Read(//Users/ben.davis/.binned/logs/**)",
+      "Bash(llm -m devstral-small-2 --system \"You are a senior Python code reviewer. Be specific: identify bugs, bad error handling, security issues, and architecture problems. Format findings as a numbered list with severity \\(critical/major/minor\\). Focus on: correctness bugs, off-by-one errors, missing guards, type errors, unhandled exceptions, overly broad try/except, security risks, globals abuse, coupling.\" \"Review this Python code section from a CLI tool called 'binned':\")",
+      "Bash(llm -m qwen3.5:35b --system \"You are a senior Python code reviewer doing a focused audit. Be specific: identify actual bugs, wrong logic, off-by-one errors, missing guards, type errors, unhandled exceptions, security issues. Format findings as a numbered list with severity \\(critical/major/minor\\). Skip stylistic feedback. Focus on what is actually broken, risky, or architecturally wrong.\" \"Review this Python code section \\(judge panel + fallback/disqualification logic from a CLI tool called 'binned'\\):\")",
+      "Bash(llm -m claude-4-sonnet --system \"You are a senior Python code reviewer doing a security and correctness audit of a CLI tool. Be specific and precise: identify actual bugs \\(wrong logic, off-by-one, missing guards, type errors\\), error handling gaps \\(unhandled exceptions, overly broad try/except, missing timeout, subprocess error propagation\\), and security issues \\(shell injection, temp file safety, credential handling\\). Format as a numbered list with severity \\(critical/major/minor\\). Skip stylistic issues. Only report issues that are actually broken, risky, or wrong.\" \"Review this Python code section from 'binned' \\(generation pipeline, run_generate, _review_and_finalize, test runner\\):\")",
+      "Bash(llm -m devstral-small-2 --system \"You are a senior Python code reviewer. Audit this code for: \\(1\\) correctness bugs in retry/backoff logic, \\(2\\) race conditions in the thread pool, \\(3\\) fallback model selection logic bugs, \\(4\\) missing edge case handling. Format findings as a numbered list with severity \\(critical/major/minor\\). Be specific about line numbers and exact problems.\" \"Review the judge panel runner code:\")",
+      "Bash(llm -m devstral-small-2 --system \"You are an expert reviewing a minimal TOML serializer. Identify any correctness bugs, edge cases not handled, or data that would be silently lost or corrupted. Focus only on _toml_str\\(\\) and save_config/load_config round-trip.\" \"Review this TOML serializer and config save/load code:\")",
+      "Bash(llm -m devstral-small-2 --system \"You are an expert on Python subprocess and stream handling. Find bugs: \\(1\\) what happens if proc.stderr has been closed or drained before the .read\\(\\) call? \\(2\\) is there a deadlock risk in this streaming code? \\(3\\) is stderr captured correctly? Be specific and brief.\" \"Review this streaming subprocess code in llm_call\\(\\):\")",
+      "Bash(sed -n '2040,2075p' /Users/ben.davis/.local/share/chezmoi/bin/executable_binned)",
+      "Bash(llm -m devstral-small-2 --system \"You are a security reviewer. Find bugs: \\(1\\) is there shell injection risk? \\(2\\) is this command safe to run on macOS? \\(3\\) is there any issue with the at command input or the notify command string?\" \"Review this schedule_reminder function:\")",
+      "Bash(wait)",
+      "Bash(python3 -c \"import warnings; warnings.simplefilter\\('always'\\); import datetime; datetime.datetime.utcnow\\(\\)\")",
+      "Bash(python3 -c \"print\\(issubclass\\(KeyboardInterrupt, Exception\\)\\)\")"
     ]
   }
 }
