@@ -5,6 +5,7 @@
 #   "llm",
 #   "files-to-prompt",
 #   "llm-ollama",
+#   "llm-pdf-to-images",
 # ]
 # ///
 # -----------------------------------------------------------------------------
@@ -153,7 +154,7 @@ def preprocess_binary(path: Path, out: tempfile.NamedTemporaryFile) -> None:
         cmd = [
             "llm",
             "-f",
-            f"pdf:{path}",
+            f"pdf-to-images:{path}",
             "Extract all text content verbatim.",
             "-m",
             PREPROCESS_MODEL,
@@ -205,12 +206,15 @@ def build_llm_cmd(
     prompt: str,
     model_id: str,
     attachment_paths: list[Path],
+    fragment_args: list[str] | None = None,
 ) -> list[str]:
     cmd = ["llm", prompt]
     if model_id:
         cmd += ["-m", model_id]
     for path in attachment_paths:
         cmd += ["-a", str(path)]
+    if fragment_args:
+        cmd += fragment_args
     log.debug("llm command: %s", " ".join(cmd))
     return cmd
 
@@ -267,6 +271,10 @@ def make_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
+    if len(sys.argv) == 1:
+        make_parser().print_help()
+        sys.exit(0)
+
     # Split on "--" before argparse so the prompt isn't treated as a flag.
     try:
         sep = sys.argv.index("--")
@@ -306,14 +314,23 @@ def main() -> None:
 
     text_files, binary_files = classify_files(args.globs)
     attachment_paths: list[Path] = []
+    fragment_args: list[str] = []
     tmp_path: Path | None = None
 
     if binary_files:
+        pdf_files = [f for f in binary_files if f.suffix.lower() == ".pdf"]
+        other_binary = [f for f in binary_files if f.suffix.lower() != ".pdf"]
+
         if multimodal:
             log.info(
-                "Using native attachments for %d binary file(s)", len(binary_files)
+                "Using native attachments for %d binary file(s), "
+                "pdf-to-images fragments for %d PDF(s)",
+                len(other_binary),
+                len(pdf_files),
             )
-            attachment_paths = binary_files
+            attachment_paths = other_binary
+            for f in pdf_files:
+                fragment_args += ["-f", f"pdf-to-images:{f}"]
         else:
             info(
                 f"ℹ️  '{model_id}' is text-only — pre-processing "
@@ -328,7 +345,7 @@ def main() -> None:
             log.debug("Binary context written to: %s", tmp_path)
             text_files.append(tmp_path)
 
-    llm_cmd = build_llm_cmd(prompt, model_id, attachment_paths)
+    llm_cmd = build_llm_cmd(prompt, model_id, attachment_paths, fragment_args)
 
     try:
         if text_files:
