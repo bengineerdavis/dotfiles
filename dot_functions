@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+
+# set -euo pipefail
+
+# debugging
+# set -x
+
+# .functions
+# This file contains custom functions for my shell environment.
+# It is sourced by my .bashrc or .zshrc file.
+# This file is not intended to be run directly.
+# my personal functions
+
+# export custom local functions
+export PATH="$HOME/bin:$PATH"
+
+# move into a new directory and list its contents
+lcd () {
+    cd "$1" && ls --color="always" $1
+}
+
+# create a new directory and cd into it
+mcd () {
+    mkdir -vp "${1}" && \
+    cd "${1}" && \
+    ls --color="always" .
+}
+
+# Function that helps the user call all their most important dotfiles
+# a given user may want to view and/or edit by their editor of choice
+edit_dotfiles () {
+    # define each dotfile subcollection
+    local CUSTOM_FUNC_PATHS
+    local APP_DOT_FILES
+    local TERM_DOT_FILES
+
+    CUSTOM_FUNC_PATHS=(
+        ~/.functions
+        ~/.local/bin
+    )
+
+    TERM_DOT_FILES=(
+        ~/.config/ghostty/config
+    )
+
+    APP_DOT_FILES=(
+        ~/.config/mise/config.toml
+    )
+
+    # Collect shared dotfile subcollections for each shell env
+    local SHARED_DOT_FILES
+    SHARED_DOT_FILES=(
+        "${CUSTOM_FUNC_PATHS[@]}"
+        "${TERM_DOT_FILES[@]}"
+        "${APP_DOT_FILES[@]}"
+    )
+
+
+    # define each shell env dotfile collection
+    local BASH_DOT_FILES
+    BASH_DOT_FILES=(
+        ~/.bash_aliases
+        ~/.bashrc
+    )
+
+    local ZSH_DOT_FILES
+    ZSH_DOT_FILES=(
+        ~/.zshrc
+        ~/.zprofile
+    )
+
+    # Assemble dotfile collections
+    local DOT_PATHS
+    DOT_PATHS=(
+        "${SHARED_DOT_FILES[@]}"
+    )
+
+    if [[ -n "${ZSH_VERSION}" ]]; then
+        DOT_PATHS+=("${ZSH_DOT_FILES[@]}")
+    else
+        DOT_PATHS+=("${BASH_DOT_FILES[@]}")
+    fi
+
+    # Main function
+    main () {
+        code --wait --new-window "${DOT_PATHS[@]}" && zshup
+    }
+
+    main
+}
