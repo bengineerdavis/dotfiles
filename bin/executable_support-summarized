@@ -22,8 +22,12 @@
 
 ## VARIABLES ##
 # Use existing MODEL env var if set; otherwise use first script arg; fallback to default.
-FILES="${1:-./attachments/**}"
-MODEL="${2:-"qwen3.6:27b"}"
+if [[ -n "$1" ]]; then
+    FILES=("$1")
+else
+    FILES=("./attachments/**" "mail.md")
+fi
+MODEL="${2:-"gemma4:31b"}"
 PROMPT=$(cat <<'EOF'
 You are an experienced senior technical support engineer; 
 help summarize and target complex initial requests by email, 
@@ -38,6 +42,5 @@ EOF
 )
 
 # MAIN #
-cat first-reply.md | \
-llm-ctx -vv -m "$MODEL" "$FILES" -- "$PROMPT" > \
-"$MODEL-llm-processed-reply.md"
+llm-ctx -v -m "$MODEL" "${FILES[@]}" -- "$PROMPT" > \
+"$MODEL-summarized.md"
