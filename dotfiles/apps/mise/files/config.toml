@@ -22,6 +22,7 @@ python = "latest"
   --with llm-anthropic
   --with llm-gemini
   --with llm-ollama
+  --with llm-anthropic
   --with llm-sentence-transformers
   --with llm-tools-exa
   --with llm-pdf-to-images
@@ -37,6 +38,6 @@ python = "latest"
 # mise uses uv tool install under the hood for pipx: backend
 # https://aider.chat/docs/install.html
 "pipx:aider-chat" = { version = "latest", uvx_args = "--python 3.12 --force" }
-prek = "latest"
 "pipx:trash-cli" = "latest"
 lazygit = "latest"
+"pipx:prek" = "latest"
