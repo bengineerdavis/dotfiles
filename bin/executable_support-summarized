@@ -22,19 +22,22 @@
 
 ## VARIABLES ##
 # Use existing MODEL env var if set; otherwise use first script arg; fallback to default.
-MODEL="${1:-"qwen3.5:27b"}"
+FILES="${1:-./attachments/**}"
+MODEL="${2:-"qwen3.6:27b"}"
 PROMPT=$(cat <<'EOF'
 You are an experienced senior technical support engineer; 
-help summarize and target complex initial email requests into 
+help summarize and target complex initial requests by email, 
+slack, or other text-based communication and histories into 
 itemized and easy to understand asks from us (rephrase to be 
 the better version of the question)? Make sure to put it into
 your own words instead of trying to re-ask the question -- 
 describe it to me as if you were helping me on the team to 
-understand the ticket and what the customer is asking.
+understand the ticket and what the customer is asking, and 
+plan to reuse for escalation purposes.
 EOF
 )
 
 # MAIN #
 cat first-reply.md | \
-llm "$PROMPT" -m "$MODEL" > \
+llm-ctx -vv -m "$MODEL" "$FILES" -- "$PROMPT" > \
 "$MODEL-llm-processed-reply.md"
