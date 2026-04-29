@@ -16,18 +16,28 @@ pager = "bat -l help"
     # Graphical side-by-side comparison using Meld
     # Ref: https://www.chezmoi.io
     command = "meld"
-    # We use {{ "{{" }} to escape the braces so they appear literally in the final config
-    # Use the 'quote' function and escape the braces
-    args = ["--diff", "{{ "{{" }} .Destination {{ "}}" }}", "{{ "{{" }} .Target {{ "}}" }}"]
     # Destination = Live file (~/.zshrc) | Target = Calculated state (templates applied)
+    args = [
+        "--label", "LOCAL (current): {{ "{{" }} .Destination {{ "}}" }}",
+        "--label", "CHEZMOI (will write): {{ "{{" }} .Target {{ "}}" }}",
+        "--diff",
+        "{{ "{{" }} .Destination {{ "}}" }}",
+        "{{ "{{" }} .Target {{ "}}" }}"
+    ]
 
 [merge]
     # 3-Way Merge: Resolve conflicts between your Repo, Templates, and Disk
     # Ref: https://www.chezmoi.io
     command = "meld"
-    # Order: [Disk/Local] | [Repo/Source] | [Calculated/Target]
     # PRO TIP: Merge changes from the outer panes INTO the middle (Source) to save to git.
-    args = ["{{ "{{" }} .Destination {{ "}}" }}", "{{ "{{" }} .Source {{ "}}" }}", "{{ "{{" }} .Target {{ "}}" }}"]
+    args = [
+        "--label", "LOCAL (disk): {{ "{{" }} .Destination {{ "}}" }}",
+        "--label", "SOURCE (repo): {{ "{{" }} .Source {{ "}}" }}",
+        "--label", "TARGET (calculated): {{ "{{" }} .Target {{ "}}" }}",
+        "{{ "{{" }} .Destination {{ "}}" }}",
+        "{{ "{{" }} .Source {{ "}}" }}",
+        "{{ "{{" }} .Target {{ "}}" }}"
+    ]
 
 [edit]
     # Use VS Code for 'chezmoi edit'
