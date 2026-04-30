@@ -19,6 +19,7 @@ python = "latest"
 
 # http://llm.datasette.io/en/stable/setup.html
 "pipx:llm" = { version = "latest", uvx_args = """
+  --with llm-openrouter
   --with llm-anthropic
   --with llm-gemini
   --with llm-ollama
