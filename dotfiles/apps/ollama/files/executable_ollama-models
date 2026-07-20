@@ -1,0 +1,411 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["pyyaml"]
+# ///
+"""ollama-models — manage the Ollama model set declared in the topic manifest.
+
+Run as a uv single-file script: the shebang invokes `uv run --script`, which
+resolves the `pyyaml` dependency above into a cached ephemeral venv. uv is
+provided by mise (apps/mise/files/config.toml -> [tools] uv). Nothing is
+installed into a global Python.
+
+The manifest (apps/ollama/defaults/main.yaml) is the single source of truth:
+families → members, each member with a `darwin` and `linux` tag plus `size_gb`.
+This tool resolves it for the current OS, gates each entry against a RAM budget
+(total − ollama_ram_reserve_pct), and drives ollama accordingly.
+
+Subcommands:
+  sync [--refresh] [--dry-run]   pull manifest models for this OS within budget
+                                 (default: only missing ones; --refresh re-pulls all)
+  status                          show installed / missing / skipped (oversized)
+  check [--next-gen]              diff each family's upstream tags vs the manifest;
+                                 flag unknown precision/format keywords; with
+                                 --next-gen, probe for newer family generations
+  prune [--remove]                list installed models not in the manifest;
+                                 --remove deletes them (with confirmation)
+
+Manifest location: $OLLAMA_MODELS_MANIFEST, else --manifest, else the
+defaults/main.yaml two dirs up from this script.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import os
+import platform
+import re
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+try:
+    import yaml
+except ImportError:
+    sys.exit(
+        "error: PyYAML not available.\n"
+        "  this script is meant to run via uv (`uv run --script`); ensure uv is\n"
+        "  installed (provided by mise), or run: uv run --script "
+        + str(Path(__file__).name)
+    )
+
+OLLAMA_COM = "https://ollama.com"
+REGISTRY = "https://registry.ollama.ai"
+UA = "ollama-models/1.0 (+dotfiles)"
+
+# Tokens that may appear after the size in a tag and are already understood.
+# Anything else is surfaced by `check` as a possible NEW precision/feature.
+KNOWN_TOKENS = {
+    # precision / quantization
+    "mlx", "bf16", "fp16", "fp8", "fp4", "mxfp8", "mxfp4", "nvfp4", "qat",
+    "int4", "int8", "q2_k", "q3_k_s", "q3_k_m", "q3_k_l", "q4_0", "q4_1",
+    "q4_k_s", "q4_k_m", "q5_0", "q5_1", "q5_k_s", "q5_k_m", "q6_k", "q8_0",
+    # role / variant
+    "it", "instruct", "think", "thinking", "coding", "code", "base", "chat",
+    "mtp", "cloud", "latest", "distill", "qwen", "vl", "embedding", "reranker",
+    "moe", "h", "micro", "tiny", "small", "reasoning", "vision",
+}
+SIZE_RE = re.compile(r"^(?:a|e)?\d+(?:\.\d+)?[bm]$|^\d+x\d+b$|^\d+$", re.I)
+
+
+# ── manifest ────────────────────────────────────────────────────────────────
+def default_manifest() -> Path:
+    return Path(__file__).resolve().parent.parent / "defaults" / "main.yaml"
+
+
+def load_manifest(path: Path):
+    if not path.exists():
+        sys.exit(f"error: manifest not found: {path}")
+    data = yaml.safe_load(path.read_text()) or {}
+    reserve = int(data.get("ollama_ram_reserve_pct", 33))
+    families = data.get("ollama_models") or {}
+    if not isinstance(families, dict):
+        sys.exit("error: ollama_models must be a mapping of family -> [members]")
+    return reserve, families
+
+
+# ── host facts ──────────────────────────────────────────────────────────────
+def os_key() -> str:
+    return "darwin" if platform.system() == "Darwin" else "linux"
+
+
+def nvidia_vram_gb() -> float:
+    """Total VRAM of the largest NVIDIA GPU, or 0 if none / nvidia-smi absent."""
+    try:
+        out = subprocess.run(
+            ["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, check=True,
+        ).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return 0.0
+    vals = [float(x) for x in out.split() if x.strip().replace(".", "").isdigit()]
+    return max(vals) / 1024 if vals else 0.0  # MiB → GiB
+
+
+def system_ram_gb() -> float:
+    if platform.system() == "Darwin":
+        out = subprocess.check_output(["sysctl", "-n", "hw.memsize"])
+        return int(out) / 1024**3
+    try:
+        for line in Path("/proc/meminfo").read_text().splitlines():
+            if line.startswith("MemTotal"):
+                return int(line.split()[1]) / 1024**2  # kB → GiB
+    except OSError:
+        pass
+    return 0.0
+
+
+def total_ram_gb() -> tuple[float, str]:
+    """Budget basis + a label for it. On Mac, unified memory == system RAM. On
+    Linux with an NVIDIA GPU, the real inference constraint is VRAM (the linux
+    tags are GPU quants); fall back to system RAM for CPU inference otherwise."""
+    if platform.system() != "Darwin":
+        vram = nvidia_vram_gb()
+        if vram > 0:
+            return vram, "vram"
+    return system_ram_gb(), "ram"
+
+
+# ── resolution ──────────────────────────────────────────────────────────────
+def resolve(families: dict, key: str, budget: float):
+    """Yield (family, tag, size_gb, fits) for the current OS, in manifest order."""
+    for family, members in families.items():
+        for m in members or []:
+            tag = m.get(key)
+            if not tag:
+                continue
+            size = float(m.get("size_gb", 0))
+            yield family, tag, size, size <= budget
+
+
+def installed_models() -> set[str]:
+    try:
+        out = subprocess.run(
+            ["ollama", "list"], capture_output=True, text=True, check=True
+        ).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return set()
+    names = set()
+    for line in out.splitlines()[1:]:
+        line = line.strip()
+        if line:
+            names.add(line.split()[0])
+    return names
+
+
+def http_get(url: str) -> str:
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        return resp.read().decode("utf-8", "replace")
+
+
+def upstream_tags(family: str) -> set[str]:
+    """Scrape the public tags page for a family's available tags."""
+    path = family if "/" in family else f"library/{family}"
+    html = http_get(f"{OLLAMA_COM}/{path}/tags")
+    variants = re.findall(re.escape(family) + r":([A-Za-z0-9][A-Za-z0-9._-]*)", html)
+    return {f"{family}:{v}" for v in variants}
+
+
+# ── digest diff (cheap "has upstream changed?" check for --refresh) ───────────
+# Ollama models are content-addressed: a tag points to a small manifest of
+# sha256-digested layers, and `ollama pull` only fetches blobs it lacks. So a
+# refresh of an unchanged model already transfers ~0 bytes — but it still spawns
+# a pull per model. These helpers let --refresh skip that entirely: compare the
+# local manifest file's sha256 to the upstream manifest's, and only pull on a
+# real difference. registry.ollama.ai serves the manifest as a plain body (no
+# Docker-Content-Digest header), so we hash the body ourselves; the header is
+# added too when present, and any fetch/parse failure falls back to pulling.
+def _registry_ref(tag: str) -> tuple[str, str]:
+    """'qwen3.6:27b-mlx' -> ('library/qwen3.6', '27b-mlx'); namespaced tags kept."""
+    name, _, ref = tag.partition(":")
+    repo = name if "/" in name else f"library/{name}"
+    return repo, ref or "latest"
+
+
+def _ollama_models_root() -> Path:
+    root = os.environ.get("OLLAMA_MODELS")
+    return Path(root) if root else Path.home() / ".ollama" / "models"
+
+
+def local_manifest_digest(tag: str) -> str | None:
+    repo, ref = _registry_ref(tag)
+    p = _ollama_models_root() / "manifests" / "registry.ollama.ai" / repo / ref
+    if not p.is_file():
+        return None
+    return "sha256:" + hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+def remote_manifest_digests(tag: str) -> set[str] | None:
+    """Acceptable upstream digests (body hash + any header), or None on error."""
+    repo, ref = _registry_ref(tag)
+    url = f"{REGISTRY}/v2/{repo}/manifests/{ref}"
+    req = urllib.request.Request(url, headers={
+        "User-Agent": UA,
+        "Accept": "application/vnd.docker.distribution.manifest.v2+json",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            digs = {"sha256:" + hashlib.sha256(resp.read()).hexdigest()}
+    except (urllib.error.URLError, OSError):
+        return None
+    hdr = (resp.headers.get("Docker-Content-Digest") or "").strip()
+    if hdr:
+        digs.add(hdr)
+    return digs
+
+
+def changed_state(tag: str) -> bool | None:
+    """True = upstream differs, False = identical, None = couldn't determine."""
+    local = local_manifest_digest(tag)
+    if not local:
+        return None
+    remote = remote_manifest_digests(tag)
+    if not remote:
+        return None
+    return local not in remote
+
+
+# ── commands ────────────────────────────────────────────────────────────────
+def cmd_sync(args, reserve, families):
+    mem, basis = total_ram_gb()
+    budget = mem * (100 - reserve) / 100
+    key = os_key()
+    have = installed_models()
+    print(f"os={key}  {basis}={mem:.0f}GB  budget={budget:.0f}GB  "
+          f"reserve={reserve}%  mode={'refresh' if args.refresh else 'install-missing'}")
+    pulled = skipped = present = unchanged = 0
+    for family, tag, size, fits in resolve(families, key, budget):
+        if not fits:
+            print(f"  skip   {tag:<42} ({size:.0f}GB > budget)")
+            skipped += 1
+            continue
+        if tag in have:
+            if not args.refresh:
+                present += 1
+                continue
+            # refresh: only re-pull when the upstream manifest actually differs.
+            state = changed_state(tag)
+            if state is False:
+                print(f"  keep   {tag:<42} (unchanged)")
+                unchanged += 1
+                continue
+            note = "" if state is True else "  (digest unknown → pulling to be safe)"
+            print(f"  {'would' if args.dry_run else 'pull '} {tag}{note}")
+        else:
+            print(f"  {'would' if args.dry_run else 'pull '} {tag}")
+        if not args.dry_run:
+            rc = subprocess.run(["ollama", "pull", tag]).returncode
+            if rc != 0:
+                print(f"    ! pull failed (rc={rc})", file=sys.stderr)
+            else:
+                pulled += 1
+    print(f"done: pulled={pulled} unchanged={unchanged} "
+          f"already-present={present} skipped-oversized={skipped}")
+
+
+def cmd_status(args, reserve, families):
+    mem, basis = total_ram_gb()
+    budget = mem * (100 - reserve) / 100
+    key = os_key()
+    have = installed_models()
+    print(f"os={key}  {basis}={mem:.0f}GB  budget={budget:.0f}GB  reserve={reserve}%\n")
+    for fam in families:
+        print(f"{fam}:")
+        for family, tag, size, fits in resolve({fam: families[fam]}, key, budget):
+            if not fits:
+                state = "skip(oversized)"
+            elif tag in have:
+                state = "installed"
+            else:
+                state = "MISSING"
+            print(f"  {state:<16} {tag} ({size:.0f}GB)")
+
+
+def cmd_check(args, reserve, families):
+    key = os_key()
+    manifest_by_family = {}
+    for family, members in families.items():
+        tags = set()
+        for m in members or []:
+            for k in ("darwin", "linux"):
+                if m.get(k):
+                    tags.add(m[k])
+        manifest_by_family[family] = tags
+
+    for family, have_tags in manifest_by_family.items():
+        print(f"\n{family}")
+        try:
+            up = upstream_tags(family)
+        except urllib.error.HTTPError as e:
+            print(f"  ! upstream fetch failed: HTTP {e.code}")
+            continue
+        except (urllib.error.URLError, OSError) as e:
+            print(f"  ! upstream fetch failed: {e}")
+            continue
+        new = sorted(t for t in up - have_tags if not t.endswith(":cloud"))
+        gone = sorted(t for t in have_tags if t not in up)
+        # unknown precision/format keywords across all upstream tags
+        unknown = set()
+        for t in up:
+            variant = t.split(":", 1)[1] if ":" in t else ""
+            for tok in variant.split("-"):
+                if not tok or SIZE_RE.match(tok):
+                    continue
+                if tok.lower() not in KNOWN_TOKENS:
+                    unknown.add(tok)
+        if gone:
+            print(f"  ⚠ in manifest but gone upstream: {', '.join(gone)}")
+        if unknown:
+            print(f"  ★ NEW/unknown keyword(s) (possible new feature): "
+                  f"{', '.join(sorted(unknown))}")
+        if new:
+            print(f"  + {len(new)} upstream tag(s) not in manifest:")
+            for t in new:
+                print(f"      {t}")
+        if not (gone or unknown or new):
+            print("  ✓ manifest matches upstream")
+        if args.next_gen:
+            for cand in next_gen_candidates(family):
+                try:
+                    http_get(f"{OLLAMA_COM}/library/{cand}/tags")
+                    print(f"  ⬆ newer generation may exist: {cand}")
+                except urllib.error.HTTPError:
+                    pass
+                except (urllib.error.URLError, OSError):
+                    pass
+
+
+def next_gen_candidates(family: str) -> list[str]:
+    m = re.match(r"^(.*?)(\d+)(?:\.(\d+))?$", family)
+    if not m:
+        return []
+    head, major, minor = m.group(1), int(m.group(2)), m.group(3)
+    out = []
+    if minor is not None:
+        out.append(f"{head}{major}.{int(minor) + 1}")
+    out.append(f"{head}{major + 1}")
+    return out
+
+
+def cmd_prune(args, reserve, families):
+    key = os_key()
+    wanted = {tag for _, tag, _, _ in resolve(families, key, float("inf"))}
+    # also treat the other-OS tags as "wanted" so cross-OS checkouts don't nuke
+    for members in families.values():
+        for m in members or []:
+            for k in ("darwin", "linux"):
+                if m.get(k):
+                    wanted.add(m[k])
+    orphans = sorted(installed_models() - wanted)
+    if not orphans:
+        print("no orphans: every installed model is in the manifest")
+        return
+    print(f"{len(orphans)} installed model(s) not in the manifest:")
+    for t in orphans:
+        print(f"  {t}")
+    if not args.remove:
+        print("\n(use `ollama-models prune --remove` to delete these)")
+        return
+    ans = input(f"\nremove all {len(orphans)} model(s)? this frees disk but is "
+                f"irreversible [y/N] ")
+    if ans.strip().lower() != "y":
+        print("aborted")
+        return
+    for t in orphans:
+        print(f"  rm {t}")
+        subprocess.run(["ollama", "rm", t])
+
+
+# ── entrypoint ──────────────────────────────────────────────────────────────
+def main():
+    p = argparse.ArgumentParser(prog="ollama-models", description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--manifest", type=Path,
+                   default=Path(os.environ.get("OLLAMA_MODELS_MANIFEST", default_manifest())))
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    s = sub.add_parser("sync", help="pull manifest models for this OS")
+    s.add_argument("--refresh", action="store_true", help="re-pull all (update), not just missing")
+    s.add_argument("--dry-run", action="store_true", help="print what would be pulled")
+    s.set_defaults(func=cmd_sync)
+
+    sub.add_parser("status", help="show installed/missing/skipped").set_defaults(func=cmd_status)
+
+    c = sub.add_parser("check", help="diff manifest vs upstream tags")
+    c.add_argument("--next-gen", action="store_true", help="probe for newer family generations")
+    c.set_defaults(func=cmd_check)
+
+    pr = sub.add_parser("prune", help="find installed models not in the manifest")
+    pr.add_argument("--remove", action="store_true", help="delete the orphans (confirmed)")
+    pr.set_defaults(func=cmd_prune)
+
+    args = p.parse_args()
+    reserve, families = load_manifest(args.manifest)
+    args.func(args, reserve, families)
+
+
+if __name__ == "__main__":
+    main()

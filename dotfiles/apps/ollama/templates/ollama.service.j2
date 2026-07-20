@@ -1,0 +1,15 @@
+{# apps/ollama/templates/ollama.service.j2 — systemd unit for the ollama daemon (Debian) #}
+[Unit]
+Description=Ollama Service
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/ollama serve
+User=ollama
+Group=ollama
+Restart=always
+RestartSec=3
+Environment="PATH={{ ansible_facts['env']['PATH'] }}"
+
+[Install]
+WantedBy=multi-user.target

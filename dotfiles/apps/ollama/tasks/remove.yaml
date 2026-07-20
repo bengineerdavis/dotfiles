@@ -20,10 +20,10 @@
   when: ollama_uninstall_answer.user_input | lower != 'yes'
   tags: [remove]
 
-- name: Ensure running only on macOS
+- name: Ensure a supported OS (macOS or Debian)
   ansible.builtin.fail:
-    msg: "This uninstall task list currently only supports macOS."
-  when: ansible_facts['os_family'] != "Darwin"
+    msg: "This uninstall task list supports macOS and Debian only."
+  when: ansible_facts['os_family'] not in ["Darwin", "Debian"]
 
 - name: Set effective model removal choice (from var or prompt)
   ansible.builtin.set_fact:
@@ -36,7 +36,7 @@
         )
       }}
 
-# --- Stop launch agent / service (best-effort) -------------------------------
+# --- macOS: stop launch agent / service (best-effort) ------------------------
 
 - name: Try to disable Ollama launch agent at login
   ansible.builtin.shell: |
@@ -46,6 +46,7 @@
   register: ollama_disable_result
   failed_when: false
   changed_when: false
+  when: ansible_facts['os_family'] == "Darwin"
 
 - name: Try to bootout Ollama launch agent for current user
   ansible.builtin.shell: |
@@ -55,6 +56,7 @@
   register: ollama_bootout_result
   failed_when: false
   changed_when: false
+  when: ansible_facts['os_family'] == "Darwin"
 
 - name: Note if disabling/bootout of agent had issues
   ansible.builtin.debug:
@@ -64,25 +66,79 @@
       disable stderr={{ ollama_disable_result.stderr | default('') }},
       bootout stdout={{ ollama_bootout_result.stdout | default('') }},
       bootout stderr={{ ollama_bootout_result.stderr | default('') }}.
+  when: ansible_facts['os_family'] == "Darwin"
 
-# --- Remove GUI app via Homebrew cask + leftovers ----------------------------
+# --- macOS: remove GUI app via Homebrew cask + leftovers ---------------------
 
 - name: Remove Ollama GUI app via Homebrew cask
   community.general.homebrew_cask:
     name: ollama
     state: absent
   become: false
+  when: ansible_facts['os_family'] == "Darwin"
 
 - name: Remove Ollama.app from /Applications (if still present)
   ansible.builtin.file:
     path: "/Applications/Ollama.app"
     state: absent
+  when: ansible_facts['os_family'] == "Darwin"
 
 - name: Remove default ollama CLI symlink
   ansible.builtin.file:
     path: "/usr/local/bin/ollama"
     state: absent
   become: true
+  when: ansible_facts['os_family'] == "Darwin"
+
+# --- Linux (Debian): stop service + remove binary/user/unit ------------------
+
+- name: "ollama (Debian): stop + disable ollama service"
+  ansible.builtin.systemd:
+    name: ollama
+    state: stopped
+    enabled: false
+  become: true
+  failed_when: false
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: "ollama (Debian): remove systemd unit"
+  ansible.builtin.file:
+    path: /etc/systemd/system/ollama.service
+    state: absent
+  become: true
+  register: ollama_unit_removed
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: "ollama (Debian): reload systemd after unit removal"
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - ollama_unit_removed.changed
+
+- name: "ollama (Debian): remove ollama binary"
+  ansible.builtin.file:
+    path: /usr/bin/ollama
+    state: absent
+  become: true
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: "ollama (Debian): remove ollama system user + home"
+  ansible.builtin.user:
+    name: ollama
+    state: absent
+    remove: true
+  become: true
+  failed_when: false
+  when: ansible_facts['os_family'] == "Debian"
+
+# --- Both OSes: remove the ollama-models CLI symlink -------------------------
+
+- name: Remove the ollama-models CLI symlink
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/bin/ollama-models"
+    state: absent
 
 # --- Zsh completion cleanup ---------------------------------------------------
 

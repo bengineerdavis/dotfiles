@@ -1,1 +1,109 @@
-# defaults/main.yaml
+# apps/ollama/defaults/main.yaml
+#
+# ── Ollama model manifest — single source of truth ───────────────────────────
+# This list drives every model the topic installs and keeps up to date. It is
+# consumed by the `ollama-models` CLI (apps/ollama/files/ollama-models), which
+# the install/upgrade tasks shell out to. Edit it directly:
+#
+#   • add a model      → copy a line under its family; set darwin/linux + size_gb
+#   • add a family      → add a new `family-name:` key with a list of members
+#   • drop a model      → delete/comment its line (upgrades stop touching it;
+#                         already-pulled weights are NOT auto-deleted — use
+#                         `ollama-models prune` to list orphans, then `ollama rm`)
+#   • check upstream    → `ollama-models check`  (new tags, new precision formats,
+#                         `--next-gen` probes for newer family generations)
+#
+# Organized by model family (name + generation, e.g. `qwen3.6`). Each family
+# key maps to a list of its members; the family key is the model name and every
+# member's tag starts with it.
+#
+# Precision rules used to choose each tag (see README.md for the full table):
+#   small  (≤4B params) → full precision   (mac: -mlx-bf16/-bf16, linux: -bf16/-fp16)
+#   large  (>4B)        → fp8 if it fits the RAM budget, else fp4 floor (never below fp4)
+#   embeddings          → full precision, identical tag on both OSes (no MLX/fp4 builds)
+# Mac prefers MLX builds; GGUF-only families fall back to q-quants (run fine on Metal).
+#
+# `size_gb` is the approximate on-disk/VRAM footprint of the chosen tag. At
+# runtime each entry is gated against the RAM budget (see below); anything
+# larger than the budget is skipped with a log line, so the same manifest works
+# on a 16 GB laptop and a 128 GB workstation.
+
+# Percent of total RAM kept free for other programs. Budget = total − this%.
+ollama_ram_reserve_pct: 33
+
+ollama_models:
+
+  # ═══════════════ general / chat ═══════════════
+  qwen3.6:                  # flagship general + coding (MoE)
+    - { darwin: "qwen3.6:27b-mlx",              linux: "qwen3.6:27b-nvfp4",              size_gb: 20 }
+    - { darwin: "qwen3.6:35b-a3b-nvfp4",        linux: "qwen3.6:35b-a3b-nvfp4",          size_gb: 22 }
+    - { darwin: "qwen3.6:27b-coding-nvfp4",     linux: "qwen3.6:27b-coding-nvfp4",       size_gb: 20 }
+
+  qwen3.5:                  # previous gen (kept for A/B; only qwen with small members)
+    - { darwin: "qwen3.5:4b-mlx-bf16",          linux: "qwen3.5:4b-bf16",                size_gb: 9 }
+    - { darwin: "qwen3.5:9b-mxfp8",             linux: "qwen3.5:9b-mxfp8",               size_gb: 12 }
+    - { darwin: "qwen3.5:27b-mlx",              linux: "qwen3.5:27b-nvfp4",              size_gb: 20 }
+    - { darwin: "qwen3.5:35b-a3b-nvfp4",        linux: "qwen3.5:35b-a3b-nvfp4",          size_gb: 22 }
+
+  gpt-oss:                  # OpenAI open weights (native MXFP4, single build)
+    - { darwin: "gpt-oss:20b",                  linux: "gpt-oss:20b",                    size_gb: 14 }
+
+  glm-4.7-flash:            # strong 30B-class (GGUF only)
+    - { darwin: "glm-4.7-flash:q4_K_M",         linux: "glm-4.7-flash:q4_K_M",           size_gb: 19 }
+
+  # ═══════════════ efficient / small ═══════════════
+  gemma4:                   # efficient + vision-capable
+    - { darwin: "gemma4:e2b-mlx-bf16",          linux: "gemma4:e2b-it-bf16",             size_gb: 10 }
+    - { darwin: "gemma4:e4b-mlx-bf16",          linux: "gemma4:e4b-it-bf16",             size_gb: 16 }
+    - { darwin: "gemma4:12b-mxfp8",             linux: "gemma4:12b-mxfp8",               size_gb: 12 }
+    - { darwin: "gemma4:26b-mlx",               linux: "gemma4:26b-nvfp4",               size_gb: 17 }
+    - { darwin: "gemma4:31b-mlx",               linux: "gemma4:31b-nvfp4",               size_gb: 20 }
+
+  granite4.1:               # enterprise/efficient (GGUF only)
+    - { darwin: "granite4.1:3b-bf16",           linux: "granite4.1:3b-bf16",             size_gb: 7 }
+    - { darwin: "granite4.1:8b-q8_0",           linux: "granite4.1:8b-q8_0",             size_gb: 10 }
+    - { darwin: "granite4.1:30b-q4_K_M",        linux: "granite4.1:30b-q4_K_M",          size_gb: 17 }
+
+  granite4:                 # previous gen (kept for A/B; no bf16 at 3b, uses default tag)
+    - { darwin: "granite4:3b",                  linux: "granite4:3b",                    size_gb: 3 }
+    - { darwin: "granite4:32b-a9b-h",           linux: "granite4:32b-a9b-h",             size_gb: 19 }
+
+  lfm2:                     # on-device/edge hybrid MoE (GGUF only)
+    - { darwin: "lfm2:24b",                     linux: "lfm2:24b",                       size_gb: 14 }
+
+  # ═══════════════ reasoning ═══════════════
+  olmo-3.1:                 # fully-open reasoning
+    - { darwin: "olmo-3.1:32b-think-q4_K_M",    linux: "olmo-3.1:32b-think-q4_K_M",      size_gb: 19 }
+    - { darwin: "olmo-3.1:32b-instruct-q4_K_M", linux: "olmo-3.1:32b-instruct-q4_K_M",   size_gb: 19 }
+
+  olmo-3:                   # previous gen (kept for A/B)
+    - { darwin: "olmo-3:7b-think-q8_0",         linux: "olmo-3:7b-think-q8_0",           size_gb: 8 }
+    - { darwin: "olmo-3:32b-think-q4_K_M",      linux: "olmo-3:32b-think-q4_K_M",        size_gb: 19 }
+
+  deepseek-r1:              # RL-reasoning lineage (32b only)
+    - { darwin: "deepseek-r1:32b",              linux: "deepseek-r1:32b",                size_gb: 20 }
+
+  # ═══════════════ coding ═══════════════
+  devstral-small-2:         # codebase/agent coding (GGUF only)
+    - { darwin: "devstral-small-2:24b",         linux: "devstral-small-2:24b",           size_gb: 15 }
+
+  # ═══════════════ vision / multimodal ═══════════════
+  qwen3-vl:                 # vision-language (GGUF only)
+    - { darwin: "qwen3-vl:8b-instruct-q8_0",        linux: "qwen3-vl:8b-instruct-q8_0",        size_gb: 10 }
+    - { darwin: "qwen3-vl:30b-a3b-instruct-q4_K_M", linux: "qwen3-vl:30b-a3b-instruct-q4_K_M", size_gb: 20 }
+
+  # ═══════════════ embedding / retrieval (full precision, OS-identical) ═══════════════
+  embeddinggemma:
+    - { darwin: "embeddinggemma:300m-bf16",     linux: "embeddinggemma:300m-bf16",       size_gb: 1 }
+
+  qwen3-embedding:
+    - { darwin: "qwen3-embedding:0.6b-fp16",    linux: "qwen3-embedding:0.6b-fp16",      size_gb: 2 }
+    - { darwin: "qwen3-embedding:4b-fp16",      linux: "qwen3-embedding:4b-fp16",        size_gb: 8 }
+    - { darwin: "qwen3-embedding:8b-fp16",      linux: "qwen3-embedding:8b-fp16",        size_gb: 15 }
+
+  bge-m3:
+    - { darwin: "bge-m3:567m-fp16",             linux: "bge-m3:567m-fp16",               size_gb: 2 }
+
+  # reranker (community namespace — not in the official library; uncomment to use)
+  # dengcao/Qwen3-Reranker-0.6B:
+  #   - { darwin: "dengcao/Qwen3-Reranker-0.6B", linux: "dengcao/Qwen3-Reranker-0.6B",   size_gb: 1 }

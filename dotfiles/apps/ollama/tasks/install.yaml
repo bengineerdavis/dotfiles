@@ -285,3 +285,82 @@
     - ollama_enable_result.rc is defined
     - ollama_enable_result.rc != 0
   tags: ollama_service
+
+# ── Linux (Debian): install ollama from the official tarball via native modules ─
+# No official apt package exists; this replicates install.sh's steps idempotently
+# (download+extract tarball, create service user, install+enable systemd unit).
+- name: "ollama (Debian): ensure zstd is present (for .tar.zst extraction)"
+  ansible.builtin.apt:
+    name: zstd
+    state: present
+    update_cache: true
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: ollama_linux
+
+- name: "ollama (Debian): download + extract binary tarball into /usr"
+  ansible.builtin.unarchive:
+    src: "https://ollama.com/download/ollama-linux-{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'amd64' }}.tar.zst"
+    dest: /usr
+    remote_src: true
+    extra_opts: ["--zstd"]
+    creates: /usr/bin/ollama
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: ollama_linux
+
+- name: "ollama (Debian): create ollama system user"
+  ansible.builtin.user:
+    name: ollama
+    system: true
+    shell: /bin/false
+    home: /usr/share/ollama
+    create_home: true
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: ollama_linux
+
+- name: "ollama (Debian): install systemd unit"
+  ansible.builtin.template:
+    src: ollama.service.j2
+    dest: /etc/systemd/system/ollama.service
+    mode: "0644"
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: ollama_linux
+
+- name: "ollama (Debian): enable + start ollama service"
+  ansible.builtin.systemd:
+    name: ollama
+    daemon_reload: true
+    enabled: true
+    state: started
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: ollama_linux
+
+# ── Both OSes: install the ollama-models CLI and sync the manifest ─────────────
+# These two tasks are ALSO tagged `upgrade`: the root playbook's upgrade
+# post_task calls `~/bin/ollama-models sync --refresh`, so the CLI symlink must
+# exist during `--tags upgrade` too — not only after a prior `--tags install`.
+# Both are idempotent (state=directory / state=link force=true), so running them
+# in either phase is safe. Teardown lives in remove.yaml.
+- name: "Ensure ~/bin exists (for the ollama-models CLI)"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/bin"
+    state: directory
+    mode: "0755"
+  tags: [ollama_models, upgrade]
+
+- name: "Symlink the ollama-models CLI onto PATH"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/ollama-models"
+    dest: "{{ ansible_facts['env']['HOME'] }}/bin/ollama-models"
+    state: link
+    force: true
+  tags: [ollama_models, upgrade]
+
+# NOTE: the actual model pull (`ollama-models sync`) is intentionally NOT here.
+# Models are hundreds of GB, so they must download LAST — after every tier and
+# topic. That runs as a post_tasks step in the root playbook.yaml, gated on
+# ollama being in the run. This task file only sets up the fast binary + CLI.

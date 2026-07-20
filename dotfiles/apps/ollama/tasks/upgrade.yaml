@@ -1,0 +1,18 @@
+# apps/ollama/tasks/upgrade.yaml
+#
+# Intentionally a near no-op:
+#   • the ollama BINARY is upgraded by tier-0 package managers (brew cask on
+#     macOS, apt/tarball refresh on Debian), not here.
+#   • the MODEL refresh (`ollama-models sync --refresh`) runs LAST, as a
+#     post_tasks step in the root playbook.yaml — models are hundreds of GB and
+#     must download after every other tier/topic finishes.
+#
+# Kept as an explicit file because the lifecycle contract requires all five
+# task files to exist. See apps/ollama/README.md and the root playbook.
+
+- name: "Upgrade: ollama model refresh is handled by the root post_tasks play"
+  ansible.builtin.debug:
+    msg: >-
+      ollama binary upgrades via brew/apt (tier 0); model refresh runs last via
+      the root playbook post_tasks (ollama-models sync --refresh).
+  tags: ollama_models
