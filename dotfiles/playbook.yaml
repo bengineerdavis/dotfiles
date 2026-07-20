@@ -2,17 +2,21 @@
 # playbook.yaml — main dotfiles provisioner
 # Driver: chezmoi. This playbook is invoked by chezmoi or directly.
 #
+# Topics are discovered dynamically. Each topic owns its lifecycle via
+# tasks/main.yaml. Run order is determined by meta/main.yml topic_tier.
+# See docs/CONVENTIONS.md for the full contract.
+#
 # Tag hierarchy:
-#   provision      = bootstrap + prerequisites + upgrade + install (full fresh machine)
-#   bootstrap      = ensure package managers exist (confirmed, never silent)
-#   prerequisites  = core tools required before any topic installs
-#   upgrade        = system-level upgrades only (brew, apt) — no topic installs
-#   install        = all topic installs (assumes env is ready)
-#   remove         = explicit uninstall only, never part of provision
+#   provision      = bootstrap + prerequisites + upgrade + install
+#   bootstrap      = first-time setup of system tools
+#   prerequisites  = core deps before topics install
+#   upgrade        = refresh installed state
+#   install        = install topics
+#   remove         = explicit uninstall (never part of provision)
 #
 # Examples:
 #   ansible-playbook playbook.yaml --tags provision   # full fresh machine
-#   ansible-playbook playbook.yaml --tags upgrade     # upgrade existing env
+#   ansible-playbook playbook.yaml --tags upgrade     # refresh everything
 #   ansible-playbook playbook.yaml --tags install     # install all topics
 #   ansible-playbook playbook.yaml --tags remove      # uninstall all topics
 
@@ -28,91 +32,236 @@
     user_appdir: "{{ ansible_facts['env']['HOME'] }}/Applications"
 
   pre_tasks:
+    # ── OS detection ─────────────────────────────────────────────────────────
     - name: "Detect OS family"
       ansible.builtin.debug:
         msg: "OS: {{ ansible_facts['os_family'] }}, Arch: {{ ansible_facts['architecture'] }}"
       tags: [always]
 
-  tasks:
-    # ── Bootstrap ──────────────────────────────────────────────────────────────
-    # Ensure package managers exist. Confirmed, never silent. No drift tolerated.
+    # ── Topic discovery ──────────────────────────────────────────────────────
+    # Each topic declares its identity in apps/<topic>/topic.yml at the role
+    # root. Ansible's role loader reserves meta/main.yml for galaxy/role
+    # metadata, so we deliberately sit alongside meta/ rather than inside it.
+    # See docs/CONVENTIONS.md.
 
-    - name: "Bootstrap: Homebrew (macOS)"
-      ansible.builtin.import_role:
-        name: apps/homebrew
-        tasks_from: bootstrap
-      when: ansible_facts['os_family'] == 'Darwin'
-      tags: [bootstrap, provision]
-
-    - name: "Bootstrap: apt (Linux)"
-      ansible.builtin.import_role:
-        name: apps/apt
-        tasks_from: bootstrap
-      when: ansible_facts['os_family'] == 'Debian'
-      tags: [bootstrap, provision]
-
-    - name: "Bootstrap: Docker"
-      ansible.builtin.import_role:
-        name: apps/docker
-        tasks_from: bootstrap
-      tags: [bootstrap, provision]
-
-    # ── Prerequisites ──────────────────────────────────────────────────────────
-    # Core tools required before any topic installs. Idempotent, no confirmation.
-
-    - name: "Prerequisites: Homebrew (macOS)"
-      ansible.builtin.import_role:
-        name: apps/homebrew
-        tasks_from: prerequisites
-      when: ansible_facts['os_family'] == 'Darwin'
-      tags: [prerequisites, provision]
-
-    - name: "Prerequisites: apt (Linux)"
-      ansible.builtin.import_role:
-        name: apps/apt
-        tasks_from: prerequisites
-      when: ansible_facts['os_family'] == 'Debian'
-      tags: [prerequisites, provision]
-
-    # ── Upgrade ────────────────────────────────────────────────────────────────
-    # System-level upgrades only. Topics do not own upgrade logic.
-
-    - name: "Upgrade: Homebrew (macOS)"
-      ansible.builtin.import_role:
-        name: apps/homebrew
-        tasks_from: upgrade
-      when: ansible_facts['os_family'] == 'Darwin'
-      tags: [upgrade, provision]
-
-    - name: "Upgrade: apt (Linux)"
-      ansible.builtin.import_role:
-        name: apps/apt
-        tasks_from: upgrade
-      when: ansible_facts['os_family'] == 'Debian'
-      tags: [upgrade, provision]
-
-    # ── Topic installs ─────────────────────────────────────────────────────────
-    # Dynamically discover and run all topic install tasks.
-
-    - name: "Find all topic roles in apps/"
+    - name: "Find all topic.{yml,yaml} files"
       ansible.builtin.find:
-        paths: "apps/"
-        recurse: yes
-        patterns: "main.yaml"
+        paths: "{{ playbook_dir }}/apps"
+        patterns:
+          - "topic.yml"
+          - "topic.yaml"
+        recurse: true
+        depth: 2
         file_type: file
-      register: app_files
-      tags: [install, remove, provision]
+      register: meta_find_result
+      tags: [always]
 
-    - name: "Dynamically include topic roles"
+    - name: "Collect topic.yml paths (sorted)"
+      ansible.builtin.set_fact:
+        topic_meta_paths: "{{ meta_find_result.files | map(attribute='path') | list | sort }}"
+      tags: [always]
+
+    - name: "Load each topic's topic.yml"
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: topic_meta_reads
+      loop: "{{ topic_meta_paths }}"
+      loop_control:
+        label: "{{ item | dirname | basename }}"
+      tags: [always]
+
+    - name: "Build topic_metadata (all topics in apps/)"
+      ansible.builtin.set_fact:
+        topic_metadata: >-
+          {{
+            topic_meta_reads.results
+            | map(attribute='content')
+            | map('b64decode')
+            | map('from_yaml')
+            | list
+          }}
+      tags: [always]
+
+    - name: "Initialize topics_in_run as empty list"
+      ansible.builtin.set_fact:
+        topics_in_run: []
+      tags: [always]
+
+    - name: "Filter topics to current OS family"
+      ansible.builtin.set_fact:
+        topics_in_run: "{{ topics_in_run + [item] }}"
+      loop: "{{ topic_metadata }}"
+      loop_control:
+        label: "{{ item.topic_name }} ({{ item.topic_tier }})"
+      when: ansible_facts['os_family'] in item.topic_os
+      tags: [always]
+
+    # ── Build provides maps ──────────────────────────────────────────────────
+    - name: "Initialize provides maps as empty"
+      ansible.builtin.set_fact:
+        provides_map_all: {}
+        provides_map_run: {}
+      tags: [always]
+
+    - name: "Populate provides_map_all (every topic, regardless of OS)"
+      ansible.builtin.set_fact:
+        provides_map_all: "{{ provides_map_all | combine({item.1: item.0.topic_name}) }}"
+      loop: "{{ topic_metadata | subelements('topic_provides', skip_missing=True) }}"
+      loop_control:
+        label: "{{ item.1 }} → {{ item.0.topic_name }}"
+      tags: [always]
+
+    - name: "Populate provides_map_run (topics in this run only)"
+      ansible.builtin.set_fact:
+        provides_map_run: "{{ provides_map_run | combine({item.1: item.0.topic_name}) }}"
+      loop: "{{ topics_in_run | subelements('topic_provides', skip_missing=True) }}"
+      loop_control:
+        label: "{{ item.1 }} → {{ item.0.topic_name }}"
+      tags: [always]
+
+    # ── Sanity check: resolve every topic_requires ───────────────────────────
+    # For each (topic, required dep) pair we resolve to one of three states:
+    #   OK            — provided by a topic in run, or present on PATH
+    #   TOPIC_NOT_RUN — a topic provides it, but is not in this run (OS mismatch)
+    #   NO_TOPIC      — nothing provides it and it's not on PATH
+    # See docs/CONVENTIONS.md.
+
+    - name: "Collect (topic, required-dep) pairs"
+      ansible.builtin.set_fact:
+        require_pairs: "{{ topics_in_run | subelements('topic_requires', skip_missing=True) }}"
+      tags: [bootstrap, prerequisites, install, upgrade, remove, provision]
+
+    - name: "Probe PATH for each required dep"
+      ansible.builtin.shell: "command -v {{ item.1 | quote }} >/dev/null 2>&1"
+      args:
+        executable: /bin/bash
+      register: dep_probe
+      loop: "{{ require_pairs }}"
+      loop_control:
+        label: "{{ item.0.topic_name }} → {{ item.1 }}"
+      changed_when: false
+      failed_when: false
+      tags: [bootstrap, prerequisites, install, upgrade, remove, provision]
+
+    - name: "Sanity check (strict): fail on unresolved deps"
+      ansible.builtin.assert:
+        that:
+          - (item.item.1 in provides_map_run) or (item.rc == 0)
+        fail_msg: >-
+          {%- set topic = item.item.0.topic_name -%}
+          {%- set dep = item.item.1 -%}
+          {%- if dep in provides_map_all -%}
+          [TOPIC_NOT_RUN] topic '{{ topic }}' requires '{{ dep }}'. Topic
+          'apps/{{ provides_map_all[dep] }}' provides it, but is not in this
+          run (likely a topic_os mismatch). Install that topic first, or
+          update apps/{{ topic }}/meta/main.yml.
+          {%- else -%}
+          [NO_TOPIC] topic '{{ topic }}' requires '{{ dep }}'. No topic
+          provides '{{ dep }}' and it is not on PATH. Either add a topic
+          for '{{ dep }}', or remove the requirement from
+          apps/{{ topic }}/meta/main.yml.
+          {%- endif -%}
+      loop: "{{ dep_probe.results }}"
+      loop_control:
+        label: "{{ item.item.0.topic_name }} → {{ item.item.1 }}"
+      tags: [bootstrap, prerequisites, install, upgrade, provision]
+
+    - name: "Sanity check (warn-only under --tags remove)"
+      ansible.builtin.debug:
+        msg: >-
+          [remove] topic '{{ item.item.0.topic_name }}' requires
+          '{{ item.item.1 }}' — dependency missing, tolerated under remove.
+      loop: "{{ dep_probe.results }}"
+      loop_control:
+        label: "{{ item.item.0.topic_name }} → {{ item.item.1 }}"
+      when:
+        - item.item.1 not in provides_map_run
+        - item.rc != 0
+      tags: [remove]
+
+  # ── Topic execution, ordered by tier ────────────────────────────────────────
+  # Each block runs one tier. Within a tier, topics are sorted alphabetically.
+  # Lifecycle tags on the inner import_tasks (in each topic's tasks/main.yaml)
+  # filter which phase runs.
+  tasks:
+    - name: "Run pkg-manager tier topics"
       ansible.builtin.include_role:
-        name: "apps/{{ item }}"
+        name: "apps/{{ item.topic_name }}"
       loop: >-
         {{
-          app_files.files
-          | map(attribute='path')
-          | select('search', 'tasks/main.yaml')
-          | map('regex_replace', '.*/apps/([^/]+)/tasks/main.yaml', '\\1')
-          | reject('in', ['homebrew', 'apt', 'docker'])
-          | list | sort
+          topics_in_run
+          | selectattr('topic_tier', 'eq', 'pkg-manager')
+          | sort(attribute='topic_name')
+          | list
         }}
-      tags: [install, remove, provision]
+      loop_control:
+        label: "{{ item.topic_name }} [pkg-manager]"
+      tags: [bootstrap, prerequisites, upgrade, install, remove, provision]
+
+    - name: "Run runtime-manager tier topics"
+      ansible.builtin.include_role:
+        name: "apps/{{ item.topic_name }}"
+      loop: >-
+        {{
+          topics_in_run
+          | selectattr('topic_tier', 'eq', 'runtime-manager')
+          | sort(attribute='topic_name')
+          | list
+        }}
+      loop_control:
+        label: "{{ item.topic_name }} [runtime-manager]"
+      tags: [bootstrap, prerequisites, upgrade, install, remove, provision]
+
+    - name: "Run app tier topics"
+      ansible.builtin.include_role:
+        name: "apps/{{ item.topic_name }}"
+      loop: >-
+        {{
+          topics_in_run
+          | selectattr('topic_tier', 'eq', 'app')
+          | sort(attribute='topic_name')
+          | list
+        }}
+      loop_control:
+        label: "{{ item.topic_name }} [app]"
+      tags: [bootstrap, prerequisites, upgrade, install, remove, provision]
+
+  # ── Post: pull ollama models LAST (after every tier/topic) ───────────────────
+  # Models are hundreds of GB — they are "attachments": heavy data gated behind
+  # an explicit profile. They run ONLY when `full` (or `attachments`) is in the
+  # requested tags; a bare install/upgrade or `minimal` is apps-only and pulls
+  # nothing. The runner scripts (update.sh) resolve minimal/full and pass it as a
+  # tag; `ansible_run_tags` carries that choice here. Tags stay disjoint so no
+  # path triggers a sync+refresh double pull:
+  #   provision / install + full → `sync` (pull missing)
+  #   upgrade + full  OR  attachments → `sync --refresh` (re-pull only changed)
+  # PATH prepends ~/.local/bin so the uv-script CLI finds the system uv/uvx.
+  post_tasks:
+    - name: "Resolve attachments profile (heavy data gated behind 'full'/'attachments')"
+      ansible.builtin.set_fact:
+        attachments_enabled: "{{ ('full' in ansible_run_tags) or ('attachments' in ansible_run_tags) }}"
+      tags: [always]
+
+    - name: "ollama: pull missing manifest models (provision/install + full — runs last)"
+      ansible.builtin.command:
+        cmd: "{{ ansible_facts['env']['HOME'] }}/bin/ollama-models sync"
+      environment:
+        PATH: "{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ homebrew_prefix }}/bin:/usr/local/bin:/usr/bin:{{ ansible_facts['env']['PATH'] }}"
+      register: ollama_models_install
+      changed_when: "'pulled=0 ' not in (ollama_models_install.stdout | default(''))"
+      when:
+        - "'ollama' in provides_map_run"
+        - attachments_enabled | default(false) | bool
+      tags: [install, provision]
+
+    - name: "ollama: refresh changed manifest models to latest (upgrade + full — runs last)"
+      ansible.builtin.command:
+        cmd: "{{ ansible_facts['env']['HOME'] }}/bin/ollama-models sync --refresh"
+      environment:
+        PATH: "{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ homebrew_prefix }}/bin:/usr/local/bin:/usr/bin:{{ ansible_facts['env']['PATH'] }}"
+      register: ollama_models_refresh
+      changed_when: "'pulled=0 ' not in (ollama_models_refresh.stdout | default(''))"
+      when:
+        - "'ollama' in provides_map_run"
+        - attachments_enabled | default(false) | bool
+      tags: [upgrade, attachments]
