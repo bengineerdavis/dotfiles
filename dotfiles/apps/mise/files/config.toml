@@ -11,7 +11,11 @@ fzf = "latest"
 go = "latest"
 
 # python tooling
-uv = "latest"
+# uv/uvx is installed at the SYSTEM level via the astral installer (see
+# bootstrap/bootstrap.sh) and intentionally NOT managed by mise. mise's pipx
+# backend (pipx.uvx = true) therefore uses a stable system uvx that `mise
+# upgrade` never churns — which is what previously caused ansible to self-upgrade
+# mid-playbook-run.
 python = "latest"
 "pipx:pre-commit" = "latest"
 "pipx:git-filter-repo" = "latest"
@@ -42,7 +46,9 @@ python = "latest"
 prek = "latest"
 "pipx:trash-cli" = "latest"
 lazygit = "latest"
-ansible-core = "latest"
+# ansible is owned by mise via the pipx backend below (`pipx:ansible`), built with
+# the system uvx. The direct `ansible-core` backend was removed to avoid two
+# ansibles on PATH and the mid-run self-upgrade race.
 ruby = "latest"
 rust = "latest"
 "cargo:broot" = "latest"
@@ -63,8 +69,26 @@ ruff = "latest"
 usage = "latest"
 "gem:fpm" = "latest"
 "pipx:aider-install" = "latest"
-"pipx:ansible" = "latest"
-"pipx:borgbackup" = "latest"
+# ansible + its maintenance/runtime deps, all in ONE tool venv (built by the
+# system uvx) → a single ansible-core, no dual-ownership version skew.
+#
+# The `ansible` meta-package (primary) bundles the community collections but its
+# ONLY console script is `ansible-community`. The real CLIs (ansible,
+# ansible-playbook, ansible-galaxy, ...) live in the ansible-core dependency, so
+# they must be exposed explicitly or `mise exec -- ansible-playbook` finds
+# nothing. `--with-executables-from` links a dependency's scripts onto PATH.
+#   ansible-core  — expose ansible / ansible-playbook / ansible-galaxy / ...
+#   ansible-lint  — lint playbooks/roles (+ expose its CLI)
+#   argcomplete   — tab-completion for ansible* commands
+#   docker        — Docker SDK required by community.docker.docker_image
+"pipx:ansible" = { version = "latest", uvx_args = """
+  --with ansible-lint
+  --with argcomplete
+  --with docker
+  --with-executables-from ansible-core
+  --with-executables-from ansible-lint
+""" }
+# "pipx:borgbackup" = "latest"
 "pipx:buku" = "latest"
 "pipx:cookiecutter" = "latest"
 "pipx:copier" = "latest"
@@ -93,3 +117,5 @@ usage = "latest"
 "pipx:whisperx" = "latest"
 "pipx:yt-dlp" = "latest"
 "pipx:zxcvbn" = "latest"
+"pipx:fangfrisch" = "latest"
+"github:danielmiessler/fabric" = "v1.4.458"

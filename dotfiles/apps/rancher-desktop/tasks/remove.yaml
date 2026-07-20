@@ -3,31 +3,9 @@
 # Only invoked via --tags remove.
 # Mirror the install.yaml structure — one block per package manager.
 
-# ── macOS (Homebrew) ──────────────────────────────────────────────────────────
-# - name: "Remove rancher-desktop via Homebrew (macOS)"
-#   community.general.homebrew:
-#     name: rancher-desktop
-#     state: absent
-#   when: ansible_facts['os_family'] == 'Darwin'
-
 # ── macOS (Homebrew Cask) ─────────────────────────────────────────────────────
-# - name: "Remove rancher-desktop via Homebrew Cask (macOS)"
-#   community.general.homebrew_cask:
-#     name: rancher-desktop
-#     state: absent
-#   when: ansible_facts['os_family'] == 'Darwin'
-
-# ── Linux (apt) ───────────────────────────────────────────────────────────────
-# - name: "Remove rancher-desktop via apt (Linux)"
-#   ansible.builtin.apt:
-#     name: rancher-desktop
-#     state: absent
-#   become: true
-#   when: ansible_facts['os_family'] == 'Debian'
-
-# ── Docker ────────────────────────────────────────────────────────────────────
-# - name: "Remove rancher-desktop Docker image"
-#   community.docker.docker_image:
-#     name: rancher-desktop:latest
-#     state: absent
-#   when: install_method | default('') == 'docker'
+- name: "Remove Rancher Desktop via Homebrew Cask (macOS)"
+  community.general.homebrew_cask:
+    name: rancher
+    state: absent
+  when: ansible_facts['os_family'] == 'Darwin'

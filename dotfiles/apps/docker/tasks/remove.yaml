@@ -3,31 +3,12 @@
 # Only invoked via --tags remove.
 # Mirror the install.yaml structure — one block per package manager.
 
-# ── macOS (Homebrew) ──────────────────────────────────────────────────────────
-# - name: "Remove docker via Homebrew (macOS)"
-#   community.general.homebrew:
-#     name: docker
-#     state: absent
-#   when: ansible_facts['os_family'] == 'Darwin'
-
-# ── macOS (Homebrew Cask) ─────────────────────────────────────────────────────
-# - name: "Remove docker via Homebrew Cask (macOS)"
-#   community.general.homebrew_cask:
-#     name: docker
-#     state: absent
-#   when: ansible_facts['os_family'] == 'Darwin'
-
 # ── Linux (apt) ───────────────────────────────────────────────────────────────
-# - name: "Remove docker via apt (Linux)"
-#   ansible.builtin.apt:
-#     name: docker
-#     state: absent
-#   become: true
-#   when: ansible_facts['os_family'] == 'Debian'
-
-# ── Docker ────────────────────────────────────────────────────────────────────
-# - name: "Remove docker Docker image"
-#   community.docker.docker_image:
-#     name: docker:latest
-#     state: absent
-#   when: install_method | default('') == 'docker'
+- name: "Remove Docker engine + compose v2 via apt (Linux)"
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - docker-compose-v2
+    state: absent
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'

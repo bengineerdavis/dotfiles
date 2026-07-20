@@ -14,9 +14,24 @@ export PROJECTS=~/code
     source ~/.localrc
   fi
 
-  # all of our zsh files
+  # all of our zsh files — load each topic's canonical fragments exactly once.
+  # Canonical layout is apps/<topic>/files/zsh/*.zsh (the same layout the
+  # scaffold in template_dir/files/zsh generates). The old broad
+  # `$ZSH/**/*.zsh` glob also matched legacy flat (apps/<topic>/*.zsh) and
+  # zsh/-subdir copies AND template_dir scaffolding, so every fragment was
+  # sourced 2–3x — e.g. zoxide init ran twice, producing the _ZO_DOCTOR
+  # "initialize zoxide at the end" warning, and PATH fragments stacked.
+  # Source only the canonical per-topic config plus the top-level core files
+  # (aliases/path/completion/fpath); (N) = nullglob so an empty match is fine.
   typeset -U config_files
-  config_files=($ZSH/**/*.zsh)
+  config_files=($ZSH/apps/*/files/zsh/*.zsh(N) $ZSH/zsh/*.zsh(N))
+
+  # Keep PATH (and its $path array) deduplicated. Fragments prepend with
+  # `export PATH="X:$PATH"`, and every nested interactive shell re-sources this
+  # file, so without this the same dir stacks up once per shell level (SHLVL).
+  # -U keeps the leftmost occurrence, preserving precedence (e.g. GNU coreutils
+  # in gnubin still shadow the macOS BSD tools). Set before any path.zsh runs.
+  typeset -U path PATH
 
   # load the path files
   for file in ${(M)config_files:#*/path.zsh}; do
@@ -41,6 +56,13 @@ export PROJECTS=~/code
 
   # Make sure PATH is set correctly for mpm tool
   export PATH="$HOME/.local/share/mise/installs/python/latest/bin/python3:$PATH"
+
+  # NOTE: Rancher Desktop's ~/.rd/bin PATH entry is owned by the
+  # apps/rancher-desktop topic (apps/rancher-desktop/files/zsh/path.zsh), loaded
+  # by the config_files loop above. If Rancher writes a "MANAGED BY RANCHER
+  # DESKTOP" block into the deployed ~/.zshrc on update, it's a harmless
+  # duplicate — remove it (it won't round-trip into this template) or disable
+  # PATH management in Rancher Desktop's settings.
 
 {{- end }}
 

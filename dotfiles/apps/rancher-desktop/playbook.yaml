@@ -1,6 +1,3 @@
-  🤖 rewrite to template: apps/rancher-desktop/playbook.yaml
-  🤖 trying: devstral-small-2:24b
-  🤖 ✅ success: devstral-small-2:24b
 ---
 # apps/rancher-desktop/playbook.yaml
 # Standalone runner for this topic role.

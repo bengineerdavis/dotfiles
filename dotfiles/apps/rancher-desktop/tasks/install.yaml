@@ -4,40 +4,16 @@
 # Do NOT put upgrade logic here — upgrades are owned by system roles (homebrew, apt).
 # Do NOT put config/symlink tasks here — those are owned by chezmoi.
 
-# ── macOS (Homebrew) ──────────────────────────────────────────────────────────
-# - name: "Install rancher-desktop via Homebrew (macOS)"
-#   community.general.homebrew:
-#     name: rancher-desktop
-#     state: present
-#   when: ansible_facts['os_family'] == 'Darwin'
-
 # ── macOS (Homebrew Cask) ─────────────────────────────────────────────────────
-# - name: "Install rancher-desktop via Homebrew Cask (macOS)"
-#   community.general.homebrew_cask:
-#     name: rancher-desktop
-#     state: present
-#     install_options: "appdir={{ user_appdir }}"
-#   when: ansible_facts['os_family'] == 'Darwin'
+# The cask is named `rancher` (Rancher Desktop). Installing it provides the
+# `docker` CLI + `docker compose` v2 plugin and the background VM/daemon.
+- name: "Install Rancher Desktop via Homebrew Cask (macOS)"
+  community.general.homebrew_cask:
+    name: rancher
+    state: present
+    install_options: "appdir={{ user_appdir }}"
+  when: ansible_facts['os_family'] == 'Darwin'
 
-# ── Linux (apt) ───────────────────────────────────────────────────────────────
-# - name: "Install rancher-desktop via apt (Linux)"
-#   ansible.builtin.apt:
-#     name: rancher-desktop
-#     state: present
-#   become: true
-#   when: ansible_facts['os_family'] == 'Debian'
-
-# ── Linux (snap) ─────────────────────────────────────────────────────────────
-# - name: "Install rancher-desktop via snap (Linux)"
-#   community.general.snap:
-#     name: rancher-desktop
-#     state: present
-#   become: true
-#   when: ansible_facts['os_family'] == 'Debian'
-
-# ── Docker ────────────────────────────────────────────────────────────────────
-# - name: "Pull rancher-desktop Docker image"
-#   community.docker.docker_image:
-#     name: rancher-desktop:latest
-#     source: pull
-#   when: install_method | default('') == 'docker'
+# First launch (start the VM, choose dockerd/moby over containerd, accept the
+# admin networking prompt) is interactive and not driven here — open the app
+# once after install. The apps/docker topic owns the Linux engine instead.

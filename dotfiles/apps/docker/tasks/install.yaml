@@ -4,40 +4,18 @@
 # Do NOT put upgrade logic here — upgrades are owned by system roles (homebrew, apt).
 # Do NOT put config/symlink tasks here — those are owned by chezmoi.
 
-# ── macOS (Homebrew) ──────────────────────────────────────────────────────────
-# - name: "Install docker via Homebrew (macOS)"
-#   community.general.homebrew:
-#     name: docker
-#     state: present
-#   when: ansible_facts['os_family'] == 'Darwin'
-
-# ── macOS (Homebrew Cask) ─────────────────────────────────────────────────────
-# - name: "Install docker via Homebrew Cask (macOS)"
-#   community.general.homebrew_cask:
-#     name: docker
-#     state: present
-#     install_options: "appdir={{ user_appdir }}"
-#   when: ansible_facts['os_family'] == 'Darwin'
+# macOS is intentionally NOT handled here — Rancher Desktop provides `docker`
+# on Darwin (apps/rancher-desktop). This topic is Debian-only (topic.yml).
 
 # ── Linux (apt) ───────────────────────────────────────────────────────────────
-# - name: "Install docker via apt (Linux)"
-#   ansible.builtin.apt:
-#     name: docker
-#     state: present
-#   become: true
-#   when: ansible_facts['os_family'] == 'Debian'
-
-# ── Linux (snap) ─────────────────────────────────────────────────────────────
-# - name: "Install docker via snap (Linux)"
-#   community.general.snap:
-#     name: docker
-#     state: present
-#   become: true
-#   when: ansible_facts['os_family'] == 'Debian'
-
-# ── Docker ────────────────────────────────────────────────────────────────────
-# - name: "Pull docker Docker image"
-#   community.docker.docker_image:
-#     name: docker:latest
-#     source: pull
-#   when: install_method | default('') == 'docker'
+# docker.io = engine + CLI; docker-compose-v2 = the `docker compose` plugin
+# that self-hosted requires (>= 2.32.2).
+- name: "Install Docker engine + compose v2 via apt (Linux)"
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - docker-compose-v2
+    state: present
+    update_cache: true
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
