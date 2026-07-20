@@ -1,6 +1,3 @@
-  🤖 rewrite to template: apps/anki/tasks/remove.yaml
-  🤖 trying: devstral-small-2:24b
-  🤖 ✅ success: devstral-small-2:24b
 ---
 # apps/anki/tasks/remove.yaml
 # Explicit uninstall tasks. Never run as part of provision or install.

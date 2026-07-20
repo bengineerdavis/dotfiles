@@ -21,9 +21,9 @@
 # - name: "Remove meld via apt (Linux)"
 #   ansible.builtin.apt:
 #     name: meld
-    state: absent
-  become: true
-  when: ansible_facts['os_family'] == 'Debian'
+#     state: absent
+#   become: true
+#   when: ansible_facts['os_family'] == 'Debian'
 
 # ── Docker ────────────────────────────────────────────────────────────────────
 # - name: "Remove meld Docker image"

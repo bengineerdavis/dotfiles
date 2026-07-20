@@ -1,29 +1,31 @@
-# template_dir/topic/tasks/main.yaml – empty template for new topics
-
-# tasks.yaml
-
-# put all of the non-dotfile configuration and setup work to be done for this app here. 
-# This file will be included in the main playbook.yaml file, so you can use all 
-# of the same Ansible modules and features as you would in a normal playbook.
+# apps/<topic>/tasks/main.yaml — role lifecycle router
 #
-# The end-result is all the steps outside of what's defined in the .zsh files are completed
-# by this file, when run, the app will work immediately out of the box.
+# Imports lifecycle subtask files with appropriate tags. The parent playbook
+# (or a standalone topic playbook) drives which phase runs via --tags.
+#
+# All five lifecycle files MUST exist in every topic. New topics scaffolded
+# from template_dir start with stubs. App-tier topics typically leave
+# bootstrap, prerequisites, and upgrade as no-ops — brew/apt cover them.
+#
+# Doctrine: any state a topic creates in bootstrap/prerequisites/install/upgrade
+# MUST have a matching teardown in remove.yaml. See docs/CONVENTIONS.md.
 
----
-- name: "Ensure monitorcontrol configuration directory exists"
-  file:
-    path: "{{ ansible_user_dir }}/Applications/monitorcontrol"
-    state: directory
-    mode: "0755"
-  tags:
-    - monitorcontrol
-    - directories
+- name: "Import bootstrap tasks"
+  ansible.builtin.import_tasks: bootstrap.yaml
+  tags: [bootstrap, provision]
 
-- name: "Install monitorcontrol via Homebrew Cask"
-  community.general.homebrew_cask:
-    name: monitorcontrol
-    state: present
-  when: ansible_os_family == "Darwin"
-  tags:
-    - brew
-    - monitorcontrol
+- name: "Import prerequisites tasks"
+  ansible.builtin.import_tasks: prerequisites.yaml
+  tags: [prerequisites, provision]
+
+- name: "Import upgrade tasks"
+  ansible.builtin.import_tasks: upgrade.yaml
+  tags: [upgrade, provision]
+
+- name: "Import install tasks"
+  ansible.builtin.import_tasks: install.yaml
+  tags: [install, provision]
+
+- name: "Import remove tasks"
+  ansible.builtin.import_tasks: remove.yaml
+  tags: [remove]

@@ -1,6 +1,3 @@
-  🤖 rewrite to template: apps/anki/tasks/install.yaml
-  🤖 trying: devstral-small-2:24b
-  🤖 ✅ success: devstral-small-2:24b
 ---
 # apps/anki/tasks/install.yaml
 # Package installation tasks. Be explicit about which package manager is used.
