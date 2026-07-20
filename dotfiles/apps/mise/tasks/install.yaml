@@ -1,2 +1,67 @@
 # apps/mise/tasks/install.yaml
-# EMPTY
+# Install mise, then materialize the tools declared in config.toml.
+# The package manager is OS-specific and guarded in-task (5a pattern): brew on
+# Darwin, the jdx apt repo on Debian. Both are idempotent and re-runnable.
+
+# ── macOS (Homebrew) ─────────────────────────────────────────────────────────
+- name: "Install mise via Homebrew (macOS)"
+  community.general.homebrew:
+    name: mise
+    state: present
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# ── Debian (jdx apt repo — mise ships no stock apt package) ───────────────────
+- name: "mise (Debian): ensure apt keyrings dir"
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "mise (Debian): add apt signing key"
+  ansible.builtin.get_url:
+    url: https://mise.jdx.dev/gpg-key.pub
+    dest: /etc/apt/keyrings/mise.asc
+    mode: "0644"
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "mise (Debian): add apt repository"
+  ansible.builtin.deb822_repository:
+    name: mise
+    types: [deb]
+    uris: https://mise.jdx.dev/deb
+    suites: [stable]
+    components: [main]
+    architectures: "{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'amd64' }}"
+    signed_by: /etc/apt/keyrings/mise.asc
+    state: present
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "Install mise via apt (Debian)"
+  ansible.builtin.apt:
+    name: mise
+    state: present
+    update_cache: true
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+# ── Config dir + tool materialization (both OSes) ─────────────────────────────
+- name: "Ensure ~/.config/mise directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/mise"
+    state: directory
+    mode: "0755"
+
+# Fixes the pre-existing gap: nothing previously ran `mise install`, so the
+# tools in config.toml (uv, python, ...) were never explicitly materialized.
+- name: "Materialize mise-managed tools from config.toml"
+  ansible.builtin.command:
+    cmd: mise install --yes
+  register: mise_install_result
+  changed_when: >-
+    ('install' in (mise_install_result.stdout | lower))
+    or ('install' in (mise_install_result.stderr | lower))
+  failed_when: mise_install_result.rc != 0

@@ -1,0 +1,39 @@
+# apps/mise/tasks/upgrade.yaml
+# Refresh mise-managed runtimes and global tools.
+# `brew upgrade` (tier 0) bumps the mise binary itself; this task bumps the
+# tools mise manages (python, node, llm, uv, uvx, etc.).
+#
+# Idempotent. Safe to re-run.
+
+- name: "Upgrade: bump all mise-managed tools (except ansible — see below)"
+  ansible.builtin.command:
+    # pipx:ansible is the controller RUNNING this very playbook. Upgrading it
+    # mid-run swaps its venv on disk, so a later task's module loads mismatched
+    # ansible-core module_utils → "Unknown profile name" deserialization skew.
+    # ansible is upgraded out-of-band by update.sh BEFORE the playbook starts;
+    # here we upgrade everything else and leave the running ansible untouched.
+    cmd: mise upgrade --yes --exclude pipx:ansible
+  register: mise_upgrade_result
+  # `| default('')` guards against the run where mise upgrades ansible itself:
+  # the module result can fail to deserialize, leaving the registered var
+  # without .stdout. mise prints "Upgraded N tools" / "installed" on change.
+  changed_when: >-
+    ('upgraded' in (mise_upgrade_result.stdout | default('') | lower))
+    or ('installed' in (mise_upgrade_result.stdout | default('') | lower))
+  failed_when:
+    - (mise_upgrade_result.rc | default(0)) != 0
+    - "'no tools' not in (mise_upgrade_result.stderr | default('') | lower)"
+
+- name: "Upgrade: install any tools newly added to mise config"
+  ansible.builtin.command:
+    cmd: mise install --yes
+  register: mise_install_result
+  changed_when: "'installed' in (mise_install_result.stdout | default('') | lower)"
+  failed_when: (mise_install_result.rc | default(0)) != 0
+
+- name: "Upgrade: report mise upgrade summary"
+  ansible.builtin.debug:
+    msg: |
+      mise upgrade complete.
+      upgrade: {{ 'changed' if (mise_upgrade_result.changed | default(false)) else 'no change' }}
+      install: {{ 'changed' if (mise_install_result.changed | default(false)) else 'no change' }}

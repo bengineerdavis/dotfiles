@@ -1,39 +1,31 @@
-# apps/mise/tasks/main.yaml
----
-- name: "Ensure Homebrew is installed (prereq for mise via brew) [optional macOS]"
-  stat:
-    path: "/opt/homebrew/bin/brew"
-  register: _brew_bin
-  when: ansible_os_family == "Darwin"
-  tags:
-    - bootstrap
-    - tools
+# apps/<topic>/tasks/main.yaml — role lifecycle router
+#
+# Imports lifecycle subtask files with appropriate tags. The parent playbook
+# (or a standalone topic playbook) drives which phase runs via --tags.
+#
+# All five lifecycle files MUST exist in every topic. New topics scaffolded
+# from template_dir start with stubs. App-tier topics typically leave
+# bootstrap, prerequisites, and upgrade as no-ops — brew/apt cover them.
+#
+# Doctrine: any state a topic creates in bootstrap/prerequisites/install/upgrade
+# MUST have a matching teardown in remove.yaml. See docs/CONVENTIONS.md.
 
-- name: "Fail if Homebrew is missing"
-  fail:
-    msg: "Homebrew is required on macOS to install mise via brew; install from https://brew.sh"
-  when:
-    - ansible_os_family == "Darwin"
-    - not _brew_bin.stat.exists
-  tags:
-    - bootstrap
-    - tools
+- name: "Import bootstrap tasks"
+  ansible.builtin.import_tasks: bootstrap.yaml
+  tags: [bootstrap, provision]
 
-- name: "Install mise via Homebrew (if not present) [optional]"
-  homebrew:
-    name: "mise"
-    state: present
-  when:
-    - ansible_pkg_mgr is defined and ansible_pkg_mgr == "homebrew"
-  tags:
-    - brew
-    - tools
-    - mise
+- name: "Import prerequisites tasks"
+  ansible.builtin.import_tasks: prerequisites.yaml
+  tags: [prerequisites, provision]
 
-- name: "Ensure ~/.config/mise directory exists [optional]"
-  file:
-    path: "{{ ansible_user_dir }}/.config/mise"
-    state: directory
-  tags:
-    - mise
-    - config
+- name: "Import upgrade tasks"
+  ansible.builtin.import_tasks: upgrade.yaml
+  tags: [upgrade, provision]
+
+- name: "Import install tasks"
+  ansible.builtin.import_tasks: install.yaml
+  tags: [install, provision]
+
+- name: "Import remove tasks"
+  ansible.builtin.import_tasks: remove.yaml
+  tags: [remove]

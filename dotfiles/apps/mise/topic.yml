@@ -1,0 +1,5 @@
+topic_name: mise
+topic_provides: [mise, python]   # tools materialized from [tools] in config.toml (uv is system-installed, not mise-managed)
+topic_requires: []                   # pkg-manager is OS-specific, guarded in-task (brew on Darwin, apt on Debian)
+topic_os: [Darwin, Debian]
+topic_tier: runtime-manager
