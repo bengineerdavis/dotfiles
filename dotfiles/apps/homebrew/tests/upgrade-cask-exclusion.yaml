@@ -1,0 +1,54 @@
+---
+# apps/homebrew/tests/upgrade-cask-exclusion.yaml
+#
+# Read-only regression test for the cask-exclusion logic in
+# apps/homebrew/tasks/upgrade.yaml. It runs the exact set_fact expression
+# against real `brew outdated` output and asserts that excluded casks (e.g.
+# rancher) never enter the upgrade list while every other outdated cask does.
+#
+# Run:  ansible-playbook apps/homebrew/tests/upgrade-cask-exclusion.yaml
+# Safe: lists outdated casks only; performs no upgrades and mutates nothing.
+- name: "Test homebrew upgrade cask exclusion logic"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: false
+  vars:
+    homebrew_prefix: "{{ '/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local' }}"
+    # Mirror of apps/homebrew/defaults/main.yaml — keep in sync.
+    homebrew_upgrade_cask_exclude:
+      - rancher
+  tasks:
+    - name: "Upgrade: list outdated casks"
+      ansible.builtin.command:
+        cmd: "{{ homebrew_prefix }}/bin/brew outdated --cask --json=v2"
+      register: brew_outdated_casks_raw
+      changed_when: false
+
+    - name: "Upgrade: compute upgradable casks (excluding casks that require sudo)"
+      ansible.builtin.set_fact:
+        homebrew_upgradable_casks: >-
+          {{ (brew_outdated_casks_raw.stdout | default('{"casks": []}', true) | from_json).casks
+             | map(attribute='name') | list
+             | difference(homebrew_upgrade_cask_exclude) }}
+
+    - name: "Show outdated casks (raw) vs computed upgrade list"
+      ansible.builtin.debug:
+        msg:
+          - "outdated (raw)   : {{ (brew_outdated_casks_raw.stdout | from_json).casks | map(attribute='name') | list }}"
+          - "will upgrade     : {{ homebrew_upgradable_casks }}"
+          - "excluded         : {{ homebrew_upgrade_cask_exclude }}"
+
+    - name: "Assert excluded casks are NOT in the upgrade list"
+      ansible.builtin.assert:
+        that:
+          - homebrew_upgradable_casks | intersect(homebrew_upgrade_cask_exclude) | length == 0
+        success_msg: "PASS: excluded casks ({{ homebrew_upgrade_cask_exclude | join(', ') }}) are not scheduled for upgrade"
+        fail_msg: "FAIL: an excluded cask leaked into the upgrade list: {{ homebrew_upgradable_casks | intersect(homebrew_upgrade_cask_exclude) }}"
+
+    - name: "Assert every non-excluded outdated cask IS kept"
+      ansible.builtin.assert:
+        that:
+          - (brew_outdated_casks_raw.stdout | from_json).casks | map(attribute='name') | list | difference(homebrew_upgrade_cask_exclude) | sort == homebrew_upgradable_casks | sort
+        success_msg: "PASS: all non-excluded outdated casks retained"
+        fail_msg: "FAIL: a non-excluded cask was dropped"

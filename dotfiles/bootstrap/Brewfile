@@ -27,7 +27,9 @@ brew "rbenv"
 brew "node"
 brew "yarn"
 brew "terraform"
-brew "ansible"
+# ansible is owned by mise (pipx:ansible, built with the system uvx) — see
+# apps/mise/files/config.toml and bootstrap.sh. Not installed via brew to avoid
+# dual ownership + the mid-run self-upgrade race.
 brew "kubectl"
 brew "helm"
 brew "docker"

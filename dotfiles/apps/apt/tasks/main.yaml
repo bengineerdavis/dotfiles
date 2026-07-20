@@ -1,11 +1,26 @@
-  🤖 rewrite to template: apps/apt/tasks/main.yaml
-  🤖 trying: devstral-small-2:24b
-  🤖 ✅ success: devstral-small-2:24b
-```yaml
-# apps/apt/tasks/main.yaml
-# Imports subtask files by tag. Only imports files that exist.
-# chezmoi owns dotfile/config state. zsh sources handle shell config.
-# This file owns: package installation and explicit removal only.
+# apps/<topic>/tasks/main.yaml — role lifecycle router
+#
+# Imports lifecycle subtask files with appropriate tags. The parent playbook
+# (or a standalone topic playbook) drives which phase runs via --tags.
+#
+# All five lifecycle files MUST exist in every topic. New topics scaffolded
+# from template_dir start with stubs. App-tier topics typically leave
+# bootstrap, prerequisites, and upgrade as no-ops — brew/apt cover them.
+#
+# Doctrine: any state a topic creates in bootstrap/prerequisites/install/upgrade
+# MUST have a matching teardown in remove.yaml. See docs/CONVENTIONS.md.
+
+- name: "Import bootstrap tasks"
+  ansible.builtin.import_tasks: bootstrap.yaml
+  tags: [bootstrap, provision]
+
+- name: "Import prerequisites tasks"
+  ansible.builtin.import_tasks: prerequisites.yaml
+  tags: [prerequisites, provision]
+
+- name: "Import upgrade tasks"
+  ansible.builtin.import_tasks: upgrade.yaml
+  tags: [upgrade, provision]
 
 - name: "Import install tasks"
   ansible.builtin.import_tasks: install.yaml
@@ -14,4 +29,3 @@
 - name: "Import remove tasks"
   ansible.builtin.import_tasks: remove.yaml
   tags: [remove]
-```

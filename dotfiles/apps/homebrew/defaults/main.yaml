@@ -1,1 +1,12 @@
 # defaults/main.yaml
+
+# Casks excluded from automated `brew` cask upgrades.
+#
+# Rancher Desktop's cask `uninstall` stanza deletes root-owned system paths
+# (/opt/rancher-desktop, /private/etc/sudoers.d/zzzzz-rancher-desktop-lima,
+# /private/var/run/docker.sock). A cask upgrade runs that uninstall step, so
+# every `brew upgrade` of it shells out to `sudo rm -rf`, which fails in a
+# non-interactive playbook ("a terminal is required to read the password").
+# Rancher ships its own auto-updater, so it stays current without brew.
+homebrew_upgrade_cask_exclude:
+  - rancher

@@ -6,21 +6,38 @@
   community.general.homebrew:
     update_homebrew: true
     upgrade_all: true
-    upgrade_options: greedy
+    upgrade_options: formula
     path: "{{ homebrew_prefix }}/bin"
   register: brew_upgrade_result
   become: false
 
-- name: "Upgrade: upgrade all Homebrew casks"
+- name: "Upgrade: list outdated casks"
+  ansible.builtin.command:
+    cmd: "{{ homebrew_prefix }}/bin/brew outdated --cask --json=v2"
+  register: brew_outdated_casks_raw
+  changed_when: false
+  check_mode: false  # read-only query; must run even under --check so the parse below has data
+  become: false
+
+- name: "Upgrade: compute upgradable casks (excluding casks that require sudo)"
+  ansible.builtin.set_fact:
+    homebrew_upgradable_casks: >-
+      {{ (brew_outdated_casks_raw.stdout | default('{"casks": []}', true) | from_json).casks
+         | map(attribute='name') | list
+         | difference(homebrew_upgrade_cask_exclude) }}
+
+- name: "Upgrade: upgrade Homebrew casks (excludes {{ homebrew_upgrade_cask_exclude | join(', ') }})"
   community.general.homebrew_cask:
+    name: "{{ homebrew_upgradable_casks }}"
+    state: upgraded
     update_homebrew: false
-    upgrade_all: true
-    greedy: true
   register: brew_cask_upgrade_result
   become: false
+  when: homebrew_upgradable_casks | length > 0
 
 - name: "Upgrade: report changed formulae"
   ansible.builtin.debug:
     msg: |
       Formulae upgraded: {{ brew_upgrade_result.changed_pkgs | default([]) | join(', ') or 'none' }}
       Casks upgraded   : {{ brew_cask_upgrade_result.changed_pkgs | default([]) | join(', ') or 'none' }}
+      Casks skipped    : {{ homebrew_upgrade_cask_exclude | join(', ') }}
