@@ -1,60 +1,28 @@
-# apps/homebrew/tasks/bootstrap.yaml
-# Ensures Homebrew is installed. Explicit check — no drift tolerated.
-# Prompts for confirmation before installing. No-op if already present.
+# apps/<topic>/tasks/bootstrap.yaml
+# First-time setup of a system tool on a fresh machine. Confirmed, never silent.
+#
+# Only pkg-manager-tier topics typically need real content here. App-tier and
+# runtime-manager topics leave this empty — they assume their dependencies have
+# already been bootstrapped (the parent playbook's sanity check enforces this).
+#
+# Idempotent: safe to re-run.
+# Do NOT put install, upgrade, or remove logic here.
 
-- name: "Bootstrap: check Homebrew binary exists"
-  ansible.builtin.stat:
-    path: "{{ homebrew_bin }}"
-  register: brew_bootstrap_stat
-
-- name: "Bootstrap: Homebrew already present"
-  ansible.builtin.debug:
-    msg: "✅ Homebrew found at {{ homebrew_bin }} — no action needed."
-  when: brew_bootstrap_stat.stat.exists
-
-- name: "Bootstrap: confirm Homebrew installation"
-  ansible.builtin.pause:
-    prompt: |
-      Homebrew not found at {{ homebrew_bin }}.
-      Install Homebrew now? [y/N]
-  register: brew_bootstrap_confirm
-  when: not brew_bootstrap_stat.stat.exists
-
-- name: "Bootstrap: abort if installation declined"
-  ansible.builtin.fail:
-    msg: "Homebrew installation declined. Cannot continue without a package manager."
-  when:
-    - not brew_bootstrap_stat.stat.exists
-    - brew_bootstrap_confirm.user_input | default('n') | lower != 'y'
-
-- name: "Bootstrap: install Homebrew"
-  ansible.builtin.shell:
-    cmd: >
-      /bin/bash -c
-      "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  when:
-    - not brew_bootstrap_stat.stat.exists
-    - brew_bootstrap_confirm.user_input | default('n') | lower == 'y'
-
-- name: "Bootstrap: verify Homebrew installed successfully"
-  ansible.builtin.stat:
-    path: "{{ homebrew_bin }}"
-  register: brew_post_install_stat
-  when: not brew_bootstrap_stat.stat.exists
-
-- name: "Bootstrap: fail if Homebrew still missing after install"
-  ansible.builtin.fail:
-    msg: "Homebrew install script ran but {{ homebrew_bin }} still not found. Manual intervention required."
-  when:
-    - not brew_bootstrap_stat.stat.exists
-    - not brew_post_install_stat.stat.exists
-
-- name: "Bootstrap: ensure Homebrew is in PATH (Apple Silicon)"
-  ansible.builtin.lineinfile:
-    path: "{{ ansible_facts['env']['HOME'] }}/.zprofile"
-    line: 'eval "$({{ homebrew_bin }} shellenv)"'
-    create: true
-  when:
-    - not brew_bootstrap_stat.stat.exists
-    - ansible_facts['architecture'] == 'arm64'
-    - brew_post_install_stat.stat.exists
+# ── Example: bootstrap a pkg-manager binary ───────────────────────────────────
+# - name: "Bootstrap: check <topic> binary exists"
+#   ansible.builtin.stat:
+#     path: "{{ <topic>_bin }}"
+#   register: <topic>_bootstrap_stat
+#
+# - name: "Bootstrap: confirm <topic> installation"
+#   ansible.builtin.pause:
+#     prompt: |
+#       <topic> not found. Install now? [y/N]
+#   register: <topic>_bootstrap_confirm
+#   when: not <topic>_bootstrap_stat.stat.exists
+#
+# - name: "Bootstrap: install <topic>"
+#   ansible.builtin.shell: <install command>
+#   when:
+#     - not <topic>_bootstrap_stat.stat.exists
+#     - <topic>_bootstrap_confirm.user_input | default('n') | lower == 'y'

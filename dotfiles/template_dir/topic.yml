@@ -1,0 +1,31 @@
+# apps/<topic>/topic.yml
+#
+# Topic metadata read by the parent playbook. See docs/CONVENTIONS.md.
+#
+# Lives at the role root (not under meta/) because Ansible reserves
+# meta/main.yml for galaxy_info / role dependencies and rejects unknown
+# top-level keys there.
+
+# Canonical name for the topic. Must match the directory under apps/.
+topic_name: <topic>
+
+# Package managers / registries this topic provides. Empty for app-tier topics.
+# Example: apps/homebrew has topic_provides: [homebrew]
+#          apps/mise has     topic_provides: [mise]
+topic_provides: []
+
+# Package managers this topic depends on at install / upgrade time.
+# The parent playbook resolves these against the union of topic_provides values
+# across all topics, then falls back to a PATH check.
+# Example: most macOS topics have topic_requires: [homebrew]
+topic_requires: []
+
+# OS families this topic supports. Topics are skipped on unsupported OSes.
+# Valid values: Darwin (macOS), Debian (Debian/Ubuntu-family Linux).
+topic_os: [Darwin]
+
+# Tier governs run order in the parent playbook.
+#   pkg-manager     — foundational system installer (apt, homebrew, docker)
+#   runtime-manager — manages a subordinate set of versioned tools/models
+#   app             — normal application; no subordinate state of its own
+topic_tier: app
