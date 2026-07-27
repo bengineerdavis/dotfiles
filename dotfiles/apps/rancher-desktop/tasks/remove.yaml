@@ -9,3 +9,28 @@
     name: rancher
     state: absent
   when: ansible_facts['os_family'] == 'Darwin'
+
+# ── Linux (apt, OPTIONAL playground) ──────────────────────────────────────────
+# Teardown for the optional Linux install above. Not gated by the enable flag —
+# removal is always allowed. Run with -K to supply the sudo password.
+- name: "Remove Rancher Desktop (Linux playground)"
+  when: ansible_facts['os_family'] == 'Debian'
+  become: true
+  block:
+    - name: "Linux: uninstall rancher-desktop package"
+      ansible.builtin.apt:
+        name: rancher-desktop
+        state: absent
+
+    - name: "Linux: drop Rancher Desktop OBS apt repository"
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [signed-by=/usr/share/keyrings/isv-rancher-stable-archive-keyring.gpg]
+          https://download.opensuse.org/repositories/isv:/Rancher:/stable/deb/ ./
+        filename: isv-rancher-stable
+        state: absent
+
+    - name: "Linux: drop Rancher Desktop OBS signing key"
+      ansible.builtin.file:
+        path: /usr/share/keyrings/isv-rancher-stable-archive-keyring.gpg
+        state: absent
