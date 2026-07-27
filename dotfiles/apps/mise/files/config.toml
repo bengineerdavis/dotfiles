@@ -10,6 +10,22 @@ fzf = "latest"
 # go tooling
 go = "latest"
 
+# node tooling
+node = "lts"
+# installing skills.md for for the local userspace
+# ❯ mise install
+# Reshimming mise lts...
+# npm:@sentry/skillet@1.7.0             run `npm fund` for details                                                                        ✔
+# skillet init installs skillet-authoring for all your agents via
+# 'npx -y @sentry/dotagents@latest --user' (writes ~/.agents and agent configs).
+# Re-run with --no-prompt to proceed non-interactively.
+# To manage it yourself instead:
+#   npx -y @sentry/dotagents@latest add getsentry/skillet skillet-authoring
+#   (project scope; add --user for global) — or install skills/skillet-authoring
+# npm:@sentry/skillet@1.7.0             run `npm fund` for details
+"npm:@sentry/skillet" = { version = "latest", postinstall = "skillet init", depends = ["node"] }
+"npm:@sentry/dotagents" = "latest"
+
 # python tooling
 # uv/uvx is installed at the SYSTEM level via the astral installer (see
 # bootstrap/bootstrap.sh) and intentionally NOT managed by mise. mise's pipx
@@ -24,10 +40,6 @@ python = "latest"
 # http://llm.datasette.io/en/stable/setup.html
 "pipx:llm" = { version = "latest", uvx_args = """
   --with llm-openrouter
-  --with llm-anthropic
-  --with llm-gemini
-  --with llm-ollama
-  --with llm-anthropic
   --with llm-sentence-transformers
   --with llm-tools-exa
   --with llm-pdf-to-images
@@ -118,4 +130,28 @@ usage = "latest"
 "pipx:yt-dlp" = "latest"
 "pipx:zxcvbn" = "latest"
 "pipx:fangfrisch" = "latest"
-"github:danielmiessler/fabric" = "v1.4.458"
+"github:danielmiessler/fabric" = "v1.4.459"
+
+[tasks.sk]
+description = "Core skillet command"
+run = "npx -y @sentry/skillet@latest {{args}}"
+
+[tasks.sk-status]
+description = "Show skillet file artifacts status"
+run = "npx -y @sentry/skillet@latest status {{args}}"
+
+[tasks.sk-validate]
+description = "Validate complete skillet files"
+run = "npx -y @sentry/skillet@latest validate {{args}}"
+
+[tasks.sk-eval]
+description = "Run skillet eval cases"
+run = "npx -y @sentry/skillet@latest eval {{args}}"
+
+[tasks.dau]
+description = "Core dotagents user-scoped command"
+run = "npx -y @sentry/dotagents@latest --user {{args}}"
+
+[tasks.dau-sync]
+description = "Install or refresh user-scoped tools"
+run = "npx -y @sentry/dotagents@latest --user install"
