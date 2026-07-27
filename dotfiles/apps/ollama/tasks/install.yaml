@@ -184,7 +184,7 @@
 # TODO: verify placement
 - name: Symlink Ollama completion into ~/.zsh_completions as _ollama
   ansible.builtin.file:
-    src: "{{ ansible_facts['env']['HOME'] }}/dotfiles/apps/ollama/zsh/_ollama_zsh_completion"
+    src: "{{ ansible_facts['env']['HOME'] }}/dotfiles/apps/ollama/_ollama_zsh_completion"
     dest: "{{ ansible_facts['env']['HOME'] }}/.zsh_completions/_ollama"
     state: link
     force: true
