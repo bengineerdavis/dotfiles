@@ -20,3 +20,8 @@ tests/
 .pytest_cache
 pytest.ini
 smartparts/
+
+# Python bytecode artifacts (mirror .gitignore — never deploy these)
+**/__pycache__
+**/*.pyc
+**/*.pyo
