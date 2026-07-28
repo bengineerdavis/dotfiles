@@ -1,24 +1,31 @@
-# template_dir/topic/tasks/main.yaml – empty template for new topics
-
-# tasks.yaml
-
-# put all of the non-dotfile configuration and setup work to be done for this app here.
-# This file will be included in the main playbook.yaml file, so you can use all
-# of the same Ansible modules and features as you would in a normal playbook.
+# apps/<topic>/tasks/main.yaml — role lifecycle router
 #
-# The end-result is all the steps outside of what's defined in the .zsh files are completed
-# by this file, when run, the app will work immediately out of the box.
+# Imports lifecycle subtask files with appropriate tags. The parent playbook
+# (or a standalone topic playbook) drives which phase runs via --tags.
+#
+# All five lifecycle files MUST exist in every topic. New topics scaffolded
+# from template_dir start with stubs. App-tier topics typically leave
+# bootstrap, prerequisites, and upgrade as no-ops — brew/apt cover them.
+#
+# Doctrine: any state a topic creates in bootstrap/prerequisites/install/upgrade
+# MUST have a matching teardown in remove.yaml. See docs/CONVENTIONS.md.
 
-- name: "Install topic tools and dependencies via Homebrew"
-  homebrew:
-    name:
-      - docker
-    state: present
+- name: "Import bootstrap tasks"
+  ansible.builtin.import_tasks: bootstrap.yaml
+  tags: [bootstrap, provision]
 
-- name: Ensure rancher is installed via Homebrew cask
-  community.general.homebrew_cask:
-    name: rancher
-    state: present
-    install_options: "appdir={{ user_appdir }}"
-  become: false
-  when: ansible_facts['os_family'] in ["Darwin"]
+- name: "Import prerequisites tasks"
+  ansible.builtin.import_tasks: prerequisites.yaml
+  tags: [prerequisites, provision]
+
+- name: "Import upgrade tasks"
+  ansible.builtin.import_tasks: upgrade.yaml
+  tags: [upgrade, provision]
+
+- name: "Import install tasks"
+  ansible.builtin.import_tasks: install.yaml
+  tags: [install, provision]
+
+- name: "Import remove tasks"
+  ansible.builtin.import_tasks: remove.yaml
+  tags: [remove]
