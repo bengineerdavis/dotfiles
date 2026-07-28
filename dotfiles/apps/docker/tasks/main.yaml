@@ -1,33 +1,31 @@
-# apps/docker/tasks/main.yaml — Docker role task router
-# System role — handles Docker daemon and image lifecycle.
-# Called by parent playbook with explicit tags.
+# apps/<topic>/tasks/main.yaml — role lifecycle router
+#
+# Imports lifecycle subtask files with appropriate tags. The parent playbook
+# (or a standalone topic playbook) drives which phase runs via --tags.
+#
+# All five lifecycle files MUST exist in every topic. New topics scaffolded
+# from template_dir start with stubs. App-tier topics typically leave
+# bootstrap, prerequisites, and upgrade as no-ops — brew/apt cover them.
+#
+# Doctrine: any state a topic creates in bootstrap/prerequisites/install/upgrade
+# MUST have a matching teardown in remove.yaml. See docs/CONVENTIONS.md.
 
-- name: "Docker: bootstrap"
+- name: "Import bootstrap tasks"
   ansible.builtin.import_tasks: bootstrap.yaml
   tags: [bootstrap, provision]
 
-- name: "Docker: prerequisites"
+- name: "Import prerequisites tasks"
   ansible.builtin.import_tasks: prerequisites.yaml
   tags: [prerequisites, provision]
 
-- name: "Docker: upgrade"
+- name: "Import upgrade tasks"
   ansible.builtin.import_tasks: upgrade.yaml
   tags: [upgrade, provision]
 
-- name: "Docker: install"
+- name: "Import install tasks"
   ansible.builtin.import_tasks: install.yaml
   tags: [install, provision]
 
-- name: "Docker: remove"
+- name: "Import remove tasks"
   ansible.builtin.import_tasks: remove.yaml
   tags: [remove]
-
-# ── Linux: install Docker Engine via apt ─────────────────────────────────────
-# TODO: implement Docker Engine install for Linux
-# Reference: https://docs.docker.com/engine/install/ubuntu/
-- name: "Bootstrap: TODO Docker Engine install (Linux)"
-  ansible.builtin.debug:
-    msg: "TODO: implement Docker Engine bootstrap for Linux"
-  when:
-    - not docker_stat.stat.exists
-    - ansible_facts['os_family'] == 'Debian'

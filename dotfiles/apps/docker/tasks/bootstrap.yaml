@@ -1,29 +1,21 @@
-# ── macOS: Rancher Desktop provides Docker CLI ────────────────────────────────
-- name: "Bootstrap: check Rancher Desktop on macOS"
-  ansible.builtin.stat:
-    path: /Applications/Rancher Desktop.app
-  register: rancher_stat
-  when:
-    - not docker_stat.stat.exists
-    - ansible_facts['os_family'] == 'Darwin'
+# apps/docker/tasks/bootstrap.yaml
+# Explicit presence check for the Docker engine — no drift tolerated.
+#
+# This topic is Debian-only (topic.yml); on macOS the `docker` provider is
+# apps/rancher-desktop instead, so there is no macOS logic here. The actual
+# install lives in install.yaml (apt docker.io + docker-compose-v2) — bootstrap
+# only verifies and reports.
 
-- name: "Bootstrap: warn if Docker CLI and Rancher Desktop both missing (macOS)"
-  ansible.builtin.debug:
-    msg: |
-      ⚠️  Docker CLI not found and Rancher Desktop not installed.
-      Run the rancher-desktop topic role to install it:
-        ansible-playbook apps/rancher-desktop/playbook.yaml --tags install
-  when:
-    - not docker_stat.stat.exists
-    - ansible_facts['os_family'] == 'Darwin'
-    - not rancher_stat.stat.exists
+- name: "Bootstrap: check Docker CLI is available"
+  ansible.builtin.shell: command -v docker
+  register: docker_cli
+  changed_when: false
+  failed_when: false
+  check_mode: false  # read-only probe; must run even under --check so the report below has data
 
-# ── Linux: install Docker Engine via apt ─────────────────────────────────────
-# TODO: implement Docker Engine install for Linux
-# Reference: https://docs.docker.com/engine/install/ubuntu/
-- name: "Bootstrap: TODO Docker Engine install (Linux)"
+- name: "Bootstrap: report Docker CLI status"
   ansible.builtin.debug:
-    msg: "TODO: implement Docker Engine bootstrap for Linux"
-  when:
-    - not docker_stat.stat.exists
-    - ansible_facts['os_family'] == 'Debian'
+    msg: >-
+      {{ '✅ Docker CLI found at ' ~ docker_cli.stdout
+         if docker_cli.rc == 0
+         else '⚠️  Docker CLI not found — the install phase adds it via apt (docker.io).' }}
