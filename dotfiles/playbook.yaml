@@ -12,13 +12,16 @@
 #   prerequisites  = core deps before topics install
 #   upgrade        = refresh installed state
 #   install        = install topics
-#   remove         = explicit uninstall (never part of provision)
+#   remove         = explicit uninstall. Tagged `never` in every topic router,
+#                    so it is skipped by bare runs and by provision/install and
+#                    runs ONLY when you pass --tags remove.
 #
 # Examples:
 #   ansible-playbook playbook.yaml --tags provision   # full fresh machine
 #   ansible-playbook playbook.yaml --tags upgrade     # refresh everything
 #   ansible-playbook playbook.yaml --tags install     # install all topics
-#   ansible-playbook playbook.yaml --tags remove      # uninstall all topics
+#   ansible-playbook playbook.yaml --tags remove      # uninstall all topics (deliberate)
+#   ansible-playbook playbook.yaml                    # no tags → provision (never removes)
 
 - name: "Local Machine Setup"
   hosts: localhost

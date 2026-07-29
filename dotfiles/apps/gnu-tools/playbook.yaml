@@ -1,6 +1,7 @@
 # apps/gnu-tools/playbook.yaml
 # Standalone runner for this topic role.
-# Usage: ansible-playbook apps/gnu-tools/playbook.yaml [--tags install|remove]
+# Usage: ansible-playbook apps/gnu-tools/playbook.yaml [--tags install|provision|remove]
+#   A bare run (no --tags) runs provision; remove is opt-in via --tags remove (tagged never).
 #
 # Assumes package managers are already bootstrapped.
 # For a fresh machine use the parent playbook with --tags provision instead.
