@@ -28,4 +28,6 @@
 
 - name: "Import remove tasks"
   ansible.builtin.import_tasks: remove.yaml
-  tags: [remove]
+  # `never` makes remove opt-in: skipped by bare runs and --tags install/provision,
+  # runs only with an explicit --tags remove. See docs/CONVENTIONS.md.
+  tags: [remove, never]
