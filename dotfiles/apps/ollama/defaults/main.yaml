@@ -31,6 +31,41 @@
 # Percent of total RAM kept free for other programs. Budget = total − this%.
 ollama_ram_reserve_pct: 33
 
+# ── Linux install + GPU acceleration ─────────────────────────────────────────
+# No official apt repo exists for Ollama, so the Debian path installs the
+# official release tarball directly (see tasks/install.yaml) and "upgrades" by
+# comparing the installed binary against the resolved target version — re-pulling
+# only when they differ (unlike a `creates:` guard, which never upgrades).
+#
+#   ollama_linux_version — 'latest' (query GitHub for the newest release tag) or
+#                          a pinned tag like 'v0.32.5' for reproducible installs.
+#
+# GPU support is additive and auto-detected per host (a box may have both):
+#   • NVIDIA — CUDA userspace libs ship INSIDE the base tarball; only the host
+#     kernel driver (nvidia-smi) is required. The topic detects + warns; it does
+#     NOT install DKMS drivers (leave that to system/GPU provisioning).
+#   • AMD    — the base tarball is CPU-only for AMD, so the `-rocm` overlay
+#     tarball is extracted on top and the service user is added to render/video
+#     (for /dev/kfd + /dev/dri access).
+#
+# Each flag is tri-state: null = auto-detect via PCI vendor id, true/false =
+# force on/off (useful on headless hosts or where /sys PCI probing is unreliable).
+ollama_linux_version: latest
+ollama_gpu_nvidia: null
+ollama_gpu_amd: null
+
+# Periodic "is a newer tarball out?" check (Debian only; macOS upgrades via
+# `brew upgrade`). Installs a systemd timer that runs ollama-update-check to
+# compare the installed binary against the latest upstream tag.
+#   _enabled     — install + enable the timer
+#   _oncalendar  — systemd OnCalendar= expression (e.g. daily, weekly, '*-*-* 04:00')
+#   _apply       — false = NOTIFY only (journal + /var/lib/ollama/update-available
+#                  marker); true = the timer auto-swaps the tarball (stop, extract,
+#                  re-overlay ROCm if in use, restart). Notify is the safe default.
+ollama_update_check_enabled: true
+ollama_update_check_oncalendar: daily
+ollama_update_check_apply: false
+
 ollama_models:
 
   # ═══════════════ general / chat ═══════════════

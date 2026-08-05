@@ -69,10 +69,32 @@ the basis is unified system RAM; on Linux with an NVIDIA GPU it is **VRAM**
 
 | | macOS (Darwin) | Linux (Debian) |
 |---|---|---|
-| ollama install | Homebrew cask `ollama` (GUI + CLI) | official binary tarball via `get_url`+`unarchive` into `/usr` (native modules, no `install.sh`) |
+| ollama install | Homebrew cask `ollama` (GUI + CLI) | official release tarball (GitHub) extracted into `/usr`, **version-driven** — same block installs *and* upgrades (no `install.sh`) |
+| upgrades | `brew upgrade` (cask) | compare installed vs latest tag → `--tags upgrade` re-extracts; optional systemd `ollama-update-check.timer` |
+| GPU accel | Metal (built in) | auto-detected: **NVIDIA** CUDA libs bundled (host driver required) · **AMD** `-rocm` overlay (amd64) |
 | service | launchd agent `com.ollama.ollama` | systemd unit `ollama.service` (templated) |
 | budget basis | unified system RAM | GPU VRAM (else system RAM) |
 | model tags | MLX-preferred | nvfp4 / GGUF |
+
+### Linux install, GPU & auto-update
+
+The Debian path is Ollama's officially-documented [*Manual install*](https://docs.ollama.com/linux) expressed declaratively — no apt repo exists, so the topic places the release tarball itself, owns the systemd unit, and keeps a matching teardown in `remove.yaml`.
+
+- **Version-driven install/upgrade.** Instead of a `creates:` guard (which never upgrades), the topic resolves a target version, reads the installed `ollama --version`, and re-extracts only when they differ. All Linux tasks carry the `upgrade` tag, so `--tags upgrade` performs a real binary bump.
+- **GPU is additive + auto-detected** (a host may have both vendors) via `/sys` PCI vendor IDs:
+  - **NVIDIA** (`0x10de`) — CUDA userspace libs ship *inside* the base tarball; only the host **kernel driver** is needed. The topic verifies `nvidia-smi` and **warns** if it's missing. It does **not** install DKMS drivers — that belongs in system/GPU provisioning.
+  - **AMD** (`0x1002`) — overlays the separate `ollama-linux-<arch>-rocm.tar.zst` (amd64 only; upstream ships no arm64 ROCm) and adds the service user to `render`/`video`.
+- **Periodic update check** (Debian only — macOS upgrades via `brew`). A systemd timer runs [`ollama-update-check`](files/ollama-update-check), comparing the installed binary against the latest upstream tag. Default action is **notify** (journal + a marker at `/var/lib/ollama/update-available`); flip `ollama_update_check_apply=true` to have the timer auto-swap the tarball.
+
+Tunables (`defaults/main.yaml`):
+
+| var | default | meaning |
+|---|---|---|
+| `ollama_linux_version` | `latest` | `latest` (newest GitHub tag) or a pinned tag like `v0.32.5` |
+| `ollama_gpu_nvidia` / `ollama_gpu_amd` | `null` | tri-state: `null` = auto-detect, `true`/`false` = force per host |
+| `ollama_update_check_enabled` | `true` | install + enable the update-check timer |
+| `ollama_update_check_oncalendar` | `daily` | systemd `OnCalendar=` for the timer |
+| `ollama_update_check_apply` | `false` | `false` = notify only · `true` = timer auto-upgrades |
 
 ### Dependency contract
 
@@ -109,5 +131,5 @@ bootstrap is out of scope for this topic.
 ## TODO
 
 - Auto-uninstall models dropped from the manifest (reconcile-on-upgrade vs. manual `prune --remove`).
-- RedHat family support; AMD ROCm tarball on Linux.
+- RedHat family support.
 - Resolve dual ansible ownership (brew + mise) — see the mise self-upgrade hazard.

@@ -124,6 +124,46 @@
   become: true
   when: ansible_facts['os_family'] == "Debian"
 
+- name: "ollama (Debian): remove ollama libraries (/usr/lib/ollama, incl. ROCm)"
+  ansible.builtin.file:
+    path: /usr/lib/ollama
+    state: absent
+  become: true
+  when: ansible_facts['os_family'] == "Debian"
+
+# --- Linux (Debian): tear down the periodic update-check timer ---------------
+
+- name: "ollama (Debian): stop + disable update-check timer"
+  ansible.builtin.systemd:
+    name: ollama-update-check.timer
+    state: stopped
+    enabled: false
+  become: true
+  failed_when: false
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: "ollama (Debian): remove update-check units, script + marker"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/systemd/system/ollama-update-check.timer
+    - /etc/systemd/system/ollama-update-check.service
+    - /usr/local/bin/ollama-update-check
+    - /var/lib/ollama/update-available
+  become: true
+  register: ollama_check_removed
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: "ollama (Debian): reload systemd after removing update-check units"
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+  failed_when: false
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - ollama_check_removed.changed
+
 - name: "ollama (Debian): remove ollama system user + home"
   ansible.builtin.user:
     name: ollama

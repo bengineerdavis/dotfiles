@@ -1,0 +1,10 @@
+# Managed by apps/ollama — oneshot job that checks for a newer Ollama tarball.
+# Triggered by ollama-update-check.timer. See apps/ollama/files/ollama-update-check.
+[Unit]
+Description=Check for a newer Ollama release tarball
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/ollama-update-check{{ ' --apply' if (ollama_update_check_apply | default(false) | bool) else '' }}

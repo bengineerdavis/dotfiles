@@ -286,28 +286,131 @@
     - ollama_enable_result.rc != 0
   tags: ollama_service
 
-# ── Linux (Debian): install ollama from the official tarball via native modules ─
-# No official apt package exists; this replicates install.sh's steps idempotently
-# (download+extract tarball, create service user, install+enable systemd unit).
+# ── Linux (Debian): install ollama from the official release tarball ───────────
+# This is Ollama's officially-documented "Manual install" (docs.ollama.com/linux),
+# expressed declaratively: no apt repo exists, so we place the tarball ourselves,
+# own the systemd unit, and keep a matching teardown in remove.yaml.
+#
+# Version-driven (NOT a `creates:` guard, which never upgrades): resolve the
+# target version, read the installed one, and re-extract only when they differ —
+# so this same block installs on a fresh box and upgrades on an existing one.
+# All tasks are tagged `upgrade` so `--tags upgrade` performs a real binary bump.
+#
+# GPU is additive + auto-detected (a host may have both vendors):
+#   • NVIDIA — CUDA userspace libs are already bundled in the base tarball; only
+#     the host kernel driver is needed. We verify nvidia-smi and warn if absent;
+#     we do NOT install DKMS drivers (that belongs in system/GPU provisioning).
+#   • AMD    — overlay the separate `-rocm` tarball (amd64 only) and add the
+#     service user to render/video. Override detection per host via ollama_gpu_*.
+
+- name: "ollama (Debian): resolve arch tag"
+  ansible.builtin.set_fact:
+    ollama_linux_arch: "{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'amd64' }}"
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): query GitHub for the latest release tag"
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/ollama/ollama/releases/latest
+    return_content: true
+  register: ollama_release
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - (ollama_linux_version | default('latest')) == 'latest'
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): compute target version (strip leading 'v')"
+  ansible.builtin.set_fact:
+    ollama_target_version: >-
+      {{ ((ollama_release.json.tag_name
+           if (ollama_linux_version | default('latest')) == 'latest'
+           else ollama_linux_version)
+          | regex_replace('^v', '')) | trim }}
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): read installed ollama version (if any)"
+  ansible.builtin.command: ollama --version
+  register: ollama_installed_raw
+  changed_when: false
+  failed_when: false
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): decide whether a (re)install is needed"
+  ansible.builtin.set_fact:
+    ollama_need_install: >-
+      {{ (ollama_installed_raw.rc | default(1)) != 0
+         or ollama_target_version not in (ollama_installed_raw.stdout | default('')) }}
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): probe PCI for an NVIDIA GPU (vendor 0x10de)"
+  # Read /sys to avoid a pciutils dependency; a non-matching/empty glob just
+  # returns non-zero, which we treat as "not present".
+  ansible.builtin.shell: "grep -qil 0x10de /sys/bus/pci/devices/*/vendor"
+  args:
+    executable: /bin/bash
+  register: ollama_nvidia_probe
+  changed_when: false
+  failed_when: false
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_gpu_nvidia is none
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): probe PCI for an AMD GPU (vendor 0x1002)"
+  ansible.builtin.shell: "grep -qil 0x1002 /sys/bus/pci/devices/*/vendor"
+  args:
+    executable: /bin/bash
+  register: ollama_amd_probe
+  changed_when: false
+  failed_when: false
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_gpu_amd is none
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): resolve effective GPU flags (override else detection)"
+  ansible.builtin.set_fact:
+    ollama_gpu_nvidia_on: "{{ ollama_gpu_nvidia if ollama_gpu_nvidia is not none else ((ollama_nvidia_probe.rc | default(1)) == 0) }}"
+    ollama_gpu_amd_on: "{{ ollama_gpu_amd if ollama_gpu_amd is not none else ((ollama_amd_probe.rc | default(1)) == 0) }}"
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [ollama_linux, upgrade]
+
 - name: "ollama (Debian): ensure zstd is present (for .tar.zst extraction)"
   ansible.builtin.apt:
     name: zstd
     state: present
     update_cache: true
   become: true
-  when: ansible_facts['os_family'] == 'Debian'
-  tags: ollama_linux
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_need_install | bool
+  tags: [ollama_linux, upgrade]
 
-- name: "ollama (Debian): download + extract binary tarball into /usr"
+- name: "ollama (Debian): stop ollama before swapping the binary"
+  ansible.builtin.systemd:
+    name: ollama
+    state: stopped
+  become: true
+  failed_when: false
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_need_install | bool
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): download + extract base tarball into /usr"
   ansible.builtin.unarchive:
-    src: "https://ollama.com/download/ollama-linux-{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'amd64' }}.tar.zst"
+    src: "https://github.com/ollama/ollama/releases/download/v{{ ollama_target_version }}/ollama-linux-{{ ollama_linux_arch }}.tar.zst"
     dest: /usr
     remote_src: true
     extra_opts: ["--zstd"]
-    creates: /usr/bin/ollama
   become: true
-  when: ansible_facts['os_family'] == 'Debian'
-  tags: ollama_linux
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_need_install | bool
+  tags: [ollama_linux, upgrade]
 
 - name: "ollama (Debian): create ollama system user"
   ansible.builtin.user:
@@ -318,7 +421,80 @@
     create_home: true
   become: true
   when: ansible_facts['os_family'] == 'Debian'
-  tags: ollama_linux
+  tags: [ollama_linux, upgrade]
+
+# ── AMD: ROCm overlay (amd64 only — upstream ships no arm64-rocm asset) ────────
+- name: "ollama (Debian): warn if AMD GPU requested on unsupported arch"
+  ansible.builtin.debug:
+    msg: >
+      WARNING: AMD GPU acceleration was requested but upstream ships no
+      ollama-linux-{{ ollama_linux_arch }}-rocm tarball (ROCm is amd64-only).
+      Continuing CPU-only for the AMD path.
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_gpu_amd_on | bool
+    - ollama_linux_arch != 'amd64'
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): check for existing ROCm libraries"
+  ansible.builtin.stat:
+    path: /usr/lib/ollama/rocm
+  register: ollama_rocm_stat
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_gpu_amd_on | bool
+    - ollama_linux_arch == 'amd64'
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): overlay ROCm tarball for AMD GPU"
+  ansible.builtin.unarchive:
+    src: "https://github.com/ollama/ollama/releases/download/v{{ ollama_target_version }}/ollama-linux-{{ ollama_linux_arch }}-rocm.tar.zst"
+    dest: /usr
+    remote_src: true
+    extra_opts: ["--zstd"]
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_gpu_amd_on | bool
+    - ollama_linux_arch == 'amd64'
+    - (ollama_need_install | bool) or (not ollama_rocm_stat.stat.exists)
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): grant the ollama user GPU device access (AMD)"
+  ansible.builtin.user:
+    name: ollama
+    groups: [render, video]
+    append: true
+  become: true
+  failed_when: false   # render/video may be absent on some kernels — non-fatal
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_gpu_amd_on | bool
+  tags: [ollama_linux, upgrade]
+
+# ── NVIDIA: bundled CUDA libs need only a host kernel driver (detect + warn) ───
+- name: "ollama (Debian): verify NVIDIA host driver (nvidia-smi)"
+  ansible.builtin.command: nvidia-smi -L
+  register: ollama_nvidia_smi
+  changed_when: false
+  failed_when: false
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_gpu_nvidia_on | bool
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): warn when NVIDIA GPU present but driver missing"
+  ansible.builtin.debug:
+    msg: >
+      WARNING: NVIDIA GPU detected but `nvidia-smi` failed. Ollama bundles the
+      CUDA userspace libs, but the host still needs the NVIDIA kernel driver
+      (e.g. `cuda-drivers` / `nvidia-driver`). Install it via system/GPU
+      provisioning and restart the ollama service; the GPU is unused until then.
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_gpu_nvidia_on | bool
+    - (ollama_nvidia_smi.rc | default(1)) != 0
+  tags: [ollama_linux, upgrade]
 
 - name: "ollama (Debian): install systemd unit"
   ansible.builtin.template:
@@ -327,17 +503,69 @@
     mode: "0644"
   become: true
   when: ansible_facts['os_family'] == 'Debian'
-  tags: ollama_linux
+  tags: [ollama_linux, upgrade]
 
-- name: "ollama (Debian): enable + start ollama service"
+- name: "ollama (Debian): enable + (re)start ollama service"
   ansible.builtin.systemd:
     name: ollama
     daemon_reload: true
     enabled: true
-    state: started
+    state: "{{ 'restarted' if ollama_need_install | bool else 'started' }}"
   become: true
   when: ansible_facts['os_family'] == 'Debian'
-  tags: ollama_linux
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): report install/GPU decision"
+  ansible.builtin.debug:
+    msg: >-
+      ollama {{ ollama_target_version }} on {{ ollama_linux_arch }} —
+      {{ '(re)installed' if ollama_need_install | bool else 'already current' }};
+      GPU nvidia={{ ollama_gpu_nvidia_on }} amd={{ ollama_gpu_amd_on }}.
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [ollama_linux, upgrade]
+
+# ── Linux (Debian): periodic "newer tarball?" check via a systemd timer ────────
+# macOS gets binary upgrades from `brew upgrade` (the cask), so this is Debian
+# only. The timer runs ollama-update-check, which compares the installed binary
+# against the latest upstream tag. Default action is NOTIFY (journal + a marker
+# at /var/lib/ollama/update-available); set ollama_update_check_apply=true to let
+# the timer auto-swap the tarball. Teardown lives in remove.yaml.
+- name: "ollama (Debian): install periodic update-check script"
+  ansible.builtin.copy:
+    src: ollama-update-check
+    dest: /usr/local/bin/ollama-update-check
+    mode: "0755"
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_update_check_enabled | default(true) | bool
+  tags: [ollama_linux, ollama_update_check]
+
+- name: "ollama (Debian): install update-check systemd service + timer"
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0644"
+  become: true
+  loop:
+    - ollama-update-check.service
+    - ollama-update-check.timer
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_update_check_enabled | default(true) | bool
+  tags: [ollama_linux, ollama_update_check]
+
+- name: "ollama (Debian): enable + start the update-check timer"
+  ansible.builtin.systemd:
+    name: ollama-update-check.timer
+    daemon_reload: true
+    enabled: true
+    state: started
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_update_check_enabled | default(true) | bool
+  tags: [ollama_linux, ollama_update_check]
 
 # ── Both OSes: install the ollama-models CLI and sync the manifest ─────────────
 # These two tasks are ALSO tagged `upgrade`: the root playbook's upgrade
