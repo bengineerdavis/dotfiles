@@ -141,7 +141,41 @@ vendor copy:
 - **Local `qwen3.6:27b-coding-nvfp4`** — routine edits, refactors, anything private or offline
 - **Local `ministral-3:3b`** — cheap high-volume agent loops where 262K context matters more than raw quality
 
-## Do not run two at once on this machine
+## Holding several models at once
+
+**Classify by footprint, never by parameter count.** Params are a terrible proxy
+because quantisation dominates: `gemma4:12b-mlx` is 12.4B but 7.6 GB (4-bit),
+while `gemma4:e4b-mlx-bf16` is 8.1B but 16 GB (bf16) and
+`qwen3-embedding:8b-fp16` is 7.6B but 15 GB. A "12B or smaller" rule would admit
+the 16 GB model and reject the 7.6 GB one.
+
+Footprint = **weights + KV at your context** (32K here). Budget ~20 GB resident
+in total — see the measurement below.
+
+| tier | footprint | examples | how many |
+|---|---|---|---|
+| **companion** | ≤ 5 GB | `qwen3-embedding:0.6b` (1.2), `embeddinggemma` (0.6), `granite4:3b` (5.0) | keep 1 resident always |
+| **small** | 6–13 GB | `gemma4:12b-mlx` (7.6), `ministral-3:3b` (8), `qwen3.5:9b-mlx` (11), `lfm2.5:8b-a1b` (11), `qwen3-vl:8b` (12) | 2 together |
+| **large** | ≥ 18 GB | everything 27B+ | 1, alone |
+
+> **The rule: two smalls, or one large — plus one companion either way, summing
+> to ≤ 20 GB.**
+
+Verified: `granite4:3b` (5.0) + `gemma4:12b-mlx` (7.6) = **12.6 GB**, both
+resident on GPU simultaneously.
+
+An embedding model is the ideal permanent companion — 1 GB or less, hit
+constantly by RAG, and wasteful to reload each time.
+
+Pairings that work:
+
+```
+gemma4:12b-mlx (7.6)  + ministral-3:3b (8)   + embeddinggemma (0.6) = 16.2 GB
+qwen3-vl:8b (12)      + granite4:3b (5.0)                          = 17.0 GB
+qwen3.6:27b-mlx (22)  — alone, and quit Slack first
+```
+
+## Why not two large models
 
 An earlier version of this file suggested pairs totalling ~23 GB. **That was
 wrong**, because it budgeted against the 36 GB nameplate rather than against what

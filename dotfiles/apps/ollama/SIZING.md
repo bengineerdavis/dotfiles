@@ -81,12 +81,88 @@ This is why the manifest's 24 GB budget is a *download* gate, not a runtime
 promise: a 19–22 GB model passes the budget but will not sit comfortably
 alongside Slack and a browser.
 
+### ⚠ The Ollama.app ignores your shell environment
+
+`env.zsh` exports reach a **shell-launched `ollama serve`** only. The macOS app
+starts its own server with its own environment — confirmed by reading the
+running process, which carries `OLLAMA_CONTEXT_LENGTH=65536` sourced from the
+app's settings database, not from any shell:
+
+```
+~/Library/Application Support/Ollama/db.sqlite  →  settings.context_length = 65536
+```
+
+That table holds `context_length`, `models`, `expose`, `selected_model` and so
+on — but **no** `max_loaded_models` or `keep_alive`, so those two fall back to
+ollama's defaults under the app.
+
+To actually change app behaviour, pick one:
+
+| approach | effect |
+|---|---|
+| Ollama.app settings UI | the supported way to change context length |
+| `launchctl setenv OLLAMA_MAX_LOADED_MODELS 3`, then restart the app | GUI apps inherit it at launch |
+| quit the app, run `ollama serve` from a shell | picks up `env.zsh` in full |
+
 `apps/ollama/files/zsh/env.zsh` sets, on macOS only:
 
 ```sh
-OLLAMA_MAX_LOADED_MODELS=1   # never hold two large models at once
+OLLAMA_MAX_LOADED_MODELS=3   # two smalls + a companion; see MODELS.md tiers
 OLLAMA_KEEP_ALIVE=60s        # release memory promptly, not after the default 5m
+OLLAMA_CONTEXT_LENGTH=32768  # must match ollama_target_ctx_tokens
 ```
+
+**Current mismatch:** the app is set to 65536 while the manifest budgets 32768,
+so real KV cost is double what the gate assumes. Fix it in the app's settings UI
+(or accept it and set `ollama_target_ctx_tokens: 65536`, which drops 33 fitting
+models to 28).
+
+## The budget now includes context
+
+Earlier versions of this file said the manifest gated on *weights only* and left
+it at that. It no longer does — that gap was the whole problem. `ministral-3:3b`
+is 4.5 GB of weights and needs **33 GB** at its full window: it cleared a 24 GB
+budget with room to spare and then could not run.
+
+Each member is now gated on **weights + KV at a target context**:
+
+```yaml
+ollama_target_ctx_tokens: 32768        # context every model must still afford
+ollama_kv_kb_per_token_default: 70     # fallback where no measurement exists
+```
+
+and members carry a measured `kv_kb_per_token` where one exists. `status` shows
+the split — `qwen3.6:27b-mlx (20+2.4=22.4GB)`.
+
+Raising the target correctly starts excluding models, because that memory has to
+come from somewhere:
+
+| target context | models fitting the 24 GB budget |
+|---|---|
+| 8K | 36 / 36 |
+| **32K** (current) | 33 / 36 |
+| 128K | **18 / 36** |
+
+At 32K the three 35B-class models (`qwen3.6:35b-mlx`,
+`qwen3.6:35b-a3b-coding-nvfp4`, `qwen3.5:35b-mlx`) land at 24.3 GB and are
+skipped. They stay on disk and `prune` still protects them — the budget governs
+what `sync` *pulls*, not what gets deleted.
+
+### Measuring `kv_kb_per_token` for another model
+
+```sh
+M=some-model:tag
+for c in 4096 65536; do
+  curl -s http://localhost:11434/api/generate \
+    -d "{\"model\":\"$M\",\"prompt\":\"hi\",\"stream\":false,\"options\":{\"num_ctx\":$c}}" >/dev/null
+  ollama ps | awk -v c=$c 'NR>1{print c" -> "$3$4}'
+  ollama stop "$M"
+done
+# KV KB/token = (resident@65536 − resident@4096) GB × 1e6 / 61440
+```
+
+For **MLX** models a short prompt understates it — they allocate lazily, so feed
+a genuinely long prompt instead of setting `num_ctx`.
 
 ## Recommendation for this Mac (M4 Max, 36 GB)
 

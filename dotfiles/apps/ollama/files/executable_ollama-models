@@ -95,7 +95,12 @@ def load_manifest(path: Path):
     # (bare `:latest` aliases, hand-pinned experiments). `prune` never lists
     # them; `sync` never pulls them.
     keep = fold(data.get("ollama_prune_keep") or [])
-    return reserve, families, keep
+    # Context headroom: how much KV cache to budget for on top of the weights.
+    ctx = {
+        "tokens": int(data.get("ollama_target_ctx_tokens", 32768)),
+        "kv_default": float(data.get("ollama_kv_kb_per_token_default", 70)),
+    }
+    return reserve, families, keep, ctx
 
 
 # ── host facts ──────────────────────────────────────────────────────────────
@@ -238,8 +243,26 @@ def member_size(m: dict, key: str) -> float:
     return float(raw)
 
 
-def resolve(families: dict, keys: list[str], budget: float, ram_budget: float = 0.0):
-    """Yield (family, tag, size_gb, fits) for this host, in manifest order.
+def kv_gb(m: dict, ctx: dict) -> float:
+    """GB of KV cache this member needs at the target context length.
+
+    Weights alone are a misleading gate: `ministral-3:3b` is 4.5GB of weights
+    but needs ~33GB at its full 262K window, so it clears a 24GB budget and then
+    cannot run. KV cost is per-token and tracks ARCHITECTURE, not parameter
+    count — measured here, granite4's hybrid layers cost ~19 KB/token while the
+    much smaller ministral-3 costs ~107 KB/token. Members carry a measured
+    `kv_kb_per_token` where one exists; the rest fall back to a mid-range
+    default. See SIZING.md for the measurements.
+    """
+    kb = float(m.get("kv_kb_per_token", ctx["kv_default"]))
+    return ctx["tokens"] * kb / 1e6
+
+
+def resolve(families: dict, keys: list[str], budget: float, ram_budget: float = 0.0,
+            ctx: dict | None = None):
+    """Yield (family, tag, size_gb, kv, fits) for this host, in manifest order.
+
+    `fits` gates on weights + KV at the target context, not on weights alone.
 
     A member may set `basis: ram` to opt out of the default budget. On a Linux
     host with a discrete GPU the budget is VRAM, which is the right gate for
@@ -257,7 +280,8 @@ def resolve(families: dict, keys: list[str], budget: float, ram_budget: float = 
             tag, key = hit
             size = member_size(m, key)
             limit = ram_budget if (m.get("basis") == "ram" and ram_budget) else budget
-            yield family, tag, size, size <= limit
+            kv = kv_gb(m, ctx) if ctx else 0.0
+            yield family, tag, size, kv, size + kv <= limit
 
 
 def installed_models() -> set[str]:
@@ -376,7 +400,7 @@ def changed_state(tag: str) -> bool | None:
 
 
 # ── commands ────────────────────────────────────────────────────────────────
-def cmd_sync(args, reserve, families, keep):
+def cmd_sync(args, reserve, families, keep, ctx):
     mem, basis = total_ram_gb()
     budget = mem * (100 - reserve) / 100
     # Separate system-RAM budget for members marked `basis: ram` (CPU/split MoE).
@@ -387,13 +411,13 @@ def cmd_sync(args, reserve, families, keep):
     print(f"os={'+'.join(keys)}  {basis}={mem:.0f}GB  budget={budget:.0f}GB  "
           f"reserve={reserve}%  mode={'refresh' if args.refresh else 'install-missing'}")
     pulled = skipped = present = unchanged = cloud = 0
-    for family, tag, size, fits in resolve(families, keys, budget, ram_budget):
+    for family, tag, size, kv, fits in resolve(families, keys, budget, ram_budget, ctx):
         if is_cloud_tag(tag):
             print(f"  CLOUD  {tag:<42} NOT PULLED — {CLOUD_WHY}")
             cloud += 1
             continue
         if not fits:
-            print(f"  skip   {tag:<42} ({size:.0f}GB > budget)")
+            print(f"  skip   {tag:<42} ({size:.0f}GB weights + {kv:.0f}GB ctx > budget)")
             skipped += 1
             continue
         if tag.lower() in have:
@@ -427,7 +451,7 @@ def cmd_sync(args, reserve, families, keep):
               f"`ollama list`. Edit defaults/main.yaml to use a local build.")
 
 
-def cmd_status(args, reserve, families, keep):
+def cmd_status(args, reserve, families, keep, ctx):
     mem, basis = total_ram_gb()
     budget = mem * (100 - reserve) / 100
     # Separate system-RAM budget for members marked `basis: ram` (CPU/split MoE).
@@ -435,11 +459,14 @@ def cmd_status(args, reserve, families, keep):
     ram_budget = system_ram_gb() * (100 - reserve) / 100
     keys = os_keys()
     have = fold(installed_models())
-    print(f"os={'+'.join(keys)}  {basis}={mem:.0f}GB  budget={budget:.0f}GB  reserve={reserve}%\n")
+    print(f"os={'+'.join(keys)}  {basis}={mem:.0f}GB  budget={budget:.0f}GB  "
+          f"reserve={reserve}%  ctx={ctx['tokens']}tok\n"
+          f"(sizes are weights + KV cache at the target context; "
+          f"the budget gates their SUM)\n")
     n_cloud = 0
     for fam in families:
         print(f"{fam}:")
-        for family, tag, size, fits in resolve({fam: families[fam]}, keys, budget, ram_budget):
+        for family, tag, size, kv, fits in resolve({fam: families[fam]}, keys, budget, ram_budget, ctx):
             if is_cloud_tag(tag):
                 state = "CLOUD(never)"
                 n_cloud += 1
@@ -449,13 +476,14 @@ def cmd_status(args, reserve, families, keep):
                 state = "installed"
             else:
                 state = "MISSING"
-            print(f"  {state:<16} {tag} ({size:.0f}GB)")
+            print(f"  {state:<16} {tag} "
+                  f"({size:.0f}+{kv:.1f}={size + kv:.1f}GB)")
     if n_cloud:
         print(f"\n! {n_cloud} entr{'y' if n_cloud == 1 else 'ies'} marked "
               f"CLOUD(never) will NEVER install — {CLOUD_WHY}.")
 
 
-def cmd_check(args, reserve, families, keep):
+def cmd_check(args, reserve, families, keep, ctx):
     manifest_by_family = {}
     for family, members in families.items():
         tags = set()
@@ -559,7 +587,7 @@ def next_gen_candidates(family: str) -> list[str]:
     return [c for c in out if not (c in seen or seen.add(c))]
 
 
-def cmd_prune(args, reserve, families, keep):
+def cmd_prune(args, reserve, families, keep, ctx):
     # Treat EVERY os/hardware key as "wanted", not just this host's: a mac
     # checkout must not delete the nvfp4 build a Linux box pulled (and vice
     # versa) just because it resolves to a different tag here.
@@ -614,8 +642,8 @@ def main():
     pr.set_defaults(func=cmd_prune)
 
     args = p.parse_args()
-    reserve, families, keep = load_manifest(args.manifest)
-    args.func(args, reserve, families, keep)
+    reserve, families, keep, ctx = load_manifest(args.manifest)
+    args.func(args, reserve, families, keep, ctx)
 
 
 if __name__ == "__main__":

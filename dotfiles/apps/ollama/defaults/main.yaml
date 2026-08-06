@@ -89,6 +89,30 @@
 # Percent of total RAM kept free for other programs. Budget = total − this%.
 ollama_ram_reserve_pct: 33
 
+# ── Context headroom ─────────────────────────────────────────────────────────
+# Weights alone are a misleading gate. `ministral-3:3b` is 4.5GB of weights but
+# needs ~33GB at its full 262K window — it clears a 24GB budget comfortably and
+# then cannot run. So each member is gated on weights + KV cache at the context
+# length you actually intend to use.
+#
+#   ollama_target_ctx_tokens — context every model should be able to hold and
+#     still fit the budget. 32K covers most work; raising it will (correctly)
+#     start skipping large models, because that memory has to come from
+#     somewhere. Lower it if you want the big models back at short context.
+#
+# KV cost is per-token and tracks ARCHITECTURE, not parameter count. Measured on
+# an M4 Max by loading each model and reading resident memory (see SIZING.md):
+#
+#     granite4:32b-a9b-h   ~19 KB/token   hybrid Mamba layers — cheapest
+#     glm-4.7-flash        ~50 KB/token
+#     qwen3.6:27b-mlx      ~72 KB/token
+#     ministral-3:3b      ~107 KB/token   smallest model, dearest context
+#
+# Members carry `kv_kb_per_token` where a measurement exists; everything else
+# uses the default below. Measure more with the recipe in SIZING.md.
+ollama_target_ctx_tokens: 32768
+ollama_kv_kb_per_token_default: 70
+
 # ── Linux install + GPU acceleration ─────────────────────────────────────────
 # No official apt repo exists for Ollama, so the Debian path installs the
 # official release tarball directly (see tasks/install.yaml) and "upgrades" by
@@ -145,6 +169,7 @@ ollama_models:
       linux_nvidia:  "qwen3.6:27b-nvfp4"
       linux:         "qwen3.6:27b-q4_K_M"
       size_gb:       { darwin: 20, linux_nvidia: 20, linux: 17 }
+      kv_kb_per_token: 72        # measured, M4 Max
     # 35B-A3B MoE (3B active — flagship quality at 27B-class speed)
     - darwin:        "qwen3.6:35b-mlx"
       linux_nvidia:  "qwen3.6:35b-a3b-nvfp4"
@@ -206,7 +231,10 @@ ollama_models:
       basis:   ram
 
   glm-4.7-flash:            # strong 30B-class (GGUF only)
-    - { darwin: "glm-4.7-flash:q4_K_M",         linux: "glm-4.7-flash:q4_K_M",           size_gb: 19 }
+    - darwin:  "glm-4.7-flash:q4_K_M"
+      linux:   "glm-4.7-flash:q4_K_M"
+      size_gb: 19
+      kv_kb_per_token: 50        # measured, M4 Max
 
   # ═══════════════ efficient / small ═══════════════
   # ── arch-split family ──
@@ -234,7 +262,10 @@ ollama_models:
 
   granite4:                 # previous gen (kept for A/B; no bf16 at 3b, uses default tag)
     - { darwin: "granite4:3b",                  linux: "granite4:3b",                    size_gb: 3 }
-    - { darwin: "granite4:32b-a9b-h",           linux: "granite4:32b-a9b-h",             size_gb: 19 }
+    - darwin:  "granite4:32b-a9b-h"
+      linux:   "granite4:32b-a9b-h"
+      size_gb: 19
+      kv_kb_per_token: 19        # measured — hybrid Mamba layers, cheapest context here
 
   lfm2:                     # on-device/edge hybrid MoE (GGUF only)
                             # current gen is lfm2.5 — see small/long-context agents
@@ -252,8 +283,14 @@ ollama_models:
   # All are GGUF-only upstream (no MLX/NVFP4 builds), so no hardware split:
   # one GGUF runs on Metal, CUDA, ROCm and CPU alike.
   ministral-3:              # 262K ctx · tools + vision · best context-per-GB here
-    - { darwin: "ministral-3:3b-instruct-2512-q8_0", linux: "ministral-3:3b-instruct-2512-q8_0", size_gb: 5 }
-    - { darwin: "ministral-3:8b-instruct-2512-q8_0", linux: "ministral-3:8b-instruct-2512-q8_0", size_gb: 10 }
+    - darwin:  "ministral-3:3b-instruct-2512-q8_0"
+      linux:   "ministral-3:3b-instruct-2512-q8_0"
+      size_gb: 5
+      kv_kb_per_token: 107       # measured — dearest context of anything here
+    - darwin:  "ministral-3:8b-instruct-2512-q8_0"
+      linux:   "ministral-3:8b-instruct-2512-q8_0"
+      size_gb: 10
+      kv_kb_per_token: 107       # assumed same family as the 3b; not separately measured
 
   lfm2.5:                   # 125K ctx · tools + thinking · 8B MoE w/ 1B active
     - { darwin: "lfm2.5:8b-a1b-q8_0", linux: "lfm2.5:8b-a1b-q8_0", size_gb: 9 }
