@@ -169,8 +169,26 @@ parameters activate per token:
 
 A 122B dense model on CPU would be unusable; at 10B active it is genuinely
 tolerable. That is the one class of model the 128 GB unlocks that neither GPU nor
-the Mac can touch. Add them as `linux`-only members if you want them — the budget
-gate will skip them on the Mac automatically.
+the Mac can touch.
+
+**Both are already in the manifest** as `linux`-only members carrying
+`basis: ram`. That flag gates them against system RAM instead of VRAM —
+otherwise the 24 GB card would veto an 81 GB model on a 128 GB host. Verified:
+
+| host | result |
+|---|---|
+| Mac 36 GB | not offered (no `darwin` key) |
+| Linux, 32 GB RAM — today | **skipped** (81 GB > 21 GB budget) |
+| Linux, 128 GB RAM — after upgrade | **installs**, both |
+
+So they switch themselves on when the RAM lands. Nothing to change.
+
+> ⚠ **The reserve is one number serving two bases.** Dropping
+> `ollama_ram_reserve_pct` to 10 for the 3090's VRAM also loosens the *RAM* gate
+> to ~115 GB, which would leave only ~13 GB for the OS and KV cache under an
+> 81 GB model. At the default 33% the RAM budget is ~86 GB, which is the right
+> shape. If you lower the reserve for the GPU, re-check that the 120B members
+> still leave headroom — or pin them with an explicit smaller `size_gb`.
 
 At 32 GB today, keep everything inside the 3090's 24 GB and treat CPU offload as
 a fallback, not a plan.

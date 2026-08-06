@@ -79,6 +79,12 @@
 # per-hardware builds differ materially. At runtime each entry is gated against
 # the RAM/VRAM budget (see below); anything larger is skipped with a log line,
 # so the same manifest works on a 16 GB laptop and a 128 GB workstation.
+#
+# `basis: ram` opts a member out of the default budget. On Linux with a discrete
+# GPU the budget is VRAM — correct for anything running ON the GPU, wrong for
+# large MoE models deliberately run on CPU or split CPU+GPU, where the real
+# limit is system RAM. Without it an 81 GB MoE would be vetoed by a 24 GB card
+# on a 128 GB host. Only used by the two 120B-class members below.
 
 # Percent of total RAM kept free for other programs. Budget = total − this%.
 ollama_ram_reserve_pct: 33
@@ -173,9 +179,22 @@ ollama_models:
       linux_nvidia:  "qwen3.5:35b-a3b-nvfp4"
       linux:         "qwen3.5:35b-a3b-q4_K_M"
       size_gb:       { darwin: 22, linux_nvidia: 22, linux: 24 }
+    # 122B MoE with 10B active — LINUX-ONLY, CPU/split inference (see SIZING.md).
+    # Far too large for any GPU here, but only ~10B parameters activate per
+    # token, so it is genuinely usable on a big-RAM host where a 122B *dense*
+    # model would not be. `basis: ram` gates it against system RAM instead of
+    # VRAM — otherwise a 24GB card would veto it on a 128GB machine.
+    - linux:   "qwen3.5:122b-a10b-q4_K_M"
+      size_gb: 81
+      basis:   ram
 
   gpt-oss:                  # OpenAI open weights (native MXFP4, single build)
     - { darwin: "gpt-oss:20b",                  linux: "gpt-oss:20b",                    size_gb: 14 }
+    # 120B MoE — LINUX-ONLY, CPU/split inference. Same reasoning as the
+    # qwen3.5:122b member above: sparse activation makes it viable off-GPU.
+    - linux:   "gpt-oss:120b"
+      size_gb: 65
+      basis:   ram
 
   glm-4.7-flash:            # strong 30B-class (GGUF only)
     - { darwin: "glm-4.7-flash:q4_K_M",         linux: "glm-4.7-flash:q4_K_M",           size_gb: 19 }

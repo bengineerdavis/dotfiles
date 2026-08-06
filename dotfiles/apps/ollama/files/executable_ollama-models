@@ -238,8 +238,17 @@ def member_size(m: dict, key: str) -> float:
     return float(raw)
 
 
-def resolve(families: dict, keys: list[str], budget: float):
-    """Yield (family, tag, size_gb, fits) for this host, in manifest order."""
+def resolve(families: dict, keys: list[str], budget: float, ram_budget: float = 0.0):
+    """Yield (family, tag, size_gb, fits) for this host, in manifest order.
+
+    A member may set `basis: ram` to opt out of the default budget. On a Linux
+    host with a discrete GPU the budget is VRAM, which is the right gate for
+    anything meant to run *on* the GPU — but wrong for large MoE models that are
+    deliberately run on CPU or split across CPU+GPU, where the real limit is
+    system RAM. Without this, an 81GB MoE would be gated out by a 24GB card on a
+    128GB host. Ignored where no separate RAM budget applies (e.g. macOS unified
+    memory, where the two are the same number).
+    """
     for family, members in families.items():
         for m in members or []:
             hit = member_tag(m, keys)
@@ -247,7 +256,8 @@ def resolve(families: dict, keys: list[str], budget: float):
                 continue
             tag, key = hit
             size = member_size(m, key)
-            yield family, tag, size, size <= budget
+            limit = ram_budget if (m.get("basis") == "ram" and ram_budget) else budget
+            yield family, tag, size, size <= limit
 
 
 def installed_models() -> set[str]:
@@ -369,12 +379,15 @@ def changed_state(tag: str) -> bool | None:
 def cmd_sync(args, reserve, families, keep):
     mem, basis = total_ram_gb()
     budget = mem * (100 - reserve) / 100
+    # Separate system-RAM budget for members marked `basis: ram` (CPU/split MoE).
+    # On macOS the basis is already system RAM, so this is the same number.
+    ram_budget = system_ram_gb() * (100 - reserve) / 100
     keys = os_keys()
     have = fold(installed_models())
     print(f"os={'+'.join(keys)}  {basis}={mem:.0f}GB  budget={budget:.0f}GB  "
           f"reserve={reserve}%  mode={'refresh' if args.refresh else 'install-missing'}")
     pulled = skipped = present = unchanged = cloud = 0
-    for family, tag, size, fits in resolve(families, keys, budget):
+    for family, tag, size, fits in resolve(families, keys, budget, ram_budget):
         if is_cloud_tag(tag):
             print(f"  CLOUD  {tag:<42} NOT PULLED — {CLOUD_WHY}")
             cloud += 1
@@ -417,13 +430,16 @@ def cmd_sync(args, reserve, families, keep):
 def cmd_status(args, reserve, families, keep):
     mem, basis = total_ram_gb()
     budget = mem * (100 - reserve) / 100
+    # Separate system-RAM budget for members marked `basis: ram` (CPU/split MoE).
+    # On macOS the basis is already system RAM, so this is the same number.
+    ram_budget = system_ram_gb() * (100 - reserve) / 100
     keys = os_keys()
     have = fold(installed_models())
     print(f"os={'+'.join(keys)}  {basis}={mem:.0f}GB  budget={budget:.0f}GB  reserve={reserve}%\n")
     n_cloud = 0
     for fam in families:
         print(f"{fam}:")
-        for family, tag, size, fits in resolve({fam: families[fam]}, keys, budget):
+        for family, tag, size, fits in resolve({fam: families[fam]}, keys, budget, ram_budget):
             if is_cloud_tag(tag):
                 state = "CLOUD(never)"
                 n_cloud += 1
