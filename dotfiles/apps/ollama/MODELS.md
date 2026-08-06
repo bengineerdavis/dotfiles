@@ -111,18 +111,28 @@ remote context windows outright)
 
 ### Worth escalating for
 
-| Gap | Remote model | Why |
-|---|---|---|
-| **Reasoning ceiling** | `anthropic/claude-opus-5`, `google/gemini-3.1-pro-preview` | Largest local is 35B with 3B active — a different class of problem-solving |
-| **Best harness fit** | `anthropic/claude-sonnet-5` via `ori claude` | Claude Code is Anthropic's own harness; least friction, strongest tool-calling |
-| **Successor to a local model** | `z-ai/glm-5.2` | 976K context. The direct next generation of your local `glm-4.7-flash`, and **cloud-only** — impossible to download |
-| **Successor to a local model** | `deepseek/deepseek-v4-pro` | Next generation of your local `deepseek-r1:32b`, also cloud-only |
-| **Coding beyond 24 GB** | `moonshotai/kimi-k2.7-code`, `minimax/minimax-m3` | Open weights far too large to hold locally |
-| **Audio** | `openai/gpt-audio` | You currently have **no** local audio model — see the gemma4 note above |
-| **Low-latency interactive** | `anthropic/claude-haiku-4.5`, `google/gemini-3.6-flash` | Faster than a 27B on Metal when responsiveness matters more than privacy |
+Context and pricing below are read from the OpenRouter models API, not from
+vendor copy:
 
-The two "successor" rows are the strongest case for remote: same families you
-already run, at generations that have no downloadable weights at all.
+| Gap | Remote model | Context | $/Mtok in→out | Why |
+|---|---|---|---|---|
+| **Reasoning ceiling** | `anthropic/claude-opus-5` | — | — | Largest local is 35B with 3B active. This is the only gap that reliably justifies paying |
+| **Best harness fit** | `anthropic/claude-sonnet-5` | 1,000,000 | 2.00 → 10.00 | Claude Code is Anthropic's own harness — least friction, strongest tool-calling. The default for `ori claude` |
+| **Cheap long-context bulk** | `deepseek/deepseek-v4-pro` | 1,048,576 | **0.43 → 0.87** | Best value at 1M by a wide margin; also the successor to your local `deepseek-r1:32b` |
+| **Coding beyond 24 GB** | `moonshotai/kimi-k2.7-code` | 262,144 | 0.70 → 3.50 | Coding-specialised open weights too large to hold locally |
+| **Audio** | `openai/gpt-audio` | — | — | You currently have **no** local audio model — see the gemma4 note above |
+| **Low-latency interactive** | `anthropic/claude-haiku-4.5` | — | — | Faster than a 27B on Metal when responsiveness beats privacy |
+
+> **Long context is a weak reason to go remote.** `granite4:32b-a9b-h` gives you
+> a *measured* 1,048,576-token window locally, for free — matching `glm-5.2` and
+> `deepseek-v4-pro` exactly, and beating `claude-sonnet-5`. Escalate for
+> **reasoning quality**, which you cannot get locally; do not escalate for window
+> size, which you already have.
+>
+> `z-ai/glm-5.2` (1,048,576, $0.76 → $2.42) is the successor to your local
+> `glm-4.7-flash`, but being a successor is genealogy, not capability:
+> `deepseek-v4-pro` matches its context at roughly half the price. Pick it only
+> if you specifically want GLM behaviour.
 
 ### A practical split
 
