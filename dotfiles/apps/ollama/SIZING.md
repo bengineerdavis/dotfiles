@@ -103,17 +103,74 @@ Q4**, ~1.1 GB/B at Q8, plus KV from the table above, plus 2–4 GB for the OS.
 | 64 GB | 70B Q4 comfortably | Two models resident |
 | 128 GB | 120B Q4 / 70B Q8 | Frontier-adjacent locally |
 
-### Linux specifics
+## The Linux box: RTX 3090 + RX 6900 XT, 32 GB → 128 GB
 
-- **Budget basis is VRAM, not system RAM**, when a discrete GPU is present —
-  `ollama-models` reads `nvidia-smi`, then `rocm-smi`. A 16 GB card yields a
-  ~10.7 GB budget after the 33% reserve, which gates out most of the manifest
-  even if the host has 64 GB of system RAM.
-- **Ollama can split a model across GPU and CPU.** The manifest's VRAM-only gate
-  is deliberately conservative and will skip models that *would* run, slowly, in
-  a hybrid split. Lower `ollama_ram_reserve_pct` if you want to allow that.
-- **AMD/ROCm takes GGUF** (`linux` key), not the NVFP4 builds — so the
-  pay-upfront KV behaviour above applies, and capping `num_ctx` matters more
-  than it does on the Mac.
-- **No MLX on Linux.** The lazy-allocation advantage is Apple-only; budget the
-  full declared window.
+Discrete VRAM, so unlike the Mac none of it is shared with system RAM.
+
+| | VRAM | arch | native FP4/FP8? |
+|---|---|---|---|
+| RTX 3090 | 24 GB | Ampere, cc 8.6 | **No** — emulated |
+| RX 6900 XT | 16 GB | RDNA2, gfx1030 | No |
+
+### Your 3090 must not use the NVFP4 builds
+
+Native FP4 tensor cores start at Blackwell (cc 10.0 datacenter / 12.0 consumer).
+On Ampere and Ada, FP4 and FP8 are **emulated via higher-precision kernels with
+no latency advantage over BF16** — so an nvfp4 build on a 3090 is strictly worse
+than the same model as GGUF.
+
+`linux_nvidia` therefore means *"has real FP4 silicon"*, not *"is an NVIDIA
+card"*. `ollama-models` reads `nvidia-smi --query-gpu=compute_cap` and falls
+through to the universal `linux` GGUF key on anything pre-Blackwell:
+
+| host | resolves to |
+|---|---|
+| RTX 3090 (8.6) · RTX 4090 (8.9) | `linux` — GGUF |
+| RTX 5090 (12.0) · B200 (10.0) | `linux_nvidia` — NVFP4 |
+| RX 6900 XT | `linux_amd` → `linux` — GGUF |
+
+### Two GPUs, two backends — ollama uses one
+
+Ollama selects a single backend per server; it will **not** pool 24 + 16 = 40 GB
+across CUDA and ROCm. Treat the 3090 as the model GPU. To use the 6900 XT at the
+same time, run a second ollama instance pinned with `HIP_VISIBLE_DEVICES` on a
+different `OLLAMA_HOST` port — useful for keeping embeddings or a 3B agent model
+resident without evicting the main model.
+
+### The default reserve is wrong for discrete VRAM
+
+`ollama_ram_reserve_pct: 33` exists because unified memory is shared with the
+OS. A dedicated GPU only needs a little headroom for display. At 33% the 3090
+budgets just **16.1 GB**, which gates out most of the interesting models:
+
+| | budget @ 33% | budget @ 10% |
+|---|---|---|
+| RTX 3090 (24 GB) | 16.1 GB | **21.6 GB** |
+| RX 6900 XT (16 GB) | 10.7 GB | 14.4 GB |
+
+At 16.1 GB you lose `qwen3.6:27b-q4_K_M` (17), `glm-4.7-flash` (19),
+`granite4:32b-a9b-h` (19) and `granite4.1:30b` (17) — all of which fit at 10%.
+Set `ollama_ram_reserve_pct: 10` in a host var for that machine.
+
+Caveat: the budget gates **weights only**. `glm-4.7-flash` at 19 GB plus a 128K
+window needs ~26 GB — past the 3090's 24 GB. On Linux there is no MLX, so KV is
+preallocated at `num_ctx`; cap it at 32K unless you have measured otherwise.
+
+### What the 128 GB upgrade actually buys
+
+Not bigger GPU models — VRAM is unchanged. It buys **CPU and split inference**,
+and the sweet spot there is **large MoE models**, because only a fraction of
+parameters activate per token:
+
+| model | size | active | fits 128 GB RAM |
+|---|---|---|---|
+| `qwen3.5:122b-a10b-q4_K_M` | 81 GB | 10B | ✅ |
+| `gpt-oss:120b` | 65 GB | ~5B | ✅ |
+
+A 122B dense model on CPU would be unusable; at 10B active it is genuinely
+tolerable. That is the one class of model the 128 GB unlocks that neither GPU nor
+the Mac can touch. Add them as `linux`-only members if you want them — the budget
+gate will skip them on the Mac automatically.
+
+At 32 GB today, keep everything inside the 3090's 24 GB and treat CPU offload as
+a fallback, not a plan.

@@ -25,10 +25,16 @@
 # specific key the host matches (see files/ollama-models → OS_KEYS / os_keys):
 #
 #   darwin        Apple Silicon — MLX builds, native Metal execution
-#   linux_nvidia  NVIDIA CUDA   — NVFP4
+#   linux_nvidia  NVIDIA with NATIVE FP4 silicon (Blackwell, compute capability
+#                 >= 10.0) — NVFP4. NOT merely "an NVIDIA card": on Ampere (8.6)
+#                 and Ada (8.9) FP4/FP8 are emulated through higher-precision
+#                 kernels with no latency gain over BF16, so an RTX 3090 running
+#                 an nvfp4 build is strictly worse off than plain GGUF. The CLI
+#                 checks `nvidia-smi --query-gpu=compute_cap` and sends anything
+#                 older to `linux` instead.
 #   linux_amd     AMD ROCm      — optional override; omit to inherit `linux`
-#   linux         universal GGUF baseline (ROCm + CPU), and the fallback for
-#                 any host whose more specific key is absent
+#   linux         universal GGUF baseline (ROCm + CPU + pre-Blackwell NVIDIA),
+#                 and the fallback for any host whose more specific key is absent
 #
 # ── NVFP4 *is* the MLX build ─────────────────────────────────────────────────
 # Counter-intuitive but verified by registry manifest digest: for every 4-bit
