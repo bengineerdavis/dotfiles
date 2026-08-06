@@ -1,0 +1,25 @@
+# apps/ori/tasks/remove.yaml
+# Teardown for everything install.yaml creates.
+#
+# Doctrine (docs/CONVENTIONS.md): any state a topic creates must have a matching
+# teardown. This topic creates exactly one file — the binary — so removal is
+# precise. `ori login` state is cleaned on a best-effort basis; see the caveat.
+
+- name: "ori: remove the ori binary"
+  ansible.builtin.file:
+    path: "{{ ori_install_dir }}/ori"
+    state: absent
+
+- name: "ori: remove ori config/state directories"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ ori_state_dirs }}"
+
+- name: "ori: note credentials that cannot be removed here"
+  ansible.builtin.debug:
+    msg: >
+      ori binary and config directories removed. NOTE: if `ori login` stored
+      credentials in the OS keychain (macOS Keychain / libsecret) rather than a
+      dotfile, they are NOT removed by this task — revoke the key at
+      https://openrouter.ai/keys if you want it fully gone.

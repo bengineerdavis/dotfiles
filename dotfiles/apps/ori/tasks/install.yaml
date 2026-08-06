@@ -1,0 +1,69 @@
+# apps/ori/tasks/install.yaml
+#
+# Native equivalent of `curl -fsSL https://openrouter.ai/labs/ori/install.sh | bash`:
+# pick this platform's asset, read the published SHA256SUMS, and place the
+# binary with that checksum enforced.
+#
+# Tagged `upgrade` as well as `install`: ori is app-tier but is NOT installed by
+# brew or apt, so the system upgrade pass cannot refresh it — this topic owns
+# its own upgrade, the same way the ollama Linux tarball does.
+
+- name: "ori: resolve release asset for this platform"
+  # Upstream publishes ori-{darwin,linux}-{arm64,x64}, plus -musl variants for
+  # Linux. Debian is glibc, so the plain variant is correct here; a musl host
+  # (Alpine) would need '-musl' appended, which topic_os does not cover.
+  ansible.builtin.set_fact:
+    ori_asset: >-
+      ori-{{ 'darwin' if ansible_facts['system'] == 'Darwin' else 'linux' }}-{{
+        'arm64' if ansible_facts['architecture'] in ['arm64', 'aarch64'] else 'x64' }}
+    ori_release_base: >-
+      https://github.com/OpenRouterLabs/ori-releases/releases/{{
+        'latest/download' if ori_release_tag == 'latest'
+        else 'download/' ~ ori_release_tag }}
+  tags: [ori, install, upgrade]
+
+- name: "ori: fetch published SHA256SUMS"
+  ansible.builtin.uri:
+    url: "{{ ori_release_base }}/SHA256SUMS"
+    return_content: true
+  register: ori_sums
+  tags: [ori, install, upgrade]
+
+- name: "ori: extract the checksum for this asset"
+  # Lines are '<sha256>  <filename>'. Anchor on end-of-line so that
+  # `ori-linux-arm64` cannot match `ori-linux-arm64-musl`.
+  ansible.builtin.set_fact:
+    ori_sha256: >-
+      {{ (ori_sums.content.splitlines()
+          | select('search', ori_asset ~ '$')
+          | first).split()[0] }}
+  tags: [ori, install, upgrade]
+
+- name: "ori: ensure the install directory exists"
+  ansible.builtin.file:
+    path: "{{ ori_install_dir }}"
+    state: directory
+    mode: "0755"
+  tags: [ori, install, upgrade]
+
+- name: "ori: install/upgrade the ori binary (checksum-verified)"
+  # get_url compares the on-disk file against `checksum` and only downloads on a
+  # mismatch — so this single task installs, upgrades, and is a no-op when the
+  # release is unchanged. No version parsing needed.
+  ansible.builtin.get_url:
+    url: "{{ ori_release_base }}/{{ ori_asset }}"
+    dest: "{{ ori_install_dir }}/ori"
+    mode: "0755"
+    checksum: "sha256:{{ ori_sha256 }}"
+  register: ori_download
+  tags: [ori, install, upgrade]
+
+- name: "ori: report install state"
+  ansible.builtin.debug:
+    msg: >-
+      ori {{ ori_release_tag }} ({{ ori_asset }}) —
+      {{ 'installed/updated' if ori_download.changed else 'already current' }}
+      at {{ ori_install_dir }}/ori.
+      {{ 'Run `ori login` to authenticate (interactive; not automated).'
+         if ori_download.changed else '' }}
+  tags: [ori, install, upgrade]

@@ -1,0 +1,32 @@
+# apps/ori/defaults/main.yaml
+#
+# ori — OpenRouter's CLI for pointing agentic coding harnesses (Claude Code,
+# Codex, OpenCode, Hermes) at OpenRouter models. It exists because matching a
+# first-party harness experience otherwise means setting a long list of
+# environment variables by hand; ori detects the chosen model and applies the
+# right configuration automatically.
+#
+# ── Why not `curl … | bash`? ─────────────────────────────────────────────────
+# The upstream one-liner is only a downloader: it fetches a STANDALONE
+# executable from GitHub releases and verifies it against a published
+# SHA256SUMS. We do the same two steps natively, which keeps the install
+# idempotent, reportable, checksum-verified, and cleanly removable — the same
+# reasoning applied to the ollama tarball (see apps/ollama/README.md).
+#
+#   ori_release_tag — 'latest' (the newest published release) or a pinned tag
+#                     such as 'cli-0.4.0-063b32e' for a reproducible install.
+#   ori_install_dir — must be on PATH. ~/.local/bin is added by zsh/path.zsh
+#                     and needs no sudo, unlike /usr/local/bin.
+#
+# Upgrades are automatic and need no version parsing: `get_url` compares the
+# on-disk file against the expected SHA256 and only re-downloads when they
+# differ. A new upstream release changes the checksum, so `--tags upgrade`
+# swaps the binary; an unchanged release is a no-op.
+ori_release_tag: latest
+ori_install_dir: "{{ ansible_env.HOME }}/.local/bin"
+
+# Directories `ori login` may create. Removed by remove.yaml — but note that
+# credentials themselves can land in the OS keychain, which we do NOT touch.
+ori_state_dirs:
+  - "{{ ansible_env.HOME }}/.config/ori"
+  - "{{ ansible_env.HOME }}/.ori"

@@ -91,6 +91,45 @@ llama.cpp — just not through MLX.
 
 ---
 
+## When to escalate off the machine
+
+Three tiers, and they do genuinely different jobs:
+
+| Layer | Cost | Reach for it when |
+|---|---|---|
+| **Local** (`ollama`) | free | Default. Private, offline, zero marginal cost |
+| **`llm` + OpenRouter** | per token | One-off prompts, scripting, piping — no harness needed |
+| **`ori`** ([topic](../ori/README.md)) | per token | You want a *full agentic coding harness* (Claude Code, Codex, opencode, Hermes) on a remote model |
+
+### Don't pay for what you already have
+
+Local already covers these well — escalating buys little:
+
+general chat · coding at 27–35B · 262K context · vision to 27B · embeddings ·
+fast small agents · **1M-token ingestion** (`granite4:32b-a9b-h` beats most
+remote context windows outright)
+
+### Worth escalating for
+
+| Gap | Remote model | Why |
+|---|---|---|
+| **Reasoning ceiling** | `anthropic/claude-opus-5`, `google/gemini-3.1-pro-preview` | Largest local is 35B with 3B active — a different class of problem-solving |
+| **Best harness fit** | `anthropic/claude-sonnet-5` via `ori claude` | Claude Code is Anthropic's own harness; least friction, strongest tool-calling |
+| **Successor to a local model** | `z-ai/glm-5.2` | 976K context. The direct next generation of your local `glm-4.7-flash`, and **cloud-only** — impossible to download |
+| **Successor to a local model** | `deepseek/deepseek-v4-pro` | Next generation of your local `deepseek-r1:32b`, also cloud-only |
+| **Coding beyond 24 GB** | `moonshotai/kimi-k2.7-code`, `minimax/minimax-m3` | Open weights far too large to hold locally |
+| **Audio** | `openai/gpt-audio` | You currently have **no** local audio model — see the gemma4 note above |
+| **Low-latency interactive** | `anthropic/claude-haiku-4.5`, `google/gemini-3.6-flash` | Faster than a 27B on Metal when responsiveness matters more than privacy |
+
+The two "successor" rows are the strongest case for remote: same families you
+already run, at generations that have no downloadable weights at all.
+
+### A practical split
+
+- **`ori claude` on a frontier model** — unfamiliar codebase, hard debugging, architecture work
+- **Local `qwen3.6:27b-coding-nvfp4`** — routine edits, refactors, anything private or offline
+- **Local `ministral-3:3b`** — cheap high-volume agent loops where 262K context matters more than raw quality
+
 ## Running two at once
 
 24 GB usable, so a large + small pair fits:
