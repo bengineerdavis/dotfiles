@@ -123,11 +123,12 @@ vendor copy:
 | **Audio** | `openai/gpt-audio` | — | — | You currently have **no** local audio model — see the gemma4 note above |
 | **Low-latency interactive** | `anthropic/claude-haiku-4.5` | — | — | Faster than a 27B on Metal when responsiveness beats privacy |
 
-> **Long context is a weak reason to go remote.** `granite4:32b-a9b-h` gives you
-> a *measured* 1,048,576-token window locally, for free — matching `glm-5.2` and
-> `deepseek-v4-pro` exactly, and beating `claude-sonnet-5`. Escalate for
-> **reasoning quality**, which you cannot get locally; do not escalate for window
-> size, which you already have.
+> **Long context is a weaker reason to go remote than it looks.**
+> `granite4:32b-a9b-h` advertises a 1,048,576-token window, but on 36 GB you can
+> only fill about **400K** of it before hitting the Metal ceiling — see
+> [SIZING.md](SIZING.md). That still beats `kimi-k2.7-code` (262K) and covers
+> most real inputs for free, so escalate for **reasoning quality**, which you
+> genuinely cannot get locally. Go remote for window size only above ~400K.
 >
 > `z-ai/glm-5.2` (1,048,576, $0.76 → $2.42) is the successor to your local
 > `glm-4.7-flash`, but being a successor is genealogy, not capability:
