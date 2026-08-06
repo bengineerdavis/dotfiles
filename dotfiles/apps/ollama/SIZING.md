@@ -63,6 +63,31 @@ but it is not the 1M on the box.
 
 ---
 
+## Reality check: what is actually free on this Mac
+
+The 36 GB nameplate is not the budget. Measured with **no model loaded**:
+
+| | |
+|---|---|
+| wired + active (genuinely resident) | **16 GB** |
+| inactive (reclaimable cache) | 20.4 GB |
+| **swap already in use** | **5.5 GB** |
+| free | 0.1 GB |
+
+macOS is already swapping before ollama starts. Roughly **20 GB** is obtainable
+once the OS reclaims inactive pages — enough for exactly one model, not two.
+
+This is why the manifest's 24 GB budget is a *download* gate, not a runtime
+promise: a 19–22 GB model passes the budget but will not sit comfortably
+alongside Slack and a browser.
+
+`apps/ollama/files/zsh/env.zsh` sets, on macOS only:
+
+```sh
+OLLAMA_MAX_LOADED_MODELS=1   # never hold two large models at once
+OLLAMA_KEEP_ALIVE=60s        # release memory promptly, not after the default 5m
+```
+
 ## Recommendation for this Mac (M4 Max, 36 GB)
 
 | Use | Pick | Why |

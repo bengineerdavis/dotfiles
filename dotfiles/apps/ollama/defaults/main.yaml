@@ -179,19 +179,28 @@ ollama_models:
       linux_nvidia:  "qwen3.5:35b-a3b-nvfp4"
       linux:         "qwen3.5:35b-a3b-q4_K_M"
       size_gb:       { darwin: 22, linux_nvidia: 22, linux: 24 }
-    # 122B MoE with 10B active — LINUX-ONLY, CPU/split inference (see SIZING.md).
-    # Far too large for any GPU here, but only ~10B parameters activate per
-    # token, so it is genuinely usable on a big-RAM host where a 122B *dense*
-    # model would not be. `basis: ram` gates it against system RAM instead of
-    # VRAM — otherwise a 24GB card would veto it on a 128GB machine.
+    # 122B MoE, 10B active — big-RAM hosts only, gated on RAM not OS.
+    # Sparse activation cuts COMPUTE, not memory: all experts must be resident,
+    # so this needs ~81GB addressable however few parameters fire per token.
+    # What `a10b` buys is that the arithmetic per token is 10B-sized, making it
+    # usable off-GPU where a 122B *dense* model would not be.
+    # `basis: ram` gates against system RAM rather than VRAM — a 24GB card must
+    # not veto an 81GB model on a 128GB host. On macOS the two are the same
+    # number (unified memory), so the flag is a harmless no-op there.
+    # No `darwin` key — but NOT because macOS is unsuited. A large-memory Mac
+    # would run this BETTER than the Linux box: the GPU addresses all 81GB of
+    # unified memory at 400-800GB/s, whereas a 24GB discrete card leaves most
+    # layers on the CPU. It is omitted only because the Mac here is a 36GB
+    # MacBook Pro that will never hold it, so the entry would be permanent
+    # `skip(oversized)` noise. Restore the darwin key on a 96GB+ Mac.
+    # GGUF is the only build upstream ships at this size; no MLX variant exists.
     - linux:   "qwen3.5:122b-a10b-q4_K_M"
       size_gb: 81
       basis:   ram
 
   gpt-oss:                  # OpenAI open weights (native MXFP4, single build)
     - { darwin: "gpt-oss:20b",                  linux: "gpt-oss:20b",                    size_gb: 14 }
-    # 120B MoE — LINUX-ONLY, CPU/split inference. Same reasoning as the
-    # qwen3.5:122b member above: sparse activation makes it viable off-GPU.
+    # 120B MoE — same reasoning as the qwen3.5:122b member above.
     - linux:   "gpt-oss:120b"
       size_gb: 65
       basis:   ram

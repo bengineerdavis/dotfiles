@@ -141,15 +141,35 @@ vendor copy:
 - **Local `qwen3.6:27b-coding-nvfp4`** — routine edits, refactors, anything private or offline
 - **Local `ministral-3:3b`** — cheap high-volume agent loops where 262K context matters more than raw quality
 
-## Running two at once
+## Do not run two at once on this machine
 
-24 GB usable, so a large + small pair fits:
+An earlier version of this file suggested pairs totalling ~23 GB. **That was
+wrong**, because it budgeted against the 36 GB nameplate rather than against what
+is actually free. Measured with no model loaded:
 
+| | |
+|---|---|
+| wired + active (genuinely resident) | **16 GB** |
+| swap already in use | **5.5 GB** |
+| free | 0.1 GB |
+
+macOS is already swapping before ollama starts. Realistically ~20 GB is
+obtainable once the OS reclaims inactive cache — enough for **one** model.
+
+**Daily-driver tier (≤ 15 GB) — comfortable alongside normal apps:**
+
+`gpt-oss:20b` (13) · `devstral-small-2:24b` (15) · `lfm2:24b` (14) ·
+`ministral-3:8b` (10) · `qwen3-vl:8b` (9.8) · `granite4.1:8b` (9.3) ·
+`lfm2.5:8b-a1b` (9.0) · `qwen3.5:9b-mlx` (8.9) · `gemma4:12b-mlx` (7.7)
+
+**Heavy tier (19–22 GB) — quit Slack/Chrome first:** `qwen3.6:27b-mlx`,
+`qwen3.6:35b-mlx`, `glm-4.7-flash`, `granite4:32b-a9b-h`, `deepseek-r1:32b`.
+These fit the *budget* but not your *working set*; expect swapping otherwise.
+
+Set these so a finished model releases memory promptly instead of lingering for
+the default five minutes:
+
+```sh
+export OLLAMA_MAX_LOADED_MODELS=1   # never hold two large models at once
+export OLLAMA_KEEP_ALIVE=60s        # unload quickly on a memory-tight machine
 ```
-qwen3.6:27b-mlx (19)  +  ministral-3:3b (4.5)   = 23.5 GB   ← tight but works
-devstral-small-2 (15) +  lfm2.5:8b-a1b (9.0)    = 24.0 GB   ← coding + fast agent
-gpt-oss:20b (13)      +  qwen3-vl:8b (9.8)      = 22.8 GB   ← reasoning + vision
-```
-
-Ollama unloads idle models automatically; `OLLAMA_MAX_LOADED_MODELS` controls how
-many stay resident.
