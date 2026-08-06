@@ -124,29 +124,43 @@ it at that. It no longer does — that gap was the whole problem. `ministral-3:3
 is 4.5 GB of weights and needs **33 GB** at its full window: it cleared a 24 GB
 budget with room to spare and then could not run.
 
-Each member is now gated on **weights + KV at a target context**:
+Each member is gated on **weights + KV**, and the context used for that KV
+depends on how the runtime allocates:
 
 ```yaml
-ollama_target_ctx_tokens: 32768        # context every model must still afford
-ollama_kv_kb_per_token_default: 70     # fallback where no measurement exists
+ollama_ctx_declared_tokens: 32768   # GGUF preallocates this, used or not
+ollama_ctx_typical_tokens:  8192    # MLX allocates lazily — budget typical use
+ollama_kv_kb_per_token_default: 70  # fallback where no measurement exists
+ollama_budget_tolerance_pct: 15     # soft overshoot before skipping
 ```
 
-and members carry a measured `kv_kb_per_token` where one exists. `status` shows
-the split — `qwen3.6:27b-mlx (20+2.4=22.4GB)`.
+This split is the difference between a gate that is lenient and one that is
+merely wishful. It follows directly from the measurement above: GGUF pays for
+the window it declares, MLX pays for the tokens it uses. Charging an MLX model
+for 32K it will not touch simply excludes models that run fine.
 
-Raising the target correctly starts excluding models, because that memory has to
-come from somewhere:
+The tolerance covers the rest — something a few hundred MB past budget still
+runs, and refusing it is more annoying than useful. Those install and `status`
+labels them `installed(tight)` with a footer, so the leniency stays visible
+rather than silent.
 
-| target context | models fitting the 24 GB budget |
+Effect on this Mac (36 members, 24 GB budget):
+
+| gate | fits |
 |---|---|
-| 8K | 36 / 36 |
-| **32K** (current) | 33 / 36 |
-| 128K | **18 / 36** |
+| strict — 32K charged to everything, no tolerance | 33 / 36 |
+| **lenient — MLX at 8K typical + 15% tolerance** | **36 / 36** |
 
-At 32K the three 35B-class models (`qwen3.6:35b-mlx`,
-`qwen3.6:35b-a3b-coding-nvfp4`, `qwen3.5:35b-mlx`) land at 24.3 GB and are
-skipped. They stay on disk and `prune` still protects them — the budget governs
-what `sync` *pulls*, not what gets deleted.
+The three 35B-class models that were being skipped at 24.3 GB now budget at
+22.6 GB and are admitted, with nothing landing in the tight band at all.
+
+**On `ollama_ctx_typical_tokens: 8192`** — this is an assumption, not a
+measurement. No usage history exists on this machine to derive it from: the
+app's chat DB is empty and the server logs record only the allocated 65536.
+8K comfortably covers single-turn and short agent work; raise it if sessions
+routinely run long. It is the single knob controlling how lenient the gate is on
+MLX models, and it only affects *budgeting* — nothing caps what a model will
+actually allocate at runtime.
 
 ### Measuring `kv_kb_per_token` for another model
 

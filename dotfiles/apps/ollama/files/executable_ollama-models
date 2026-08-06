@@ -97,8 +97,15 @@ def load_manifest(path: Path):
     keep = fold(data.get("ollama_prune_keep") or [])
     # Context headroom: how much KV cache to budget for on top of the weights.
     ctx = {
-        "tokens": int(data.get("ollama_target_ctx_tokens", 32768)),
+        # What a PREALLOCATING runtime (GGUF) reserves up front, whether or not
+        # you use it. Must match the server's OLLAMA_CONTEXT_LENGTH.
+        "declared": int(data.get("ollama_ctx_declared_tokens", 32768)),
+        # What a LAZY runtime (MLX on macOS) actually holds in typical use.
+        "typical": int(data.get("ollama_ctx_typical_tokens", 8192)),
         "kv_default": float(data.get("ollama_kv_kb_per_token_default", 70)),
+        # Soft overshoot: a model this far past budget is installed and flagged
+        # `tight` rather than skipped outright.
+        "tolerance": float(data.get("ollama_budget_tolerance_pct", 15)),
     }
     return reserve, families, keep, ctx
 
@@ -243,8 +250,22 @@ def member_size(m: dict, key: str) -> float:
     return float(raw)
 
 
-def kv_gb(m: dict, ctx: dict) -> float:
-    """GB of KV cache this member needs at the target context length.
+# Builds whose runtime allocates KV cache ON USE rather than at num_ctx.
+# Measured: qwen3.6:27b-mlx sits at 19GB with num_ctx=262144 and an empty cache,
+# and grew to 22GB only when fed a real 41,683-token prompt. The equivalent GGUF
+# (glm-4.7-flash) preallocates: 26GB at num_ctx=131072 with nothing in it.
+# These tags are MLX builds (see the NVFP4 note in defaults/main.yaml) and only
+# behave lazily under MLX — the same artifact on CUDA preallocates.
+LAZY_KV_MARKERS = ("-mlx", "-nvfp4", "-mxfp8")
+
+
+def kv_gb(m: dict, ctx: dict, tag: str = "", key: str = "") -> float:
+    """GB of KV cache this member needs at the budgeting context length.
+
+    Lazy (MLX) members are budgeted at the TYPICAL context, because they only
+    pay for tokens actually used; preallocating members are budgeted at the
+    DECLARED context, because they pay it whether used or not. That distinction
+    is what lets the gate be lenient without being wishful.
 
     Weights alone are a misleading gate: `ministral-3:3b` is 4.5GB of weights
     but needs ~33GB at its full 262K window, so it clears a 24GB budget and then
@@ -255,7 +276,9 @@ def kv_gb(m: dict, ctx: dict) -> float:
     default. See SIZING.md for the measurements.
     """
     kb = float(m.get("kv_kb_per_token", ctx["kv_default"]))
-    return ctx["tokens"] * kb / 1e6
+    lazy = key == "darwin" and any(mk in tag for mk in LAZY_KV_MARKERS)
+    tokens = ctx["typical"] if lazy else ctx["declared"]
+    return tokens * kb / 1e6
 
 
 def resolve(families: dict, keys: list[str], budget: float, ram_budget: float = 0.0,
@@ -280,8 +303,11 @@ def resolve(families: dict, keys: list[str], budget: float, ram_budget: float = 
             tag, key = hit
             size = member_size(m, key)
             limit = ram_budget if (m.get("basis") == "ram" and ram_budget) else budget
-            kv = kv_gb(m, ctx) if ctx else 0.0
-            yield family, tag, size, kv, size + kv <= limit
+            kv = kv_gb(m, ctx, tag, key) if ctx else 0.0
+            # Soft ceiling: something a few hundred MB over budget will still
+            # run fine, and refusing it is more annoying than useful.
+            ceiling = limit * (1 + (ctx["tolerance"] / 100 if ctx else 0))
+            yield family, tag, size, kv, size + kv <= ceiling
 
 
 def installed_models() -> set[str]:
@@ -460,10 +486,11 @@ def cmd_status(args, reserve, families, keep, ctx):
     keys = os_keys()
     have = fold(installed_models())
     print(f"os={'+'.join(keys)}  {basis}={mem:.0f}GB  budget={budget:.0f}GB  "
-          f"reserve={reserve}%  ctx={ctx['tokens']}tok\n"
-          f"(sizes are weights + KV cache at the target context; "
-          f"the budget gates their SUM)\n")
-    n_cloud = 0
+          f"reserve={reserve}%  tolerance={ctx['tolerance']:.0f}%\n"
+          f"ctx: {ctx['declared']} declared (GGUF, preallocated) / "
+          f"{ctx['typical']} typical (MLX, lazy)\n"
+          f"(sizes are weights + KV; the budget gates their SUM)\n")
+    n_cloud = n_tight = 0
     for fam in families:
         print(f"{fam}:")
         for family, tag, size, kv, fits in resolve({fam: families[fam]}, keys, budget, ram_budget, ctx):
@@ -472,12 +499,21 @@ def cmd_status(args, reserve, families, keep, ctx):
                 n_cloud += 1
             elif not fits:
                 state = "skip(oversized)"
+            elif size + kv > budget:
+                # Inside tolerance but past the nominal budget — installed, but
+                # say so, because it is the first thing to swap under pressure.
+                state = "installed(tight)" if tag.lower() in have else "MISSING(tight)"
+                n_tight += 1
             elif tag.lower() in have:
                 state = "installed"
             else:
                 state = "MISSING"
             print(f"  {state:<16} {tag} "
                   f"({size:.0f}+{kv:.1f}={size + kv:.1f}GB)")
+    if n_tight:
+        print(f"\n~ {n_tight} entr{'y is' if n_tight == 1 else 'ies are'} past the "
+              f"{budget:.0f}GB budget but inside the {ctx['tolerance']:.0f}% tolerance — "
+              f"they run, but are first to swap under pressure.")
     if n_cloud:
         print(f"\n! {n_cloud} entr{'y' if n_cloud == 1 else 'ies'} marked "
               f"CLOUD(never) will NEVER install — {CLOUD_WHY}.")

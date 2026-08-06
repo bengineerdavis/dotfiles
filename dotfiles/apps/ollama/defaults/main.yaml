@@ -95,10 +95,27 @@ ollama_ram_reserve_pct: 33
 # then cannot run. So each member is gated on weights + KV cache at the context
 # length you actually intend to use.
 #
-#   ollama_target_ctx_tokens — context every model should be able to hold and
-#     still fit the budget. 32K covers most work; raising it will (correctly)
-#     start skipping large models, because that memory has to come from
-#     somewhere. Lower it if you want the big models back at short context.
+# Budgeting splits by ALLOCATION BEHAVIOUR, because the two runtimes differ and
+# pretending otherwise is either wasteful or wishful:
+#
+#   ollama_ctx_declared_tokens — what a PREALLOCATING runtime (GGUF) reserves up
+#     front whether or not you use it. Measured: glm-4.7-flash sits at 26GB with
+#     num_ctx=131072 and an empty cache. Must match the server's
+#     OLLAMA_CONTEXT_LENGTH, or the budget is fiction.
+#
+#   ollama_ctx_typical_tokens — what a LAZY runtime (MLX on macOS) actually
+#     holds. Measured: qwen3.6:27b-mlx stays at 19GB with num_ctx=262144 and an
+#     empty cache, reaching 22GB only when fed a real 41,683-token prompt. So
+#     MLX members are budgeted at typical use, not at the declared window.
+#     8K is an assumption, not a measurement — no usage history exists on this
+#     machine to derive it from (the app's chat DB is empty and the server logs
+#     record only the allocated 65536). Raise it if sessions routinely run long;
+#     it is the single knob controlling how lenient the gate is on MLX models.
+#
+#   ollama_budget_tolerance_pct — soft overshoot. Something a few hundred MB
+#     past budget still runs fine, and refusing it is more annoying than
+#     useful; such members install and are flagged `tight` by `status` rather
+#     than skipped, so the leniency stays visible.
 #
 # KV cost is per-token and tracks ARCHITECTURE, not parameter count. Measured on
 # an M4 Max by loading each model and reading resident memory (see SIZING.md):
@@ -110,8 +127,10 @@ ollama_ram_reserve_pct: 33
 #
 # Members carry `kv_kb_per_token` where a measurement exists; everything else
 # uses the default below. Measure more with the recipe in SIZING.md.
-ollama_target_ctx_tokens: 32768
+ollama_ctx_declared_tokens: 32768
+ollama_ctx_typical_tokens: 8192
 ollama_kv_kb_per_token_default: 70
+ollama_budget_tolerance_pct: 15
 
 # ── Linux install + GPU acceleration ─────────────────────────────────────────
 # No official apt repo exists for Ollama, so the Debian path installs the
