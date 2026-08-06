@@ -15,10 +15,14 @@ the install/upgrade tasks shell out to and which is symlinked onto `PATH` as
 
 Edit the manifest directly:
 
-- **add a model** → copy a line under its family; set the `darwin`/`linux` tags + `size_gb`
-- **add a family** → add a new `family-name:` key with a list of members
+- **add a model** → copy a line under its family; set the per-host tags + `size_gb`
+- **add a family** → add a new `family-name:` key with a list of members. A family
+  must appear **exactly once** — duplicate YAML keys silently discard the earlier
+  block, so put variants (e.g. qwen3.6's coding builds) inside their own family
 - **drop a model** → delete/comment its line. Upgrades stop refreshing it, but
   already-pulled weights are **not** auto-deleted (see `prune` below)
+- **keep a non-manifest tag** → add it to `ollama_prune_keep` (bare `:latest`
+  aliases, hand-pinned experiments). `prune` never lists it; `sync` never pulls it
 
 ### Commands
 
@@ -30,7 +34,8 @@ ollama-models sync --refresh      # update to latest — re-pulls only models wh
 ollama-models sync --dry-run      # print what would be pulled, pull nothing
 ollama-models check               # diff each family's upstream tags vs the manifest;
                                   #   flags NEW/unknown precision keywords (future formats)
-ollama-models check --next-gen    # additionally probe for newer family generations
+ollama-models check --next-gen    # additionally probe for newer family generations,
+                                  #   flagging any that are cloud-only (no local weights)
 ollama-models prune               # list installed models NOT in the manifest (orphans)
 ollama-models prune --remove      # delete those orphans (confirmed)
 ```
@@ -48,22 +53,120 @@ These map onto the lifecycle: `install`/`provision` runs `sync` (pull missing),
 > its weights on upgrade. `prune --remove` is the manual path; auto-reconcile on
 > upgrade is a deliberate future decision (risk of deleting large weights).
 
-## Precision & sizing rules
+## Per-OS / per-hardware tags
 
-Each member's tag is chosen by these rules (Mac prefers MLX; GGUF-only families
-fall back to q-quants, which run fine on Metal):
+A member declares one tag per host key. The CLI resolves the **most specific key
+the host matches**, falling back down the chain — so a family with no
+hardware-specific build just declares `darwin` + `linux` as before:
 
-| Model size | Precision | macOS tag | Linux tag |
+| Key | Host | Build it selects |
+|---|---|---|
+| `darwin` | Apple Silicon | MLX (native Metal execution) |
+| `linux_nvidia` | NVIDIA CUDA | NVFP4 (Blackwell-native 4-bit) |
+| `linux_amd` | AMD ROCm | optional override; omit to inherit `linux` |
+| `linux` | ROCm + CPU, and any unmatched host | universal GGUF baseline |
+
+Vendor detection is automatic: `nvidia-smi` → `rocm-smi` → `/sys` PCI vendor id
+(`0x10de` / `0x1002`), the same probe the ansible topic uses. NVIDIA wins on a
+mixed box because NVFP4 is the fastest build shipped.
+
+Only families that upstream actually publishes arch-specific builds for
+(**qwen3.6, qwen3.5, gemma4**) carry the split. GGUF-only families (glm, granite,
+lfm2, olmo, deepseek-r1, devstral, qwen3-vl, embeddings) keep the plain
+`darwin`/`linux` pair — one GGUF serves Metal, CUDA, ROCm and CPU alike.
+
+### Precision rules
+
+| Family kind | Model size | macOS | NVIDIA | AMD / CPU |
+|---|---|---|---|---|
+| arch-split | small (≤4B) | `-mlx-bf16` | `-bf16` | `-bf16` |
+| arch-split | large (>4B) | `-mlx` | `-nvfp4` | `-q4_K_M` |
+| GGUF-only | small / large | full precision · fp8 if it fits budget, else fp4 floor | ← same | ← same |
+| embeddings | any | full precision, identical tag on every host | ← same | ← same |
+
+`-mxfp8` (8-bit, ~1.6× larger) is used **only** where no arch-optimized 4-bit
+exists upstream — currently the qwen3.6 *coding* members, which ship no GGUF
+build at all, so AMD/CPU falls back to MXFP8 (31–38 GB) and is budget-gated off
+anything smaller than ~32 GB VRAM.
+
+### Small / long-context agents
+
+A dedicated category for tool-calling models small enough to stay resident for a
+whole agent loop. Context lengths are measured with `ollama show`, not taken from
+marketing copy:
+
+| model | size | context | capabilities |
 |---|---|---|---|
-| small (≤4B params) | full | `-mlx-bf16` / `-bf16` | `-bf16` / `-fp16` |
-| large (>4B) | fp8 if it fits budget, else fp4 floor (never below fp4) | `-mxfp8` / `-mlx` / `-nvfp4` | `-mxfp8` / `-nvfp4` / `-q*_K_M` |
-| embeddings | full precision, identical on both OSes | `-bf16` / `-fp16` | `-bf16` / `-fp16` |
+| `ministral-3:3b` | 5 GB | 262K | tools, vision |
+| `ministral-3:8b` | 10 GB | 262K | tools, vision |
+| `lfm2.5:8b-a1b` | 9 GB | 125K | tools, thinking (MoE, 1B active) |
+| `qwen3.5:4b` / `:9b` | 9 GB | 262K | tools, vision, thinking |
+| `granite4.1:3b` / `:8b` | 7 / 10 GB | 128K | tools |
+| `gemma4:e4b` | 16 GB | 128K | tools, thinking, vision, audio |
 
-**Budget gating:** `size_gb` on each entry is checked against a runtime budget of
+These are pinned to **q8_0**, deliberately deviating from the small→full-precision
+rule: at 125–262K context the KV cache, not the weights, dominates memory, so
+halving the weights buys the context headroom that actually limits an agent run.
+All are GGUF-only upstream, so they carry no hardware split.
+
+Considered and rejected: `laguna-xs-2.1` (256K, tools+thinking — but 19–20 GB and
+no 4-bit MLX build, so not "small"); `nemotron3:33b` (28 GB, over a 24 GB budget);
+`lfm2.5-thinking:1.2b` (731 MB, but only 32K usable context).
+
+> **macOS always gets MLX.** Every `darwin` tag in an arch-split family is an MLX
+> build — no exceptions. Upstream ships no `-coding-mlx`, so the qwen coding
+> members are declared **linux-only** (no `darwin` key) rather than falling back
+> to NVFP4: on Metal that would only run by dequantising, i.e. slower than the
+> plain `27b-mlx` for no quality gain. On mac, coding is served by
+> `qwen3.6:27b-mlx` plus the dedicated `devstral-small-2:24b`.
+> `ollama-models check` will surface a `-coding-mlx` tag if one ever appears.
+
+**Budget gating:** `size_gb` is either a scalar (same footprint everywhere) or a
+mapping of host key → GB when the per-hardware builds differ materially (a
+mapping missing the active key falls back to its **largest** entry, so the gate
+stays conservative). It is checked against a runtime budget of
 `total − ollama_ram_reserve_pct` (default 33%). Anything larger is skipped with a
 log line, so the same manifest works on a 16 GB laptop and a 128 GB box. On macOS
-the basis is unified system RAM; on Linux with an NVIDIA GPU it is **VRAM**
-(`nvidia-smi`), falling back to system RAM for CPU inference.
+the basis is unified system RAM; on Linux with a discrete GPU it is **VRAM**
+(`nvidia-smi` / `rocm-smi`), falling back to system RAM for CPU inference.
+
+### Cloud tags are refused
+
+Ollama's tag lists mix **hosted-only** tags in with real builds, and they look
+like ordinary variants: `gemma4:31b-cloud`, `gpt-oss:20b-cloud`,
+`qwen3.5:397b-cloud`, `deepseek-v4-flash:0731-cloud`. Ollama routes these to its
+own servers and stores **no weights on disk**, so they can never satisfy a
+manifest whose whole point is a local, offline, budget-gated model set.
+
+They are rejected at every surface, and always with the reason attached:
+
+| surface | behaviour |
+|---|---|
+| `check` | never suggests a cloud tag as an upstream addition |
+| `check --next-gen` | prints `(cloud-only — no local weights)` next to the hit |
+| `sync` | `CLOUD … NOT PULLED — cloud-only: hosted on ollama.com…`, counted as `refused-cloud=N` |
+| `status` | state `CLOUD(never)`, plus a footer saying it will never install |
+
+So if you add one by mistake, `status` tells you *why* it isn't in `ollama list`
+instead of leaving it at `MISSING` forever. Detection covers both `:cloud` and
+any `-cloud` suffix; a model merely *named* something like `cloudy:8b` is not
+affected.
+
+> Worth knowing: several genuinely newer generations — `glm-5.1` (198K ctx),
+> `glm-5.2` (976K ctx), `deepseek-v4-flash`, `deepseek-v4-pro` — are currently
+> **cloud-only**, so they cannot replace a local family no matter how much
+> better they are.
+
+### Tag case
+
+Ollama **lowercases tags** when it writes a local manifest, so the upstream tag
+`glm-4.7-flash:q4_K_M` lands on disk as `glm-4.7-flash:q4_k_m`. All
+installed-vs-manifest comparisons are casefolded; without that a manifest model
+reports as `MISSING` and an orphan simultaneously, and `prune --remove` would
+delete a model the manifest wants.
+
+`prune` also treats **every** host key as wanted, not just the current host's, so
+pruning on a Mac can never delete the NVFP4 builds a Linux box pulled.
 
 ## OS matrix
 
@@ -74,7 +177,7 @@ the basis is unified system RAM; on Linux with an NVIDIA GPU it is **VRAM**
 | GPU accel | Metal (built in) | auto-detected: **NVIDIA** CUDA libs bundled (host driver required) · **AMD** `-rocm` overlay (amd64) |
 | service | launchd agent `com.ollama.ollama` | systemd unit `ollama.service` (templated) |
 | budget basis | unified system RAM | GPU VRAM (else system RAM) |
-| model tags | MLX-preferred | nvfp4 / GGUF |
+| model tags | MLX-preferred (`darwin`) | NVFP4 on CUDA (`linux_nvidia`) · GGUF on ROCm/CPU (`linux`) |
 
 ### Linux install, GPU & auto-update
 

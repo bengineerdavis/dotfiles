@@ -13,20 +13,66 @@
 #   • check upstream    → `ollama-models check`  (new tags, new precision formats,
 #                         `--next-gen` probes for newer family generations)
 #
-# Organized by model family (name + generation, e.g. `qwen3.6`). Each family
-# key maps to a list of its members; the family key is the model name and every
-# member's tag starts with it.
+# Organized by category → model family (name + generation, e.g. `qwen3.6`).
+# Each family key maps to a list of its members; the family key is the model
+# name and every member's tag starts with it. A family appears exactly ONCE —
+# duplicate YAML keys silently discard the earlier block — so variants such as
+# qwen3.6's coding builds live inside their family, marked with an inline note,
+# rather than in a separate "coding" section.
 #
-# Precision rules used to choose each tag (see README.md for the full table):
-#   small  (≤4B params) → full precision   (mac: -mlx-bf16/-bf16, linux: -bf16/-fp16)
-#   large  (>4B)        → fp8 if it fits the RAM budget, else fp4 floor (never below fp4)
-#   embeddings          → full precision, identical tag on both OSes (no MLX/fp4 builds)
-# Mac prefers MLX builds; GGUF-only families fall back to q-quants (run fine on Metal).
+# ── Per-OS / per-hardware tags ───────────────────────────────────────────────
+# A member declares one tag per key; the `ollama-models` CLI picks the most
+# specific key the host matches (see files/ollama-models → OS_KEYS / os_keys):
 #
-# `size_gb` is the approximate on-disk/VRAM footprint of the chosen tag. At
-# runtime each entry is gated against the RAM budget (see below); anything
-# larger than the budget is skipped with a log line, so the same manifest works
-# on a 16 GB laptop and a 128 GB workstation.
+#   darwin        Apple Silicon — MLX builds, native Metal execution
+#   linux_nvidia  NVIDIA CUDA   — NVFP4
+#   linux_amd     AMD ROCm      — optional override; omit to inherit `linux`
+#   linux         universal GGUF baseline (ROCm + CPU), and the fallback for
+#                 any host whose more specific key is absent
+#
+# ── NVFP4 *is* the MLX build ─────────────────────────────────────────────────
+# Counter-intuitive but verified by registry manifest digest: for every 4-bit
+# member, `-mlx` and `-nvfp4` are the SAME artifact.
+#     qwen3.6:27b-mlx == qwen3.6:27b-nvfp4        (60b0437bbd025212)
+#     qwen3.6:35b-mlx == qwen3.6:35b-a3b-nvfp4    (1b50c6fdc2d4f75f)
+#     gemma4:{12b,26b,31b}-mlx == the -nvfp4 tags · qwen3.5 likewise
+# NVFP4 is an open microscaling FP4 format, not an NVIDIA-proprietary one, so a
+# single file feeds both Apple's MLX runtime (ollama ships mlx_metal_v3/v4) and
+# Blackwell CUDA. ollama.com labels the nvfp4/mxfp8 tags [MLX] for this reason.
+# Consequence: a `-coding-nvfp4` tag runs natively on mac — do NOT assume an
+# nvfp4 tag is NVIDIA-only. `darwin` uses the `-mlx` alias where one exists
+# purely for readability; where it doesn't (coding builds), `-nvfp4` is correct.
+# EXCEPTION: at bf16 they diverge — `4b-mlx-bf16` != `4b-bf16` (MLX container
+# vs GGUF), so the darwin/linux split is load-bearing for full-precision members.
+#
+# Only families that upstream actually publishes arch-specific builds for
+# (qwen3.6, qwen3.5, gemma4 — MLX / NVFP4 / MXFP8) carry the hardware split.
+# GGUF-only families (glm, granite, lfm2, olmo, deepseek-r1, devstral, qwen3-vl,
+# embeddings) keep the plain darwin/linux pair: one GGUF serves Metal, CUDA,
+# ROCm and CPU alike, so splitting them would just duplicate the same tag.
+#
+# Precision policy:
+#   arch-split families
+#     small (≤4B params) → full precision   (darwin -mlx-bf16 · linux -bf16)
+#     large (>4B)        → arch-optimized 4-bit
+#                          darwin -mlx · linux_nvidia -nvfp4 · linux -q4_K_M
+#     `-mxfp8` (8-bit) is ~1.6× larger and is used only where no arch-optimized
+#     4-bit exists upstream — see the qwen3.6/qwen3.5 coding members, which have
+#     no GGUF build, so AMD/CPU must fall back to MXFP8.
+#   GGUF-only families
+#     small → full precision · large → fp8 if it fits the budget, else fp4 floor
+#   embeddings → full precision, identical tag on every host
+#
+# NOTE (mac coding builds): upstream ships no `-coding-mlx`, so the coding
+# members use NVFP4 on darwin too — the only variant that fits a 24 GB budget
+# (MXFP8 is 31-38 GB). It runs on Metal but is not MLX-accelerated;
+# `ollama-models check` will surface a `-coding-mlx` tag if one ever appears.
+#
+# `size_gb` is the approximate on-disk/VRAM footprint. It is either a scalar
+# (same footprint on every host) or a mapping of os key → GB when the
+# per-hardware builds differ materially. At runtime each entry is gated against
+# the RAM/VRAM budget (see below); anything larger is skipped with a log line,
+# so the same manifest works on a 16 GB laptop and a 128 GB workstation.
 
 # Percent of total RAM kept free for other programs. Budget = total − this%.
 ollama_ram_reserve_pct: 33
@@ -66,19 +112,61 @@ ollama_update_check_enabled: true
 ollama_update_check_oncalendar: daily
 ollama_update_check_apply: false
 
+# Installed tags that are intentionally NOT manifest members: `prune` never
+# lists them and `sync` never pulls them. Use this for bare `:latest` aliases
+# and hand-pinned experiments you want to survive `prune --remove`.
+ollama_prune_keep:
+  # `ollama run glm-4.7-flash` (no tag) resolves to :latest, and that is the
+  # name the `llm` CLI and other clients use. It points at the SAME blob as the
+  # q4_K_M member below (digest 4475827791a2), so keeping it costs no disk.
+  # NOTE: ollama lowercases tags when writing local manifests, so the upstream
+  # tag `q4_K_M` lands on disk as `q4_k_m` — comparisons are casefolded.
+  - "glm-4.7-flash:latest"
+
 ollama_models:
 
   # ═══════════════ general / chat ═══════════════
-  qwen3.6:                  # flagship general + coding (MoE)
-    - { darwin: "qwen3.6:27b-mlx",              linux: "qwen3.6:27b-nvfp4",              size_gb: 20 }
-    - { darwin: "qwen3.6:35b-a3b-nvfp4",        linux: "qwen3.6:35b-a3b-nvfp4",          size_gb: 22 }
-    - { darwin: "qwen3.6:27b-coding-nvfp4",     linux: "qwen3.6:27b-coding-nvfp4",       size_gb: 20 }
+  # ── arch-split family: MLX on mac, NVFP4 on NVIDIA, GGUF on AMD/CPU ──
+  qwen3.6:                  # flagship general + coding (27B dense · 35B-A3B MoE)
+    # 27B dense
+    - darwin:        "qwen3.6:27b-mlx"
+      linux_nvidia:  "qwen3.6:27b-nvfp4"
+      linux:         "qwen3.6:27b-q4_K_M"
+      size_gb:       { darwin: 20, linux_nvidia: 20, linux: 17 }
+    # 35B-A3B MoE (3B active — flagship quality at 27B-class speed)
+    - darwin:        "qwen3.6:35b-mlx"
+      linux_nvidia:  "qwen3.6:35b-a3b-nvfp4"
+      linux:         "qwen3.6:35b-a3b-q4_K_M"
+      size_gb:       { darwin: 22, linux_nvidia: 22, linux: 24 }
+    # Coding builds. There is no `-coding-mlx` alias, but `-coding-nvfp4` IS an
+    # MLX build (see the NVFP4 note above), so mac gets it natively — same
+    # artifact NVIDIA uses. AMD/CPU has no coding GGUF at all, so it falls back
+    # to MXFP8, budget-gated off anything under ~32GB VRAM.
+    - darwin:        "qwen3.6:27b-coding-nvfp4"
+      linux_nvidia:  "qwen3.6:27b-coding-nvfp4"
+      linux:         "qwen3.6:27b-coding-mxfp8"
+      size_gb:       { darwin: 20, linux_nvidia: 20, linux: 31 }
+    - darwin:        "qwen3.6:35b-a3b-coding-nvfp4"
+      linux_nvidia:  "qwen3.6:35b-a3b-coding-nvfp4"
+      linux:         "qwen3.6:35b-a3b-coding-mxfp8"
+      size_gb:       { darwin: 22, linux_nvidia: 22, linux: 38 }
 
+  # ── arch-split family ──
   qwen3.5:                  # previous gen (kept for A/B; only qwen with small members)
-    - { darwin: "qwen3.5:4b-mlx-bf16",          linux: "qwen3.5:4b-bf16",                size_gb: 9 }
-    - { darwin: "qwen3.5:9b-mxfp8",             linux: "qwen3.5:9b-mxfp8",               size_gb: 12 }
-    - { darwin: "qwen3.5:27b-mlx",              linux: "qwen3.5:27b-nvfp4",              size_gb: 20 }
-    - { darwin: "qwen3.5:35b-a3b-nvfp4",        linux: "qwen3.5:35b-a3b-nvfp4",          size_gb: 22 }
+    # 4B — small, so full precision on every host
+    - { darwin: "qwen3.5:4b-mlx-bf16", linux: "qwen3.5:4b-bf16", size_gb: 9 }
+    - darwin:        "qwen3.5:9b-mlx"
+      linux_nvidia:  "qwen3.5:9b-nvfp4"
+      linux:         "qwen3.5:9b-q4_K_M"
+      size_gb:       { darwin: 9, linux_nvidia: 9, linux: 7 }
+    - darwin:        "qwen3.5:27b-mlx"
+      linux_nvidia:  "qwen3.5:27b-nvfp4"
+      linux:         "qwen3.5:27b-q4_K_M"
+      size_gb:       { darwin: 20, linux_nvidia: 20, linux: 17 }
+    - darwin:        "qwen3.5:35b-mlx"
+      linux_nvidia:  "qwen3.5:35b-a3b-nvfp4"
+      linux:         "qwen3.5:35b-a3b-q4_K_M"
+      size_gb:       { darwin: 22, linux_nvidia: 22, linux: 24 }
 
   gpt-oss:                  # OpenAI open weights (native MXFP4, single build)
     - { darwin: "gpt-oss:20b",                  linux: "gpt-oss:20b",                    size_gb: 14 }
@@ -87,12 +175,23 @@ ollama_models:
     - { darwin: "glm-4.7-flash:q4_K_M",         linux: "glm-4.7-flash:q4_K_M",           size_gb: 19 }
 
   # ═══════════════ efficient / small ═══════════════
+  # ── arch-split family ──
   gemma4:                   # efficient + vision-capable
-    - { darwin: "gemma4:e2b-mlx-bf16",          linux: "gemma4:e2b-it-bf16",             size_gb: 10 }
-    - { darwin: "gemma4:e4b-mlx-bf16",          linux: "gemma4:e4b-it-bf16",             size_gb: 16 }
-    - { darwin: "gemma4:12b-mxfp8",             linux: "gemma4:12b-mxfp8",               size_gb: 12 }
-    - { darwin: "gemma4:26b-mlx",               linux: "gemma4:26b-nvfp4",               size_gb: 17 }
-    - { darwin: "gemma4:31b-mlx",               linux: "gemma4:31b-nvfp4",               size_gb: 20 }
+    # E2B/E4B are small → full precision everywhere
+    - { darwin: "gemma4:e2b-mlx-bf16", linux: "gemma4:e2b-it-bf16", size_gb: 10 }
+    - { darwin: "gemma4:e4b-mlx-bf16", linux: "gemma4:e4b-it-bf16", size_gb: 16 }
+    - darwin:        "gemma4:12b-mlx"
+      linux_nvidia:  "gemma4:12b-nvfp4"
+      linux:         "gemma4:12b-it-q4_K_M"
+      size_gb:       8
+    - darwin:        "gemma4:26b-mlx"
+      linux_nvidia:  "gemma4:26b-nvfp4"
+      linux:         "gemma4:26b-a4b-it-q4_K_M"
+      size_gb:       18
+    - darwin:        "gemma4:31b-mlx"
+      linux_nvidia:  "gemma4:31b-nvfp4"
+      linux:         "gemma4:31b-it-q4_K_M"
+      size_gb:       20
 
   granite4.1:               # enterprise/efficient (GGUF only)
     - { darwin: "granite4.1:3b-bf16",           linux: "granite4.1:3b-bf16",             size_gb: 7 }
@@ -104,7 +203,26 @@ ollama_models:
     - { darwin: "granite4:32b-a9b-h",           linux: "granite4:32b-a9b-h",             size_gb: 19 }
 
   lfm2:                     # on-device/edge hybrid MoE (GGUF only)
+                            # current gen is lfm2.5 — see small/long-context agents
     - { darwin: "lfm2:24b",                     linux: "lfm2:24b",                       size_gb: 14 }
+
+  # ═══════════════ small / long-context agents ═══════════════
+  # Tool-calling models small enough to stay resident for a whole agent loop.
+  # Context lengths below are measured (`ollama show`), not marketing numbers.
+  #
+  # Precision deviates from the usual small→full-precision rule ON PURPOSE:
+  # these are chosen as q8_0. At 125-262K context the KV cache — not the
+  # weights — dominates memory, so halving the weights buys context headroom,
+  # which is what actually limits an agent run.
+  #
+  # All are GGUF-only upstream (no MLX/NVFP4 builds), so no hardware split:
+  # one GGUF runs on Metal, CUDA, ROCm and CPU alike.
+  ministral-3:              # 262K ctx · tools + vision · best context-per-GB here
+    - { darwin: "ministral-3:3b-instruct-2512-q8_0", linux: "ministral-3:3b-instruct-2512-q8_0", size_gb: 5 }
+    - { darwin: "ministral-3:8b-instruct-2512-q8_0", linux: "ministral-3:8b-instruct-2512-q8_0", size_gb: 10 }
+
+  lfm2.5:                   # 125K ctx · tools + thinking · 8B MoE w/ 1B active
+    - { darwin: "lfm2.5:8b-a1b-q8_0", linux: "lfm2.5:8b-a1b-q8_0", size_gb: 9 }
 
   # ═══════════════ reasoning ═══════════════
   olmo-3.1:                 # fully-open reasoning
@@ -119,13 +237,19 @@ ollama_models:
     - { darwin: "deepseek-r1:32b",              linux: "deepseek-r1:32b",                size_gb: 20 }
 
   # ═══════════════ coding ═══════════════
-  devstral-small-2:         # codebase/agent coding (GGUF only)
+  # qwen3.6/qwen3.5 also ship coding builds — they live under their own family
+  # keys above (a family may appear only once), marked with an inline comment.
+  devstral-small-2:         # codebase/agent coding (GGUF only — no hardware split)
     - { darwin: "devstral-small-2:24b",         linux: "devstral-small-2:24b",           size_gb: 15 }
 
   # ═══════════════ vision / multimodal ═══════════════
   qwen3-vl:                 # vision-language (GGUF only)
+    # Only the 8B member is kept. The 30B-A3B one was dropped as redundant:
+    # qwen3.6 reports the SAME capabilities (thinking + tools + vision) at the
+    # same 256K context, is a newer generation, and at an identical 20GB gives
+    # mac a native MLX build where qwen3-vl is GGUF-only. 8B stays because
+    # qwen3.6 has no small member — that niche is real.
     - { darwin: "qwen3-vl:8b-instruct-q8_0",        linux: "qwen3-vl:8b-instruct-q8_0",        size_gb: 10 }
-    - { darwin: "qwen3-vl:30b-a3b-instruct-q4_K_M", linux: "qwen3-vl:30b-a3b-instruct-q4_K_M", size_gb: 20 }
 
   # ═══════════════ embedding / retrieval (full precision, OS-identical) ═══════════════
   embeddinggemma:

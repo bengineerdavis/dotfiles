@@ -11,9 +11,12 @@ provided by mise (apps/mise/files/config.toml -> [tools] uv). Nothing is
 installed into a global Python.
 
 The manifest (apps/ollama/defaults/main.yaml) is the single source of truth:
-families → members, each member with a `darwin` and `linux` tag plus `size_gb`.
-This tool resolves it for the current OS, gates each entry against a RAM budget
-(total − ollama_ram_reserve_pct), and drives ollama accordingly.
+families → members, each member carrying one tag per os/hardware key plus
+`size_gb`. Keys are tried most-specific-first — on Linux `linux_nvidia` or
+`linux_amd` (auto-detected) before the universal `linux` — so a family with no
+hardware-specific build just declares `darwin` + `linux` as before. This tool
+resolves the manifest for the current host, gates each entry against a RAM/VRAM
+budget (total − ollama_ram_reserve_pct), and drives ollama accordingly.
 
 Subcommands:
   sync [--refresh] [--dry-run]   pull manifest models for this OS within budget
@@ -23,7 +26,12 @@ Subcommands:
                                  flag unknown precision/format keywords; with
                                  --next-gen, probe for newer family generations
   prune [--remove]                list installed models not in the manifest;
-                                 --remove deletes them (with confirmation)
+                                 --remove deletes them (with confirmation).
+                                 Tags listed under `ollama_prune_keep` (bare
+                                 :latest aliases, pinned experiments) are never
+                                 listed. Tags for OTHER hosts' hardware keys are
+                                 kept too, so pruning on a mac cannot delete the
+                                 nvfp4 builds a Linux box pulled.
 
 Manifest location: $OLLAMA_MODELS_MANIFEST, else --manifest, else the
 defaults/main.yaml two dirs up from this script.
@@ -83,12 +91,48 @@ def load_manifest(path: Path):
     families = data.get("ollama_models") or {}
     if not isinstance(families, dict):
         sys.exit("error: ollama_models must be a mapping of family -> [members]")
-    return reserve, families
+    # Tags that are legitimately installed but deliberately not manifest members
+    # (bare `:latest` aliases, hand-pinned experiments). `prune` never lists
+    # them; `sync` never pulls them.
+    keep = fold(data.get("ollama_prune_keep") or [])
+    return reserve, families, keep
 
 
 # ── host facts ──────────────────────────────────────────────────────────────
-def os_key() -> str:
-    return "darwin" if platform.system() == "Darwin" else "linux"
+# Every per-OS/hardware key a manifest member may carry. `resolve()` walks the
+# host's priority list (see os_keys) and uses the FIRST key the member defines,
+# so `linux` alone still works for families with no hardware-specific build.
+OS_KEYS = ("darwin", "linux_nvidia", "linux_amd", "linux")
+
+
+def gpu_vendor() -> str:
+    """'nvidia' | 'amd' | '' for this Linux host (a box may have both; NVIDIA
+    wins because nvfp4 is the fastest build we ship)."""
+    if nvidia_vram_gb() > 0:
+        return "nvidia"
+    if amd_vram_gb() > 0:
+        return "amd"
+    # No vendor tool: fall back to the same /sys PCI probe the ansible topic uses.
+    for path in Path("/sys/bus/pci/devices").glob("*/vendor"):
+        try:
+            vid = path.read_text().strip().lower()
+        except OSError:
+            continue
+        if vid == "0x10de":
+            return "nvidia"
+        if vid == "0x1002":
+            return "amd"
+    return ""
+
+
+def os_keys() -> list[str]:
+    """Manifest keys to try, most specific first."""
+    if platform.system() == "Darwin":
+        return ["darwin"]
+    vendor = gpu_vendor()
+    if vendor:
+        return [f"linux_{vendor}", "linux"]
+    return ["linux"]
 
 
 def nvidia_vram_gb() -> float:
@@ -102,6 +146,20 @@ def nvidia_vram_gb() -> float:
         return 0.0
     vals = [float(x) for x in out.split() if x.strip().replace(".", "").isdigit()]
     return max(vals) / 1024 if vals else 0.0  # MiB → GiB
+
+
+def amd_vram_gb() -> float:
+    """Total VRAM of the largest AMD GPU, or 0 if none / rocm-smi absent."""
+    try:
+        out = subprocess.run(
+            ["rocm-smi", "--showmeminfo", "vram", "--csv"],
+            capture_output=True, text=True, check=True,
+        ).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return 0.0
+    # CSV rows carry a bytes total; take the largest plausible value.
+    vals = [float(x) for x in re.findall(r"\b(\d{9,})\b", out)]
+    return max(vals) / 1024**3 if vals else 0.0
 
 
 def system_ram_gb() -> float:
@@ -119,24 +177,47 @@ def system_ram_gb() -> float:
 
 def total_ram_gb() -> tuple[float, str]:
     """Budget basis + a label for it. On Mac, unified memory == system RAM. On
-    Linux with an NVIDIA GPU, the real inference constraint is VRAM (the linux
+    Linux with a discrete GPU, the real inference constraint is VRAM (the linux
     tags are GPU quants); fall back to system RAM for CPU inference otherwise."""
     if platform.system() != "Darwin":
-        vram = nvidia_vram_gb()
+        vram = nvidia_vram_gb() or amd_vram_gb()
         if vram > 0:
             return vram, "vram"
     return system_ram_gb(), "ram"
 
 
 # ── resolution ──────────────────────────────────────────────────────────────
-def resolve(families: dict, key: str, budget: float):
-    """Yield (family, tag, size_gb, fits) for the current OS, in manifest order."""
+def member_tag(m: dict, keys: list[str]) -> tuple[str, str] | None:
+    """(tag, key_used) for the most specific key this member defines."""
+    for k in keys:
+        if m.get(k):
+            return m[k], k
+    return None
+
+
+def member_size(m: dict, key: str) -> float:
+    """`size_gb` is either a scalar (same footprint everywhere) or a mapping of
+    OS key -> GB, for members whose per-hardware builds differ materially in
+    size (e.g. a 20GB nvfp4 vs the 31GB mxfp8 that AMD/CPU has to fall back to).
+    A mapping missing this key falls back to its largest entry, so the budget
+    gate stays conservative rather than silently over-committing memory."""
+    raw = m.get("size_gb", 0)
+    if isinstance(raw, dict):
+        if key in raw:
+            return float(raw[key])
+        return float(max(raw.values())) if raw else 0.0
+    return float(raw)
+
+
+def resolve(families: dict, keys: list[str], budget: float):
+    """Yield (family, tag, size_gb, fits) for this host, in manifest order."""
     for family, members in families.items():
         for m in members or []:
-            tag = m.get(key)
-            if not tag:
+            hit = member_tag(m, keys)
+            if not hit:
                 continue
-            size = float(m.get("size_gb", 0))
+            tag, key = hit
+            size = member_size(m, key)
             yield family, tag, size, size <= budget
 
 
@@ -153,6 +234,33 @@ def installed_models() -> set[str]:
         if line:
             names.add(line.split()[0])
     return names
+
+
+# Ollama lowercases the tag when it writes a local manifest, so pulling the
+# upstream tag `glm-4.7-flash:q4_K_M` lands on disk as `glm-4.7-flash:q4_k_m`.
+# Comparing raw strings therefore reports a manifest model as both MISSING and
+# an orphan at once — and `prune --remove` would delete a model we want. All
+# installed-vs-manifest comparisons go through casefolded names.
+def fold(names):
+    return {n.lower() for n in names}
+
+
+# Cloud tags — `:cloud`, `:20b-cloud`, `:0731-cloud` — are HOSTED-ONLY: ollama
+# routes them to Ollama's servers and stores no weights on disk. They can never
+# satisfy this manifest, whose entire point is a local, reproducible model set
+# that works offline and is gated against a RAM/VRAM budget.
+#
+# They are easy to pick by mistake: they sit in the same tags list as real
+# builds and look like ordinary variants. So they are refused at every surface
+# rather than silently sitting at MISSING forever — `check` never suggests one,
+# and `sync`/`status` name the reason out loud.
+def is_cloud_tag(tag: str) -> bool:
+    ref = tag.partition(":")[2]
+    return ref == "cloud" or ref.endswith("-cloud")
+
+
+CLOUD_WHY = ("cloud-only: hosted on ollama.com, no local weights — "
+             "replace with a local tag (e.g. a -q4_K_M / -mlx / -nvfp4 build)")
 
 
 def http_get(url: str) -> str:
@@ -229,20 +337,24 @@ def changed_state(tag: str) -> bool | None:
 
 
 # ── commands ────────────────────────────────────────────────────────────────
-def cmd_sync(args, reserve, families):
+def cmd_sync(args, reserve, families, keep):
     mem, basis = total_ram_gb()
     budget = mem * (100 - reserve) / 100
-    key = os_key()
-    have = installed_models()
-    print(f"os={key}  {basis}={mem:.0f}GB  budget={budget:.0f}GB  "
+    keys = os_keys()
+    have = fold(installed_models())
+    print(f"os={'+'.join(keys)}  {basis}={mem:.0f}GB  budget={budget:.0f}GB  "
           f"reserve={reserve}%  mode={'refresh' if args.refresh else 'install-missing'}")
-    pulled = skipped = present = unchanged = 0
-    for family, tag, size, fits in resolve(families, key, budget):
+    pulled = skipped = present = unchanged = cloud = 0
+    for family, tag, size, fits in resolve(families, keys, budget):
+        if is_cloud_tag(tag):
+            print(f"  CLOUD  {tag:<42} NOT PULLED — {CLOUD_WHY}")
+            cloud += 1
+            continue
         if not fits:
             print(f"  skip   {tag:<42} ({size:.0f}GB > budget)")
             skipped += 1
             continue
-        if tag in have:
+        if tag.lower() in have:
             if not args.refresh:
                 present += 1
                 continue
@@ -263,34 +375,47 @@ def cmd_sync(args, reserve, families):
             else:
                 pulled += 1
     print(f"done: pulled={pulled} unchanged={unchanged} "
-          f"already-present={present} skipped-oversized={skipped}")
+          f"already-present={present} skipped-oversized={skipped} "
+          f"refused-cloud={cloud}")
+    if cloud:
+        one = cloud == 1
+        print(f"\n  ! {cloud} manifest {'entry references' if one else 'entries reference'} "
+              f"a cloud tag and {'was' if one else 'were'} NOT installed.\n"
+              f"    This is why {'it does' if one else 'they do'} not show up in "
+              f"`ollama list`. Edit defaults/main.yaml to use a local build.")
 
 
-def cmd_status(args, reserve, families):
+def cmd_status(args, reserve, families, keep):
     mem, basis = total_ram_gb()
     budget = mem * (100 - reserve) / 100
-    key = os_key()
-    have = installed_models()
-    print(f"os={key}  {basis}={mem:.0f}GB  budget={budget:.0f}GB  reserve={reserve}%\n")
+    keys = os_keys()
+    have = fold(installed_models())
+    print(f"os={'+'.join(keys)}  {basis}={mem:.0f}GB  budget={budget:.0f}GB  reserve={reserve}%\n")
+    n_cloud = 0
     for fam in families:
         print(f"{fam}:")
-        for family, tag, size, fits in resolve({fam: families[fam]}, key, budget):
-            if not fits:
+        for family, tag, size, fits in resolve({fam: families[fam]}, keys, budget):
+            if is_cloud_tag(tag):
+                state = "CLOUD(never)"
+                n_cloud += 1
+            elif not fits:
                 state = "skip(oversized)"
-            elif tag in have:
+            elif tag.lower() in have:
                 state = "installed"
             else:
                 state = "MISSING"
             print(f"  {state:<16} {tag} ({size:.0f}GB)")
+    if n_cloud:
+        print(f"\n! {n_cloud} entr{'y' if n_cloud == 1 else 'ies'} marked "
+              f"CLOUD(never) will NEVER install — {CLOUD_WHY}.")
 
 
-def cmd_check(args, reserve, families):
-    key = os_key()
+def cmd_check(args, reserve, families, keep):
     manifest_by_family = {}
     for family, members in families.items():
         tags = set()
         for m in members or []:
-            for k in ("darwin", "linux"):
+            for k in OS_KEYS:
                 if m.get(k):
                     tags.add(m[k])
         manifest_by_family[family] = tags
@@ -305,8 +430,10 @@ def cmd_check(args, reserve, families):
         except (urllib.error.URLError, OSError) as e:
             print(f"  ! upstream fetch failed: {e}")
             continue
-        new = sorted(t for t in up - have_tags if not t.endswith(":cloud"))
-        gone = sorted(t for t in have_tags if t not in up)
+        up_lc = fold(up)
+        have_lc = fold(have_tags)
+        new = sorted(t for t in up if t.lower() not in have_lc and not is_cloud_tag(t))
+        gone = sorted(t for t in have_tags if t.lower() not in up_lc)
         # unknown precision/format keywords across all upstream tags
         unknown = set()
         for t in up:
@@ -330,36 +457,75 @@ def cmd_check(args, reserve, families):
         if args.next_gen:
             for cand in next_gen_candidates(family):
                 try:
-                    http_get(f"{OLLAMA_COM}/library/{cand}/tags")
-                    print(f"  ⬆ newer generation may exist: {cand}")
+                    html = http_get(f"{OLLAMA_COM}/library/{cand}/tags")
                 except urllib.error.HTTPError:
-                    pass
+                    continue
                 except (urllib.error.URLError, OSError):
-                    pass
+                    continue
+                # A hosted-only family (every tag ends in `-cloud`) cannot
+                # replace a local one at any price — say so, so it is not
+                # mistaken for an actionable upgrade.
+                tags = re.findall(re.escape(cand) + r":([A-Za-z0-9][A-Za-z0-9._-]*)", html)
+                local = [t for t in tags if not t.endswith("cloud")]
+                note = "" if local else "  (cloud-only — no local weights)"
+                print(f"  ⬆ newer generation may exist: {cand}{note}")
+
+
+# Version-like number anywhere in the name, with an optional trailing word.
+# The old heuristic anchored digits to the END of the family, which silently
+# returned NO candidates for 4 of 18 families (glm-4.7-flash, gpt-oss, qwen3-vl,
+# embeddinggemma) — that is why glm-5.x was missed — and never probed `X.1`
+# when the family had no minor, which is how lfm2 -> lfm2.5 stayed invisible.
+_VERSION_RE = re.compile(r"^(?P<head>.*?)(?P<major>\d+)(?:\.(?P<minor>\d+))?(?P<tail>\D*)$")
 
 
 def next_gen_candidates(family: str) -> list[str]:
-    m = re.match(r"^(.*?)(\d+)(?:\.(\d+))?$", family)
+    """Plausible newer generations of `family`, most-likely first.
+
+      qwen3.6        -> qwen3.7 … qwen3.9, qwen4, qwen4.1 … qwen4.5
+      lfm2           -> lfm2.1 … lfm2.9, lfm3, …          (finds lfm2.5)
+      glm-4.7-flash  -> glm-4.8-flash …, glm-5-flash …, and the bare
+                        glm-4.8 / glm-5 / glm-5.2 forms   (finds glm-5.2)
+      qwen3-vl       -> qwen3.1-vl …, qwen4-vl …, plus bare qwen4
+      gpt-oss        -> gpt-oss2, gpt-oss-2, gpt-oss-v2   (no version to bump)
+
+    Renames are out of reach by construction: nothing derives deepseek-v4 from
+    deepseek-r1. Those still need a manual look at the library index.
+    """
+    m = _VERSION_RE.match(family)
     if not m:
-        return []
-    head, major, minor = m.group(1), int(m.group(2)), m.group(3)
+        return [f"{family}2", f"{family}-2", f"{family}-v2"]
+    head, tail = m.group("head"), m.group("tail") or ""
+    major, minor = int(m.group("major")), m.group("minor")
+
+    stems = [f"{head}{major}.{n}"
+             for n in range(int(minor) + 1 if minor is not None else 1, 10)]
+    stems.append(f"{head}{major + 1}")
+    # A new major usually lands with minors soon after (glm-5 -> glm-5.2), but
+    # probing 1-9 on both majors doubles the request count for little gain.
+    stems += [f"{head}{major + 1}.{n}" for n in range(1, 6)]
+
     out = []
-    if minor is not None:
-        out.append(f"{head}{major}.{int(minor) + 1}")
-    out.append(f"{head}{major + 1}")
-    return out
+    for s in stems:
+        out.append(f"{s}{tail}")   # keep the trailing word: glm-5-flash
+        if tail:
+            out.append(s)          # …and drop it: glm-5 (how glm-5.2 is named)
+    seen = set()
+    return [c for c in out if not (c in seen or seen.add(c))]
 
 
-def cmd_prune(args, reserve, families):
-    key = os_key()
-    wanted = {tag for _, tag, _, _ in resolve(families, key, float("inf"))}
-    # also treat the other-OS tags as "wanted" so cross-OS checkouts don't nuke
+def cmd_prune(args, reserve, families, keep):
+    # Treat EVERY os/hardware key as "wanted", not just this host's: a mac
+    # checkout must not delete the nvfp4 build a Linux box pulled (and vice
+    # versa) just because it resolves to a different tag here.
+    wanted = set()
     for members in families.values():
         for m in members or []:
-            for k in ("darwin", "linux"):
+            for k in OS_KEYS:
                 if m.get(k):
-                    wanted.add(m[k])
-    orphans = sorted(installed_models() - wanted)
+                    wanted.add(m[k].lower())
+    wanted |= keep
+    orphans = sorted(t for t in installed_models() if t.lower() not in wanted)
     if not orphans:
         print("no orphans: every installed model is in the manifest")
         return
@@ -403,8 +569,8 @@ def main():
     pr.set_defaults(func=cmd_prune)
 
     args = p.parse_args()
-    reserve, families = load_manifest(args.manifest)
-    args.func(args, reserve, families)
+    reserve, families, keep = load_manifest(args.manifest)
+    args.func(args, reserve, families, keep)
 
 
 if __name__ == "__main__":
