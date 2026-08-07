@@ -107,10 +107,13 @@ ollama_ram_reserve_pct: 33
 #     holds. Measured: qwen3.6:27b-mlx stays at 19GB with num_ctx=262144 and an
 #     empty cache, reaching 22GB only when fed a real 41,683-token prompt. So
 #     MLX members are budgeted at typical use, not at the declared window.
-#     8K is an assumption, not a measurement — no usage history exists on this
-#     machine to derive it from (the app's chat DB is empty and the server logs
-#     record only the allocated 65536). Raise it if sessions routinely run long;
-#     it is the single knob controlling how lenient the gate is on MLX models.
+#     8K is backed by actual usage, from 273 calls logged by the `llm` CLI
+#     between 2026-03-23 and 2026-08-06 (~/Library/Application Support/
+#     io.datasette.llm/logs.db, `responses.input_tokens`):
+#         p50 ~934   p90 ~4,591   p99 ~65,535   mean ~2,822
+#     So 8K sits comfortably past p90 and covers the overwhelming majority of
+#     real prompts; the p99 is a single call that filled the whole window.
+#     Re-derive it any time with `ollama-usage` (see apps/ollama/README.md).
 #
 #   ollama_budget_tolerance_pct — soft overshoot. Something a few hundred MB
 #     past budget still runs fine, and refusing it is more annoying than
@@ -163,6 +166,17 @@ ollama_gpu_amd: null
 #   _apply       — false = NOTIFY only (journal + /var/lib/ollama/update-available
 #                  marker); true = the timer auto-swaps the tarball (stop, extract,
 #                  re-overlay ROCm if in use, restart). Notify is the safe default.
+# Daily `ollama-usage snapshot` (launchd agent on macOS, systemd --user timer on
+# Debian). A time series only exists if something samples it, so this one job is
+# automated — but it only READS the `llm` log and OpenRouter's spend endpoint and
+# appends to ~/.local/share/ollama-usage/history.jsonl. It never edits the
+# manifest. `ollama-bench` is deliberately NOT scheduled: it evicts resident
+# models and takes minutes, so it stays something you invoke.
+ollama_usage_snapshot_enabled: true
+ollama_usage_snapshot_hour: 9
+ollama_usage_snapshot_minute: 15
+ollama_usage_snapshot_oncalendar: daily
+
 ollama_update_check_enabled: true
 ollama_update_check_oncalendar: daily
 ollama_update_check_apply: false

@@ -588,6 +588,77 @@
     force: true
   tags: [ollama_models, upgrade]
 
+# ── Analysis tooling: installed and scheduled, never run or interpreted ───────
+# Boundary (see README.md "Who decides what"): ansible reconciles the SYSTEM to
+# the manifest. It does not decide what belongs in the manifest. These two tools
+# inform that decision and are deliberately kept out of the reconcile path:
+#   ollama-usage  rolls up real usage from the `llm` log + OpenRouter spend
+#   ollama-bench  head-to-head speed/footprint for candidate models
+# Only `ollama-usage snapshot` is automated (a timer, below) because a time
+# series has to be sampled to exist. `bench` is never scheduled — it evicts
+# resident models and takes minutes, so it stays a thing you invoke.
+- name: "Symlink the analysis CLIs onto PATH"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/{{ item }}"
+    dest: "{{ ansible_facts['env']['HOME'] }}/bin/{{ item }}"
+    state: link
+    force: true
+  loop: [ollama-usage, ollama-bench]
+  tags: [ollama_models, ollama_usage, upgrade]
+
+- name: "macOS: install the usage-snapshot launchd agent"
+  ansible.builtin.template:
+    src: com.ollama-usage.snapshot.plist.j2
+    dest: "{{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents/com.ollama-usage.snapshot.plist"
+    mode: "0644"
+  when:
+    - ansible_facts['system'] == 'Darwin'
+    - ollama_usage_snapshot_enabled | bool
+  register: ollama_usage_plist
+  tags: [ollama_usage]
+
+- name: "macOS: (re)load the usage-snapshot agent"
+  # bootout is allowed to fail: it errors when nothing is loaded yet, which is
+  # the normal first-run case.
+  ansible.builtin.shell: |
+    launchctl bootout gui/$(id -u)/com.ollama-usage.snapshot 2>/dev/null || true
+    launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.ollama-usage.snapshot.plist"
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when:
+    - ansible_facts['system'] == 'Darwin'
+    - ollama_usage_snapshot_enabled | bool
+    - ollama_usage_plist.changed
+  tags: [ollama_usage]
+
+- name: "Debian: install the usage-snapshot user service + timer"
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/{{ item }}"
+    mode: "0644"
+  loop:
+    - ollama-usage-snapshot.service
+    - ollama-usage-snapshot.timer
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_usage_snapshot_enabled | bool
+  tags: [ollama_usage]
+
+- name: "Debian: enable the usage-snapshot timer (user scope)"
+  # User scope, not system: the data lives under ~/.local/share and the `llm`
+  # log it reads is per-user.
+  ansible.builtin.systemd_service:
+    name: ollama-usage-snapshot.timer
+    scope: user
+    daemon_reload: true
+    enabled: true
+    state: started
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_usage_snapshot_enabled | bool
+  tags: [ollama_usage]
+
 # NOTE: the actual model pull (`ollama-models sync`) is intentionally NOT here.
 # Models are hundreds of GB, so they must download LAST — after every tier and
 # topic. That runs as a post_tasks step in the root playbook.yaml, gated on

@@ -131,6 +131,41 @@
   become: true
   when: ansible_facts['os_family'] == "Debian"
 
+# --- Analysis tooling teardown (both OSes) -----------------------------------
+
+- name: "macOS: unload + remove the usage-snapshot launchd agent"
+  ansible.builtin.shell: |
+    launchctl bootout gui/$(id -u)/com.ollama-usage.snapshot 2>/dev/null || true
+    rm -f "$HOME/Library/LaunchAgents/com.ollama-usage.snapshot.plist"
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when: ansible_facts['system'] == "Darwin"
+
+- name: "Debian: stop + disable the usage-snapshot timer"
+  ansible.builtin.systemd_service:
+    name: ollama-usage-snapshot.timer
+    scope: user
+    state: stopped
+    enabled: false
+  failed_when: false
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: "Remove the analysis CLI symlinks + unit files"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ ansible_facts['env']['HOME'] }}/bin/ollama-usage"
+    - "{{ ansible_facts['env']['HOME'] }}/bin/ollama-bench"
+    - "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/ollama-usage-snapshot.timer"
+    - "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/ollama-usage-snapshot.service"
+
+# Collected history and benchmark results are NOT deleted: they are measurements
+# that took months to accumulate and are expensive to recreate, unlike the tools
+# that produced them. Remove ~/.local/share/ollama-{usage,bench} by hand if you
+# really want them gone.
+
 # --- Linux (Debian): tear down the periodic update-check timer ---------------
 
 - name: "ollama (Debian): stop + disable update-check timer"

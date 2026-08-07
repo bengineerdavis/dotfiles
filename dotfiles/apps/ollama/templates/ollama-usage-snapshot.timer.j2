@@ -1,0 +1,11 @@
+# Managed by apps/ollama — daily trigger for ollama-usage-snapshot.service.
+[Unit]
+Description=Daily ollama usage snapshot
+
+[Timer]
+OnCalendar={{ ollama_usage_snapshot_oncalendar | default('daily') }}
+Persistent=true
+RandomizedDelaySec=30m
+
+[Install]
+WantedBy=timers.target

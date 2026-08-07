@@ -199,6 +199,63 @@ Tunables (`defaults/main.yaml`):
 | `ollama_update_check_oncalendar` | `daily` | systemd `OnCalendar=` for the timer |
 | `ollama_update_check_apply` | `false` | `false` = notify only · `true` = timer auto-upgrades |
 
+## Who decides what
+
+Ansible reconciles the **system** to the manifest. It does not decide what
+belongs in the manifest. Keeping those separate is what lets you change models
+without touching provisioning, and re-provision without re-litigating models.
+
+| | who | when |
+|---|---|---|
+| Which models are declared | **you**, editing `defaults/main.yaml` | whenever |
+| Which models exist on a host | ansible → `ollama-models sync` | every provision/upgrade |
+| Evidence for the decision | `ollama-usage`, `ollama-bench`, `ollama-models check` | on demand |
+
+Ansible **installs** the analysis tools and schedules exactly one of them; it
+never runs a benchmark, never reads a result, and never edits the manifest.
+
+### `ollama-usage` — what actually gets used
+
+Rolls up the `llm` CLI's own log (`responses`: model, tokens, duration) plus
+OpenRouter spend. This is how the manifest's context settings stopped being
+guesses — 273 logged calls gave p50 ≈ 934 and p90 ≈ 4,591 input tokens, which is
+what `ollama_ctx_typical_tokens: 8192` is based on.
+
+```sh
+ollama-usage report          # per-model calls, tokens, tok/s + OpenRouter spend
+ollama-usage ctx             # input-token percentiles → ctx_typical_tokens
+ollama-usage snapshot        # append to history.jsonl  (the scheduled job)
+ollama-usage history         # trend across snapshots
+```
+
+Only `snapshot` is automated — daily, via launchd on macOS or a systemd *user*
+timer on Debian — because a time series has to be sampled to exist. Caveat: it
+only sees traffic routed through `llm`. Direct ollama API calls, Claude Code and
+`ori` are invisible to it, so treat it as a sample, not a census.
+
+### `ollama-bench` — is the candidate good enough
+
+Rudimentary and unscored by design. It reports cold `load_ms`, prompt and
+generation tok/s, and peak resident GB, then saves the full responses so you can
+judge quality yourself — the part a benchmark cannot do for you.
+
+```sh
+ollama-bench run qwen3.6:27b-mlx gemma4:31b-mlx
+ollama-bench run --suite coding <models…>
+ollama-bench show --diff a.json b.json
+```
+
+Never scheduled: it evicts resident models and takes minutes.
+
+### Swapping a model
+
+1. `ollama-models check --next-gen` — is there a newer generation, and does it
+   have local weights? (cloud-only ones are flagged)
+2. `ollama pull` the candidate, then `ollama-bench run <incumbent> <candidate>`
+3. Read the saved responses; check `peak_gb` against [SIZING.md](SIZING.md)
+4. Edit `defaults/main.yaml` — **this is the only step that changes the set**
+5. `ollama-models sync`, then `prune` to reclaim the old weights
+
 ### Dependency contract
 
 - `topic_requires: [uv]` — the `ollama-models` CLI is a [uv single-file

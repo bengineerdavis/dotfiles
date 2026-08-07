@@ -1,0 +1,220 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = []
+# ///
+"""ollama-usage — track how the model set is actually used, over time.
+
+The manifest is full of numbers that were guesses until they were measured:
+how much context real prompts use, which models earn their disk space, what
+remote calls cost. This reads the sources that already record that and turns
+them into a rollup you can act on.
+
+Sources
+  llm logs        ~/Library/Application Support/io.datasette.llm/logs.db (macOS)
+                  ~/.config/io.datasette.llm/logs.db                     (Linux)
+                  Rich: model, input/output tokens, duration, timestamp — for
+                  everything routed through the `llm` CLI, local or remote.
+  OpenRouter      GET /api/v1/auth/key — cumulative spend (day/week/month).
+                  Coarse by design: the key endpoint exposes no per-model
+                  breakdown, so cost trends come from snapshots over time.
+
+Deliberately NOT covered: calls made straight to the ollama HTTP API, or by
+Claude Code / ori, which never pass through `llm`. Treat this as a sample of
+your usage, not a census.
+
+Subcommands
+  report            human-readable rollup (default)
+  ctx               input-token percentiles — derives ollama_ctx_typical_tokens
+  snapshot          append one timestamped row to the history file
+  history           show recorded snapshots, oldest first
+
+`snapshot` is what the launchd/systemd timer runs. Everything else is for you.
+Ansible installs this and the timer; it never interprets the output — choosing
+models stays a human decision informed by these numbers.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import platform
+import sqlite3
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+OR_KEY_URL = "https://openrouter.ai/api/v1/auth/key"
+
+
+def llm_db() -> Path | None:
+    if platform.system() == "Darwin":
+        p = Path.home() / "Library/Application Support/io.datasette.llm/logs.db"
+    else:
+        p = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+        p = p / "io.datasette.llm/logs.db"
+    return p if p.is_file() else None
+
+
+def history_path() -> Path:
+    base = os.environ.get("XDG_DATA_HOME")
+    root = Path(base) if base else Path.home() / ".local" / "share"
+    return root / "ollama-usage" / "history.jsonl"
+
+
+def q(db: Path, sql: str, params=()) -> list[tuple]:
+    # read-only: never let a reporting tool mutate the log it is reading
+    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        return con.execute(sql, params).fetchall()
+    finally:
+        con.close()
+
+
+def percentiles(vals: list[int]) -> dict:
+    if not vals:
+        return {}
+    v = sorted(vals)
+    def p(x):
+        return v[min(len(v) - 1, int(len(v) * x))]
+    return {"n": len(v), "mean": int(sum(v) / len(v)), "p50": p(0.50),
+            "p90": p(0.90), "p99": p(0.99), "max": v[-1]}
+
+
+def ctx_stats(db: Path) -> dict:
+    rows = q(db, "select input_tokens from responses where input_tokens > 0")
+    return percentiles([r[0] for r in rows])
+
+
+def model_stats(db: Path, days: int | None = None) -> list[dict]:
+    where = ""
+    params: tuple = ()
+    if days:
+        where = "where datetime_utc >= datetime('now', ?)"
+        params = (f"-{days} days",)
+    rows = q(db, f"""
+        select model, count(*), coalesce(sum(input_tokens),0),
+               coalesce(sum(output_tokens),0), coalesce(avg(duration_ms),0)
+        from responses {where} group by model order by count(*) desc""", params)
+    out = []
+    for model, calls, tin, tout, dur in rows:
+        # tokens/sec is output-only: prompt processing and generation run at
+        # very different speeds, and mixing them makes the number meaningless.
+        tps = (tout / calls) / (dur / 1000) if dur and calls else 0.0
+        out.append({"model": model, "calls": calls, "in": tin, "out": tout,
+                    "avg_ms": int(dur), "tok_s": round(tps, 1)})
+    return out
+
+
+def openrouter_usage() -> dict:
+    try:
+        key = subprocess.run(["llm", "keys", "get", "openrouter"],
+                             capture_output=True, text=True, check=True
+                             ).stdout.strip().splitlines()[-1]
+    except (subprocess.CalledProcessError, FileNotFoundError, IndexError):
+        return {}
+    req = urllib.request.Request(OR_KEY_URL, headers={"Authorization": f"Bearer {key}"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            d = json.load(r).get("data", {})
+    except (urllib.error.URLError, OSError, json.JSONDecodeError):
+        return {}
+    return {k: d.get(k) for k in
+            ("usage", "usage_daily", "usage_weekly", "usage_monthly")}
+
+
+# ── commands ────────────────────────────────────────────────────────────────
+def cmd_report(args):
+    db = llm_db()
+    if not db:
+        sys.exit("no llm log database found — nothing routed through `llm` yet")
+    span = q(db, "select min(date(datetime_utc)), max(date(datetime_utc)),"
+                 " count(*) from responses")[0]
+    print(f"llm log: {span[2]} responses, {span[0]} → {span[1]}\n")
+    print(f"{'model':<44}{'calls':>6}{'in tok':>10}{'out tok':>9}{'tok/s':>8}")
+    for m in model_stats(db, args.days)[:args.limit]:
+        print(f"  {m['model']:<42}{m['calls']:>6}{m['in']:>10}{m['out']:>9}"
+              f"{m['tok_s']:>8}")
+    c = ctx_stats(db)
+    if c:
+        print(f"\ninput tokens: p50={c['p50']}  p90={c['p90']}  p99={c['p99']}"
+              f"  max={c['max']}")
+    u = openrouter_usage()
+    if u:
+        print(f"\nopenrouter spend: ${u.get('usage', 0):.4f} total  "
+              f"${u.get('usage_daily', 0):.4f} today  "
+              f"${u.get('usage_monthly', 0):.4f} this month")
+
+
+def cmd_ctx(args):
+    db = llm_db()
+    if not db:
+        sys.exit("no llm log database found")
+    c = ctx_stats(db)
+    if not c:
+        sys.exit("no prompts with token counts recorded yet")
+    for k in ("n", "mean", "p50", "p90", "p99", "max"):
+        print(f"  {k:<5} {c[k]}")
+    print(f"\nSuggested ollama_ctx_typical_tokens: {args.cover}")
+    print(f"  covers p90 ({c['p90']}) with headroom; p99 ({c['p99']}) is the")
+    print("  tail that MLX's lazy allocation absorbs anyway. Set it in")
+    print("  apps/ollama/defaults/main.yaml — this tool never edits the manifest.")
+
+
+def cmd_snapshot(args):
+    db = llm_db()
+    row = {"at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+           "host": platform.node(), "os": platform.system()}
+    if db:
+        row["ctx"] = ctx_stats(db)
+        row["models"] = model_stats(db, days=7)
+    row["openrouter"] = openrouter_usage()
+    p = history_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with p.open("a") as fh:
+        fh.write(json.dumps(row) + "\n")
+    print(f"appended snapshot to {p}")
+
+
+def cmd_history(args):
+    p = history_path()
+    if not p.is_file():
+        sys.exit(f"no history yet at {p} — run `ollama-usage snapshot`")
+    for line in p.read_text().splitlines()[-args.limit:]:
+        try:
+            r = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        c = r.get("ctx") or {}
+        o = r.get("openrouter") or {}
+        print(f"  {r['at']}  {r.get('host',''):<18} "
+              f"p90={c.get('p90','-'):<7} calls={sum(m['calls'] for m in r.get('models',[])):<5} "
+              f"or=${o.get('usage', 0) or 0:.4f}")
+
+
+def main():
+    p = argparse.ArgumentParser(prog="ollama-usage", description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = p.add_subparsers(dest="cmd")
+    r = sub.add_parser("report", help="human-readable rollup")
+    r.add_argument("--days", type=int, help="only the last N days")
+    r.add_argument("--limit", type=int, default=15)
+    r.set_defaults(func=cmd_report)
+    c = sub.add_parser("ctx", help="input-token percentiles")
+    c.add_argument("--cover", type=int, default=8192)
+    c.set_defaults(func=cmd_ctx)
+    sub.add_parser("snapshot", help="append a timestamped row").set_defaults(func=cmd_snapshot)
+    h = sub.add_parser("history", help="show recorded snapshots")
+    h.add_argument("--limit", type=int, default=20)
+    h.set_defaults(func=cmd_history)
+    args = p.parse_args()
+    if not getattr(args, "func", None):
+        args = p.parse_args(["report"])
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
