@@ -32,7 +32,8 @@ node = "lts"
 # backend (pipx.uvx = true) therefore uses a stable system uvx that `mise
 # upgrade` never churns — which is what previously caused ansible to self-upgrade
 # mid-playbook-run.
-python = "latest"
+uv = "latest"
+python = "3.14"
 "pipx:pre-commit" = "latest"
 "pipx:git-filter-repo" = "latest"
 "pipx:gita" = "latest"
@@ -155,3 +156,8 @@ run = "npx -y @sentry/dotagents@latest --user {{args}}"
 [tasks.dau-sync]
 description = "Install or refresh user-scoped tools"
 run = "npx -y @sentry/dotagents@latest --user install"
+
+# [tools."pipx:mycroft-mimic3-tts"]
+# version = "latest"
+# env._UV_PYTHON = "3.12"
+# env._UV_PYTHON_PREFERENCE = "only-managed"
