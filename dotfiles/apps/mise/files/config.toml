@@ -41,6 +41,7 @@ python = "3.14"
 # http://llm.datasette.io/en/stable/setup.html
 "pipx:llm" = { version = "latest", uvx_args = """
   --with llm-openrouter
+  --with llm-ollama
   --with llm-sentence-transformers
   --with llm-tools-exa
   --with llm-pdf-to-images
