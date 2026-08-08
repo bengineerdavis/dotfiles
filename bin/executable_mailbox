@@ -5,6 +5,7 @@ Python replacement for the original bash script. Analyzes a directory of
 email attachments and content, sending it to an LLM to generate a structured,
 chronological markdown summary of the entire correspondence chain.
 """
+
 import argparse
 import glob
 import os
@@ -14,103 +15,108 @@ import time
 from functools import wraps
 
 PROMPT = (
-	"Review the attachments you find and identify the items that are part of my\n"
-	"email correspondence, including attached binary and text documents.\n"
-	"Then, convert all select documents into a well-formatted markdown\n"
-	"document showing the chronological correspondence in the email chain.\n"
-	"While creating the markdown doc make it clear when each person is \n"
-	"replying and from which ticket or follow-up support ticket, and with \n"
-	"which attachments based on the ticket and person replying, which I've \n"
-	"also provided in slugified form for you."
+    "Review the attachments you find and identify the items that are part of my\n"
+    "email correspondence, including attached binary and text documents.\n"
+    "Then, convert all select documents into a well-formatted markdown\n"
+    "document showing the chronological correspondence in the email chain.\n"
+    "While creating the markdown doc make it clear when each person is \n"
+    "replying and from which ticket or follow-up support ticket, and with \n"
+    "which attachments based on the ticket and person replying, which I've \n"
+    "also provided in slugified form for you."
 )
 
-MODEL = "gemma4:31b"
+MODEL = "gemma4:31b-mlx"
 
 
 def performance_logger(logfile_path):
-	"""Return a decorator that logs runtime as the first metric to console and file."""
+    """Return a decorator that logs runtime as the first metric to console and file."""
 
-	def decorator(func):
-		@wraps(func)
-		def wrapper(*args, **kwargs):
-			start = time.perf_counter()
-			result = func(*args, **kwargs)
-			end = time.perf_counter()
-			runtime = end - start
-			# Print and log the runtime as the first metric
-			metric_line = f"runtime_seconds: {runtime:.6f}\n"
-			sys.stdout.write(metric_line)
-			try:
-				with open(logfile_path, "a", encoding="utf-8") as lf:
-					lf.write(metric_line)
-			except Exception:
-				pass
-			return result
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            end = time.perf_counter()
+            runtime = end - start
+            # Print and log the runtime as the first metric
+            metric_line = f"runtime_seconds: {runtime:.6f}\n"
+            sys.stdout.write(metric_line)
+            try:
+                with open(logfile_path, "a", encoding="utf-8") as lf:
+                    lf.write(metric_line)
+            except Exception:
+                pass
+            return result
 
-		return wrapper
+        return wrapper
 
-	return decorator
+    return decorator
 
 
 @performance_logger(os.path.join(os.getcwd(), "mailbox.log"))
 def main(attachments_pattern: str, output_file: str, logfile: str):
-	# Expand glob (recursive) and filter to regular files
-	matches = glob.glob(attachments_pattern, recursive=True)
-	files = [p for p in matches if os.path.isfile(p)]
+    # Expand glob (recursive) and filter to regular files
+    matches = glob.glob(attachments_pattern, recursive=True)
+    files = [p for p in matches if os.path.isfile(p)]
 
-	with open(logfile, "a", encoding="utf-8") as lf:
-		if not files:
-			msg = f"No files found for pattern: {attachments_pattern}\n\n"
-			print(msg, end="")
-			lf.write(msg)
-		else:
-			header = f"Adding the following attachments to the prompt ({len(files)} files):\n"
-			print(header, end="")
-			lf.write(header)
-			for f in files:
-				print(f)
-				lf.write(f + "\n")
-			print()
-			lf.write("\n")
+    with open(logfile, "a", encoding="utf-8") as lf:
+        if not files:
+            msg = f"No files found for pattern: {attachments_pattern}\n\n"
+            print(msg, end="")
+            lf.write(msg)
+        else:
+            header = f"Adding the following attachments to the prompt ({len(files)} files):\n"
+            print(header, end="")
+            lf.write(header)
+            for f in files:
+                print(f)
+                lf.write(f + "\n")
+            print()
+            lf.write("\n")
 
-	# Build command
-	cmd = ["llm-ctx", "-v", "-m", MODEL]
-	if files:
-		cmd.extend(files)
-	else:
-		cmd.append(attachments_pattern)
-	cmd.extend(["--", PROMPT])
+    # Build command
+    cmd = ["llm-ctx", "-v", "-m", MODEL]
+    if files:
+        cmd.extend(files)
+    else:
+        cmd.append(attachments_pattern)
+    cmd.extend(["--", PROMPT])
 
-	# Invoke llm-ctx and write stdout to the output file
-	try:
-		with open(output_file, "w", encoding="utf-8") as out:
-			subprocess.run(cmd, stdout=out, check=False)
-	except FileNotFoundError:
-		err = "llm-ctx not found in PATH."
-		print(err)
-		with open(logfile, "a", encoding="utf-8") as lf:
-			lf.write(err + "\n")
+    # Invoke llm-ctx and write stdout to the output file
+    try:
+        with open(output_file, "w", encoding="utf-8") as out:
+            subprocess.run(cmd, stdout=out, check=False)
+    except FileNotFoundError:
+        err = "llm-ctx not found in PATH."
+        print(err)
+        with open(logfile, "a", encoding="utf-8") as lf:
+            lf.write(err + "\n")
 
 
 if __name__ == "__main__":
-	parser = argparse.ArgumentParser(
-		description="Generate markdown summary from email attachments using llm-ctx.",
-		epilog=(
-			"Examples:\n"
-			"  mailbox                          # use ./attachments/** → mail.md\n"
-			"  mailbox ./emails/**              # custom glob → mail.md\n"
-			"  mailbox ./emails/** summary.md   # custom glob and output file"
-		),
-		formatter_class=argparse.RawDescriptionHelpFormatter,
-	)
-	parser.add_argument("attachments", nargs="?", help="attachments path or glob (default: ./attachments/**)")
-	parser.add_argument("output", nargs="?", help="output markdown file (default: mail.md)")
-	args = parser.parse_args()
+    parser = argparse.ArgumentParser(
+        description="Generate markdown summary from email attachments using llm-ctx.",
+        epilog=(
+            "Examples:\n"
+            "  mailbox                          # use ./attachments/** → mail.md\n"
+            "  mailbox ./emails/**              # custom glob → mail.md\n"
+            "  mailbox ./emails/** summary.md   # custom glob and output file"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "attachments",
+        nargs="?",
+        help="attachments path or glob (default: ./attachments/**)",
+    )
+    parser.add_argument(
+        "output", nargs="?", help="output markdown file (default: mail.md)"
+    )
+    args = parser.parse_args()
 
-	if args.attachments is None and args.output is None:
-		parser.print_help()
-		sys.exit(0)
+    if args.attachments is None and args.output is None:
+        parser.print_help()
+        sys.exit(0)
 
-	LOGFILE = os.path.join(os.getcwd(), "mailbox.log")
-	main(args.attachments or "./attachments/**", args.output or "mail.md", LOGFILE)
-
+    LOGFILE = os.path.join(os.getcwd(), "mailbox.log")
+    main(args.attachments or "./attachments/**", args.output or "mail.md", LOGFILE)

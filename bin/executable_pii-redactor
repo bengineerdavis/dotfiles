@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+# Script Name:  pii-redactor
+# Description:  Redacts PII from input files using LLM, preserving structure and context
+# Usage:        pii-redactor [--help] [--verbose] [--dry-run] [ARGS…]
+#               pii-redactor -i input.md -o output.md
+# Dependencies: llm
+
+set -euo pipefail
+
+die()   { echo "[ERROR] $*" >&2; exit 1; }
+VERBOSE=0
+log_v() { [[ $VERBOSE -eq 1 ]] && echo "$*" >&2 || true; }
+
+usage() {
+  cat <<EOF
+Usage: pii-redactor [OPTIONS] [ARGS…]
+
+Redacts personally identifiable information (PII) from input files using LLM,
+preserving structure and context while making content safe for sharing.
+
+Options:
+  -h, --help      Show this help and exit
+  -v, --verbose   Print debug info to stderr
+      --dry-run   Show what would happen without doing it
+  -i, --input     Input file to process (default: stdin)
+  -o, --output    Output file. The argument is optional — a bare -o writes to
+                  the input name with "$OUTPUT_SUFFIX" inserted before the
+                  extension (mail.md -> mail$OUTPUT_SUFFIX.md). Omit -o entirely
+                  for stdout.
+  -m, --model     LLM model to use (default: $MODEL)
+
+Examples:
+  pii-redactor -i mail.md -o mail-pii-removed.md
+  pii-redactor -i mail.md -o            # -> mail$OUTPUT_SUFFIX.md
+  cat sensitive.txt | pii-redactor > safe.txt
+  pii-redactor -i mail.md -o -m qwen3.5:27b-mlx
+EOF
+}
+
+# ── argument parsing ──────────────────────────────────────────────────────
+INPUT_FILE=""
+OUTPUT_FILE=""
+OUTPUT_DEFAULTED=0
+DRY_RUN=0
+MODEL="qwen3.5:9b-mlx"
+
+# Inserted before the extension when -o is given without an argument.
+OUTPUT_SUFFIX="-pii-removed"
+
+# Template an output name off the input: dir/mail.md -> dir/mail-pii-removed.md.
+# Falls back to a fixed name when reading stdin, where there is no name to reuse.
+default_output() {
+  local input="$1" dir name stem ext
+  [[ -z "$input" ]] && { echo "stdin${OUTPUT_SUFFIX}.md"; return; }
+
+  dir="$(dirname -- "$input")"
+  name="$(basename -- "$input")"
+  # Split on the last dot, but only if the *basename* has one — otherwise a
+  # dotted directory (v1.2/mail) would be mistaken for an extension.
+  if [[ "$name" == ?*.* ]]; then
+    stem="${name%.*}"
+    ext=".${name##*.}"
+  else
+    stem="$name"
+    ext=""
+  fi
+
+  [[ "$dir" == "." ]] && echo "${stem}${OUTPUT_SUFFIX}${ext}" \
+                      || echo "${dir}/${stem}${OUTPUT_SUFFIX}${ext}"
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)    usage; exit 0 ;;
+    -v|--verbose) VERBOSE=1 ;;
+    --dry-run)    DRY_RUN=1 ;;
+    -i|--input)   [[ $# -lt 2 ]] && die "--input requires an argument"; INPUT_FILE="$2"; shift ;;
+    # The argument is optional: a bare -o, or one followed by another flag,
+    # falls back to a name templated off --input once parsing finishes.
+    -o|--output)
+      if [[ $# -ge 2 && "$2" != -* ]]; then
+        OUTPUT_FILE="$2"; shift
+      else
+        OUTPUT_DEFAULTED=1
+      fi ;;
+    -m|--model)   [[ $# -lt 2 ]] && die "--model requires an argument"; MODEL="$2"; shift ;;
+    *) die "Unknown option: $1" ;;
+  esac
+  shift
+done
+
+# Resolved after the loop so -o can precede -i on the command line.
+if [[ $OUTPUT_DEFAULTED -eq 1 && -z "$OUTPUT_FILE" ]]; then
+  OUTPUT_FILE="$(default_output "$INPUT_FILE")"
+  log_v "--output given without an argument; defaulting to: $OUTPUT_FILE"
+fi
+
+# ── dependency check ──────────────────────────────────────────────────────
+check_llm() {
+  command -v llm >/dev/null 2>&1 || die "Dependency 'llm' not found. Please install it first."
+}
+
+# llm-pdf-to-images does `import fitz`, and PyMuPDF's fitz shim warns
+# unconditionally — onto stdout, since that is PyMuPDF's default message
+# stream — so the notice lands as line 1 of the redacted output.
+#
+# Upgrading does not fix this: 1.28.2 is already current, the warning is
+# version-independent, and the shim is slated for removal rather than repair,
+# so a newer PyMuPDF breaks the plugin outright instead of warning. The real
+# fix is one line upstream (import pymupdf), but 0.1 is the only release.
+# PYMUPDF_MESSAGE is PyMuPDF's supported control for the destination.
+export PYMUPDF_MESSAGE="${PYMUPDF_MESSAGE:-fd:2}"
+
+# ── main logic ────────────────────────────────────────────────────────────
+build_prompt() {
+  cat <<'EOF'
+You are a privacy-focused assistant. Your task is to remove personally identifiable information (PII) from the provided text while preserving the structure, context, and meaning. Follow these rules:
+
+1. Identify all PII: names, addresses, phone numbers, email addresses, usernames, IP addresses, and any other sensitive information
+2. Replace PII with appropriate placeholders (e.g., [NAME], [EMAIL], [PHONE], [ADDRESS], [IP])
+3. Ensure the text remains readable and maintains its original intent
+4. Preserve all formatting, especially markdown syntax
+5. Output only the redacted text — no explanations, no commentary
+EOF
+}
+
+run_llm() {
+  local model="$1" system_prompt="$2" input="$3"
+  if [[ -n "$input" ]]; then
+    # shellcheck disable=SC2086
+    llm -m "$model" -s "$system_prompt" -n ${LLM_EXTRA_OPTS:-} < "$input"
+  else
+    # shellcheck disable=SC2086
+    llm -m "$model" -s "$system_prompt" -n ${LLM_EXTRA_OPTS:-}
+  fi
+}
+
+process_file() {
+  local input="$1"
+  local output="$2"
+  local model="$3"
+  local system_prompt tmp
+  system_prompt=$(build_prompt)
+
+  if [[ -n "$input" ]]; then
+    [[ ! -f "$input" ]] && die "Input file not found: $input"
+    log_v "Processing file: $input"
+  else
+    log_v "Processing stdin"
+  fi
+
+  if [[ $DRY_RUN -eq 1 ]]; then
+    echo "Would process ${input:-stdin} -> ${output:-stdout}" >&2
+    return 0
+  fi
+
+  if [[ -z "$output" ]]; then
+    run_llm "$model" "$system_prompt" "$input" \
+      || die "Failed to process ${input:-stdin} with llm"
+    return 0
+  fi
+
+  # Stage to a sibling temp file and rename only on success. A redirect
+  # straight to $output truncates it up front, so an llm failure mid-run would
+  # leave a half-redacted file sitting exactly where clean output is expected.
+  tmp="$(mktemp "${output}.XXXXXX")" || die "Could not create a temp file beside $output"
+  # mktemp creates 0600; a plain redirect used to honour the umask. Restore that
+  # so the redacted file stays as readable as callers expect — sharing it is the
+  # whole point of redacting it.
+  chmod "$(printf '%o' $((0666 & ~0$(umask))))" -- "$tmp"
+  if ! run_llm "$model" "$system_prompt" "$input" > "$tmp"; then
+    rm -f -- "$tmp"
+    die "Failed to process ${input:-stdin} with llm"
+  fi
+  mv -- "$tmp" "$output"
+  log_v "Wrote redacted output to: $output"
+}
+
+# ── entry point ───────────────────────────────────────────────────────────
+check_llm
+process_file "$INPUT_FILE" "$OUTPUT_FILE" "$MODEL"

@@ -178,7 +178,9 @@ def preprocess_binary(path: Path, out: tempfile.NamedTemporaryFile) -> None:
     log.debug("Pre-process command: %s", " ".join(cmd))
     out.write(f"## {path.name}\n".encode())
     try:
-        result = subprocess.run(cmd, capture_output=True, check=True)
+        # Same reason as above: llm would otherwise fold the inherited stdin
+        # into this extraction prompt.
+        result = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, check=True)
         log.debug("Pre-process stdout (%d bytes)", len(result.stdout))
         out.write(result.stdout)
     except subprocess.CalledProcessError as e:
@@ -192,7 +194,10 @@ def run_files_to_prompt(paths: list[Path], fmt: str) -> bytes:
     """Run files-to-prompt over text files and return its stdout."""
     cmd = ["files-to-prompt", fmt, *[str(p) for p in paths]]
     log.debug("files-to-prompt command: %s", " ".join(cmd))
-    result = subprocess.run(cmd, capture_output=True, check=True)
+    # files-to-prompt also accepts paths on stdin, so an inherited non-tty stdin
+    # (pipeline, cron, `mailbox` called from a script) blocks it forever waiting
+    # for EOF. Paths are always passed as argv here, so detach stdin outright.
+    result = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, check=True)
     log.info(
         "files-to-prompt produced %d bytes of context from %d file(s)",
         len(result.stdout),
@@ -354,7 +359,9 @@ def main() -> None:
             subprocess.run(llm_cmd, input=ftp_output, check=True)
         else:
             log.info("No text files — sending prompt with attachments only")
-            subprocess.run(llm_cmd, check=True)
+            # No context to pipe in, but llm appends a non-tty stdin to the
+            # prompt — detach it so an attachments-only run can't block.
+            subprocess.run(llm_cmd, stdin=subprocess.DEVNULL, check=True)
     finally:
         if tmp_path:
             log.debug("Cleaning up temp file: %s", tmp_path)
