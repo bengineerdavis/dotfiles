@@ -458,6 +458,23 @@
   when: ansible_facts['os_family'] == 'Debian'
   tags: [ollama_linux, upgrade]
 
+- name: "ollama (Debian): stand down per-GPU instances when the split is off"
+  # Makes the toggle reversible: flipping the flag back to false must actually
+  # free port 11434, or the single service above will fail to bind.
+  ansible.builtin.systemd:
+    name: "ollama-{{ item.name }}"
+    state: stopped
+    enabled: false
+  become: true
+  failed_when: false
+  loop: "{{ ollama_linux_instances | default([]) }}"
+  loop_control:
+    label: "ollama-{{ item.name }}"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - not (ollama_linux_instances_enabled | default(false) | bool)
+  tags: [ollama_linux, ollama_instances, upgrade]
+
 - name: "ollama (Debian): enable + (re)start ollama service"
   ansible.builtin.systemd:
     name: ollama
@@ -465,8 +482,131 @@
     enabled: true
     state: "{{ 'restarted' if ollama_need_install | bool else 'started' }}"
   become: true
-  when: ansible_facts['os_family'] == 'Debian'
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    # Skipped when per-GPU instances are running — they bind the same port.
+    - not (ollama_linux_instances_enabled | default(false) | bool)
   tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): stand down the single service when instances take over"
+  # Not just stopped — disabled, or it races the instances back onto 11434 at
+  # next boot. Runs before the instances start, so the port is free for them.
+  ansible.builtin.systemd:
+    name: ollama
+    state: stopped
+    enabled: false
+  become: true
+  failed_when: false
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_linux_instances_enabled | default(false) | bool
+  tags: [ollama_linux, ollama_instances, upgrade]
+
+# ── Debian: one server per GPU (opt-in) ──────────────────────────────────────
+# Ollama uses a single backend per process, so a mixed CUDA + ROCm box wastes
+# one card under the plain service. One instance per GPU on its own port fixes
+# that and allows two resident models at once. See defaults/main.yaml.
+- name: "ollama (Debian): ensure per-instance model store(s) exist"
+  ansible.builtin.file:
+    path: "{{ ollama_linux_models_root if ollama_linux_instances_share_models else ollama_linux_models_root ~ '-' ~ item.name }}"
+    state: directory
+    owner: ollama
+    group: ollama
+    mode: "0755"
+  become: true
+  loop: "{{ ollama_linux_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_linux_instances_enabled | default(false) | bool
+  tags: [ollama_linux, ollama_instances]
+
+- name: "ollama (Debian): install per-GPU systemd units"
+  ansible.builtin.template:
+    src: ollama-instance.service.j2
+    dest: "/etc/systemd/system/ollama-{{ item.name }}.service"
+    mode: "0644"
+  become: true
+  loop: "{{ ollama_linux_instances }}"
+  loop_control:
+    label: "ollama-{{ item.name }}.service ({{ item.description | default('') }})"
+  register: ollama_instance_units
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_linux_instances_enabled | default(false) | bool
+  tags: [ollama_linux, ollama_instances, upgrade]
+
+- name: "ollama (Debian): enable + (re)start each GPU instance"
+  ansible.builtin.systemd:
+    name: "ollama-{{ item.name }}"
+    daemon_reload: true
+    enabled: true
+    # A running server keeps the environment it started with, so a changed unit
+    # needs a restart, not a reload, for new tuning to take effect.
+    state: "{{ 'restarted' if (ollama_instance_units.changed or ollama_need_install | default(false) | bool) else 'started' }}"
+  become: true
+  loop: "{{ ollama_linux_instances }}"
+  loop_control:
+    label: "ollama-{{ item.name }}"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_linux_instances_enabled | default(false) | bool
+  tags: [ollama_linux, ollama_instances, upgrade]
+
+- name: "ollama (Debian): verify each instance answers on its own port"
+  # Reporting green because systemd started a unit is not proof the server is
+  # serving — on macOS a unit came up while an orphan held the port. Ask it.
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ item.port }}/api/tags"
+    status_code: 200
+  register: ollama_instance_up
+  retries: 15
+  delay: 2
+  until: ollama_instance_up.status is defined and ollama_instance_up.status == 200
+  loop: "{{ ollama_linux_instances }}"
+  loop_control:
+    label: "127.0.0.1:{{ item.port }} ({{ item.name }})"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_linux_instances_enabled | default(false) | bool
+  tags: [ollama_linux, ollama_instances]
+
+- name: "ollama (Debian): confirm each instance bound the GPU it was pinned to"
+  # The pinning env vars are the only thing separating these two servers. If a
+  # unit silently fell back to CPU (missing ROCm for gfx1030, say) it would look
+  # healthy above while delivering a fraction of the throughput.
+  ansible.builtin.shell: |
+    set -o pipefail
+    journalctl -u ollama-{{ item.name }} --since "-2 min" --no-pager 2>/dev/null \
+      | grep -iEm1 "inference compute|looking for compatible gpus|no compatible gpus" \
+      || echo "no GPU line in recent logs"
+  args:
+    executable: /bin/bash
+  register: ollama_instance_gpu
+  changed_when: false
+  failed_when: false
+  loop: "{{ ollama_linux_instances }}"
+  loop_control:
+    label: "ollama-{{ item.name }}"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_linux_instances_enabled | default(false) | bool
+  tags: [ollama_linux, ollama_instances]
+
+- name: "ollama (Debian): report per-GPU instance state"
+  ansible.builtin.debug:
+    msg: >-
+      ollama-{{ item.item.name }} on 127.0.0.1:{{ item.item.port }}
+      ({{ item.item.description | default('') }}) —
+      {{ item.stdout | default('') | trim }}
+  loop: "{{ ollama_instance_gpu.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name | default('?') }}"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_linux_instances_enabled | default(false) | bool
+  tags: [ollama_linux, ollama_instances]
 
 - name: "ollama (Debian): report install/GPU decision"
   ansible.builtin.debug:

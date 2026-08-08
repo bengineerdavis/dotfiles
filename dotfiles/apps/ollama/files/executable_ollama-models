@@ -216,7 +216,28 @@ def system_ram_gb() -> float:
     return 0.0
 
 
-def total_ram_gb() -> tuple[float, str]:
+def total_ram_gb() -> tuple[float, str]:  # noqa: D401 — see override note below
+    """Budget basis, with an explicit override for multi-GPU hosts.
+
+    On a box with two cards of different sizes (a 24GB 3090 and a 16GB 6900XT,
+    each behind its own ollama instance) probing the hardware is ambiguous:
+    nvidia-smi answers 24 regardless of which instance you are sizing models
+    for, so the smaller card would be over-committed. There is no reliable way
+    to infer the intended target from OLLAMA_HOST — a port number says nothing
+    about the GPU behind it — so it is stated rather than guessed:
+
+        OLLAMA_VRAM_GB=16 OLLAMA_HOST=127.0.0.1:11435 ollama-models status
+    """
+    override = os.environ.get("OLLAMA_VRAM_GB")
+    if override:
+        try:
+            return float(override), "vram(set)"
+        except ValueError:
+            pass
+    return _probe_ram_gb()
+
+
+def _probe_ram_gb() -> tuple[float, str]:
     """Budget basis + a label for it. On Mac, unified memory == system RAM. On
     Linux with a discrete GPU, the real inference constraint is VRAM (the linux
     tags are GPU quants); fall back to system RAM for CPU inference otherwise."""

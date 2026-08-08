@@ -244,13 +244,46 @@ through to the universal `linux` GGUF key on anything pre-Blackwell:
 | RTX 5090 (12.0) · B200 (10.0) | `linux_nvidia` — NVFP4 |
 | RX 6900 XT | `linux_amd` → `linux` — GGUF |
 
-### Two GPUs, two backends — ollama uses one
+### Two GPUs, two backends — one server each
 
-Ollama selects a single backend per server; it will **not** pool 24 + 16 = 40 GB
-across CUDA and ROCm. Treat the 3090 as the model GPU. To use the 6900 XT at the
-same time, run a second ollama instance pinned with `HIP_VISIBLE_DEVICES` on a
-different `OLLAMA_HOST` port — useful for keeping embeddings or a 3B agent model
-resident without evicting the main model.
+Ollama selects a single backend per server process; it will **not** pool
+24 + 16 = 40 GB across CUDA and ROCm. Under a single service the second card
+sits idle.
+
+The topic can run **one instance per GPU** instead — opt in with
+`ollama_linux_instances_enabled: true`:
+
+| unit | port | card | selects via |
+|---|---|---|---|
+| `ollama-cuda.service` | 11434 | RTX 3090 (Ampere) | `CUDA_VISIBLE_DEVICES=0`, `HIP_VISIBLE_DEVICES=` |
+| `ollama-rocm.service` | 11435 | RX 6900 XT (gfx1030) | `HIP_VISIBLE_DEVICES=0`, `CUDA_VISIBLE_DEVICES=`, `HSA_OVERRIDE_GFX_VERSION=10.3.0` |
+
+```sh
+OLLAMA_HOST=127.0.0.1:11434 ollama run <model>   # 3090
+OLLAMA_HOST=127.0.0.1:11435 ollama run <model>   # 6900XT
+```
+
+Both units inherit `ollama_server_env` (the same tuning macOS gets) and add only
+device pinning, so tuning stays defined once. The blank `CUDA_VISIBLE_DEVICES` /
+`HIP_VISIBLE_DEVICES` values are deliberate — with both driver stacks installed,
+each binary will probe the other vendor's card unless explicitly blinded.
+
+The toggle is reversible in both directions: enabling it stops and *disables*
+`ollama.service` (they contend for 11434), and disabling it stands the instances
+down before the single service tries to bind.
+
+**They share one model store** (`ollama_linux_instances_share_models: true`).
+Ollama is content-addressed, so a model pulled for one card costs nothing on the
+other — with 410 GB of weights, duplicating the store is a real expense. Set it
+false only if you hit lock contention during simultaneous pulls.
+
+> **Sizing for the smaller card.** `ollama-models` probes `nvidia-smi` first, so
+> on this box it answers 24 GB no matter which instance you are targeting — a
+> port number says nothing about the GPU behind it. State it instead:
+> ```sh
+> OLLAMA_VRAM_GB=16 OLLAMA_HOST=127.0.0.1:11435 ollama-models status
+> ```
+> The difference is large: at 24 GB, 22 of 37 members fit; at 16 GB, only 16 do.
 
 ### The default reserve is wrong for discrete VRAM
 

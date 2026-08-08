@@ -1,0 +1,32 @@
+{# apps/ollama/templates/ollama-instance.service.j2
+   One ollama server pinned to one GPU. Rendered once per entry in
+   `ollama_linux_instances`. Environment is `ollama_server_env` (shared tuning,
+   the same keys macOS gets) overlaid with this instance's `env` (device pinning)
+   — so tuning is defined once and device selection is per instance. #}
+[Unit]
+Description=Ollama server — {{ item.description | default(item.name) }}
+After=network-online.target
+Wants=network-online.target
+{# Both instances cannot bind 11434; the plain unit is stopped when this is on. #}
+Conflicts=ollama.service
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/ollama serve
+User=ollama
+Group=ollama
+Restart=always
+RestartSec=3
+
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+Environment="OLLAMA_HOST=127.0.0.1:{{ item.port }}"
+Environment="OLLAMA_MODELS={{ ollama_linux_models_root if ollama_linux_instances_share_models else ollama_linux_models_root ~ '-' ~ item.name }}"
+{% for k, v in (ollama_server_env | default({})).items() %}
+Environment="{{ k }}={{ v }}"
+{% endfor %}
+{% for k, v in (item.env | default({})).items() %}
+Environment="{{ k }}={{ v }}"
+{% endfor %}
+
+[Install]
+WantedBy=multi-user.target

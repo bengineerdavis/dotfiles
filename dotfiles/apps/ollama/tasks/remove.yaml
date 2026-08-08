@@ -185,6 +185,47 @@
 # that produced them. Remove ~/.local/share/ollama-{usage,bench} by hand if you
 # really want them gone.
 
+# --- Linux (Debian): tear down the per-GPU instances -------------------------
+# Unconditional (not gated on ollama_linux_instances_enabled) so that removal
+# still cleans up after the flag has already been flipped back to false.
+
+- name: "ollama (Debian): stop + disable per-GPU instances"
+  ansible.builtin.systemd:
+    name: "ollama-{{ item.name }}"
+    state: stopped
+    enabled: false
+  become: true
+  failed_when: false
+  loop: "{{ ollama_linux_instances | default([]) }}"
+  loop_control:
+    label: "ollama-{{ item.name }}"
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: "ollama (Debian): remove per-GPU unit files"
+  ansible.builtin.file:
+    path: "/etc/systemd/system/ollama-{{ item.name }}.service"
+    state: absent
+  become: true
+  loop: "{{ ollama_linux_instances | default([]) }}"
+  loop_control:
+    label: "ollama-{{ item.name }}.service"
+  register: ollama_instances_removed
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: "ollama (Debian): reload systemd after removing instance units"
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+  failed_when: false
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - ollama_instances_removed.changed
+
+# Per-instance model stores are NOT deleted here. When share_models is false
+# each holds a full copy of the weights, and re-downloading hundreds of GB is a
+# far worse outcome than leaving a directory behind. Remove
+# /usr/share/ollama/.ollama/models-* by hand if you actually want that space.
+
 # --- Linux (Debian): tear down the periodic update-check timer ---------------
 
 - name: "ollama (Debian): stop + disable update-check timer"

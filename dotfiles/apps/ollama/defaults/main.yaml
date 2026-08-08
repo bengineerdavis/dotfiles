@@ -217,6 +217,52 @@ ollama_server_env:
   # 36GB with ~16GB of resident apps — release memory promptly, not after 5m.
   OLLAMA_KEEP_ALIVE: "60s"
 
+# ── Linux: one server per GPU ────────────────────────────────────────────────
+# Ollama selects a single backend per server process — it will NOT pool a CUDA
+# card and a ROCm card into one 40GB pool. On a mixed box the single service
+# grabs whichever backend it detects first and the other card sits idle.
+#
+# Running one instance per GPU on separate ports fixes that, and lets two models
+# be resident simultaneously (one per card) instead of thrashing a single one.
+# Clients pick an instance by port:
+#     OLLAMA_HOST=127.0.0.1:11434 ollama run <model>   # 3090  (CUDA)
+#     OLLAMA_HOST=127.0.0.1:11435 ollama run <model>   # 6900XT (ROCm)
+#
+# OFF by default: it only helps a multi-GPU host, and enabling it stops the
+# plain `ollama.service` (they would fight over port 11434).
+ollama_linux_instances_enabled: false
+
+# Each instance inherits `ollama_server_env` above, then applies its own `env`.
+# The empty CUDA_VISIBLE_DEVICES / HIP_VISIBLE_DEVICES values are deliberate:
+# with both driver stacks installed system-wide, each binary will happily probe
+# the other vendor's card unless explicitly blinded to it.
+ollama_linux_instances:
+  - name: cuda
+    port: 11434
+    description: "RTX 3090 (CUDA / Ampere)"
+    env:
+      CUDA_VISIBLE_DEVICES: "0"
+      HIP_VISIBLE_DEVICES: ""
+  - name: rocm
+    port: 11435
+    description: "RX 6900 XT (ROCm / RDNA2, gfx1030)"
+    env:
+      HIP_VISIBLE_DEVICES: "0"
+      ROCR_VISIBLE_DEVICES: "0"
+      CUDA_VISIBLE_DEVICES: ""
+      # gfx1030 is not in every ROCm build's supported list. Harmless when it is
+      # supported; required when it isn't. Drop it once you've confirmed the
+      # installed ROCm lists gfx1030 natively.
+      HSA_OVERRIDE_GFX_VERSION: "10.3.0"
+
+# Instances SHARE one model store by default. Ollama is content-addressed, so a
+# shared store means a model pulled for one card costs nothing on the other —
+# with 410GB of weights, duplicating the store is a real expense. The trade is
+# that two simultaneous *pulls* touch the same blob directory; set this to false
+# if you ever see lock contention, at the cost of duplicated weights.
+ollama_linux_instances_share_models: true
+ollama_linux_models_root: /usr/share/ollama/.ollama/models
+
 # ── Roles: what to call, not what to install ─────────────────────────────────
 # Scripts should ask for a ROLE, not a tag, so swapping a model is a manifest
 # edit rather than a find-and-replace across your tooling. `ollama-role env`
