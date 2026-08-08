@@ -260,6 +260,17 @@ groups, Aider and Continue model roles, RouteLLM and cost-aware routers.
   current ROCm?
 - Any upstream signal that **MLX builds will gain vision/audio**, or is GGUF
   permanently required for multimodal on Apple Silicon?
+- **What is `ollama-linux-amd64-mlx.tar.zst` for?** Ollama ships a 225 MB MLX
+  overlay for *Linux* x86, undocumented on the GPU support page. MLX has gained
+  a CUDA backend, so this may let NVIDIA cards run MLX-format models. Determine:
+  what it enables, whether it helps on **Ampere** (where NVFP4 is emulated
+  anyway, so probably not), and whether it should be installed alongside the
+  CUDA base build. Same question for the `jetpack5`/`jetpack6` arm64 builds —
+  confirm they are Jetson-only and irrelevant to x86 hosts.
+- **ROCm vs Vulkan when both are available.** Ollama's docs treat them as
+  complementary and give no selection guidance. For a gfx1030 card that ROCm
+  supports natively, is there ever a case where Vulkan is faster or more stable?
+  What throughput difference should be expected between the two?
 - With **128 GB system RAM + a 24 GB GPU**, realistic **tokens/sec** for a
   120B-class MoE (`gpt-oss:120b`, `qwen3.5:122b-a10b`) split CPU/GPU. Numbers,
   not "it works".

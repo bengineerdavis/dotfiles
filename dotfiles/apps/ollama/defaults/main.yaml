@@ -144,6 +144,33 @@ ollama_budget_tolerance_pct: 15
 #   ollama_linux_version — 'latest' (query GitHub for the newest release tag) or
 #                          a pinned tag like 'v0.32.5' for reproducible installs.
 #
+# ── Which GPU backend actually runs ─────────────────────────────────────────
+# Three distinct backends exist on Linux, and they are NOT alternatives to pick
+# between — they layer:
+#
+#   CUDA    bundled INSIDE ollama-linux-<arch>.tar.zst. Nothing extra to fetch;
+#           the host only needs the NVIDIA kernel driver.
+#   ROCm    a SEPARATE ~1GB overlay (ollama-linux-<arch>-rocm.tar.zst), applied
+#           below when an AMD card is detected. Covers the officially supported
+#           LLVM targets: gfx908, gfx90a, gfx942, gfx950, gfx1030, gfx1100-1102,
+#           gfx1150-1151, gfx1200-1201.
+#   Vulkan  compiled into the base build and ENABLED BY DEFAULT. It exists to
+#           cover AMD/Intel GPUs that ROCm does not — iGPUs, older or
+#           unsupported discrete cards — via Mesa. No asset, no flag, no action
+#           needed here. It is the fallback, not the fast path: prefer ROCm on a
+#           card ROCm supports.
+#
+# Consequence for the RX 6900 XT: it is gfx1030, which ROCm supports natively,
+# so the ROCm overlay is the right path and Vulkan is merely the safety net. If
+# journalctl ever shows the rocm instance selecting Vulkan, that means ROCm
+# failed to initialise — investigate rather than accept it, because Vulkan will
+# look healthy while running materially slower.
+#
+# Not handled here: ollama-linux-amd64-mlx.tar.zst (an MLX backend for Linux)
+# and the arm64 jetpack5/jetpack6 builds (NVIDIA Jetson). Neither applies to
+# this hardware; the MLX-on-Linux overlay is an open question in
+# docs/RESEARCH_BRIEF.md since NVFP4 is emulated on Ampere anyway.
+#
 # GPU support is additive and auto-detected per host (a box may have both):
 #   • NVIDIA — CUDA userspace libs ship INSIDE the base tarball; only the host
 #     kernel driver (nvidia-smi) is required. The topic detects + warns; it does
@@ -250,10 +277,15 @@ ollama_linux_instances:
       HIP_VISIBLE_DEVICES: "0"
       ROCR_VISIBLE_DEVICES: "0"
       CUDA_VISIBLE_DEVICES: ""
-      # gfx1030 is not in every ROCm build's supported list. Harmless when it is
-      # supported; required when it isn't. Drop it once you've confirmed the
-      # installed ROCm lists gfx1030 natively.
-      HSA_OVERRIDE_GFX_VERSION: "10.3.0"
+      # NOTE: no HSA_OVERRIDE_GFX_VERSION here, deliberately.
+      # gfx1030 IS in Ollama's officially supported ROCm target list
+      # (gfx908, gfx90a, gfx942, gfx950, gfx1030, gfx1100-1102, gfx1150-1151,
+      # gfx1200-1201), and the RX 6900 XT *is* gfx1030 — so overriding to
+      # "10.3.0" would only force what the card already reports. It is a
+      # workaround for UNSUPPORTED cards (the docs' example maps an RX 5400 onto
+      # gfx1030), and setting it here would mask a genuine detection failure
+      # behind a plausible-looking value. Add it only if this card ever stops
+      # being detected, and treat needing it as a symptom, not a fix.
 
 # Instances SHARE one model store by default. Ollama is content-addressed, so a
 # shared store means a model pulled for one card costs nothing on the other —
