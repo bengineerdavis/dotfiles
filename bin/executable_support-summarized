@@ -27,7 +27,18 @@ if [[ -n "$1" ]]; then
 else
     FILES=("./attachments/**" "mail.md")
 fi
-MODEL="${2:-"gemma4:31b"}"
+
+# | Model | Weights | +KV @32K | Verdict @33% headroom |
+# |---|---|---|---|
+# | gpt-oss:20b | 13GB | ~15GB | ✅ Easily |
+# | lfm2:24b | 14GB | ~16GB | ✅ Easily |
+# | **granite4:32b-a9b-h** | 19GB | ~20GB | ✅ Yes (tiny KV — hybrid) |
+# | glm-4.7-flash | 19GB | ~21–22GB | ✅ Yes |
+# | qwen3.6:35b-a3b-mlx | 21GB | ~23–24GB | ⚠️ Barely |
+# | olmo-3.1:32b-instruct | 19GB | ~23–27GB | ⚠️ Tight (dense = fat KV) |
+# | qwen3.5:9b / ministral-3:8b | ~9–10GB | ~11GB | ✅ Easily |
+# | gemma4:12b-mlx | 7.7GB | ~9–10GB | ✅ Excellent |
+MODEL="${2:-"qwen3.6:35b-a3b-nvfp4"}"  
 PROMPT=$(cat <<'EOF'
 You are an experienced senior technical support engineer; 
 help summarize and target complex initial requests by email, 
