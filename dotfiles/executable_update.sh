@@ -24,4 +24,4 @@ echo "› upgrade profile: ${profile}" >&2
 # in-playbook mise upgrade excludes it (see apps/mise/tasks/upgrade.yaml).
 mise upgrade --yes pipx:ansible
 
-mise exec -- ansible-playbook -vv -i localhost playbook.yaml --tags "upgrade,${profile}"
+mise exec -- ansible-playbook -i localhost playbook.yaml --tags "upgrade,${profile}"
