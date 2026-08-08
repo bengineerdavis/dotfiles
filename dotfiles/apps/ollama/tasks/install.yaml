@@ -4,20 +4,21 @@
 # Do NOT put upgrade logic here — upgrades are owned by system roles (homebrew, apt).
 # Do NOT put config/symlink tasks here — those are owned by chezmoi.
 
-# ── macOS (Homebrew Cask) ───────────────────────────────────────────────────
-- name: "Install ollama via Homebrew Cask (macOS)"
-  community.general.homebrew_cask:
+# ── macOS (Homebrew formula — headless, NOT the GUI cask) ───────────────────
+# The `ollama-app` cask was dropped deliberately. Its server is launched by
+# launchd as a child of PID 1, so it never inherits a shell and cannot be
+# configured from files/zsh/env.zsh; its settings live in an opaque SQLite
+# database instead. The formula gives a plain binary we start ourselves, which
+# makes the launchd agent below the single place server config lives.
+#
+# ⚠ If you ever remove the old cask by hand, do NOT pass --zap. Its zap stanza
+#   trashes ~/.ollama — every model you have. Plain `brew uninstall --cask
+#   ollama-app` only stops the agent and removes the app bundle.
+- name: "Install ollama via Homebrew formula (macOS, headless)"
+  community.general.homebrew:
     name: ollama
     state: present
-    install_options: "appdir={{ user_appdir }}"
   when: ansible_facts['os_family'] == 'Darwin'
-
-# ── macOS (Homebrew) ────────────────────────────────────────────────────────
-# - name: "Install ollama via Homebrew (macOS)"
-#   community.general.homebrew:
-#     name: ollama
-#     state: present
-#   when: ansible_facts['os_family'] == 'Darwin'
 
 # ── Linux (apt) ──────────────────────────────────────────────────────────────
 # EMPTY
@@ -102,26 +103,10 @@
     - ollama_free_mb | int < 10000 # < ~10 GB
   tags: ollama_resources
 
-# TODO: verify placement
-- name: Check that Ollama.app exists in /Applications
-  ansible.builtin.stat:
-    path: "/Applications/Ollama.app"
-  register: ollama_app_stat
-  when: ansible_facts['os_family'] == "Darwin"
-  tags: ollama_gui
+# The GUI app is intentionally NOT installed (see the formula note at the top),
+# so the old "is Ollama.app present?" checks were removed — they only produced
+# false warnings once the cask was dropped.
 
-# TODO: verify placement
-- name: Show warning when GUI app is missing after cask install
-  ansible.builtin.debug:
-    msg: >
-      WARNING: Ollama GUI app not found at /Applications/Ollama.app.
-      Verify the Homebrew cask install or where the app bundle was placed.
-  when:
-    - ansible_facts['os_family'] == "Darwin"
-    - not ollama_app_stat.stat.exists
-  tags: ollama_gui
-
-# TODO: verify placement
 - name: Check ollama CLI is available
   ansible.builtin.command: ollama --version
   register: ollama_version_check
@@ -134,9 +119,10 @@
 - name: Warn if ollama CLI is not usable
   ansible.builtin.debug:
     msg: >
-      WARNING: ollama CLI did not respond correctly. Make sure you've launched
-      Ollama.app at least once so it can create /usr/local/bin/ollama, or
-      add a manual symlink from the app bundle to your PATH.
+      WARNING: ollama CLI did not respond correctly. The CLI comes from the
+      Homebrew formula (/opt/homebrew/bin/ollama) and the server is run by the
+      com.ollama.server launchd agent — check `launchctl print
+      gui/$(id -u)/com.ollama.server` and ~/.ollama/logs/server.log.
   when:
     - ansible_facts['os_family'] == "Darwin"
     - ollama_version_check.rc is defined
@@ -210,81 +196,48 @@
   tags: ollama_paths
 
 # TODO: verify placement
-- name: Check for Ollama launch agent plist
-  ansible.builtin.stat:
-    path: "{{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents/com.ollama.ollama.plist"
-  register: ollama_launch_agent
+# ── macOS: run the ollama server ourselves ──────────────────────────────────
+# Replaces the GUI app's `com.ollama.ollama` agent. That server was a child of
+# launchd (PID 1), so it never inherited a shell and could not be configured
+# from files/zsh/env.zsh — its settings lived in an opaque SQLite database.
+# Owning the agent makes `ollama_server_env` in defaults/main.yaml the single
+# place server config lives: rendered into this plist, and exported to shells by
+# `ollama-role serverenv`.
+- name: "macOS: install the ollama server launchd agent"
+  ansible.builtin.template:
+    src: com.ollama.server.plist.j2
+    dest: "{{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents/com.ollama.server.plist"
+    mode: "0644"
+  register: ollama_server_plist
   when: ansible_facts['os_family'] == "Darwin"
-  tags: ollama_service
+  tags: [ollama_service, ollama_env]
 
-# TODO: verify placement
-- name: Warn if Ollama launch agent plist is missing
-  ansible.builtin.debug:
-    msg: >
-      WARNING: Expected launch agent
-      {{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents/com.ollama.ollama.plist
-      not found. Ollama may not auto-start on login; verify the install or
-      create a launch agent manually.
-  when:
-    - ansible_facts['os_family'] == "Darwin"
-    - not ollama_launch_agent.stat.exists
-  tags: ollama_service
-
-# TODO: verify placement
-- name: Try to bootstrap Ollama launchd agent for current user
+- name: "macOS: (re)load the ollama server agent"
+  # A running server keeps the environment it started with, so any change to the
+  # rendered plist needs a bootout/bootstrap cycle — not just a reload. bootout
+  # is expected to fail on first run when nothing is loaded yet.
   ansible.builtin.shell: |
-    launchctl bootstrap gui/$(id -u) "{{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents/com.ollama.ollama.plist"
+    launchctl bootout gui/$(id -u)/com.ollama.server 2>/dev/null || true
+    launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.ollama.server.plist"
+    launchctl enable gui/$(id -u)/com.ollama.server
   args:
     executable: /bin/bash
-  register: ollama_bootstrap_result
-  failed_when: false
-  changed_when: false
+  changed_when: true
   when:
     - ansible_facts['os_family'] == "Darwin"
-    - ollama_launch_agent.stat.exists
-  tags: ollama_service
+    - ollama_server_plist.changed
+  tags: [ollama_service, ollama_env]
 
-# TODO: verify placement
-- name: Warn if bootstrapping Ollama launchd agent failed
-  ansible.builtin.debug:
-    msg: >
-      WARNING: Failed to bootstrap Ollama launch agent via launchctl.
-      stdout: {{ ollama_bootstrap_result.stdout | default('') }}
-      stderr: {{ ollama_bootstrap_result.stderr | default('') }}
-  when:
-    - ansible_facts['os_family'] == "Darwin"
-    - ollama_launch_agent.stat.exists
-    - ollama_bootstrap_result.rc is defined
-    - ollama_bootstrap_result.rc != 0
-  tags: ollama_service
-
-# TODO: verify placement
-- name: Try to enable Ollama launchd agent at login
-  ansible.builtin.shell: |
-    launchctl enable gui/$(id -u)/com.ollama.ollama
-  args:
-    executable: /bin/bash
-  register: ollama_enable_result
-  failed_when: false
-  changed_when: false
-  when:
-    - ansible_facts['os_family'] == "Darwin"
-    - ollama_launch_agent.stat.exists
-  tags: ollama_service
-
-# TODO: verify placement
-- name: Warn if enabling Ollama launchd agent failed
-  ansible.builtin.debug:
-    msg: >
-      WARNING: Failed to enable Ollama launch agent at login.
-      stdout: {{ ollama_enable_result.stdout | default('') }}
-      stderr: {{ ollama_enable_result.stderr | default('') }}
-  when:
-    - ansible_facts['os_family'] == "Darwin"
-    - ollama_launch_agent.stat.exists
-    - ollama_enable_result.rc is defined
-    - ollama_enable_result.rc != 0
-  tags: ollama_service
+- name: "macOS: wait for the server to answer"
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:11434/api/tags"
+    status_code: 200
+  register: ollama_up
+  retries: 15
+  delay: 2
+  until: ollama_up.status is defined and ollama_up.status == 200
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: [ollama_service, ollama_env]
 
 # ── Linux (Debian): install ollama from the official release tarball ───────────
 # This is Ollama's officially-documented "Manual install" (docs.ollama.com/linux),
@@ -603,7 +556,7 @@
     dest: "{{ ansible_facts['env']['HOME'] }}/bin/{{ item }}"
     state: link
     force: true
-  loop: [ollama-usage, ollama-bench]
+  loop: [ollama-usage, ollama-bench, ollama-role]
   tags: [ollama_models, ollama_usage, upgrade]
 
 - name: "macOS: install the usage-snapshot launchd agent"

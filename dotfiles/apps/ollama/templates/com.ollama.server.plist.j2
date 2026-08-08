@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Managed by apps/ollama.
+     We run the ollama server ourselves rather than using the GUI cask, because
+     an app-launched server is a child of launchd and never inherits a shell —
+     so it could not be configured from files/zsh/env.zsh, and its settings hid
+     in an opaque SQLite database.
+     EnvironmentVariables below is rendered from `ollama_server_env` in
+     defaults/main.yaml, the same keys `ollama-role serverenv` exports for
+     shell-launched processes. One definition, two consumers, no drift. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.ollama.server</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>{{ ollama_bin | default('/opt/homebrew/bin/ollama') }}</string>
+    <string>serve</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ProcessType</key><string>Interactive</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+{% for k, v in (ollama_server_env | default({})).items() %}
+    <key>{{ k }}</key><string>{{ v }}</string>
+{% endfor %}
+  </dict>
+  <key>StandardOutPath</key><string>{{ ollama_logs_dir | default(ansible_facts['env']['HOME'] ~ '/.ollama/logs') }}/server.log</string>
+  <key>StandardErrorPath</key><string>{{ ollama_logs_dir | default(ansible_facts['env']['HOME'] ~ '/.ollama/logs') }}/server.log</string>
+</dict>
+</plist>

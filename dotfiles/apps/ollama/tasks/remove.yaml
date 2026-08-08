@@ -158,8 +158,27 @@
   loop:
     - "{{ ansible_facts['env']['HOME'] }}/bin/ollama-usage"
     - "{{ ansible_facts['env']['HOME'] }}/bin/ollama-bench"
+    - "{{ ansible_facts['env']['HOME'] }}/bin/ollama-role"
     - "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/ollama-usage-snapshot.timer"
     - "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/ollama-usage-snapshot.service"
+
+- name: "macOS: stop + remove the ollama server launchd agent"
+  ansible.builtin.shell: |
+    launchctl bootout gui/$(id -u)/com.ollama.server 2>/dev/null || true
+    rm -f "$HOME/Library/LaunchAgents/com.ollama.server.plist"
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when: ansible_facts['system'] == "Darwin"
+
+- name: "macOS: unset the published server tuning vars"
+  ansible.builtin.command:
+    cmd: launchctl unsetenv {{ item }}
+  loop: [OLLAMA_FLASH_ATTENTION, OLLAMA_KV_CACHE_TYPE, OLLAMA_NO_CLOUD,
+         OLLAMA_CONTEXT_LENGTH, OLLAMA_MAX_LOADED_MODELS, OLLAMA_KEEP_ALIVE]
+  changed_when: false
+  failed_when: false
+  when: ansible_facts['system'] == "Darwin"
 
 # Collected history and benchmark results are NOT deleted: they are measurements
 # that took months to accumulate and are expensive to recreate, unlike the tools

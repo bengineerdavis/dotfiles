@@ -192,6 +192,89 @@ ollama_prune_keep:
   # tag `q4_K_M` lands on disk as `q4_k_m` — comparisons are casefolded.
   - "glm-4.7-flash:latest"
 
+# ── Server tuning: one definition, two consumers ─────────────────────────────
+# These configure the ollama SERVER, and there are two ways to reach it:
+#   • a shell-launched `ollama serve` inherits the shell -> files/zsh/env.zsh
+#     evaluates `ollama-role serverenv` to export these
+#   • the macOS Ollama.app launches its own server and never reads your shell,
+#     so ansible publishes the same values with `launchctl setenv`
+# Defining them here keeps those two paths from drifting apart. Changing a value
+# needs a new shell AND an app restart to take full effect.
+ollama_server_env:
+  # Measured on this Mac, glm-4.7-flash (19GB weights) at num_ctx=131072:
+  # fp16 KV 26GB -> flash+q8_0 KV 22GB, i.e. the cache itself 7GB -> 3GB (-57%).
+  # FLASH_ATTENTION is a prerequisite for cache quantisation — both or neither.
+  OLLAMA_FLASH_ATTENTION: "1"
+  OLLAMA_KV_CACHE_TYPE: "q8_0"
+  # Offline/sensitive-data goal: the server ships with cloud ENABLED
+  # (OLLAMA_NO_CLOUD=0). The manifest already refuses `:cloud` tags; this shuts
+  # the runtime path too.
+  OLLAMA_NO_CLOUD: "1"
+  # Must match ollama_ctx_declared_tokens or the budget gate is fiction.
+  OLLAMA_CONTEXT_LENGTH: "32768"
+  # Two smalls + a companion; see MODELS.md for the footprint tiers.
+  OLLAMA_MAX_LOADED_MODELS: "3"
+  # 36GB with ~16GB of resident apps — release memory promptly, not after 5m.
+  OLLAMA_KEEP_ALIVE: "60s"
+
+# ── Roles: what to call, not what to install ─────────────────────────────────
+# Scripts should ask for a ROLE, not a tag, so swapping a model is a manifest
+# edit rather than a find-and-replace across your tooling. `ollama-role env`
+# emits these as OLLAMA_ROLE_* variables; `ollama-role get <role>` resolves one.
+#
+# Selection policy (in order):
+#   1. accuracy first — `prefer` is an ordered list, best-accuracy candidate first
+#   2. must actually be installed — uninstalled candidates are skipped
+#   3. must actually have the capability — `requires` is checked against
+#      `ollama show`, not against the tag name or a model card. This matters:
+#      every gemma4 *-mlx* build reports tools+thinking only, so an MLX tag can
+#      never satisfy `requires: [audio]` no matter what the model card claims.
+#
+# Fallbacks are how modality gaps are handled. Audio is the live example: the
+# accurate/fast picks are MLX and cannot ingest audio, so `audio` is a separate
+# role backed by a GGUF build, reached only when a task actually needs it.
+#
+# `escalate` is the SaaS exit: when a task needs high accuracy AND low latency
+# at once — which local 27-35B models on this hardware cannot do together —
+# tooling should route there rather than pretending a local model suffices.
+ollama_roles:
+  chat:
+    prefer: ["qwen3.6:27b-mlx"]
+    ctx: 32768
+  code:
+    prefer: ["qwen3.6:27b-coding-nvfp4", "devstral-small-2:24b"]
+    ctx: 32768
+  think:
+    prefer: ["deepseek-r1:32b", "glm-4.7-flash:q4_K_M"]
+    ctx: 32768
+  fast:
+    # Low latency, accepts lower accuracy. Measured 115 tok/s vs 5 for a 32B.
+    prefer: ["gemma4:12b-mlx", "granite4:3b"]
+    ctx: 16384
+  long:
+    # granite4 hybrid-Mamba measured ~19 KB/token — 3-5x cheaper context than
+    # any transformer here, which is what makes a big window affordable.
+    prefer: ["granite4:32b-a9b-h"]
+    ctx: 131072
+  vision:
+    requires: [vision]
+    prefer: ["qwen3.6:27b-mlx", "qwen3-vl:8b-instruct-q8_0"]
+    ctx: 16384
+  audio:
+    # FALLBACK ONLY. No MLX build can do this; a GGUF -it- build is required.
+    requires: [audio]
+    prefer: ["gemma4:e4b-it-qat"]
+    ctx: 8192
+  embed:
+    requires: [embedding]
+    prefer: ["qwen3-embedding:0.6b-fp16", "bge-m3:567m-fp16"]
+
+# Where to send work that needs accuracy AND responsiveness at the same time.
+# Not installed, not managed here — just the documented escape hatch so scripts
+# have one name to reach for. ZDR: routed via Bedrock/Azure/Vertex, never the
+# first-party endpoint (see README).
+ollama_role_escalate: "openrouter/anthropic/claude-sonnet-5"
+
 ollama_models:
 
   # ═══════════════ general / chat ═══════════════
@@ -275,6 +358,14 @@ ollama_models:
     # E2B/E4B are small → full precision everywhere
     - { darwin: "gemma4:e2b-mlx-bf16", linux: "gemma4:e2b-it-bf16", size_gb: 10 }
     - { darwin: "gemma4:e4b-mlx-bf16", linux: "gemma4:e4b-it-bf16", size_gb: 16 }
+    # AUDIO FALLBACK — the only installed model that can ingest audio.
+    # Deliberately the GGUF QAT build, not MLX, and verified rather than assumed:
+    #   gemma4:e4b-it-qat    → completion, vision, audio, tools, thinking
+    #   gemma4:e4b-mlx-bf16  → completion, tools, thinking          (no audio!)
+    # Every gemma4 MLX build drops vision and audio, so the accurate/fast MLX
+    # picks cannot serve the `audio` role at any size. QAT keeps this cheap
+    # (6.1GB, 7.5B params, 131K ctx) since it is a fallback, not a daily driver.
+    - { darwin: "gemma4:e4b-it-qat", linux: "gemma4:e4b-it-qat", size_gb: 7 }
     - darwin:        "gemma4:12b-mlx"
       linux_nvidia:  "gemma4:12b-nvfp4"
       linux:         "gemma4:12b-it-q4_K_M"
