@@ -33,7 +33,10 @@ with important action items, observations, and questions I should use to help me
 with the customer.
 PROMPT
 )
-MODEL="gemma4:31b"
+# `gemma4:31b` was never installed — the library has the MLX build. Ollama tags
+# match exactly, so the old value triggered a pull or failed outright.
+# $1 and $2 are already attachments/output, so override via MODEL= in the env.
+MODEL="${MODEL:-gemma4:31b-mlx}"
 
 ATTACHMENTS=${1-"./**"}
 OUTPUT_FILE=${2-"context.md"}

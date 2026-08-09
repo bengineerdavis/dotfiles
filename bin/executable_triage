@@ -30,7 +30,7 @@ PROVIDERS
   gemini        urllib (HTTP)       GEMINI_API_KEY env var
 
   Default provider: local
-  Default local model: mistral
+  Default local model: gemma4:12b-mlx
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 LOCAL PROVIDER SETUP (llm.datasette.io)
@@ -46,13 +46,13 @@ LOCAL PROVIDER SETUP (llm.datasette.io)
   https://ollama.com/download
 
   # 4. Pull a model
-  ollama pull mistral       ← default for this script
+  ollama pull gemma4:12b-mlx   ← default for this script
   ollama pull llama3
   ollama pull phi3
 
   # 5. Verify
-  llm models list           ← should show ollama/mistral etc.
-  echo "test" | llm -m ollama/mistral "say hi"
+  llm models list           ← llm-ollama registers bare tags, no ollama/ prefix
+  echo "test" | llm -m gemma4:12b-mlx "say hi"
 
   Note: 'llm' supports many backends beyond Ollama (llm-gpt4all,
   llm-mlc, llm-llamafile, etc). Any model visible in 'llm models list'
@@ -65,7 +65,7 @@ QUICK START
   # Make executable (once)
   chmod +x triage.py
 
-  # Local — mistral (default, no API key needed)
+  # Local — gemma4:12b-mlx (default, no API key needed)
   cat email.txt | ./triage.py
 
   # Local — different model
@@ -145,7 +145,7 @@ from datetime import date
 # Constants
 # ---------------------------------------------------------------------------
 
-LOCAL_DEFAULT_MODEL = "ollama/mistral"
+LOCAL_DEFAULT_MODEL = "gemma4:12b-mlx"
 
 SENTRY_DOCS = [
     "https://docs.sentry.io",
@@ -169,8 +169,8 @@ To set it up:
   # 3. Install Ollama (if not already)
   https://ollama.com/download
 
-  # 4. Pull mistral (default model)
-  ollama pull mistral
+  # 4. Pull the default model
+  ollama pull gemma4:12b-mlx
 
   # 5. Verify
   llm models list
@@ -454,7 +454,7 @@ def parse_args() -> argparse.Namespace:
             "Override the provider's default model. "
             "For local: any model shown in 'llm models list' "
             "(e.g. ollama/llama3, ollama/phi3). "
-            "Default local model: ollama/mistral. "
+            "Default local model: gemma4:12b-mlx. "
             "Cloud defaults: claude=claude-sonnet-4-20250514, "
             "perplexity=sonar-pro, gemini=gemini-2.0-flash."
         ),
