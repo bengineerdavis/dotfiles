@@ -51,6 +51,16 @@ from rich.text import Text
 
 VERSION = "0.2.0"
 
+# ── Environment ────────────────────────────────────────────────────────────────
+
+# llm's pdf plugin imports PyMuPDF, whose fitz shim prints a deprecation notice —
+# and PyMuPDF's default message stream is stdout, not stderr. That line lands at
+# the head of every captured llm response, so json.loads() fails on all of them:
+# json_rate reads 0/N for every model, mean_score collapses to 0, and the
+# composite degenerates into a pure latency ranking that looks like a real
+# result. Route PyMuPDF's messages to stderr. Same fix as bin/pii-redactor.
+os.environ.setdefault("PYMUPDF_MESSAGE", "fd:2")
+
 # ── Paths ──────────────────────────────────────────────────────────────────────
 
 BINNED_DIR  = pathlib.Path(os.environ.get("BINNED_HOME", str(pathlib.Path.home() / ".binned")))
