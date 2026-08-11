@@ -588,6 +588,19 @@ def get_installed_model_ids() -> set[str]:
         return set()
 
 
+def _is_installed(mid: str, installed: set[str]) -> bool:
+    """
+    Whether a _RECOMMENDED_MODELS id is actually usable.
+
+    Exact membership only. `installed` already carries both real model ids and
+    their aliases, and these ids are handed straight to `llm -m`, so substring
+    and prefix matching is unsafe: a bare "qwen3.5:35b" matched the installed
+    "qwen3.5:35b-mlx", satisfied the check, and then failed to resolve at call
+    time — silently, from inside a judge panel.
+    """
+    return mid in installed
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # System resource detection
 # ──────────────────────────────────────────────────────────────────────────────
@@ -738,35 +751,45 @@ _RECOMMENDED_MODELS: list[tuple[str, int, str, str, float | None]] = [
     ("openrouter/anthropic/claude-haiku-4.5",  2, "saas", "Cheapest Anthropic; most scripts work first-try",          None),
 
     # ── Local (Ollama + llm-ollama plugin) ────────────────────────────────────
-    # ram_gb = RAM needed at Q4_K_M quant.  On Apple Silicon this is unified memory;
-    # on Linux with a GPU it is VRAM.  Used to skip models that would cause swapping.
+    # These ids must be the exact `ollama list` tag. _best_fallback_local returns
+    # the id from this table straight to `llm -m`, and its installed check is a
+    # substring match — so a bare "qwen3.5:35b" matched the installed
+    # "qwen3.5:35b-mlx", passed the check, and then failed to resolve at call
+    # time. Bare param-count tags are not what is pulled here; MLX/QAT builds are.
+    #
+    # ram_gb = measured weight size from `ollama list` + ~1.5GB KV headroom,
+    # rather than a Q4_K_M estimate off the parameter count — the pulled builds
+    # are MLX and bf16, so the old formula understated several of them badly
+    # (gemma4:e4b was listed at 4GB; the bf16 build on disk is 16GB). On Apple
+    # Silicon this is unified memory; on Linux with a GPU it is VRAM. Used to
+    # skip models that would cause swapping.
 
-    # devstral-small-2:24b — (24 * 0.56) + 1.5 ≈ 15GB
-    ("devstral-small-2",     3, "local", "Code-agent fine-tune; best local zero-shot for scripts",  15.0),
+    # devstral-small-2:24b — 15GB on disk + 1.5 KV
+    ("devstral-small-2:24b", 3, "local", "Code-agent fine-tune; best local zero-shot for scripts",  16.5),
 
-    # qwen3.5:35b — (35 * 0.56) + 1.5 ≈ 21GB
-    ("qwen3.5:35b",          3, "local", "Largest Qwen3.5; strong format compliance",               21.0),
+    # qwen3.5:35b-mlx — 21GB on disk + 1.5 KV
+    ("qwen3.5:35b-mlx",      3, "local", "Largest Qwen3.5; strong format compliance",               22.5),
 
-    # qwen3.5:27b — (27 * 0.56) + 1.5 ≈ 17GB
-    ("qwen3.5:27b",          3, "local", "High quality; reliable skeleton fill-in",                 17.0),
+    # qwen3.5:27b-mlx — 19GB on disk + 1.5 KV
+    ("qwen3.5:27b-mlx",      3, "local", "High quality; reliable skeleton fill-in",                 20.5),
 
-    # deepseek-r1:32b — (32 * 0.56) + 1.5 ≈ 20GB (thinking tokens add KV overhead)
-    ("deepseek-r1:32b",      2, "local", "Strong reasoning; thinking tokens may leak into output",  20.0),
+    # deepseek-r1:32b — 19GB on disk + ~2 KV (thinking tokens add KV overhead)
+    ("deepseek-r1:32b",      2, "local", "Strong reasoning; thinking tokens may leak into output",  21.0),
 
-    # qwen3.5:9b — (9 * 0.56) + 1.5 ≈ 7GB
-    ("qwen3.5:9b",           2, "local", "Good quality/size balance",                               7.0),
+    # qwen3.5:9b-mlx — 8.9GB on disk + 1.5 KV
+    ("qwen3.5:9b-mlx",       2, "local", "Good quality/size balance",                               10.4),
 
-    # mistral-small3.1:24b — same param count as devstral ≈ 15GB
+    # not pulled — renders as "not found" and _best_fallback_local skips it
     ("mistral-small3.1:24b", 2, "local", "Solid structured output; good general bash knowledge",    15.0),
 
-    # gemma4:31b — (31 * 0.56) + 1.5 ≈ 19GB
-    ("gemma4:31b",           2, "local", "Strong instruction following; clean output format",        19.0),
+    # gemma4:31b-mlx — 18GB on disk + 1.5 KV
+    ("gemma4:31b-mlx",       2, "local", "Strong instruction following; clean output format",        19.5),
 
-    # phi4:14b — (14 * 0.56) + 1.5 ≈ 10GB
+    # not pulled — renders as "not found" and _best_fallback_local skips it
     ("phi4:14b",             2, "local", "Punches above its weight; good for most scripts",          10.0),
 
-    # gemma4:e4b — (4 * 0.56) + 1.5 ≈ 4GB
-    ("gemma4:e4b",           1, "local", "Edge efficiency variant; single-step scripts only",        4.0),
+    # gemma4:e4b-it-qat — 6.1GB on disk + 1.5 KV (the QAT build, not the 16GB bf16)
+    ("gemma4:e4b-it-qat",    1, "local", "Edge efficiency variant; single-step scripts only",        7.6),
 ]
 
 _STARS = {3: f"{YLW}★★★{RST}", 2: f"{YLW}★★{RST}{DIM}☆{RST}", 1: f"{DIM}★☆☆{RST}"}
@@ -804,7 +827,7 @@ def show_model_recommendations(installed: set[str]) -> None:
         for mid, stars, cat, note, ram_gb in _RECOMMENDED_MODELS:
             if cat != category:
                 continue
-            is_installed = any(mid in i or i in mid for i in installed)
+            is_installed = _is_installed(mid, installed)
             status = f"{GRN}✓ installed{RST}" if is_installed else f"{DIM}not found{RST}"
             star_str = _STARS[stars]
 
@@ -875,7 +898,7 @@ def _prompt_add_alias(installed: set[str]) -> str | None:
 
     # Build model choices: recommended first, then everything else installed
     rec_ids = [mid for mid, *_ in _RECOMMENDED_MODELS]
-    rec_installed = [mid for mid in rec_ids if any(mid in i or i in mid for i in installed)]
+    rec_installed = [mid for mid in rec_ids if _is_installed(mid, installed)]
     other_installed = sorted(installed - set(rec_installed))
 
     choices: list[questionary.Choice | questionary.Separator] = []
@@ -1221,7 +1244,7 @@ def _best_fallback_local(installed: set[str], exclude: set[str]) -> str | None:
     for mid, stars, category, _, ram_gb in _RECOMMENDED_MODELS:
         if category != "local" or stars < 2 or mid in exclude:
             continue
-        if not any(mid in iid or iid.startswith(mid.split(":")[0]) for iid in installed):
+        if not _is_installed(mid, installed):
             continue
         if total_gb and ram_gb and not _model_fits_in_ram(ram_gb, available_gb or 0.0, total_gb):
             continue  # would hard-OOM
@@ -1591,7 +1614,7 @@ def _ensure_judge_prefs(cfg: dict) -> tuple[bool, list[str], list[str]]:
             for mid, stars, cat, _, ram_gb in _RECOMMENDED_MODELS:
                 if stars < 2:
                     continue
-                is_inst = any(mid in iid or iid.startswith(mid.split(":")[0]) for iid in installed)
+                is_inst = _is_installed(mid, installed)
                 is_alias = mid in aliases
                 if not (is_inst or is_alias):
                     continue
