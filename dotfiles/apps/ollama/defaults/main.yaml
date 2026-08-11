@@ -327,12 +327,30 @@ ollama_model_perf:
 # least one Zero-Data-Retention endpoint serves it (verify with
 # `GET /api/v1/endpoints/zdr` — first-party Anthropic/OpenAI/Google endpoints are
 # excluded from ZDR and route via Bedrock/Azure/Vertex instead).
+# Read from the API on 2026-08-11, cheapest-first. Refresh with:
+#   curl -s https://openrouter.ai/api/v1/models | jq '.data[] | select(.id=="<id>") | .pricing'
+#
+# PRICES MOVE. deepseek-v4-pro was $0.43/$0.87 on 2026-08-06 and is $0.641/$1.283
+# five days later — a 47% rise. Treat anything transcribed here as a snapshot and
+# re-read the API before making a cost argument; do NOT trust third-party pricing
+# aggregators, which disagreed with the API by up to 84% on glm-5.2.
+#
+# ZDR verified per model against GET /api/v1/endpoints/zdr — all of these have at
+# least one Zero-Data-Retention endpoint, including the Anthropic models (routed
+# via Amazon Bedrock / Azure / Google rather than Anthropic first-party).
 ollama_remote_cost:
-  "openrouter/anthropic/claude-sonnet-5":  { usd_in: 2.00, usd_out: 10.00, zdr: true }
-  "openrouter/anthropic/claude-opus-5":    { usd_in: null, usd_out: null,  zdr: true }
-  "openrouter/deepseek/deepseek-v4-pro":   { usd_in: 0.43, usd_out: 0.87,  zdr: true }
-  "openrouter/moonshotai/kimi-k2.7-code":  { usd_in: 0.70, usd_out: 3.50,  zdr: true }
-  "openrouter/z-ai/glm-5.2":               { usd_in: 0.76, usd_out: 2.42,  zdr: true }
+  # Unevaluated on quality — cheap enough to be worth benching before adopting.
+  "openrouter/deepseek/deepseek-v4-flash":  { usd_in: 0.140, usd_out: 0.280,  ctx: 1048576, zdr: true }
+  "openrouter/minimax/minimax-m3":          { usd_in: 0.300, usd_out: 1.200,  ctx: 1048576, zdr: true }
+  # The 80/20 pair: both MIT-weighted, so both are also legal distillation teachers.
+  "openrouter/deepseek/deepseek-v4-pro":    { usd_in: 0.641, usd_out: 1.283,  ctx: 1048576, zdr: true }
+  "openrouter/z-ai/glm-5.2":                { usd_in: 0.760, usd_out: 2.420,  ctx: 1048576, zdr: true }
+  "openrouter/moonshotai/kimi-k2.7-code":   { usd_in: 0.700, usd_out: 3.500,  ctx: 262144,  zdr: true }
+  "openrouter/google/gemini-3.6-flash":     { usd_in: 1.500, usd_out: 7.500,  ctx: 1048576, zdr: true }
+  "openrouter/anthropic/claude-sonnet-5":   { usd_in: 2.000, usd_out: 10.000, ctx: 1000000, zdr: true }
+  "openrouter/moonshotai/kimi-k3":          { usd_in: 3.000, usd_out: 15.000, ctx: 1048576, zdr: true }
+  # Assessment reference only — 4-20x the 80/20 pair. Not a daily driver.
+  "openrouter/anthropic/claude-opus-5":     { usd_in: 5.000, usd_out: 25.000, ctx: 1000000, zdr: true }
 
 # ── Roles: what to call, not what to install ─────────────────────────────────
 # Scripts should ask for a ROLE, not a tag, so swapping a model is a manifest
