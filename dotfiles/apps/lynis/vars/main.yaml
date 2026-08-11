@@ -1,0 +1,16 @@
+# apps/lynis/vars/main.yaml
+# Derived paths. Change defaults/main.yaml instead.
+---
+lynis_brew_prefix: >-
+  {{ homebrew_prefix
+     | default('/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local', true) }}
+
+# Everything this topic owns in $HOME sits under one directory, so remove.yaml can take
+# it back in a single task.
+lynis_state_dir: "{{ ansible_facts['env']['HOME'] }}/.lynis"
+lynis_audit_script: "{{ lynis_state_dir }}/monthly_audit.sh"
+lynis_run_log: "{{ lynis_state_dir }}/run.log"
+
+lynis_agent_label: com.user.lynis-audit
+lynis_agent_plist: >-
+  {{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents/{{ lynis_agent_label }}.plist

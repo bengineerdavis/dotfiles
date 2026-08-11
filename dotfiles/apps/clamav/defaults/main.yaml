@@ -1,0 +1,99 @@
+# apps/clamav/defaults/main.yaml
+# Tunables. Override in the parent playbook or on the command line with -e.
+---
+# When the daily maintenance run fires (local time).
+clamav_scan_hour: 10
+clamav_scan_minute: 0
+
+# ── What gets scanned ─────────────────────────────────────────────────────────
+# Scanning all of $HOME took over 8 hours, and measurement showed why: of ~882,000
+# files under $HOME, 99.9% sit in five machine-generated trees (~/.local 354k,
+# ~/Library 242k, ~/code 198k, ~/Applications 51k, ~/go 36k). Actual documents and
+# scripts come to roughly 1,200 files.
+#
+# So this is an explicit list rather than a single root, chosen on where untrusted
+# files land and where code can execute — not merely on size:
+#
+#   * user data      — where downloads and attachments arrive
+#   * executables    — anything that can run, and so can touch or change other files
+#   * persistence    — LaunchAgents, shell init: where malware installs itself
+#   * supply chain   — authored code and fetched dependencies (npm/PyPI/Go modules)
+#
+# Deliberately omitted: ~/Library/Caches and ~/Library/Containers (huge, churn
+# constantly, nothing executes from them directly) and ~/Applications (Homebrew-managed
+# bundles). Add them back below for a full sweep, or scan them ad hoc with clamscan.
+clamav_scan_paths:
+  # user data — untrusted files arrive here
+  - "{{ ansible_facts['env']['HOME'] }}/Downloads"
+  - "{{ ansible_facts['env']['HOME'] }}/Desktop"
+  - "{{ ansible_facts['env']['HOME'] }}/Documents"
+  - "{{ ansible_facts['env']['HOME'] }}/Pictures"
+  - "{{ ansible_facts['env']['HOME'] }}/Movies"
+  - "{{ ansible_facts['env']['HOME'] }}/Music"
+  - "{{ ansible_facts['env']['HOME'] }}/Public"
+  - "{{ ansible_facts['env']['HOME'] }}/docs"
+  - "{{ ansible_facts['env']['HOME'] }}/Notebooks"
+  - "{{ ansible_facts['env']['HOME'] }}/calibre-library"
+  # executables — these can touch or manipulate anything else
+  - "{{ ansible_facts['env']['HOME'] }}/bin"
+  - "{{ ansible_facts['env']['HOME'] }}/scripts"
+  - "{{ ansible_facts['env']['HOME'] }}/dotfiles"
+  - "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+  - "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims"
+  # persistence — where something malicious would install itself to survive a reboot
+  - "{{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents"
+  - "{{ ansible_facts['env']['HOME'] }}/.config"
+  - "{{ ansible_facts['env']['HOME'] }}/.zshrc"
+  - "{{ ansible_facts['env']['HOME'] }}/.zprofile"
+  - "{{ ansible_facts['env']['HOME'] }}/.functions"
+  # supply chain — authored code plus fetched dependencies
+  - "{{ ansible_facts['env']['HOME'] }}/code"
+  - "{{ ansible_facts['env']['HOME'] }}/go"
+
+# ── Concurrency ───────────────────────────────────────────────────────────────
+# OFF because it was measured to be harmful, not on principle.
+#
+# --multiscan hands the tree to clamd's thread pool instead of one file at a time, and on
+# a 14-core machine with MaxThreads 6 it looked like free speed. Benchmarked on ~/go
+# (36,490 files, 732 MB):
+#
+#   multiscan, cold cache   975s  + 25 "Can't allocate memory" errors
+#   serial,    warm cache   123s  +  1 error
+#
+# The cache states are not comparable, so the ratio is not 8x. What is not ambiguous:
+# multiscan drove clamd's RSS to 1.84 GB, produced allocation failures, returned
+# unreliable infected counts, and the daemon then died. With MaxScanSize 1000M and
+# MaxRecursion 15, six threads decompressing archives concurrently is enough to exhaust
+# memory — and archive test fixtures crafted to stress decompressors make it certain.
+#
+# Set true only alongside lower MaxScanSize/MaxRecursion, and re-benchmark warm-vs-warm.
+# The reliable way to shorten the scan is clamav_scan_paths above, not this.
+clamav_multiscan: false
+
+# Left at the pre-existing 6. CPU was never the bottleneck — memory was — so raising this
+# would make the failure above more likely, not the scan faster.
+clamav_max_threads: 6
+
+# Rotate scan.log once it passes this size. The unmanaged setup let it reach 5.4 MB.
+clamav_log_max_bytes: 5242880
+
+# Paths excluded from clamd's scans. VM disk images and container stores are large,
+# opaque, and rewritten constantly — scanning them is expensive and pointless.
+clamav_exclude_paths:
+  - '^{{ ansible_facts["env"]["HOME"] }}/Library/Application\ Support/rancher-desktop/'
+  - '^{{ ansible_facts["env"]["HOME"] }}/Library/Containers/com.docker.docker/'
+  - '^{{ ansible_facts["env"]["HOME"] }}/\.docker/'
+  - '\.(raw|qcow2|dmg|iso)$'
+
+# Heuristic alerting. These are anomaly rules rather than known-malware signatures:
+# they fire on truncated, encrypted and macro-bearing files. Deliberately on, because
+# a support attachment that is encrypted or macro-bearing is worth knowing about.
+clamav_heuristic_alerts: true
+
+# Signature feeds refreshed by fangfrisch. See templates/fangfrisch.conf.j2.
+clamav_fangfrisch_sections:
+  urlhaus: true
+  sanesecurity: true
+  interserver: true
+  malwarepatrol: false
+  securiteinfo: false

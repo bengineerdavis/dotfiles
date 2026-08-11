@@ -1,0 +1,55 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Rendered from apps/lynis/templates/monthly_audit.sh.j2 — edits here are overwritten.
+#
+# Monthly Lynis system audit, run by the {{ lynis_agent_label }} launchd agent.
+#
+# Previously this rode inside apps/clamav's daily_scan.sh behind a `date +%d` check,
+# which meant it inherited that script's failure modes and its /dev/null output. It now
+# has its own schedule, its own log, and its own retention.
+#
+# Note: run as your user, not root. Lynis will skip the checks that need privileges and
+# say so in the report — the same as the previous setup did.
+
+set -uo pipefail
+
+LYNIS="{{ lynis_brew_prefix }}/bin/lynis"
+STATE_DIR="{{ lynis_state_dir }}"
+RUN_LOG="{{ lynis_run_log }}"
+KEEP={{ lynis_keep_logs }}
+STAMP="$(date '+%Y-%m-%d')"
+REPORT="$STATE_DIR/audit-$STAMP.log"
+
+log() {
+	printf '%s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*" >>"$RUN_LOG"
+}
+
+if [ ! -x "$LYNIS" ]; then
+	log "ERROR: lynis not executable at $LYNIS; aborting"
+	exit 1
+fi
+
+log "starting monthly audit -> $REPORT"
+if "$LYNIS" audit system --quick --cronjob >"$REPORT" 2>&1; then
+	log "audit finished"
+else
+	log "WARNING: lynis exited $?; partial report kept at $REPORT"
+fi
+
+# Surface the headline numbers into run.log so the trend is visible without opening
+# every report.
+if grep -q "Hardening index" "$REPORT" 2>/dev/null; then
+	log "$(grep -h 'Hardening index' "$REPORT" | tail -1 | tr -s ' ')"
+fi
+
+# Retention: keep the newest $KEEP dated reports.
+count=0
+for old in $(ls -1t "$STATE_DIR"/audit-2*.log 2>/dev/null); do
+	count=$((count + 1))
+	if [ "$count" -gt "$KEEP" ]; then
+		rm -f "$old"
+		log "pruned old report $(basename "$old")"
+	fi
+done
+
+log "monthly audit run complete"

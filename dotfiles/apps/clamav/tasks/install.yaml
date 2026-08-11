@@ -1,0 +1,142 @@
+# apps/clamav/tasks/install.yaml
+# Package installation and the state clamav needs to actually run.
+# Do NOT put upgrade logic here — signature refresh is owned by upgrade.yaml.
+#
+# Note on convention: docs/CONVENTIONS.md says config belongs to chezmoi. This topic
+# renders its own config anyway, because clamd.conf and freshclam.conf live under
+# {{ clamav_brew_prefix }}/etc — outside $HOME, where chezmoi does not reach — and the
+# scan script must stay byte-consistent with them (see the socket note in README.md).
+# Every artefact created here has a matching teardown in remove.yaml.
+---
+# ── macOS (Homebrew) ──────────────────────────────────────────────────────────
+- name: "Install clamav via Homebrew (macOS)"
+  community.general.homebrew:
+    name: clamav
+    state: present
+  become: false
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# fangfrisch is NOT installed here. apps/mise declares `"pipx:fangfrisch" = "latest"`
+# in files/config.toml and owns the binary. This topic owns only its configuration and
+# invocation, which are clamav-specific.
+- name: "Verify the fangfrisch shim mise provides is present"
+  ansible.builtin.stat:
+    path: "{{ clamav_fangfrisch_bin }}"
+  register: clamav_fangfrisch_stat
+
+- name: "Warn when fangfrisch is missing"
+  ansible.builtin.debug:
+    msg: >-
+      fangfrisch was not found at {{ clamav_fangfrisch_bin }}. Third-party signature
+      feeds (urlhaus, sanesecurity, interserver) will not refresh. Run the mise topic,
+      or `mise install`, then re-run this topic.
+  when: not clamav_fangfrisch_stat.stat.exists
+
+# ── Directories ───────────────────────────────────────────────────────────────
+- name: "Create the clamav automation directory"
+  ansible.builtin.file:
+    path: "{{ clamav_automation_dir }}"
+    state: directory
+    mode: "0700"
+
+- name: "Ensure the signature database directory exists"
+  ansible.builtin.file:
+    path: "{{ clamav_db_dir }}"
+    state: directory
+    mode: "0755"
+
+# ── Configuration ─────────────────────────────────────────────────────────────
+- name: "Render freshclam.conf"
+  ansible.builtin.template:
+    src: freshclam.conf.j2
+    dest: "{{ clamav_etc_dir }}/freshclam.conf"
+    mode: "0644"
+
+- name: "Render clamd.conf"
+  ansible.builtin.template:
+    src: clamd.conf.j2
+    dest: "{{ clamav_etc_dir }}/clamd.conf"
+    mode: "0644"
+  register: clamav_clamd_conf
+
+- name: "Render fangfrisch.conf"
+  ansible.builtin.template:
+    src: fangfrisch.conf.j2
+    dest: "{{ clamav_fangfrisch_conf }}"
+    mode: "0600"
+
+# ── Scan script and schedule ──────────────────────────────────────────────────
+- name: "Install the daily maintenance script"
+  ansible.builtin.template:
+    src: daily_scan.sh.j2
+    dest: "{{ clamav_scan_script }}"
+    mode: "0755"
+
+- name: "Install the clamav launchd agent"
+  ansible.builtin.template:
+    src: com.user.clamscan.plist.j2
+    dest: "{{ clamav_agent_plist }}"
+    mode: "0644"
+  register: clamav_agent_file
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# A rendered plist needs a full bootout/bootstrap cycle, not a reload — launchd caches
+# the parsed job. Same pattern as apps/ollama.
+- name: "Reload the clamav launchd agent"
+  ansible.builtin.shell: |
+    launchctl bootout gui/$(id -u)/{{ clamav_agent_label }} 2>/dev/null || true
+    launchctl bootstrap gui/$(id -u) "{{ clamav_agent_plist }}"
+    launchctl enable gui/$(id -u)/{{ clamav_agent_label }}
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - clamav_agent_file.changed
+
+# ── One-time repair of the unmanaged setup ────────────────────────────────────
+# The previous hand-rolled script pointed its SHUTDOWN at /tmp/clamd.socket, which
+# never existed, so clamd was never stopped and sat resident for weeks holding ~1.3 GB.
+# If such a process is still running against the old socket, stop it once here; from now
+# on daily_scan.sh shuts down the daemon it started.
+- name: "Check for a clamd left resident by the unmanaged setup"
+  ansible.builtin.command: pgrep -x clamd
+  register: clamav_stale_clamd
+  changed_when: false
+  failed_when: false
+
+- name: "Stop the stale clamd so its resident signature memory is released"
+  ansible.builtin.shell: |
+    if [ -S "{{ clamav_socket }}" ]; then
+      printf 'SHUTDOWN\n' | nc -U "{{ clamav_socket }}" >/dev/null 2>&1 || true
+    fi
+    sleep 2
+    pkill -x clamd 2>/dev/null || true
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when:
+    - clamav_stale_clamd.rc == 0
+    - clamav_clamd_conf.changed
+
+# ── Signatures ────────────────────────────────────────────────────────────────
+- name: "Check whether a signature database is already present"
+  ansible.builtin.stat:
+    path: "{{ clamav_db_dir }}/daily.cld"
+  register: clamav_daily_cld
+
+- name: "Check for the packaged daily.cvd as an alternative"
+  ansible.builtin.stat:
+    path: "{{ clamav_db_dir }}/daily.cvd"
+  register: clamav_daily_cvd
+
+# Without signatures clamd refuses to start at all, so seed them on a fresh machine.
+# Routine refresh belongs to upgrade.yaml.
+- name: "Seed the signature database (first install only)"
+  ansible.builtin.command: "{{ clamav_brew_prefix }}/bin/freshclam --quiet"
+  register: clamav_seed
+  changed_when: clamav_seed.rc == 0
+  failed_when: clamav_seed.rc not in [0, 1]
+  when:
+    - not clamav_daily_cld.stat.exists
+    - not clamav_daily_cvd.stat.exists

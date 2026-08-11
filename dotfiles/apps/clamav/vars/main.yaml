@@ -1,0 +1,36 @@
+# apps/clamav/vars/main.yaml
+# Derived paths. Not meant to be overridden — change defaults/main.yaml instead.
+---
+# The parent playbook and the standalone playbook both set homebrew_prefix; fall back
+# so the role also works when imported somewhere that does not.
+clamav_brew_prefix: >-
+  {{ homebrew_prefix
+     | default('/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local', true) }}
+
+clamav_etc_dir: "{{ clamav_brew_prefix }}/etc/clamav"
+clamav_db_dir: "{{ clamav_brew_prefix }}/var/lib/clamav"
+
+# Everything this topic owns in $HOME lives under one directory, so remove.yaml can
+# take it all back in a single task.
+clamav_automation_dir: "{{ ansible_facts['env']['HOME'] }}/.clamav_automation"
+
+# The single source of truth for the socket path. clamd.conf and daily_scan.sh are both
+# rendered from this — the unmanaged setup had them disagree, which silently broke the
+# post-scan shutdown for 18 days. See README.md.
+clamav_socket: "{{ clamav_automation_dir }}/clamd.ctl"
+
+clamav_scan_log: "{{ clamav_automation_dir }}/scan.log"
+clamav_run_log: "{{ clamav_automation_dir }}/run.log"
+clamav_fangfrisch_conf: "{{ clamav_automation_dir }}/fangfrisch.conf"
+clamav_fangfrisch_db: "{{ clamav_automation_dir }}/fangfrisch.db"
+clamav_scan_script: "{{ clamav_automation_dir }}/daily_scan.sh"
+
+# launchd runs with a minimal PATH and no shell profile, so every binary the scan
+# script calls must resolve absolutely. fangfrisch is reached through its mise shim.
+clamav_fangfrisch_bin: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims/fangfrisch"
+
+# Label kept as-is from the unmanaged agent, so applying this role adopts the existing
+# job in place rather than leaving an orphan loaded alongside a renamed one.
+clamav_agent_label: com.user.clamscan
+clamav_agent_plist: >-
+  {{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents/{{ clamav_agent_label }}.plist

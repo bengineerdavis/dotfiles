@@ -1,0 +1,41 @@
+# apps/clamav/tasks/upgrade.yaml
+# App-tier topics usually leave this a no-op, because brew/apt own package upgrades.
+# clamav is the exception: its signature database is refreshable state that goes stale
+# on its own, independently of the formula version. `--tags upgrade` refreshes it.
+#
+# The unmanaged setup refreshed official signatures daily but silently failed to refresh
+# the third-party feeds for weeks, because fangfrisch was invoked bare from a launchd
+# PATH that could not resolve it. Both feeds are refreshed explicitly here.
+---
+- name: "Refresh official ClamAV signatures (Cisco Talos)"
+  ansible.builtin.command: "{{ clamav_brew_prefix }}/bin/freshclam --quiet"
+  register: clamav_freshclam
+  # 1 == already up to date, which is not a failure.
+  changed_when: clamav_freshclam.rc == 0
+  failed_when: clamav_freshclam.rc not in [0, 1]
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: "Check that fangfrisch is available before refreshing third-party feeds"
+  ansible.builtin.stat:
+    path: "{{ clamav_fangfrisch_bin }}"
+  register: clamav_fangfrisch_upgrade_stat
+
+- name: "Refresh third-party signature feeds (urlhaus, sanesecurity, interserver)"
+  ansible.builtin.command:
+    cmd: "{{ clamav_fangfrisch_bin }} --conf {{ clamav_fangfrisch_conf }} refresh"
+  register: clamav_fangfrisch_refresh
+  changed_when: clamav_fangfrisch_refresh.rc == 0
+  failed_when: false
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - clamav_fangfrisch_upgrade_stat.stat.exists
+
+- name: "Report a failed third-party refresh"
+  ansible.builtin.debug:
+    msg: >-
+      fangfrisch refresh exited {{ clamav_fangfrisch_refresh.rc }}.
+      {{ clamav_fangfrisch_refresh.stderr | default('') | truncate(300) }}
+  when:
+    - clamav_fangfrisch_refresh is defined
+    - clamav_fangfrisch_refresh.rc is defined
+    - clamav_fangfrisch_refresh.rc != 0

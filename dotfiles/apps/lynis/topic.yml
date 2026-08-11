@@ -1,0 +1,9 @@
+# apps/lynis/topic.yml
+#
+# Topic metadata read by the parent playbook. See docs/CONVENTIONS.md.
+
+topic_name: lynis
+topic_provides: []
+topic_requires: [homebrew]
+topic_os: [Darwin]
+topic_tier: app

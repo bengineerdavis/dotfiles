@@ -1,0 +1,39 @@
+# apps/lynis/tasks/remove.yaml
+# Explicit uninstall. Only runs under --tags remove.
+---
+- name: "macOS: disable the lynis launchd agent"
+  ansible.builtin.shell: |
+    launchctl disable gui/$(id -u)/{{ lynis_agent_label }} || true
+  args:
+    executable: /bin/bash
+  failed_when: false
+  changed_when: false
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: "macOS: bootout the lynis launchd agent"
+  ansible.builtin.shell: |
+    launchctl bootout gui/$(id -u)/{{ lynis_agent_label }} 2>/dev/null || true
+  args:
+    executable: /bin/bash
+  failed_when: false
+  changed_when: false
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: "Remove the lynis launchd agent plist"
+  ansible.builtin.file:
+    path: "{{ lynis_agent_plist }}"
+    state: absent
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# Takes the audit script, the run log and every retained audit report.
+- name: "Remove the lynis state directory"
+  ansible.builtin.file:
+    path: "{{ lynis_state_dir }}"
+    state: absent
+
+- name: "Remove lynis via Homebrew (macOS)"
+  community.general.homebrew:
+    name: lynis
+    state: absent
+  become: false
+  when: ansible_facts['os_family'] == 'Darwin'

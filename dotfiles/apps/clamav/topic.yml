@@ -1,0 +1,19 @@
+# apps/clamav/topic.yml
+#
+# Topic metadata read by the parent playbook. See docs/CONVENTIONS.md.
+
+# Canonical name for the topic. Must match the directory under apps/.
+topic_name: clamav
+
+# Nothing subordinate is provided to other topics.
+topic_provides: []
+
+# homebrew installs the clamav formula.
+# mise provides the fangfrisch binary via `"pipx:fangfrisch"` in its config.toml —
+# this topic configures and invokes it but deliberately does not install it.
+topic_requires: [homebrew, mise]
+
+# clamd.conf, the launchd agent and the scan script are all macOS-specific.
+topic_os: [Darwin]
+
+topic_tier: app

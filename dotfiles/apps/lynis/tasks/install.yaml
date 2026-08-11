@@ -1,0 +1,68 @@
+# apps/lynis/tasks/install.yaml
+# Installs lynis and schedules a monthly system audit.
+#
+# Previously this ran from inside apps/clamav's daily_scan.sh, gated on
+# `[ "$(date +%d)" = "01" ]`. Splitting it out follows the CRUD ownership rule in
+# docs/CONVENTIONS.md: an unrelated lifecycle should not ride another topic's schedule.
+#
+# Every artefact created here has a matching teardown in remove.yaml.
+---
+# ── macOS (Homebrew) ──────────────────────────────────────────────────────────
+- name: "Install lynis via Homebrew (macOS)"
+  community.general.homebrew:
+    name: lynis
+    state: present
+  become: false
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: "Create the lynis state directory"
+  ansible.builtin.file:
+    path: "{{ lynis_state_dir }}"
+    state: directory
+    mode: "0700"
+
+- name: "Install the monthly audit script"
+  ansible.builtin.template:
+    src: monthly_audit.sh.j2
+    dest: "{{ lynis_audit_script }}"
+    mode: "0755"
+
+- name: "Install the lynis launchd agent"
+  ansible.builtin.template:
+    src: com.user.lynis-audit.plist.j2
+    dest: "{{ lynis_agent_plist }}"
+    mode: "0644"
+  register: lynis_agent_file
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# A rendered plist needs a bootout/bootstrap cycle, not a reload. Same as apps/ollama.
+- name: "Reload the lynis launchd agent"
+  ansible.builtin.shell: |
+    launchctl bootout gui/$(id -u)/{{ lynis_agent_label }} 2>/dev/null || true
+    launchctl bootstrap gui/$(id -u) "{{ lynis_agent_plist }}"
+    launchctl enable gui/$(id -u)/{{ lynis_agent_label }}
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - lynis_agent_file.changed
+
+# ── Migration from the clamav-owned audit ─────────────────────────────────────
+- name: "Check for the audit log the clamav script used to write"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.clamav_automation/lynis_monthly_audit.log"
+  register: lynis_legacy_log
+
+- name: "Adopt the previous audit log so history is not lost"
+  ansible.builtin.copy:
+    src: "{{ ansible_facts['env']['HOME'] }}/.clamav_automation/lynis_monthly_audit.log"
+    dest: "{{ lynis_state_dir }}/audit-legacy.log"
+    remote_src: true
+    mode: "0600"
+    force: false
+  when:
+    - lynis_legacy_log.stat.exists
+    # Skipped under --check: the state directory above is only simulated there, so the
+    # copy would fail on a destination that a real run creates first.
+    - not ansible_check_mode

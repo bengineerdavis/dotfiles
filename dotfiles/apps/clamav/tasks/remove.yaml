@@ -1,0 +1,80 @@
+# apps/clamav/tasks/remove.yaml
+# Explicit uninstall. Never runs as part of provision or install — only --tags remove.
+#
+# CRUD invariant (docs/CONVENTIONS.md): every artefact install.yaml or upgrade.yaml
+# creates is taken back here. That is the launchd agent, the automation directory, the
+# two configs under etc/clamav, the signature database, and the formula itself.
+---
+# ── Stop the schedule and the daemon first ────────────────────────────────────
+- name: "macOS: disable the clamav launchd agent"
+  ansible.builtin.shell: |
+    launchctl disable gui/$(id -u)/{{ clamav_agent_label }} || true
+  args:
+    executable: /bin/bash
+  register: clamav_disable_result
+  failed_when: false
+  changed_when: false
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: "macOS: bootout the clamav launchd agent"
+  ansible.builtin.shell: |
+    launchctl bootout gui/$(id -u)/{{ clamav_agent_label }} 2>/dev/null || true
+  args:
+    executable: /bin/bash
+  failed_when: false
+  changed_when: false
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: "Stop clamd if it is running"
+  ansible.builtin.shell: |
+    if [ -S "{{ clamav_socket }}" ]; then
+      printf 'SHUTDOWN\n' | nc -U "{{ clamav_socket }}" >/dev/null 2>&1 || true
+    fi
+    sleep 1
+    pkill -x clamd 2>/dev/null || true
+  args:
+    executable: /bin/bash
+  failed_when: false
+  changed_when: false
+
+# ── Remove the artefacts ──────────────────────────────────────────────────────
+- name: "Remove the clamav launchd agent plist"
+  ansible.builtin.file:
+    path: "{{ clamav_agent_plist }}"
+    state: absent
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# Takes the scan script, fangfrisch.conf, fangfrisch.db, the socket and the logs.
+- name: "Remove the clamav automation directory"
+  ansible.builtin.file:
+    path: "{{ clamav_automation_dir }}"
+    state: absent
+
+- name: "Remove rendered clamav configuration"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ clamav_etc_dir }}/clamd.conf"
+    - "{{ clamav_etc_dir }}/freshclam.conf"
+
+- name: "Remove the signature database directory"
+  ansible.builtin.file:
+    path: "{{ clamav_db_dir }}"
+    state: absent
+
+# ── macOS (Homebrew) ──────────────────────────────────────────────────────────
+- name: "Remove clamav via Homebrew (macOS)"
+  community.general.homebrew:
+    name: clamav
+    state: absent
+  become: false
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# fangfrisch is deliberately left alone: apps/mise owns it. Drop
+# `"pipx:fangfrisch"` from apps/mise/files/config.toml if you want it gone.
+- name: "Note what this topic did not remove"
+  ansible.builtin.debug:
+    msg: >-
+      fangfrisch was left installed — apps/mise owns it via "pipx:fangfrisch".
+      Remove it there if it is no longer wanted.

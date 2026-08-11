@@ -1,0 +1,20 @@
+# {{ ansible_managed }}
+# Rendered from apps/clamav/templates/fangfrisch.conf.j2 — edits here are overwritten.
+# docs: https://rseichter.github.io/fangfrisch/#_configuration
+#
+# fangfrisch pulls crowd-sourced signature feeds that Cisco Talos does not ship, and
+# drops them alongside the official database so clamd loads both. The binary itself is
+# owned by apps/mise ("pipx:fangfrisch"); this topic owns only this config.
+
+[DEFAULT]
+db_url = sqlite:///{{ clamav_fangfrisch_db }}
+local_directory = {{ clamav_db_dir }}
+on_update_exec = {{ clamav_brew_prefix }}/bin/clamdscan --reload
+on_update_timeout = 42
+log_level = INFO
+max_size = 20MB
+
+{% for section, enabled in clamav_fangfrisch_sections.items() %}
+[{{ section }}]
+enabled = {{ 'yes' if enabled else 'no' }}
+{% endfor %}

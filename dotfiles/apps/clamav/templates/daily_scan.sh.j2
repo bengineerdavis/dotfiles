@@ -1,0 +1,147 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Rendered from apps/clamav/templates/daily_scan.sh.j2 — edits here are overwritten.
+#
+# Daily ClamAV maintenance, run by the {{ clamav_agent_label }} launchd agent:
+#   1. start clamd if it is not already up
+#   2. refresh official (Cisco Talos) signatures
+#   3. refresh third-party feeds via fangfrisch
+#   4. scan the paths in clamav_scan_paths at the lowest priority
+#   5. stop clamd, handing back the ~1.3 GB of resident signature data
+#
+# Two bugs in the hand-rolled predecessor are fixed here, both of which failed silently:
+#
+#   * The socket. clamd.conf declares {{ clamav_socket }}, but the old script waited on
+#     and shut down via /tmp/clamd.socket, which never exists. Every run burned the full
+#     30-second wait, and the shutdown never fired — clamd stayed resident for 18 days
+#     holding 1.3 GB. Both files now render the path from one Ansible variable.
+#
+#   * fangfrisch resolution. launchd gives a job a minimal PATH and no shell profile, so
+#     a bare `fangfrisch` was never found and third-party feeds silently stopped updating
+#     while official ones kept working. Every binary below is absolute.
+#
+# Nothing is written to /dev/null: failures land in run.log so they are visible.
+
+set -uo pipefail
+
+SOCKET="{{ clamav_socket }}"
+SCAN_LOG="{{ clamav_scan_log }}"
+RUN_LOG="{{ clamav_run_log }}"
+CLAMD="{{ clamav_brew_prefix }}/sbin/clamd"
+CLAMDSCAN="{{ clamav_brew_prefix }}/bin/clamdscan"
+FRESHCLAM="{{ clamav_brew_prefix }}/bin/freshclam"
+FANGFRISCH="{{ clamav_fangfrisch_bin }}"
+FANGFRISCH_CONF="{{ clamav_fangfrisch_conf }}"
+MAX_LOG_BYTES={{ clamav_log_max_bytes }}
+
+# Scan targets come from clamav_scan_paths, chosen by where untrusted files land and
+# where code can execute rather than by size. Scanning all of $HOME took over 8 hours
+# and spent 99.9% of that on machine-generated trees. See defaults/main.yaml.
+#
+# Note for editors: never use a bash array-length expansion (dollar, brace, hash) in this
+# template. That character pair opens a Jinja comment, and rendering dies with "Missing
+# end of comment tag" — including if you write it inside a comment like this one.
+# The explicit counter below sidesteps it.
+SCAN_PATHS=()
+scan_path_count=0
+{% for path in clamav_scan_paths %}
+if [ -e "{{ path }}" ]; then
+	SCAN_PATHS+=("{{ path }}")
+	scan_path_count=$((scan_path_count + 1))
+fi
+{% endfor %}
+
+log() {
+	printf '%s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*" >>"$RUN_LOG"
+}
+
+# Keep run.log and scan.log bounded. The unmanaged setup let scan.log reach 5.4 MB.
+for f in "$SCAN_LOG" "$RUN_LOG"; do
+	if [ -f "$f" ] && [ "$(stat -f %z "$f" 2>/dev/null || echo 0)" -gt "$MAX_LOG_BYTES" ]; then
+		mv -f "$f" "$f.1"
+	fi
+done
+
+log "=== maintenance run starting ==="
+
+# ── 1. clamd ──────────────────────────────────────────────────────────────────
+we_started_clamd=0
+if pgrep -x clamd >/dev/null 2>&1; then
+	log "clamd already running (pid $(pgrep -x clamd | head -1))"
+else
+	log "starting clamd"
+	if "$CLAMD" --foreground=no; then
+		we_started_clamd=1
+	else
+		log "ERROR: clamd failed to start; aborting"
+		exit 1
+	fi
+fi
+
+# Wait for the socket clamd.conf actually declares.
+counter=0
+while [ ! -S "$SOCKET" ] && [ "$counter" -lt 30 ]; do
+	sleep 1
+	counter=$((counter + 1))
+done
+if [ ! -S "$SOCKET" ]; then
+	log "ERROR: socket $SOCKET did not appear after ${counter}s; aborting"
+	exit 1
+fi
+log "socket ready after ${counter}s"
+
+# ── 2. official signatures ────────────────────────────────────────────────────
+if "$FRESHCLAM" --quiet >>"$RUN_LOG" 2>&1; then
+	log "official signatures refreshed"
+else
+	log "WARNING: freshclam exited $? — official signatures may be stale"
+fi
+
+# ── 3. third-party signatures ─────────────────────────────────────────────────
+if [ -x "$FANGFRISCH" ]; then
+	if "$FANGFRISCH" --conf "$FANGFRISCH_CONF" refresh >>"$RUN_LOG" 2>&1; then
+		log "third-party signatures refreshed"
+	else
+		log "WARNING: fangfrisch exited $? — third-party feeds may be stale"
+	fi
+else
+	log "ERROR: fangfrisch not executable at $FANGFRISCH; third-party feeds NOT refreshed"
+fi
+
+# ── 4. scan ───────────────────────────────────────────────────────────────────
+if [ "$scan_path_count" -eq 0 ]; then
+	log "ERROR: none of the configured scan paths exist; nothing to scan"
+	printf 'SHUTDOWN\n' | nc -U "$SOCKET" >/dev/null 2>&1
+	exit 1
+fi
+log "scanning $scan_path_count path(s)"
+
+# No --fdpass. clamd runs as this same user, so it can open the files itself; passing
+# descriptors would only force clamdscan to walk the tree and hand over every file
+# individually, instead of sending one path and letting clamd walk it. On a tree the
+# size of $HOME that is a large amount of extra IPC for no access benefit.
+{% if clamav_multiscan %}
+# --multiscan is enabled. It was measured to exhaust memory and crash clamd on this
+# machine; see the note in defaults/main.yaml before leaving it on.
+nice -n 20 "$CLAMDSCAN" --recursive --infected --multiscan "${SCAN_PATHS[@]}" --log="$SCAN_LOG"
+{% else %}
+nice -n 20 "$CLAMDSCAN" --recursive --infected "${SCAN_PATHS[@]}" --log="$SCAN_LOG"
+{% endif %}
+scan_rc=$?
+case "$scan_rc" in
+0) log "scan clean" ;;
+1) log "ALERT: infected files found — see $SCAN_LOG" ;;
+*) log "WARNING: clamdscan exited $scan_rc" ;;
+esac
+
+# ── 5. hand the memory back ───────────────────────────────────────────────────
+# Unconditional by design: ephemeral clamd is the point of this schedule. If a daemon
+# was already up when we arrived, it was almost certainly left behind by an earlier run.
+if printf 'SHUTDOWN\n' | nc -U "$SOCKET" >/dev/null 2>&1; then
+	log "clamd shut down (started by this run: $we_started_clamd); resident memory released"
+else
+	log "WARNING: graceful shutdown via $SOCKET failed; clamd left running"
+fi
+
+log "=== maintenance run finished (scan rc=$scan_rc) ==="
+exit "$scan_rc"

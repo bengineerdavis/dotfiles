@@ -1,0 +1,9 @@
+# {{ ansible_managed }}
+# Rendered from apps/clamav/templates/freshclam.conf.j2 — edits here are overwritten.
+# Reference: freshclam.conf.sample in this directory, or `man freshclam.conf`.
+
+DatabaseMirror database.clamav.net
+
+# Where the official signature database lands. fangfrisch writes its third-party feeds
+# into the same directory (see fangfrisch.conf.j2 local_directory).
+DatabaseDirectory {{ clamav_db_dir }}
