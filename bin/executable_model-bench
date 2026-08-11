@@ -780,7 +780,13 @@ app = typer.Typer(
 )
 
 
-@app.callback(invoke_without_command=True)
+# Registered as a command, not a callback. A Typer app whose only entry point is
+# a @callback is still a click Group, and a Group resolves its first positional
+# as a subcommand name — so the documented `model-bench qwen3.5:9b-mlx` died with
+# "No such command", and `--` did not help, even though ctx.args is read below.
+# With exactly one command and no callback, Typer collapses the app to a flat
+# CLI and the extra args land in ctx.args as intended.
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def main(
     ctx: typer.Context,
     runs: int = typer.Option(3, "--runs", "-n",
