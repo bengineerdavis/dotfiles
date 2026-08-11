@@ -779,14 +779,21 @@ _RECOMMENDED_MODELS: list[tuple[str, int, str, str, float | None]] = [
     # qwen3.5:9b-mlx — 8.9GB on disk + 1.5 KV
     ("qwen3.5:9b-mlx",       2, "local", "Good quality/size balance",                               10.4),
 
-    # not pulled — renders as "not found" and _best_fallback_local skips it
-    ("mistral-small3.1:24b", 2, "local", "Solid structured output; good general bash knowledge",    15.0),
-
     # gemma4:31b-mlx — 18GB on disk + 1.5 KV
     ("gemma4:31b-mlx",       2, "local", "Strong instruction following; clean output format",        19.5),
 
-    # not pulled — renders as "not found" and _best_fallback_local skips it
-    ("phi4:14b",             2, "local", "Punches above its weight; good for most scripts",          10.0),
+    # Entries below carry provisional ratings: they are pulled and usable, but
+    # have not been run through binned's three tasks, so the stars are a
+    # placeholder rather than a measurement. Run bin/model-bench to firm them up.
+    # They sit after the graded 2-star rows so fallback prefers measured ones.
+
+    # gpt-oss:20b — 13GB on disk + 1.5 KV. Open-weights and local, which is the
+    # carve-out; hosted GPT/Grok stay out of this table.
+    ("gpt-oss:20b",          2, "local", "Provisional — not yet benchmarked here",                   14.5),
+
+    # ministral-3:8b-instruct-2512 — 9.9GB on disk + 1.5 KV. Replaces the dropped
+    # mistral-small3.1:24b, which was never pulled and is two generations back.
+    ("ministral-3:8b-instruct-2512-q8_0", 2, "local", "Provisional — not yet benchmarked here",      11.4),
 
     # gemma4:e4b-it-qat — 6.1GB on disk + 1.5 KV (the QAT build, not the 16GB bf16)
     ("gemma4:e4b-it-qat",    1, "local", "Edge efficiency variant; single-step scripts only",        7.6),
