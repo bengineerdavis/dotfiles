@@ -716,16 +716,26 @@ _RECOMMENDED_MODELS: list[tuple[str, int, str, str, float | None]] = [
     # (1) skeleton template fill-in with strict bash-only output,
     # (2) bats test generation with setup/stubs in one shot,
     # (3) structured key:value format compliance (_SYS_ASSESS).
+    #
+    # The Anthropic and Google entries route through llm-openrouter. The llm env
+    # deliberately no longer carries llm-anthropic or llm-gemini, so the
+    # vendor-native ids (claude-opus-4.7, gemini-2.5-pro) resolve to nothing.
+    # Same models, reached with the one OpenRouter key. Ratings are unchanged —
+    # only the route to the model differs.
+    #
+    # The gpt-* rows are gone on purpose: GPT and Grok are not recommended here.
+    # They stay reachable for benchmarking (see bin/model-bench), and
+    # _judge_model_category still classifies them as saas if one is passed
+    # explicitly — they just are not offered as a default. Replacements are left
+    # unlisted rather than guessed: the star ratings encode measured zero-shot
+    # behaviour on the three tasks above, so populating them without a
+    # model-bench run would be fabrication.
 
-    ("claude-opus-4.7",      3, "saas", "Top reasoning; best zero-shot template compliance",       None),
-    ("claude-sonnet-4.6",    3, "saas", "Built & tested with this model; highest prompt alignment", None),
-    ("gemini-2.5-pro",       3, "saas", "Large context; strong structured output compliance",       None),
-    ("gpt-4.1",              3, "saas", "Precise; handles strict format constraints reliably",      None),
-    ("gpt-4o",               3, "saas", "Reliable all-rounder; well-tested for bash gen",           None),
-    ("gemini-2.5-flash",     2, "saas", "Fast; good for moderately complex commands",               None),
-    ("claude-haiku-4.5",     2, "saas", "Cheapest Anthropic; most scripts work first-try",          None),
-    ("gpt-4.1-mini",         2, "saas", "Affordable; skips boilerplate on complex commands",        None),
-    ("gpt-4.1-nano",         1, "saas", "Trivial scripts only; poor structured-format compliance",  None),
+    ("openrouter/anthropic/claude-opus-4.7",   3, "saas", "Top reasoning; best zero-shot template compliance",       None),
+    ("openrouter/anthropic/claude-sonnet-4.6", 3, "saas", "Built & tested with this model; highest prompt alignment", None),
+    ("openrouter/google/gemini-2.5-pro",       3, "saas", "Large context; strong structured output compliance",       None),
+    ("openrouter/google/gemini-2.5-flash",     2, "saas", "Fast; good for moderately complex commands",               None),
+    ("openrouter/anthropic/claude-haiku-4.5",  2, "saas", "Cheapest Anthropic; most scripts work first-try",          None),
 
     # ── Local (Ollama + llm-ollama plugin) ────────────────────────────────────
     # ram_gb = RAM needed at Q4_K_M quant.  On Apple Silicon this is unified memory;
@@ -891,7 +901,7 @@ def _prompt_add_alias(installed: set[str]) -> str | None:
         result = "__manual__"
 
     if result == "__manual__" or result is None:
-        model = prompt_text("Model ID (e.g. gpt-4o, qwen2.5-coder:7b)")
+        model = prompt_text("Model ID (e.g. qwen3.5:9b-mlx, openrouter/anthropic/claude-sonnet-4.6)")
     else:
         model = result
 
