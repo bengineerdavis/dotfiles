@@ -6,6 +6,7 @@
 #   "files-to-prompt",
 #   "llm-ollama",
 #   "llm-pdf-to-images",
+#   "llm-video-frames",
 # ]
 # ///
 # -----------------------------------------------------------------------------
@@ -20,19 +21,27 @@
 # Options:
 #   -m, --model MODEL  Model to use. Defaults to llm's configured default.
 #   --cxml             Force Claude XML format for text context.
+#   --fps N            Frames per second to sample from videos (default: 1).
+#   --frame-timestamps Overlay filename + timestamp on each extracted frame.
 #   -v                 Info logging (files classified, model used, steps taken).
 #   -vv                Debug logging (full commands, subprocess output, etc).
 #
 # Examples:
 #   llm-ctx "src/**/*.py" "docs/*.md" -- "review this code"
 #   llm-ctx -m gemini-2.0-flash "*.py" "*.png" -- "explain what this does"
+#   llm-ctx --fps 2 --frame-timestamps "*.mp4" -- "when does the error appear?"
 #   llm-ctx -vv "**/*" -- "summarize the project"
 #
 # Dependencies:       llm, files-to-prompt (both must be on PATH)
+#                     ffmpeg on PATH — only when video files are matched.
+#                     Installed and verified by the mise topic's
+#                     prerequisites.yaml; see VIDEO_EXTS below.
 # -----------------------------------------------------------------------------
 
 import argparse
 import logging
+import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -40,18 +49,33 @@ from pathlib import Path
 
 import llm
 
-BINARY_EXTS = {
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".gif",
-    ".webp",
-    ".pdf",
+# llm's pdf plugin imports PyMuPDF, whose fitz shim prints a deprecation notice —
+# and PyMuPDF's default message stream is stdout, not stderr. This script pipes
+# llm's stdout straight through to whatever the caller redirected it to, so that
+# line arrives as the first line of the output document: `mailbox` writes it to
+# the top of mail.md, and pii-redactor then faithfully carries it into the
+# redacted copy. Route PyMuPDF's messages to stderr, same as bin/pii-redactor
+# and bin/model-bench. See bin/pii-redactor for why upgrading does not fix it.
+os.environ.setdefault("PYMUPDF_MESSAGE", "fd:2")
+
+# Video is deliberately NOT sent as a native attachment. No current model accepts
+# a raw video/mp4 attachment through llm, so videos are expanded into sampled
+# still frames by the llm-video-frames plugin and passed as a fragment — the same
+# shape as the pdf-to-images route below. That plugin shells out to a SYSTEM
+# ffmpeg, which is why ffmpeg is checked before any video is processed.
+VIDEO_EXTS = {
     ".mp4",
-    ".mp3",
-    ".wav",
+    ".mov",
+    ".m4v",
+    ".mkv",
+    ".webm",
+    ".avi",
 }
+IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
+AUDIO_EXTS = {".mp3", ".wav"}
+BINARY_EXTS = IMAGE_EXTS | AUDIO_EXTS | VIDEO_EXTS | {".pdf"}
 PREPROCESS_MODEL = "qwen3-vl"
+DEFAULT_FPS = 1
 
 log = logging.getLogger("llm-ctx")
 
@@ -114,6 +138,76 @@ def is_multimodal(model_id: str) -> bool:
         return False
 
 
+def video_fragment(path: Path, fps: float, timestamps: bool) -> str:
+    """Build an llm-video-frames fragment spec for one video file.
+
+    Shape: video-frames:<path>?fps=N[&timestamps=1]. The spec goes into argv
+    directly (never through a shell), so the ? and & need no quoting here.
+    """
+    # %g so an integral fps renders as "1" rather than "1.0".
+    spec = f"video-frames:{path}?fps={fps:g}"
+    if timestamps:
+        spec += "&timestamps=1"
+    return spec
+
+
+def require_ffmpeg(video_files: list[Path]) -> None:
+    """Abort with an actionable message if videos need ffmpeg and it is missing.
+
+    llm-video-frames shells out to ffmpeg/ffprobe and only fails once the model
+    call is already in flight, which surfaces as an opaque plugin traceback. This
+    turns that into a single up-front line naming the fix. Checked only when a
+    video actually matched — an ffmpeg-less box stays fine for text and images.
+    """
+    if not video_files:
+        return
+
+    missing = [tool for tool in ("ffmpeg", "ffprobe") if shutil.which(tool) is None]
+    if not missing:
+        log.debug("ffmpeg preflight OK for %d video file(s)", len(video_files))
+        return
+
+    info(
+        f"Error: {len(video_files)} video file(s) matched but "
+        f"{' and '.join(missing)} {'is' if len(missing) == 1 else 'are'} not on PATH.\n"
+        "  llm-video-frames needs a system ffmpeg to sample frames.\n"
+        "  Fix: brew install ffmpeg   (or: run-role.sh mise --tags prerequisites)"
+    )
+    sys.exit(1)
+
+
+def require_video_frames_plugin(video_files: list[Path]) -> None:
+    """Warn if llm cannot load the video-frames fragment loader.
+
+    The plugin lives in llm's own environment, not this script's uv venv, so a
+    PEP 723 dependency here does not guarantee the `llm` on PATH has it.
+    """
+    if not video_files:
+        return
+
+    try:
+        result = subprocess.run(
+            ["llm", "plugins"],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        log.debug("Could not enumerate llm plugins: %s", e)
+        return
+
+    if "llm-video-frames" not in result.stdout:
+        info(
+            "Error: llm-video-frames is not installed in the `llm` on PATH, so\n"
+            "  video-frames: fragments will not resolve.\n"
+            "  Fix: add `--with llm-video-frames` to \"pipx:llm\" in\n"
+            "       ~/.config/mise/config.toml, then run `mise install`."
+        )
+        sys.exit(1)
+    log.debug("llm-video-frames plugin present")
+
+
 def classify_files(globs: list[str]) -> tuple[list[Path], list[Path]]:
     """Expand globs and split into (text_files, binary_files)."""
     text, binary = [], []
@@ -145,7 +239,12 @@ def auto_format(model_id: str) -> str:
     return fmt
 
 
-def preprocess_binary(path: Path, out: tempfile.NamedTemporaryFile) -> None:
+def preprocess_binary(
+    path: Path,
+    out: tempfile.NamedTemporaryFile,
+    fps: float = DEFAULT_FPS,
+    frame_timestamps: bool = False,
+) -> None:
     """Run a capable model over a binary file and append extracted text."""
     ext = path.suffix.lower()
     log.info("Pre-processing binary: %s", path)
@@ -159,7 +258,22 @@ def preprocess_binary(path: Path, out: tempfile.NamedTemporaryFile) -> None:
             "-m",
             PREPROCESS_MODEL,
         ]
-    elif ext in {".png", ".jpg", ".jpeg", ".gif", ".webp"}:
+    elif ext in VIDEO_EXTS:
+        # Timestamps are forced on for the text-only path: the frames become prose
+        # in a temp file, so without them there is nothing left to anchor an
+        # observation to a moment in the video.
+        cmd = [
+            "llm",
+            "-f",
+            video_fragment(path, fps, timestamps=True),
+            (
+                "Describe this video chronologically. For each frame, note its "
+                "timestamp and what changed since the previous frame."
+            ),
+            "-m",
+            PREPROCESS_MODEL,
+        ]
+    elif ext in IMAGE_EXTS:
         cmd = [
             "llm",
             "Describe this image in full detail.",
@@ -168,7 +282,7 @@ def preprocess_binary(path: Path, out: tempfile.NamedTemporaryFile) -> None:
             "-m",
             PREPROCESS_MODEL,
         ]
-    elif ext in {".mp3", ".wav"}:
+    elif ext in AUDIO_EXTS:
         cmd = ["llm", "Transcribe this audio.", "-a", str(path), "-m", PREPROCESS_MODEL]
     else:
         log.warning("Unsupported binary type, skipping: %s", path)
@@ -237,12 +351,16 @@ def make_parser() -> argparse.ArgumentParser:
             "Classifies files matched by GLOB patterns into text and binary.\n"
             "Text files are routed through files-to-prompt; binary files are\n"
             "sent as native attachments to multimodal models, or pre-processed\n"
-            f"to text via {PREPROCESS_MODEL} for text-only models."
+            f"to text via {PREPROCESS_MODEL} for text-only models.\n"
+            "PDFs and videos are expanded into images by fragment loaders\n"
+            "(pdf-to-images / video-frames) rather than attached directly.\n"
+            "Videos require ffmpeg on PATH."
         ),
         epilog=(
             "examples:\n"
             '  llm-ctx "src/**/*.py" "docs/*.md" -- "review this code"\n'
             '  llm-ctx -m gemini-2.0-flash "*.py" "*.png" -- "explain this"\n'
+            '  llm-ctx --fps 2 --frame-timestamps "*.mp4" -- "when does it break?"\n'
             '  llm-ctx -vv "**/*" -- "summarize the project"'
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -259,6 +377,17 @@ def make_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Force Claude XML format for text context "
         "(auto-selected for claude* models).",
+    )
+    parser.add_argument(
+        "--fps",
+        type=float,
+        default=DEFAULT_FPS,
+        help=f"Frames per second to sample from videos (default: {DEFAULT_FPS}).",
+    )
+    parser.add_argument(
+        "--frame-timestamps",
+        action="store_true",
+        help="Overlay filename and timestamp on each extracted video frame.",
     )
     parser.add_argument(
         "-v",
@@ -299,6 +428,17 @@ def main() -> None:
         "--cxml", action="store_true", help="Force Claude XML format for text context."
     )
     parser.add_argument(
+        "--fps",
+        type=float,
+        default=DEFAULT_FPS,
+        help=f"Frames per second to sample from videos (default: {DEFAULT_FPS}).",
+    )
+    parser.add_argument(
+        "--frame-timestamps",
+        action="store_true",
+        help="Overlay filename and timestamp on each extracted video frame.",
+    )
+    parser.add_argument(
         "-v", "--verbose", action="count", default=0, help="-v for info, -vv for debug."
     )
 
@@ -324,18 +464,37 @@ def main() -> None:
 
     if binary_files:
         pdf_files = [f for f in binary_files if f.suffix.lower() == ".pdf"]
-        other_binary = [f for f in binary_files if f.suffix.lower() != ".pdf"]
+        video_files = [f for f in binary_files if f.suffix.lower() in VIDEO_EXTS]
+        # Anything that is neither a PDF nor a video can ride along as a native
+        # attachment; those two are expanded into images by a fragment loader.
+        attachable = [
+            f
+            for f in binary_files
+            if f.suffix.lower() not in VIDEO_EXTS and f.suffix.lower() != ".pdf"
+        ]
+
+        # Both branches below can shell out to ffmpeg, so check once, up front.
+        require_ffmpeg(video_files)
+        require_video_frames_plugin(video_files)
 
         if multimodal:
             log.info(
                 "Using native attachments for %d binary file(s), "
-                "pdf-to-images fragments for %d PDF(s)",
-                len(other_binary),
+                "pdf-to-images fragments for %d PDF(s), "
+                "video-frames fragments for %d video(s) at %g fps",
+                len(attachable),
                 len(pdf_files),
+                len(video_files),
+                args.fps,
             )
-            attachment_paths = other_binary
+            attachment_paths = attachable
             for f in pdf_files:
                 fragment_args += ["-f", f"pdf-to-images:{f}"]
+            for f in video_files:
+                fragment_args += [
+                    "-f",
+                    video_fragment(f, args.fps, args.frame_timestamps),
+                ]
         else:
             info(
                 f"ℹ️  '{model_id}' is text-only — pre-processing "
@@ -346,7 +505,7 @@ def main() -> None:
             ) as tmp:
                 tmp_path = Path(tmp.name)
                 for f in binary_files:
-                    preprocess_binary(f, tmp)
+                    preprocess_binary(f, tmp, args.fps, args.frame_timestamps)
             log.debug("Binary context written to: %s", tmp_path)
             text_files.append(tmp_path)
 
