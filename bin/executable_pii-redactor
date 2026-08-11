@@ -19,7 +19,6 @@ Dependencies: llm
 
 import os
 import shlex
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -177,10 +176,18 @@ def run_llm(opts: Options, stdout) -> int:
     """Invoke llm, reading the input file if given and stdin otherwise."""
     cmd = build_cmd(opts.model)
     env = child_env()
-    if opts.input:
-        with open(opts.input, "rb") as stdin:
-            return subprocess.run(cmd, stdin=stdin, stdout=stdout, env=env).returncode
-    return subprocess.run(cmd, stdout=stdout, env=env).returncode
+    try:
+        if opts.input:
+            with open(opts.input, "rb") as stdin:
+                return subprocess.run(cmd, stdin=stdin, stdout=stdout, env=env).returncode
+        return subprocess.run(cmd, stdout=stdout, env=env).returncode
+    except FileNotFoundError:
+        # Handled here rather than as a preflight `which` check: mise owns llm,
+        # so provisioning already guarantees it and a preflight guard would just
+        # add noise — the convention bin/mailbox and bin/support-summarized
+        # document. Catching it still beats letting a traceback escape.
+        die("Dependency 'llm' not found. Please install it first.")
+        return 1  # unreachable; die() exits
 
 
 def umask_mode() -> int:
@@ -238,10 +245,7 @@ def process(opts: Options) -> None:
 
 
 def main() -> None:
-    opts = parse_args(sys.argv[1:])
-    if shutil.which("llm") is None:
-        die("Dependency 'llm' not found. Please install it first.")
-    process(opts)
+    process(parse_args(sys.argv[1:]))
 
 
 if __name__ == "__main__":
