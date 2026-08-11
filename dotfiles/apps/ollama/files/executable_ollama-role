@@ -21,9 +21,22 @@ build reports `tools,thinking` only, so it can never satisfy `requires: [audio]`
 however much the model card advertises audio. Trusting the card here silently
 routes audio work to a model that cannot hear.
 
+Each role also carries TIERS — a latency/cost position on the same task:
+
+    fast      lowest latency, accepts lower accuracy
+    balanced  the 80/20 pick — most of the quality, a fraction of the wait
+    best      highest local accuracy, latency accepted
+    frontier  leaves the machine: costs money, breaks the offline guarantee
+
+A bare role resolves at `ollama_role_policy` (default `balanced`). Latency comes
+from measured benchmarks, not parameter count — which is not intuitive here:
+glm-4.7-flash (30B, ~3B active) generates 3x faster than the dense qwen3.6:27b
+at the same footprint, so the balanced tier is often quicker than the best one.
+
   ollama-role get code            print the tag, exit 1 if unresolvable
+  ollama-role --tier best get code   override the policy for one call
   ollama-role env                 emit OLLAMA_ROLE_* exports for your shell
-  ollama-role list                every role, what it resolved to, and why
+  ollama-role list                the full matrix with tok/s, GB and $/Mtok
   ollama-role check               non-zero if any role is unsatisfiable
 
 `env` is what belongs in a shell rc or a task runner:
@@ -54,9 +67,14 @@ def manifest_path() -> Path:
 
 def load():
     data = yaml.safe_load(manifest_path().read_text()) or {}
-    return (data.get("ollama_roles") or {},
-            data.get("ollama_role_escalate") or "",
-            data.get("ollama_server_env") or {})
+    return {
+        "roles": data.get("ollama_roles") or {},
+        "escalate": data.get("ollama_role_escalate") or "",
+        "server": data.get("ollama_server_env") or {},
+        "perf": data.get("ollama_model_perf") or {},
+        "cost": data.get("ollama_remote_cost") or {},
+        "policy": data.get("ollama_role_policy") or "balanced",
+    }
 
 
 def installed() -> set[str]:
@@ -95,7 +113,52 @@ def caps(tag: str) -> set[str]:
     return found
 
 
-def resolve(role: str, spec: dict, have: set[str]) -> tuple[str | None, str]:
+# Ordered cheapest/fastest -> dearest. An unresolvable tier walks this list to
+# the nearest neighbour rather than failing: a missing `best` model should
+# degrade to `balanced`, not take the role offline.
+TIERS = ("fast", "balanced", "best", "frontier")
+
+
+def tier_order(want: str) -> list[str]:
+    """`want` first, then outward by distance — nearer tiers preferred."""
+    if want not in TIERS:
+        want = "balanced"
+    i = TIERS.index(want)
+    return sorted(TIERS, key=lambda t: (abs(TIERS.index(t) - i), TIERS.index(t)))
+
+
+def candidates(spec: dict, want: str) -> list[tuple[str, str]]:
+    """(tag, tier) in resolution order. Supports the legacy flat `prefer` list."""
+    tiers = spec.get("tiers")
+    if not tiers:
+        return [(t, "balanced") for t in (spec.get("prefer") or [])]
+    out = []
+    for t in tier_order(want):
+        for tag in tiers.get(t) or []:
+            out.append((tag, t))
+    return out
+
+
+def resolve(spec: dict, have: set[str], want: str = "balanced"):
+    """-> (tag, tier, note). Remote tags are never capability-checked locally."""
+    need = set(spec.get("requires") or [])
+    for tag, tier in candidates(spec, want):
+        if tag.startswith("openrouter/"):
+            return tag, tier, "remote"
+        if tag.lower() not in have:
+            continue
+        if need and not need <= caps(tag):
+            continue
+        return tag, tier, ("exact" if tier == want else f"fell back from {want}")
+    for tag, _ in candidates(spec, want):
+        if tag.lower() not in have:
+            return None, None, f"not installed: {tag}"
+        if need and not need <= caps(tag):
+            return None, None, f"{tag} lacks {', '.join(sorted(need - caps(tag)))}"
+    return None, None, "no candidates"
+
+
+def _legacy_unused(role: str, spec: dict, have: set[str]) -> tuple[str | None, str]:
     need = set(spec.get("requires") or [])
     for tag in spec.get("prefer") or []:
         if tag.lower() not in have:
@@ -116,6 +179,8 @@ def resolve(role: str, spec: dict, have: set[str]) -> tuple[str | None, str]:
 def main():
     p = argparse.ArgumentParser(prog="ollama-role", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--tier", choices=TIERS,
+                   help="override the policy tier for this call")
     sub = p.add_subparsers(dest="cmd", required=True)
     g = sub.add_parser("get"); g.add_argument("role")
     sub.add_parser("env")
@@ -124,51 +189,85 @@ def main():
     sub.add_parser("check")
     args = p.parse_args()
 
-    roles, escalate, server = load()
+    cfg = load()
+    roles, esc, perf, cost = cfg["roles"], cfg["escalate"], cfg["perf"], cfg["cost"]
+    want = args.tier or os.environ.get("OLLAMA_ROLE_POLICY") or cfg["policy"]
     have = installed()
+
+    if args.cmd == "serverenv":
+        # Server tuning. Only a shell-launched `ollama serve` inherits these; the
+        # macOS app needs launchctl (ansible does that from the SAME manifest
+        # keys, so the two cannot drift).
+        for k, v in cfg["server"].items():
+            print(f"export {k}={v}")
+        return
 
     if args.cmd == "get":
         spec = roles.get(args.role)
         if spec is None:
             sys.exit(f"unknown role '{args.role}'; have: {', '.join(roles)}")
-        tag, why = resolve(args.role, spec, have)
+        tag, _tier, why = resolve(spec, have, want)
         if not tag:
-            sys.exit(f"role '{args.role}' unresolvable — {why}")
+            sys.exit(f"role '{args.role}' unresolvable at tier {want} — {why}")
         print(tag)
         return
 
-    if args.cmd == "serverenv":
-        # Server-side tuning. Only a shell-launched `ollama serve` inherits
-        # these; the macOS app needs `launchctl setenv` (ansible does that from
-        # the SAME manifest keys, so the two cannot drift).
-        for k, v in server.items():
-            print(f"export {k}={v}")
-        return
-
     if args.cmd == "env":
+        print(f"export OLLAMA_ROLE_POLICY={want}")
         for role, spec in roles.items():
-            tag, _ = resolve(role, spec, have)
+            R = role.upper()
+            tag, tier, _ = resolve(spec, have, want)
             if tag:
-                print(f"export OLLAMA_ROLE_{role.upper()}={tag}")
+                print(f"export OLLAMA_ROLE_{R}={tag}")
+                print(f"export OLLAMA_ROLE_{R}_TIER={tier}")
                 if spec.get("ctx"):
-                    print(f"export OLLAMA_ROLE_{role.upper()}_CTX={spec['ctx']}")
-        if escalate:
-            print(f"export OLLAMA_ROLE_ESCALATE={escalate}")
+                    print(f"export OLLAMA_ROLE_{R}_CTX={spec['ctx']}")
+                tps = (perf.get(tag) or {}).get("gen_tok_s")
+                if tps:
+                    print(f"export OLLAMA_ROLE_{R}_TOK_S={tps}")
+            # Every tier addressable directly — but only where the role really
+            # defines that tier. Emitting a fallback here would be a lie:
+            # OLLAMA_ROLE_CHAT_FRONTIER must never name a local model, since
+            # `frontier` means "leaves the machine".
+            for t in TIERS:
+                tt, tier_used, _ = resolve(spec, have, t)
+                if tt and tier_used == t:
+                    print(f"export OLLAMA_ROLE_{R}_{t.upper()}={tt}")
+        if esc:
+            print(f"export OLLAMA_ROLE_ESCALATE={esc}")
+            c = cost.get(esc) or {}
+            if c.get("usd_out") is not None:
+                print(f"export OLLAMA_ROLE_ESCALATE_USD_OUT={c['usd_out']}")
         return
 
+    # list / check
     bad = 0
+    print(f"policy={want}   (fast → balanced → best → frontier)\n")
+    print(f"{'ROLE':<10}{'TIER':<10}{'MODEL':<34}{'tok/s':>7}{'GB':>6}  NOTE")
     for role, spec in roles.items():
-        tag, why = resolve(role, spec, have)
-        need = ",".join(spec.get("requires") or []) or "-"
-        if tag:
-            print(f"  {role:<10} {tag:<38} requires={need}")
-        else:
+        for t in TIERS:
+            tags = (spec.get("tiers") or {}).get(t) or []
+            for tag in tags:
+                pf = perf.get(tag) or {}
+                cs = cost.get(tag) or {}
+                ok = tag.startswith("openrouter/") or tag.lower() in have
+                need = set(spec.get("requires") or [])
+                capok = (not need) or tag.startswith("openrouter/") or need <= caps(tag)
+                mark = "" if (ok and capok) else ("  ✗ not installed" if not ok
+                       else f"  ✗ lacks {','.join(sorted(need - caps(tag)))}")
+                sel = "◀ default" if resolve(spec, have, want)[0] == tag else ""
+                money = f"  ${cs['usd_out']}/Mtok out" if cs.get("usd_out") else ""
+                print(f"{role:<10}{t:<10}{tag:<34}"
+                      f"{pf.get('gen_tok_s','—'):>7}{pf.get('gb','—'):>6}  {sel}{mark}{money}")
+        if resolve(spec, have, want)[0] is None:
             bad += 1
-            print(f"  {role:<10} {'UNRESOLVED':<38} requires={need}  ({why})")
-    if escalate:
-        print(f"  {'escalate':<10} {escalate:<38} (remote)")
+    if esc:
+        c = cost.get(esc) or {}
+        z = " ZDR" if c.get("zdr") else ""
+        print(f"{'escalate':<10}{'frontier':<10}{esc:<34}{'—':>7}{'—':>6}  "
+              f"${c.get('usd_in','?')}/${c.get('usd_out','?')} per Mtok{z}")
     if args.cmd == "check" and bad:
-        sys.exit(f"\n{bad} role(s) unresolvable")
+        sys.exit(f"\n{bad} role(s) unresolvable at tier {want}")
 
 
 if __name__ == "__main__":

@@ -295,6 +295,45 @@ ollama_linux_instances:
 ollama_linux_instances_share_models: true
 ollama_linux_models_root: /usr/share/ollama/.ollama/models
 
+# ── Measured performance ─────────────────────────────────────────────────────
+# Latency is measured, never asserted. All figures below come from
+# `ollama-bench run --suite general --num-ctx 8192` on this M4 Max, one run, so
+# treat them as ranking signal rather than precision instruments. Refresh with:
+#     ollama-bench run --suite general --num-ctx 8192 <models…>
+#
+# The ranking is the point, and it is not what parameter count predicts:
+# sparse-MoE models beat larger-looking dense ones decisively. glm-4.7-flash
+# (30B, ~3B active) generates 3x faster than the dense qwen3.6:27b at the same
+# ~19GB footprint, and granite4:32b-a9b-h (9B active) is 2x faster despite being
+# the largest model here. "Bigger is slower" is false; "denser is slower" holds.
+ollama_model_perf:
+  "granite4:3b":                  { gen_tok_s: 103.0, prompt_tok_s: 640,  load_ms: 8413,  gb: 2.6 }
+  "gemma4:e4b-it-qat":            { gen_tok_s: 67.7,  prompt_tok_s: 159,  load_ms: 4559,  gb: 5.4 }
+  "glm-4.7-flash:q4_K_M":         { gen_tok_s: 58.1,  prompt_tok_s: 205,  load_ms: 5427,  gb: 19.0 }
+  "gemma4:12b-mlx":               { gen_tok_s: 47.8,  prompt_tok_s: 199,  load_ms: 2747,  gb: 7.9 }
+  "qwen3-vl:8b-instruct-q8_0":    { gen_tok_s: 40.5,  prompt_tok_s: 300,  load_ms: 3556,  gb: 9.2 }
+  "granite4:32b-a9b-h":           { gen_tok_s: 38.1,  prompt_tok_s: 136,  load_ms: 5206,  gb: 19.0 }
+  "devstral-small-2:24b":         { gen_tok_s: 23.0,  prompt_tok_s: 1596, load_ms: 5019,  gb: 14.0 }
+  "qwen3.6:27b-mlx":              { gen_tok_s: 19.2,  prompt_tok_s: 85,   load_ms: 13089, gb: 20.0 }
+  "qwen3.6:27b-coding-nvfp4":     { gen_tok_s: 18.8,  prompt_tok_s: 89,   load_ms: 6287,  gb: 20.0 }
+  # From the `llm` usage log (real prompts, not the bench suite) — deepseek-r1
+  # emits long reasoning traces, so its effective rate is far below the others.
+  "gpt-oss:20b":                  { gen_tok_s: 66.2, source: usage-log }
+  "deepseek-r1:32b":              { gen_tok_s: 5.2,  source: usage-log }
+
+# ── Remote cost, $/million tokens ────────────────────────────────────────────
+# Local models cost nothing per token; the cost axis only bites once a call
+# leaves the machine. Read from the OpenRouter models API. `zdr: true` means at
+# least one Zero-Data-Retention endpoint serves it (verify with
+# `GET /api/v1/endpoints/zdr` — first-party Anthropic/OpenAI/Google endpoints are
+# excluded from ZDR and route via Bedrock/Azure/Vertex instead).
+ollama_remote_cost:
+  "openrouter/anthropic/claude-sonnet-5":  { usd_in: 2.00, usd_out: 10.00, zdr: true }
+  "openrouter/anthropic/claude-opus-5":    { usd_in: null, usd_out: null,  zdr: true }
+  "openrouter/deepseek/deepseek-v4-pro":   { usd_in: 0.43, usd_out: 0.87,  zdr: true }
+  "openrouter/moonshotai/kimi-k2.7-code":  { usd_in: 0.70, usd_out: 3.50,  zdr: true }
+  "openrouter/z-ai/glm-5.2":               { usd_in: 0.76, usd_out: 2.42,  zdr: true }
+
 # ── Roles: what to call, not what to install ─────────────────────────────────
 # Scripts should ask for a ROLE, not a tag, so swapping a model is a manifest
 # edit rather than a find-and-replace across your tooling. `ollama-role env`
@@ -315,37 +354,65 @@ ollama_linux_models_root: /usr/share/ollama/.ollama/models
 # `escalate` is the SaaS exit: when a task needs high accuracy AND low latency
 # at once — which local 27-35B models on this hardware cannot do together —
 # tooling should route there rather than pretending a local model suffices.
+# Which tier a bare role name resolves to. `balanced` encodes the stated
+# preference: use the cost-effective option unless the task earns better.
+# Override per shell (OLLAMA_ROLE_POLICY=best) or per call (--tier).
+ollama_role_policy: balanced
+
+# Each role is a task; each TIER within it is a latency/cost position on that
+# task. Tiers are ordered fast → balanced → best → frontier, and within a tier
+# the list stays accuracy-first. An unresolvable tier falls back to the nearest
+# available one rather than failing.
+#
+#   fast      lowest latency, accepts lower accuracy — interactive, high volume
+#   balanced  the 80/20 pick: most of the quality, a fraction of the wait
+#   best      highest local accuracy, latency accepted
+#   frontier  leaves the machine — costs money, breaks the offline guarantee
+#
+# The standalone `fast` role was REMOVED: with tiers it was just `chat` at tier
+# fast, which is exactly the redundant axis worth collapsing.
 ollama_roles:
   chat:
-    prefer: ["qwen3.6:27b-mlx"]
     ctx: 32768
+    tiers:
+      fast:     ["gemma4:12b-mlx"]           # 47.8 t/s
+      balanced: ["glm-4.7-flash:q4_K_M"]     # 58.1 t/s — faster AND same size as best
+      best:     ["qwen3.6:27b-mlx"]          # 19.2 t/s, but adds vision
   code:
-    prefer: ["qwen3.6:27b-coding-nvfp4", "devstral-small-2:24b"]
     ctx: 32768
+    tiers:
+      fast:     ["gemma4:12b-mlx"]           # 47.8 t/s
+      balanced: ["devstral-small-2:24b"]     # 23.0 t/s, 393K ctx, coding specialist
+      best:     ["qwen3.6:27b-coding-nvfp4"] # 18.8 t/s
   think:
-    prefer: ["deepseek-r1:32b", "glm-4.7-flash:q4_K_M"]
     ctx: 32768
-  fast:
-    # Low latency, accepts lower accuracy. Measured 115 tok/s vs 5 for a 32B.
-    prefer: ["gemma4:12b-mlx", "granite4:3b"]
-    ctx: 16384
+    tiers:
+      fast:     ["gpt-oss:20b"]              # 66.2 t/s, still a reasoning model
+      balanced: ["glm-4.7-flash:q4_K_M"]     # 58.1 t/s, thinking + tools
+      best:     ["deepseek-r1:32b"]          # 5.2 t/s — 10x slower; earn it
   long:
     # granite4 hybrid-Mamba measured ~19 KB/token — 3-5x cheaper context than
-    # any transformer here, which is what makes a big window affordable.
-    prefer: ["granite4:32b-a9b-h"]
+    # any transformer here, and 38.1 t/s despite being the largest model.
     ctx: 131072
+    tiers:
+      balanced: ["granite4:32b-a9b-h"]
   vision:
     requires: [vision]
-    prefer: ["qwen3.6:27b-mlx", "qwen3-vl:8b-instruct-q8_0"]
     ctx: 16384
+    tiers:
+      fast:     ["qwen3-vl:8b-instruct-q8_0"]  # 40.5 t/s, 9.2GB
+      best:     ["qwen3.6:27b-mlx"]            # 19.2 t/s, 20GB
   audio:
-    # FALLBACK ONLY. No MLX build can do this; a GGUF -it- build is required.
+    # No MLX build can do this at any size; a GGUF -it- build is required.
     requires: [audio]
-    prefer: ["gemma4:e4b-it-qat"]
     ctx: 8192
+    tiers:
+      balanced: ["gemma4:e4b-it-qat"]        # 67.7 t/s, 5.4GB
   embed:
     requires: [embedding]
-    prefer: ["qwen3-embedding:0.6b-fp16", "bge-m3:567m-fp16"]
+    tiers:
+      fast:     ["qwen3-embedding:0.6b-fp16"]
+      best:     ["bge-m3:567m-fp16"]
 
 # Where to send work that needs accuracy AND responsiveness at the same time.
 # Not installed, not managed here — just the documented escape hatch so scripts
