@@ -39,12 +39,22 @@ python = "3.14"
 "pipx:gita" = "latest"
 
 # http://llm.datasette.io/en/stable/setup.html
+#
+# Plugins are declared here as `--with` extras rather than via `llm install`.
+# `llm install` pip-installs into the uv tool venv that mise owns, so the next
+# `mise upgrade`/reinstall rebuilds that venv and silently drops the plugin.
+# Anything listed here survives a rebuild.
+#
+# llm-video-frames needs a SYSTEM ffmpeg on PATH (it shells out to ffmpeg to
+# split the video into frames — it does not vendor one). ffmpeg is installed and
+# verified by apps/mise/tasks/prerequisites.yaml.
 "pipx:llm" = { version = "latest", uvx_args = """
   --with llm-openrouter
   --with llm-ollama
   --with llm-sentence-transformers
   --with llm-tools-exa
   --with llm-pdf-to-images
+  --with llm-video-frames
   --with llm-jq
   --with llm-python
   --with llm-all-models-async
