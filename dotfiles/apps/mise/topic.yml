@@ -1,5 +1,9 @@
 topic_name: mise
-topic_provides: [mise, python]   # tools materialized from [tools] in config.toml (uv is system-installed, not mise-managed)
+# tools materialized from [tools] in config.toml (uv is system-installed, not mise-managed).
+# ffmpeg is not a mise tool — it is a system package this topic installs in
+# prerequisites.yaml because the llm-video-frames plugin shells out to it. It is
+# advertised here so other topics can depend on it via topic_requires: [ffmpeg].
+topic_provides: [mise, python, ffmpeg]
 topic_requires: []                   # pkg-manager is OS-specific, guarded in-task (brew on Darwin, apt on Debian)
 topic_os: [Darwin, Debian]
 topic_tier: runtime-manager

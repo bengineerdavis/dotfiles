@@ -34,10 +34,12 @@ fail () {
 # Module functions
 # using rsync to cope with mac cp idiosyncracies
 mk_module () {
-  local module_name="./$1"
   local module_path="$2"
 
-  mkdir -pv "$module_name"
+  # rsync creates the destination itself, so there is nothing to pre-create here.
+  # This used to run `mkdir -pv "./$1"`, which made an empty directory named after the
+  # topic at the repo root — a stray sibling of apps/ that was never used.
+  mkdir -pv "$module_path"
   rsync -a --progress "$TEMPLATE_MODULE_DIR/" "$module_path/"
 }
 

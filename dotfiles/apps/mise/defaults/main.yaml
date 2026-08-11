@@ -1,1 +1,6 @@
 # defaults/main.yaml
+
+# Uninstall ffmpeg during `--tags remove`. Off by default: ffmpeg is installed by
+# this topic for the llm-video-frames plugin, but yt-dlp/whisperx/piper-tts share
+# it, so tearing it down is opt-in. See tasks/remove.yaml.
+mise_remove_ffmpeg: false

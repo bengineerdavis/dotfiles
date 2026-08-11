@@ -1,20 +1,54 @@
-# apps/<topic>/tasks/prerequisites.yaml
+# apps/mise/tasks/prerequisites.yaml
 # Core dependencies required before this topic can install or upgrade.
 #
-# Only pkg-manager-tier topics typically need real content here (e.g., Xcode
-# CLI tools for Homebrew). App-tier and runtime-manager topics leave this
-# empty — their dependencies are expressed via topic_requires in meta/main.yml
-# and resolved by the parent playbook.
+# Normally a runtime-manager topic leaves this empty and expresses its deps via
+# topic_requires. ffmpeg is the exception: it is a SYSTEM binary, not a topic,
+# and it is required by a tool this topic materializes from config.toml —
+# the llm-video-frames plugin shells out to `ffmpeg` to split a video into
+# frames. Nothing in the uv/pipx venv vendors it, so without a system ffmpeg
+# `llm -f video-frames:clip.mp4 ...` fails at call time, not at install time.
+#
+# The package manager is OS-specific and guarded in-task (5a pattern): brew on
+# Darwin, apt on Debian. Both are idempotent and re-runnable.
 #
 # Idempotent: safe to re-run. No confirmation needed.
 # Do NOT put install, upgrade, or remove logic here.
 
-# ── Example: install core dependencies via Homebrew ───────────────────────────
-# - name: "Prerequisites: install core packages"
-#   community.general.homebrew:
-#     name:
-#       - <package1>
-#       - <package2>
-#     state: present
-#     path: "{{ homebrew_prefix }}/bin"
-#   when: ansible_facts['os_family'] == 'Darwin'
+# ── ffmpeg: required by the llm-video-frames plugin ───────────────────────────
+- name: "Prerequisites: install ffmpeg via Homebrew (macOS)"
+  community.general.homebrew:
+    name: ffmpeg
+    state: present
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: "Prerequisites: install ffmpeg via apt (Debian)"
+  ansible.builtin.apt:
+    name: ffmpeg
+    state: present
+    update_cache: true
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+# ── Confirm ffmpeg actually resolves on PATH ──────────────────────────────────
+# `state: present` only proves the package manager thinks it is installed. The
+# plugin calls `ffmpeg`/`ffprobe` by name, so what matters is that both resolve
+# on PATH for the user running llm. A brew/apt install that landed outside PATH
+# is the failure this catches.
+- name: "Prerequisites: confirm ffmpeg and ffprobe resolve on PATH"
+  ansible.builtin.command:
+    cmd: "{{ item }} -version"
+  loop:
+    - ffmpeg
+    - ffprobe
+  register: mise_ffmpeg_check
+  changed_when: false
+  failed_when: mise_ffmpeg_check.rc != 0
+
+- name: "Prerequisites: report the ffmpeg build in use"
+  ansible.builtin.debug:
+    msg: >-
+      {{ mise_ffmpeg_check.results
+         | map(attribute='stdout_lines')
+         | map('first')
+         | list }}
+  when: mise_ffmpeg_check is defined

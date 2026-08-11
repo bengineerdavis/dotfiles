@@ -1,2 +1,36 @@
 # apps/mise/tasks/remove.yaml
-# EMPTY
+# Teardown for state this topic creates. Runs only under --tags remove
+# (main.yaml tags it [remove, never], so a normal provision run skips it).
+#
+# Doctrine: anything created in bootstrap/prerequisites/install/upgrade needs a
+# matching teardown here. See docs/CONVENTIONS.md.
+
+# ── ffmpeg (created by prerequisites.yaml) ────────────────────────────────────
+# ffmpeg is installed by this topic for the llm-video-frames plugin, but several
+# other mise-managed tools also depend on it (yt-dlp, whisperx, piper-tts). They
+# are all owned by this same topic, so removing it here is consistent — but it is
+# deliberately opt-in via `mise_remove_ffmpeg` because a shared codec toolchain
+# is the kind of thing a machine may want kept regardless of mise.
+- name: "Remove: uninstall ffmpeg via Homebrew (macOS)"
+  community.general.homebrew:
+    name: ffmpeg
+    state: absent
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - mise_remove_ffmpeg | default(false) | bool
+
+- name: "Remove: uninstall ffmpeg via apt (Debian)"
+  ansible.builtin.apt:
+    name: ffmpeg
+    state: absent
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - mise_remove_ffmpeg | default(false) | bool
+
+- name: "Remove: note that ffmpeg was left in place"
+  ansible.builtin.debug:
+    msg: >-
+      ffmpeg left installed (shared with yt-dlp/whisperx/piper-tts).
+      Re-run with -e mise_remove_ffmpeg=true to uninstall it.
+  when: not (mise_remove_ffmpeg | default(false) | bool)
