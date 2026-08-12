@@ -1,5 +1,9 @@
 # defaults/main.yaml
 
+# The mise config this topic treats as authoritative. Deployed as a symlink into
+# the chezmoi source, so reads here see exactly what mise itself reads.
+mise_config_file: "{{ ansible_facts['env']['HOME'] }}/.config/mise/config.toml"
+
 # Uninstall ffmpeg during `--tags remove`. Off by default: ffmpeg is installed by
 # this topic for the llm-video-frames plugin, but yt-dlp/whisperx/piper-tts share
 # it, so tearing it down is opt-in. See tasks/remove.yaml.

@@ -65,3 +65,59 @@
     ('install' in (mise_install_result.stdout | lower))
     or ('install' in (mise_install_result.stderr | lower))
   failed_when: mise_install_result.rc != 0
+
+# ── Confirm the llm plugins declared in config.toml are actually loadable ─────
+# `mise install --yes` keys off a tool's VERSION, so editing `uvx_args` is a
+# silent no-op: adding `--with llm-video-frames` to "pipx:llm" leaves the
+# existing venv untouched, llm stays on PATH looking healthy, and the plugin
+# never arrives. The failure then surfaces far from its cause, as an unknown
+# fragment loader at prompt time.
+#
+# So assert on the OUTCOME rather than trusting the install: ask llm which
+# plugins it can actually load, diff against what config.toml declares, and
+# force a rebuild only when something is genuinely missing. That keeps
+# config.toml authoritative without reinstalling the venv on every run.
+- name: "Find declared llm plugins that are not loadable"
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "-c"
+      - |
+        import json, re, subprocess, sys, tomllib
+        with open(sys.argv[1], "rb") as fh:
+            cfg = tomllib.load(fh)
+        spec = cfg.get("tools", {}).get("pipx:llm", {})
+        args = spec.get("uvx_args", "") if isinstance(spec, dict) else ""
+        declared = set(re.findall(r"--with\s+(\S+)", args))
+        try:
+            proc = subprocess.run(
+                ["llm", "plugins"], capture_output=True, text=True, check=True
+            )
+            live = {p["name"] for p in json.loads(proc.stdout)}
+        except Exception:
+            # llm absent, or its output was not parseable: treat every declared
+            # plugin as missing so the rebuild below runs.
+            live = set()
+        print("\n".join(sorted(declared - live)))
+      - "{{ mise_config_file }}"
+  environment:
+    # PyMuPDF writes its `fitz` deprecation notice to STDOUT by default, which
+    # lands in the middle of `llm plugins` JSON and breaks the parse. The zsh
+    # env sets this globally but ansible does not source zsh. See
+    # apps/mise/files/zsh/env.zsh.
+    PYMUPDF_MESSAGE: "fd:2"
+  register: mise_llm_missing_plugins
+  changed_when: false
+
+- name: "Rebuild the llm tool venv to pick up newly declared plugins"
+  ansible.builtin.command:
+    cmd: mise install --force pipx:llm
+  when: mise_llm_missing_plugins.stdout | trim | length > 0
+  changed_when: true
+
+- name: "Report the llm plugins that were missing"
+  ansible.builtin.debug:
+    msg: >-
+      Rebuilt pipx:llm to add:
+      {{ mise_llm_missing_plugins.stdout_lines | join(', ') }}
+  when: mise_llm_missing_plugins.stdout | trim | length > 0
