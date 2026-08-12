@@ -173,6 +173,62 @@ _GOLDEN_PROMPT = (
     f"Score this script according to the rubric."
 )
 
+# ── Reference scorecard ────────────────────────────────────────────────────────
+#
+# What a careful reviewer scores _GOLDEN_SCRIPT against the rubric above. This is
+# the yardstick: a judge is measured by how close it lands to these numbers, not
+# by how high it scores. Without it the benchmark rewarded generosity — a model
+# returning straight 10s beat one that correctly found the script's real gaps.
+#
+# These are a considered reading, not ground truth, and they are deliberately a
+# visible constant so they can be argued with. Re-derive them if _GOLDEN_SCRIPT
+# ever changes; a stale reference is worse than none.
+#
+#   structure    9  — shebang, set -euo pipefail, die(), usage() with all three
+#                     documented flags, and a real parser are all present. Short
+#                     of 10 only because there is no main()/entry-point block;
+#                     the script just runs off the end.
+#   correctness  8  — reproduces the original rsync invocation exactly and wires
+#                     both flags through. Loses points on edge cases: SOURCE_DIR
+#                     is never checked for existence, and "Done." is printed
+#                     unconditionally, including after a dry run.
+#   safety       7  — every expansion is quoted and there is no injection route,
+#                     but `--delete` against a remote is genuinely destructive
+#                     and is guarded only by an opt-in --dry-run. The rubric asks
+#                     for dangerous operations to be guarded; this one is not.
+#   style        6  — naming follows the convention (UPPER_SNAKE globals,
+#                     lower_snake functions), but the script carries no comments
+#                     at all, and the rubric explicitly wants comments explaining
+#                     WHY. That is the single biggest gap.
+#   completeness 9  — no placeholders left, usage examples are realistic, and the
+#                     dry-run path announces itself before doing nothing.
+#
+# Mean 7.8. Note this is well below the 10.0 that two local models awarded it.
+_GOLDEN_REFERENCE: dict[str, int] = {
+    "structure":    9,
+    "correctness":  8,
+    "safety":       7,
+    "style":        6,
+    "completeness": 9,
+}
+_GOLDEN_REFERENCE_VERDICT = "pass"
+
+_SCORE_KEYS = tuple(_GOLDEN_REFERENCE)
+
+
+def calibration(scores: dict[str, int]) -> float:
+    """
+    How close a judge's scorecard sits to _GOLDEN_REFERENCE, in 0..1.
+
+    Mean absolute error across the five criteria, normalised by the 0-10 scale
+    and inverted, so 1.0 is a perfect match and being wrong in either direction
+    costs the same. Overrating is a real failure mode for a judge — it waves
+    through scripts that should have been sent back — so it must not be rewarded.
+    """
+    error = sum(abs(scores[k] - _GOLDEN_REFERENCE[k]) for k in _SCORE_KEYS)
+    return max(0.0, 1.0 - (error / len(_SCORE_KEYS)) / 10.0)
+
+
 # ── Data types ─────────────────────────────────────────────────────────────────
 
 @dataclass
@@ -182,6 +238,11 @@ class BenchRun:
     success:    bool
     json_valid: bool
     mean_score: float | None
+    # Per-criterion scores are kept, not just their mean: calibration is measured
+    # against _GOLDEN_REFERENCE criterion by criterion, and a mean alone would let
+    # offsetting errors cancel out and look like agreement.
+    scores:     dict[str, int] | None = None
+    verdict:    str = field(default="")
     raw:        str = field(default="", repr=False)
     error:      str = field(default="", repr=False)
 
@@ -197,6 +258,8 @@ class ModelStats:
     json_rate:      float
     mean_score:     float
     score_stddev:   float
+    calibration:    float   # 1.0 = matches _GOLDEN_REFERENCE exactly
+    verdict_match:  float   # fraction of runs agreeing with the reference verdict
     composite:      float
 
 
@@ -394,10 +457,11 @@ and measures three things:
 
   [cyan]Latency[/cyan]         p50 response time across N runs
 
-  [cyan]Score quality[/cyan]   Does it give sensible, calibrated scores?
+  [cyan]Calibration[/cyan]     How close its scorecard sits to the reference one —
+                  overrating costs exactly as much as underrating.
 
 Results are ranked by a [bold]composite score[/bold]:
-  quality × 0.40  +  JSON validity × 0.35  +  speed × 0.25
+  calibration × 0.40  +  JSON validity × 0.35  +  speed × 0.25
 
 The winner is the model that best balances accuracy and reliability.
 A fast model that returns garbage JSON scores worse than a slower,
@@ -571,10 +635,15 @@ def _run_once(model: str, timeout: int) -> BenchRun:
 
         try:
             data   = json.loads(cleaned)
-            scores = [data["structure"], data["correctness"], data["safety"],
-                      data["style"], data["completeness"]]
+            # int() so a model answering "9" as a string still counts as valid;
+            # a non-numeric answer raises and is caught as invalid JSON below.
+            scores = {key: int(data[key]) for key in _SCORE_KEYS}
             return BenchRun(model=model, latency_s=latency, success=success,
-                            json_valid=True, mean_score=sum(scores) / len(scores), raw=raw)
+                            json_valid=True,
+                            mean_score=sum(scores.values()) / len(scores),
+                            scores=scores,
+                            verdict=str(data.get("verdict", "")).strip().lower(),
+                            raw=raw)
         except Exception:
             return BenchRun(model=model, latency_s=latency, success=success,
                             json_valid=False, mean_score=None, raw=raw,
@@ -595,9 +664,23 @@ def _compute_stats(model: str, runs: list[BenchRun]) -> ModelStats:
     json_rate    = len(good) / len(runs)
     mean_score   = statistics.mean(scores) if scores else 0.0
     p50          = statistics.median(latencies)
-    composite    = (
+
+    # Calibration against _GOLDEN_REFERENCE, not raw magnitude. The previous
+    # formula used mean_score/10 with nothing to compare against, so it scored
+    # generosity: a model answering straight 10s beat one that correctly found
+    # the golden script's real gaps. Measured here, two local models did exactly
+    # that — both awarded 10.0 to a script with no comments and an unguarded
+    # `--delete`, and outranked the model that caught it.
+    cal = [calibration(r.scores) for r in good if r.scores]
+    mean_calibration = statistics.mean(cal) if cal else 0.0
+    verdict_match = (
+        sum(1 for r in good if r.verdict == _GOLDEN_REFERENCE_VERDICT) / len(good)
+        if good else 0.0
+    )
+
+    composite = (
         json_rate * 0.35
-        + (mean_score / 10.0) * 0.40
+        + mean_calibration * 0.40
         + max(0.0, 1.0 - p50 / 120.0) * 0.25
     )
     return ModelStats(
@@ -609,6 +692,8 @@ def _compute_stats(model: str, runs: list[BenchRun]) -> ModelStats:
         json_rate=json_rate,
         mean_score=mean_score,
         score_stddev=statistics.stdev(scores) if len(scores) > 1 else 0.0,
+        calibration=mean_calibration,
+        verdict_match=verdict_match,
         composite=composite,
     )
 
@@ -650,7 +735,8 @@ def _print_results(ranked: list[ModelStats], n_runs: int, verbose: bool) -> None
         header_style="bold",
         title=f"[bold]model-bench results[/bold]  ({n_runs} runs · {_GOLDEN_COMMAND[:50]}…)",
         title_style="",
-        caption="Composite = quality×0.40 + JSON validity×0.35 + speed×0.25",
+        caption=(f"Composite = calibration×0.40 + JSON validity×0.35 + speed×0.25   "
+                 f"(reference mean {sum(_GOLDEN_REFERENCE.values())/len(_GOLDEN_REFERENCE):.1f})"),
         caption_style="dim",
     )
     tbl.add_column("Rank",      justify="right",  style="bold", no_wrap=True)
@@ -660,13 +746,19 @@ def _print_results(ranked: list[ModelStats], n_runs: int, verbose: bool) -> None
     tbl.add_column("OK",        justify="center",             no_wrap=True)
     tbl.add_column("JSON",      justify="center",             no_wrap=True)
     tbl.add_column("Score",     justify="right",              no_wrap=True)
+    tbl.add_column("Cal",       justify="right",              no_wrap=True)
     tbl.add_column("Composite", justify="left",               no_wrap=True, min_width=10)
 
+    ref_mean = sum(_GOLDEN_REFERENCE.values()) / len(_GOLDEN_REFERENCE)
     for rank, s in enumerate(ranked, 1):
         n          = len(s.runs)
         ok_frac    = f"{sum(1 for r in s.runs if r.success)}/{n}"
         json_frac  = f"{sum(1 for r in s.runs if r.json_valid)}/{n}"
         score_str  = f"{s.mean_score:.1f}" if s.json_rate > 0 else "—"
+        cal_str    = f"{s.calibration:.2f}" if s.json_rate > 0 else "—"
+        # Score is now shown for information only — how far a model sits from the
+        # reference is what ranks it, so colour by distance rather than height.
+        drift      = abs(s.mean_score - ref_mean)
         tbl.add_row(
             Text(str(rank), style="bold green" if rank == 1 else ("bold" if rank <= 3 else "")),
             s.model,
@@ -674,7 +766,8 @@ def _print_results(ranked: list[ModelStats], n_runs: int, verbose: bool) -> None
             f"±{s.stddev_latency:.1f}",
             Text(ok_frac,   style="green" if s.success_rate == 1.0 else ("yellow" if s.success_rate > 0 else "red")),
             Text(json_frac, style="green" if s.json_rate    == 1.0 else ("yellow" if s.json_rate    > 0 else "red")),
-            Text(score_str, style="green" if s.mean_score >= 7.0 else ("yellow" if s.mean_score >= 5.0 else "red")),
+            Text(score_str, style="green" if drift <= 0.5 else ("yellow" if drift <= 1.5 else "red")),
+            Text(cal_str,   style="green" if s.calibration >= 0.90 else ("yellow" if s.calibration >= 0.80 else "red")),
             _bar(s.composite),
         )
 
@@ -924,10 +1017,17 @@ def main(
                 "json_rate": s.json_rate,
                 "mean_score": s.mean_score,
                 "score_stddev": s.score_stddev,
+                "calibration": s.calibration,
+                "verdict_match": s.verdict_match,
                 "composite": s.composite,
+                "reference": _GOLDEN_REFERENCE,
                 "runs": [
+                    # Per-criterion scores are exported too: the mean alone cannot
+                    # show WHERE a judge diverged from the reference, which is the
+                    # interesting part when comparing two similar composites.
                     {"latency_s": r.latency_s, "success": r.success,
-                     "json_valid": r.json_valid, "mean_score": r.mean_score, "error": r.error}
+                     "json_valid": r.json_valid, "mean_score": r.mean_score,
+                     "scores": r.scores, "verdict": r.verdict, "error": r.error}
                     for r in s.runs
                 ],
             }
