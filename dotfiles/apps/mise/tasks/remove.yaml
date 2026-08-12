@@ -6,18 +6,35 @@
 # matching teardown here. See docs/CONVENTIONS.md.
 
 # ── ffmpeg (created by prerequisites.yaml) ────────────────────────────────────
-# ffmpeg is installed by this topic for the llm-video-frames plugin, but several
-# other mise-managed tools also depend on it (yt-dlp, whisperx, piper-tts). They
-# are all owned by this same topic, so removing it here is consistent — but it is
-# deliberately opt-in via `mise_remove_ffmpeg` because a shared codec toolchain
-# is the kind of thing a machine may want kept regardless of mise.
+# Two independent conditions must BOTH hold before ffmpeg is uninstalled:
+#
+#   1. mise_remove_ffmpeg is true. Off by default — several mise-managed tools
+#      (yt-dlp, whisperx, piper-tts) also use ffmpeg, so a shared codec
+#      toolchain is the kind of thing a machine may want kept regardless.
+#   2. No OTHER topic declares ffmpeg in its topic_requires. requires_map is the
+#      reverse dependency index built by the parent playbook; consulting it is
+#      what stops this teardown from breaking a topic it has never heard of.
+#
+# requires_map is undefined when this role runs standalone (run-role.sh invokes
+# apps/mise/playbook.yaml directly, skipping the parent's pre_tasks). Defaulting
+# it to {} makes the check fail SAFE: with no index to prove ffmpeg is
+# unshared, the removal is skipped rather than assumed harmless.
+- name: "Remove: find other topics that require ffmpeg"
+  ansible.builtin.set_fact:
+    mise_ffmpeg_consumers: >-
+      {{ (requires_map | default({})).get('ffmpeg', [])
+         | reject('equalto', 'mise') | list }}
+    mise_ffmpeg_index_available: "{{ requires_map is defined }}"
+
 - name: "Remove: uninstall ffmpeg via Homebrew (macOS)"
   community.general.homebrew:
     name: ffmpeg
     state: absent
   when:
     - ansible_facts['os_family'] == 'Darwin'
-    - mise_remove_ffmpeg | default(false) | bool
+    - mise_remove_ffmpeg | bool
+    - mise_ffmpeg_index_available | bool
+    - mise_ffmpeg_consumers | length == 0
 
 - name: "Remove: uninstall ffmpeg via apt (Debian)"
   ansible.builtin.apt:
@@ -26,11 +43,24 @@
   become: true
   when:
     - ansible_facts['os_family'] == 'Debian'
-    - mise_remove_ffmpeg | default(false) | bool
+    - mise_remove_ffmpeg | bool
+    - mise_ffmpeg_index_available | bool
+    - mise_ffmpeg_consumers | length == 0
 
-- name: "Remove: note that ffmpeg was left in place"
+- name: "Remove: explain why ffmpeg was left installed"
   ansible.builtin.debug:
     msg: >-
-      ffmpeg left installed (shared with yt-dlp/whisperx/piper-tts).
-      Re-run with -e mise_remove_ffmpeg=true to uninstall it.
-  when: not (mise_remove_ffmpeg | default(false) | bool)
+      {%- if not (mise_remove_ffmpeg | bool) -%}
+      ffmpeg left installed: opt-in only. Re-run with -e mise_remove_ffmpeg=true.
+      {%- elif not (mise_ffmpeg_index_available | bool) -%}
+      ffmpeg left installed: requires_map unavailable (role run standalone), so
+      no other topic's claim on ffmpeg could be ruled out. Run the parent
+      playbook to tear it down.
+      {%- else -%}
+      ffmpeg left installed: still required by
+      {{ mise_ffmpeg_consumers | sort | join(', ') }}.
+      {%- endif -%}
+  when: >-
+    not (mise_remove_ffmpeg | bool)
+    or not (mise_ffmpeg_index_available | bool)
+    or mise_ffmpeg_consumers | length > 0
