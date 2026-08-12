@@ -18,10 +18,35 @@
 #   - $2 (output_file.md) defines where the resulting markdown digest will be saved.
 #
 # -------------------------------------------------------------------------------------------
+
+# Check EVERY dependency this script shells out to, system tools and hand-rolled
+# ~/bin scripts alike — a standalone script cannot assume the machine running it
+# was ever provisioned. Being topic-managed is not a reason to skip the check:
+# it only means something *should* have installed it, which is exactly the
+# assumption that breaks on a fresh or half-applied box. Failing here names the
+# missing dependency; failing later means a bare "command not found" swallowed
+# by a redirect, after the output file has already been truncated.
+require() {
+    local missing=()
+    local cmd
+    for cmd in "$@"; do
+        command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
+    done
+    if ((${#missing[@]})); then
+        printf '%s: missing dependencies: %s\n' "${0##*/}" "${missing[*]}" >&2
+        printf '%s: ~/bin scripts come from `chezmoi apply ~/bin`; system tools\n' \
+            "${0##*/}" >&2
+        printf '%s: come from the ansible topics (`update.sh`).\n' "${0##*/}" >&2
+        exit 127
+    fi
+}
+
+require llm-ctx
+
 PROMPT=$(cat <<'PROMPT'
 Your task is to review all documents here, including previously defined contexts
 and create a detected, easy to read, and accurate digest of the information. Generally,
-this will be in the context of support, so you're role is as a colleague or experience managed
+this will be in the context of support, so your role is as a colleague or experienced manager
 in support reviewing these items and creating a well-formatted markdown document that both summarizes
 what has happened, captures the chronological series of events, and extracts important questions
 analysis and next steps for the given support ticket. 

@@ -9,6 +9,7 @@ chronological markdown summary of the entire correspondence chain.
 import argparse
 import glob
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -26,6 +27,30 @@ PROMPT = (
 )
 
 MODEL = "gemma4:31b-mlx"
+
+
+def require(*deps: str) -> None:
+    """Abort unless every named dependency is on PATH.
+
+    Checks EVERY dependency this script shells out to, system tools and
+    hand-rolled ~/bin scripts alike — a standalone script cannot assume the
+    machine running it was ever provisioned. Being topic-managed is not a reason
+    to skip the check: it only means something *should* have installed it, which
+    is exactly the assumption that breaks on a fresh or half-applied box.
+    """
+    missing = [d for d in deps if shutil.which(d) is None]
+    if not missing:
+        return
+
+    prog = os.path.basename(sys.argv[0])
+    print(f"{prog}: missing dependencies: {', '.join(missing)}", file=sys.stderr)
+    print(
+        f"{prog}: ~/bin scripts come from `chezmoi apply ~/bin`; system tools "
+        "come from the ansible topics (`update.sh`).",
+        file=sys.stderr,
+    )
+    # 127 is the conventional "command not found" status.
+    raise SystemExit(127)
 
 
 def performance_logger(logfile_path):
@@ -55,6 +80,10 @@ def performance_logger(logfile_path):
 
 @performance_logger(os.path.join(os.getcwd(), "mailbox.log"))
 def main(attachments_pattern: str, output_file: str, logfile: str):
+    # Checked before any globbing or file writing so a half-deployed machine
+    # fails without leaving a truncated output_file behind.
+    require("llm-ctx")
+
     # Expand glob (recursive) and filter to regular files
     matches = glob.glob(attachments_pattern, recursive=True)
     files = [p for p in matches if os.path.isfile(p)]
@@ -87,10 +116,14 @@ def main(attachments_pattern: str, output_file: str, logfile: str):
         with open(output_file, "w", encoding="utf-8") as out:
             subprocess.run(cmd, stdout=out, check=False)
     except FileNotFoundError:
+        # require() above makes this near-unreachable; kept as a backstop for
+        # llm-ctx vanishing mid-run. Previously this printed and returned, so
+        # mailbox exited 0 and looked successful while writing an empty mail.md.
         err = "llm-ctx not found in PATH."
-        print(err)
+        print(err, file=sys.stderr)
         with open(logfile, "a", encoding="utf-8") as lf:
             lf.write(err + "\n")
+        raise SystemExit(127) from None
 
 
 if __name__ == "__main__":

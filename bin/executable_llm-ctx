@@ -6,6 +6,7 @@
 #   "files-to-prompt",
 #   "llm-ollama",
 #   "llm-pdf-to-images",
+#   "llm-fragments-pdf",
 #   "llm-video-frames",
 # ]
 # ///
@@ -138,6 +139,33 @@ def is_multimodal(model_id: str) -> bool:
         return False
 
 
+def require(*deps: str) -> None:
+    """Abort unless every named dependency is on PATH.
+
+    Checks EVERY dependency this script shells out to, system tools and
+    hand-rolled ~/bin scripts alike — a standalone script cannot assume the
+    machine running it was ever provisioned. Being topic-managed is not a reason
+    to skip the check: it only means something *should* have installed it, which
+    is exactly the assumption that breaks on a fresh or half-applied box.
+
+    `llm` and `files-to-prompt` are PEP 723 dependencies, so under `uv run` they
+    resolve to this script's own venv rather than the mise-managed copies. That
+    normally makes them present by construction — but a partially built venv
+    still fails here with a name instead of a traceback from a subprocess call.
+    """
+    missing = [d for d in deps if shutil.which(d) is None]
+    if not missing:
+        return
+
+    info(
+        f"Error: missing dependencies: {', '.join(missing)}\n"
+        "  ~/bin scripts come from `chezmoi apply ~/bin`; system tools come from\n"
+        "  the ansible topics (`update.sh`)."
+    )
+    # 127 is the conventional "command not found" status.
+    sys.exit(127)
+
+
 def video_fragment(path: Path, fps: float, timestamps: bool) -> str:
     """Build an llm-video-frames fragment spec for one video file.
 
@@ -239,6 +267,45 @@ def auto_format(model_id: str) -> str:
     return fmt
 
 
+# Below this many characters per page the "text layer" is almost certainly just
+# page furniture — a header, a page number, an OCR watermark — rather than real
+# content, and the scanned-page path will do better. Deliberately low: a false
+# fallback only costs a model call, while a false accept silently drops the body
+# of the document from the context.
+MIN_PDF_CHARS_PER_PAGE = 40
+
+
+def pdf_text_layer(path: Path) -> str | None:
+    """Return a PDF's embedded text as markdown, or None if it has none worth using.
+
+    None means "scanned, send it through the vision path". An import failure also
+    returns None so a missing plugin degrades to the old behaviour rather than
+    taking the whole run down.
+    """
+    try:
+        import pymupdf4llm
+        import pymupdf
+    except ImportError as exc:
+        log.debug("pymupdf4llm unavailable (%s) — using the page-image path", exc)
+        return None
+
+    try:
+        with pymupdf.open(path) as doc:
+            pages = doc.page_count
+        text = pymupdf4llm.to_markdown(str(path)).strip()
+    except Exception as exc:
+        log.warning("Text-layer extraction failed for %s: %s", path, exc)
+        return None
+
+    if not text or len(text) < MIN_PDF_CHARS_PER_PAGE * max(pages, 1):
+        log.debug(
+            "PDF text layer too sparse (%d chars over %d page(s)): %s",
+            len(text), pages, path,
+        )
+        return None
+    return text
+
+
 def preprocess_binary(
     path: Path,
     out: tempfile.NamedTemporaryFile,
@@ -250,6 +317,25 @@ def preprocess_binary(
     log.info("Pre-processing binary: %s", path)
 
     if ext == ".pdf":
+        # Prefer the text layer. Rendering pages to images and asking a vision
+        # model to read them back is the only option for a scanned PDF, but for
+        # one that already carries text it is the expensive way to get a worse
+        # answer: it costs a model round-trip and puts the text through a
+        # transcription step that can drop or invent characters. pymupdf4llm
+        # (the engine behind llm-fragments-pdf) returns it verbatim, for free.
+        extracted = pdf_text_layer(path)
+        if extracted is not None:
+            log.info(
+                "PDF has a text layer (%d chars) — extracted directly, no model call: %s",
+                len(extracted),
+                path,
+            )
+            out.write(f"## {path.name}\n".encode())
+            out.write(extracted.encode())
+            out.write(b"\n")
+            return
+
+        log.info("PDF has no usable text layer — falling back to page images: %s", path)
         cmd = [
             "llm",
             "-f",
@@ -444,6 +530,10 @@ def main() -> None:
 
     args = parser.parse_args(argv)
     setup_logging(args.verbose)
+
+    # Checked before any model lookup or file classification. ffmpeg and the
+    # video-frames plugin are checked later, only if a video actually matched.
+    require("llm", "files-to-prompt")
 
     if not prompt:
         info("Error: prompt cannot be empty.")

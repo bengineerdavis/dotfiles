@@ -20,6 +20,31 @@
 #
 # -----------------------------------------------------------------------------
 
+## DEPENDENCIES ##
+# Check EVERY dependency this script shells out to, system tools and hand-rolled
+# ~/bin scripts alike — a standalone script cannot assume the machine running it
+# was ever provisioned. Being topic-managed is not a reason to skip the check:
+# it only means something *should* have installed it, which is exactly the
+# assumption that breaks on a fresh or half-applied box. Failing here names the
+# missing dependency; failing later means a bare "command not found" swallowed
+# by a redirect, after the output file has already been truncated.
+require() {
+    local missing=()
+    local cmd
+    for cmd in "$@"; do
+        command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
+    done
+    if ((${#missing[@]})); then
+        printf '%s: missing dependencies: %s\n' "${0##*/}" "${missing[*]}" >&2
+        printf '%s: ~/bin scripts come from `chezmoi apply ~/bin`; system tools\n' \
+            "${0##*/}" >&2
+        printf '%s: come from the ansible topics (`update.sh`).\n' "${0##*/}" >&2
+        exit 127
+    fi
+}
+
+require llm-ctx
+
 ## VARIABLES ##
 # Use existing MODEL env var if set; otherwise use first script arg; fallback to default.
 if [[ -n "$1" ]]; then

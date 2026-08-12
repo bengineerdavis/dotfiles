@@ -19,6 +19,7 @@ Dependencies: llm
 
 import os
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -182,10 +183,8 @@ def run_llm(opts: Options, stdout) -> int:
                 return subprocess.run(cmd, stdin=stdin, stdout=stdout, env=env).returncode
         return subprocess.run(cmd, stdout=stdout, env=env).returncode
     except FileNotFoundError:
-        # Handled here rather than as a preflight `which` check: mise owns llm,
-        # so provisioning already guarantees it and a preflight guard would just
-        # add noise — the convention bin/mailbox and bin/support-summarized
-        # document. Catching it still beats letting a traceback escape.
+        # Backstop for llm vanishing between require() and here. The preflight in
+        # main() is the primary guard.
         die("Dependency 'llm' not found. Please install it first.")
         return 1  # unreachable; die() exits
 
@@ -244,8 +243,28 @@ def process(opts: Options) -> None:
     opts.log_v(f"Wrote redacted output to: {opts.output}")
 
 
+def require(*deps: str) -> None:
+    """Abort unless every named dependency is on PATH.
+
+    Checks EVERY dependency this script shells out to, system tools and
+    hand-rolled ~/bin scripts alike — a standalone script cannot assume the
+    machine running it was ever provisioned. Being topic-managed is not a reason
+    to skip the check: it only means something *should* have installed it, which
+    is exactly the assumption that breaks on a fresh or half-applied box.
+    """
+    missing = [d for d in deps if shutil.which(d) is None]
+    if missing:
+        die(f"Missing dependencies: {', '.join(missing)}. "
+            "~/bin scripts come from `chezmoi apply ~/bin`; system tools come "
+            "from the ansible topics (`update.sh`).")
+
+
 def main() -> None:
-    process(parse_args(sys.argv[1:]))
+    opts = parse_args(sys.argv[1:])
+    # Preflight before any temp file is created, so a missing dependency cannot
+    # leave a half-written redaction behind.
+    require("llm")
+    process(opts)
 
 
 if __name__ == "__main__":
