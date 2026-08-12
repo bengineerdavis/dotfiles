@@ -122,6 +122,47 @@
         label: "{{ item.1 }} → {{ item.0.topic_name }}"
       tags: [always]
 
+    # ── Build the reverse index: dep → every topic that requires it ──────────
+    # provides_map answers "who installs X". requires_map answers "who NEEDS X",
+    # which is the question teardown has to ask: uninstalling a shared system
+    # package because one topic is going away silently breaks every other topic
+    # that also depends on it. A topic's remove.yaml consults this before
+    # tearing down anything it did not exclusively own.
+    #
+    # Built from topic_metadata (every topic in apps/), not topics_in_run — a
+    # topic excluded from this run by topic_os still counts as a consumer. Only
+    # removing a dep no topic anywhere claims is safe.
+    - name: "Initialize requires_map as empty"
+      ansible.builtin.set_fact:
+        requires_map: {}
+      tags: [always]
+
+    - name: "Populate requires_map (dep → topics requiring it)"
+      ansible.builtin.set_fact:
+        requires_map: >-
+          {{ requires_map | combine({
+               item.1: (requires_map[item.1] | default([])) + [item.0.topic_name]
+             }) }}
+      loop: "{{ topic_metadata | subelements('topic_requires', skip_missing=True) }}"
+      loop_control:
+        label: "{{ item.1 }} ← {{ item.0.topic_name }}"
+      tags: [always]
+
+    - name: "Report dependencies shared by more than one topic"
+      ansible.builtin.debug:
+        msg: >-
+          [shared-dep] '{{ item.key }}' is required by {{ item.value | length }}
+          topics ({{ item.value | sort | join(', ') }}) and is
+          {{ "provided by topic '" ~ provides_map_all[item.key] ~ "'"
+             if item.key in provides_map_all
+             else "not provided by any topic" }}.
+          Teardown of any one of them must leave it installed.
+      loop: "{{ requires_map | dict2items | sort(attribute='key') }}"
+      loop_control:
+        label: "{{ item.key }}"
+      when: item.value | length > 1
+      tags: [always]
+
     # ── Sanity check: resolve every topic_requires ───────────────────────────
     # For each (topic, required dep) pair we resolve to one of three states:
     #   OK            — provided by a topic in run, or present on PATH
