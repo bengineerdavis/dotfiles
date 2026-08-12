@@ -13,6 +13,7 @@ state is read or written.
 """
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import pathlib
@@ -141,3 +142,57 @@ def test_command_with_embedded_flags():
         f"Embedded flags in shell command caused option-parse error:\n{combined[:400]}"
     )
     assert "error: unrecognized" not in combined.lower()
+
+
+# ── Cases carried over from tests/binned.bats ─────────────────────────────────
+# The bats suite covered these four and the pytest suite did not. Ported here so
+# binned.bats can be retired; everything else it asserted was already covered,
+# usually more thoroughly (its single _sanitize_name case is five property tests
+# in test_binned_property.py).
+
+def test_help_flag_exits_zero():
+    """--help is distinct from the no-args path and must also succeed."""
+    result = _run(["--help"])
+    assert result.returncode == 0, f"expected exit 0, got {result.returncode}\n{result.stderr}"
+    combined = result.stdout + result.stderr
+    assert "binned" in combined.lower()
+
+
+def test_pending_with_no_deferred_scripts_reports_empty():
+    """BINNED_HOME is a fresh tmp dir, so nothing is deferred yet."""
+    result = _run(["pending"])
+    assert result.returncode == 0, f"expected exit 0, got {result.returncode}\n{result.stderr}"
+    combined = (result.stdout + result.stderr).lower()
+    # Must say there is nothing rather than printing a bare empty listing.
+    assert any(word in combined for word in ("no ", "empty", "nothing")), combined[:300]
+
+
+def test_resume_with_unknown_name_exits_nonzero():
+    result = _run(["resume", "definitely-not-a-real-deferred-script"])
+    assert result.returncode != 0, (
+        "resuming a script that was never deferred should fail, "
+        f"got exit 0\n{result.stdout[:300]}"
+    )
+
+
+def test_list_pending_returns_deferred_scripts(_tmp_binned_home):
+    """Round-trip through the real on-disk layout: save one, then list it."""
+    pending = _tmp_binned_home / "pending"
+    pending.mkdir(parents=True, exist_ok=True)
+    # Schema must match save_pending() exactly — list_pending() parses each file
+    # and silently drops anything that fails, so a drifted fixture would make
+    # this pass or fail for the wrong reason.
+    (pending / "my-deferred-script.json").write_text(json.dumps({
+        "name": "my-deferred-script",
+        "cmd": "echo deferred-marker",
+        "script": "#!/usr/bin/env bash\necho hi\n",
+        "test_files": {},
+        "saved_at": "2026-08-12T09:00:00",
+    }))
+    result = _run(["pending"])
+    assert result.returncode == 0, result.stderr
+    combined = result.stdout + result.stderr
+    assert "my-deferred-script" in combined, combined[:300]
+    # The rendered date comes from saved_at, so its presence proves the file was
+    # parsed rather than the directory merely globbed for names.
+    assert "2026-08-12" in combined, combined[:300]
