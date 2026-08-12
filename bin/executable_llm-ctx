@@ -550,7 +550,9 @@ def main() -> None:
     text_files, binary_files = classify_files(args.globs)
     attachment_paths: list[Path] = []
     fragment_args: list[str] = []
-    tmp_path: Path | None = None
+    # More than one temp file can be in play now (extracted PDF text, plus the
+    # pre-processed binary context on the text-only path), so track them all.
+    tmp_paths: list[Path] = []
 
     if binary_files:
         pdf_files = [f for f in binary_files if f.suffix.lower() == ".pdf"]
@@ -567,18 +569,54 @@ def main() -> None:
         require_ffmpeg(video_files)
         require_video_frames_plugin(video_files)
 
+        # Resolve PDFs before the multimodal split, not inside it. A PDF that
+        # carries its own text is better read than photographed either way:
+        # extraction is verbatim and costs no model round-trip, while rendering
+        # to images adds a transcription step that can drop or invent characters.
+        # Being able to see images is not a reason to use them. Only scans need
+        # the image path.
+        pdf_extracted: list[tuple[Path, str]] = []
+        pdf_scanned: list[Path] = []
+        for f in pdf_files:
+            text = pdf_text_layer(f)
+            if text is None:
+                pdf_scanned.append(f)
+            else:
+                pdf_extracted.append((f, text))
+
+        if pdf_extracted:
+            log.info(
+                "Read a text layer from %d of %d PDF(s) — no rendering needed",
+                len(pdf_extracted),
+                len(pdf_files),
+            )
+            with tempfile.NamedTemporaryFile(
+                suffix=".md", prefix="llm-ctx-pdf-", delete=False
+            ) as tmp:
+                pdf_tmp_path = Path(tmp.name)
+                for f, text in pdf_extracted:
+                    tmp.write(f"## {f.name}\n".encode())
+                    tmp.write(text.encode())
+                    tmp.write(b"\n\n")
+            tmp_paths.append(pdf_tmp_path)
+            text_files.append(pdf_tmp_path)
+
+        # Whatever is left for the branches below: extracted PDFs are done.
+        done = {f for f, _ in pdf_extracted}
+        binary_files = [f for f in binary_files if f not in done]
+
         if multimodal:
             log.info(
                 "Using native attachments for %d binary file(s), "
                 "pdf-to-images fragments for %d PDF(s), "
                 "video-frames fragments for %d video(s) at %g fps",
                 len(attachable),
-                len(pdf_files),
+                len(pdf_scanned),
                 len(video_files),
                 args.fps,
             )
             attachment_paths = attachable
-            for f in pdf_files:
+            for f in pdf_scanned:
                 fragment_args += ["-f", f"pdf-to-images:{f}"]
             for f in video_files:
                 fragment_args += [
@@ -593,11 +631,12 @@ def main() -> None:
             with tempfile.NamedTemporaryFile(
                 suffix=".md", prefix="llm-ctx-binary-", delete=False
             ) as tmp:
-                tmp_path = Path(tmp.name)
+                bin_tmp_path = Path(tmp.name)
                 for f in binary_files:
                     preprocess_binary(f, tmp, args.fps, args.frame_timestamps)
-            log.debug("Binary context written to: %s", tmp_path)
-            text_files.append(tmp_path)
+            log.debug("Binary context written to: %s", bin_tmp_path)
+            tmp_paths.append(bin_tmp_path)
+            text_files.append(bin_tmp_path)
 
     llm_cmd = build_llm_cmd(prompt, model_id, attachment_paths, fragment_args)
 
@@ -612,9 +651,9 @@ def main() -> None:
             # prompt — detach it so an attachments-only run can't block.
             subprocess.run(llm_cmd, stdin=subprocess.DEVNULL, check=True)
     finally:
-        if tmp_path:
-            log.debug("Cleaning up temp file: %s", tmp_path)
-            tmp_path.unlink(missing_ok=True)
+        for path in tmp_paths:
+            log.debug("Cleaning up temp file: %s", path)
+            path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
