@@ -77,13 +77,19 @@ clamav_max_threads: 6
 # Rotate scan.log once it passes this size. The unmanaged setup let it reach 5.4 MB.
 clamav_log_max_bytes: 5242880
 
-# Paths excluded from clamd's scans. VM disk images and container stores are large,
-# opaque, and rewritten constantly — scanning them is expensive and pointless.
+# Paths excluded from clamd's scans. Container and VM stores are large, opaque, rewritten
+# constantly, and nothing executes from them on the host.
+#
+# Every rule here is path-anchored on purpose. There used to be an unanchored
+# `\.(raw|qcow2|dmg|iso)$`, which applied everywhere — including ~/code, so a disk image
+# committed to a repo or a .dmg downloaded into a project was skipped without a word.
+# ~/code is scanned in full, and a .dmg is an ordinary malware carrier, so disk-image
+# skipping is now confined to the Library trees where VM images actually live.
 clamav_exclude_paths:
   - '^{{ ansible_facts["env"]["HOME"] }}/Library/Application\ Support/rancher-desktop/'
   - '^{{ ansible_facts["env"]["HOME"] }}/Library/Containers/com.docker.docker/'
   - '^{{ ansible_facts["env"]["HOME"] }}/\.docker/'
-  - '\.(raw|qcow2|dmg|iso)$'
+  - '^{{ ansible_facts["env"]["HOME"] }}/Library/.*\.(raw|qcow2|img)$'
 
 # Heuristic alerting. These are anomaly rules rather than known-malware signatures:
 # they fire on truncated, encrypted and macro-bearing files. Deliberately on, because
