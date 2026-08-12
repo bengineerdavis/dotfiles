@@ -56,8 +56,14 @@ log() {
 }
 
 # Keep run.log and scan.log bounded. The unmanaged setup let scan.log reach 5.4 MB.
+#
+# `wc -c` rather than `stat`, on purpose. This machine has GNU coreutils ahead of the BSD
+# tools interactively, where `stat -f %z` means "filesystem status" and returns junk, while
+# under launchd the same script gets BSD /usr/bin/stat where it means "format". A script
+# that rotates logs only when run one way is worse than one that never rotates them, so
+# use the form that behaves identically everywhere.
 for f in "$SCAN_LOG" "$RUN_LOG"; do
-	if [ -f "$f" ] && [ "$(stat -f %z "$f" 2>/dev/null || echo 0)" -gt "$MAX_LOG_BYTES" ]; then
+	if [ -f "$f" ] && [ "$(wc -c <"$f" 2>/dev/null || echo 0)" -gt "$MAX_LOG_BYTES" ]; then
 		mv -f "$f" "$f.1"
 	fi
 done
@@ -65,30 +71,49 @@ done
 log "=== maintenance run starting ==="
 
 # ── 1. clamd ──────────────────────────────────────────────────────────────────
+# Liveness is decided by asking the daemon, not by `pgrep`. A clamd that is shutting down
+# still matches pgrep for a moment while its socket is already gone, and treating that as
+# "already running" meant the script never started its own daemon and then aborted after
+# waiting the full 30 seconds — doing no scan at all. Reproduced by running twice in quick
+# succession, which is exactly what a manual run next to the scheduled one looks like.
+clamd_responds() {
+	[ -S "$SOCKET" ] || return 1
+	[ "$(printf 'PING\n' | nc -U "$SOCKET" 2>/dev/null | tr -d '\r\n')" = "PONG" ]
+}
+
 we_started_clamd=0
-if pgrep -x clamd >/dev/null 2>&1; then
-	log "clamd already running (pid $(pgrep -x clamd | head -1))"
+if clamd_responds; then
+	log "clamd already running and answering on its socket"
 else
+	# A process may exist but be mid-shutdown or wedged. Let it finish rather than racing it.
+	if pgrep -x clamd >/dev/null 2>&1; then
+		log "a clamd process exists but is not answering; waiting for it to exit"
+		waited=0
+		while pgrep -x clamd >/dev/null 2>&1 && [ "$waited" -lt 15 ]; do
+			sleep 1
+			waited=$((waited + 1))
+		done
+	fi
 	log "starting clamd"
-	if "$CLAMD" --foreground=no; then
-		we_started_clamd=1
-	else
+	if ! "$CLAMD" --foreground=no; then
 		log "ERROR: clamd failed to start; aborting"
 		exit 1
 	fi
+	we_started_clamd=1
 fi
 
-# Wait for the socket clamd.conf actually declares.
+# Wait until it actually answers, not merely until a socket file exists — a stale socket
+# from a crashed daemon would otherwise look like success.
 counter=0
-while [ ! -S "$SOCKET" ] && [ "$counter" -lt 30 ]; do
+while ! clamd_responds && [ "$counter" -lt 30 ]; do
 	sleep 1
 	counter=$((counter + 1))
 done
-if [ ! -S "$SOCKET" ]; then
-	log "ERROR: socket $SOCKET did not appear after ${counter}s; aborting"
+if ! clamd_responds; then
+	log "ERROR: clamd not answering on $SOCKET after ${counter}s; aborting"
 	exit 1
 fi
-log "socket ready after ${counter}s"
+log "clamd ready after ${counter}s"
 
 # ── 2. official signatures ────────────────────────────────────────────────────
 if "$FRESHCLAM" --quiet >>"$RUN_LOG" 2>&1; then
@@ -120,19 +145,88 @@ log "scanning $scan_path_count path(s)"
 # descriptors would only force clamdscan to walk the tree and hand over every file
 # individually, instead of sending one path and letting clamd walk it. On a tree the
 # size of $HOME that is a large amount of extra IPC for no access benefit.
+# Scan into a per-run log, not straight into scan.log. scan.log is cumulative, and mixing
+# runs in one file makes it impossible to tell which findings belong to which scan — a
+# killed run leaves FOUND lines with no summary, so its findings look like the next run's.
+# The per-run file is what gets diffed; it is appended to scan.log afterwards for history.
+# Explicit XXXXXX template: GNU mktemp (ahead of BSD on this machine's interactive PATH)
+# rejects `-t prefix` with "too few X's in template", while BSD mktemp accepts it. This
+# form works with both.
+RUN_SCAN_LOG=$(mktemp "${TMPDIR:-/tmp}/clamav-run-scan.XXXXXX")
+trap 'rm -f "$RUN_SCAN_LOG"' EXIT
+
 {% if clamav_multiscan %}
 # --multiscan is enabled. It was measured to exhaust memory and crash clamd on this
 # machine; see the note in defaults/main.yaml before leaving it on.
-nice -n 20 "$CLAMDSCAN" --recursive --infected --multiscan "${SCAN_PATHS[@]}" --log="$SCAN_LOG"
+nice -n 20 "$CLAMDSCAN" --infected --multiscan "${SCAN_PATHS[@]}" --log="$RUN_SCAN_LOG"
 {% else %}
-nice -n 20 "$CLAMDSCAN" --recursive --infected "${SCAN_PATHS[@]}" --log="$SCAN_LOG"
+nice -n 20 "$CLAMDSCAN" --infected "${SCAN_PATHS[@]}" --log="$RUN_SCAN_LOG"
 {% endif %}
 scan_rc=$?
+cat "$RUN_SCAN_LOG" >>"$SCAN_LOG"
+
+# ── 4b. baseline diff ─────────────────────────────────────────────────────────
+# A scan that reports the same adjudicated false positives every day trains you to ignore
+# it. Compare against reviewed-and-accepted findings so a non-zero exit means "something
+# NEW appeared" — which is actionable — while keeping every file in scope.
+#
+# Matching is sha256 + signature. If an accepted file's contents change, the hash changes
+# and it alerts again, so acceptance cannot be inherited by modified content.
+BASELINE="{{ clamav_baseline }}"
+NEW_FINDINGS="{{ clamav_new_findings }}"
+: >"$NEW_FINDINGS"
+known_count=0
+new_count=0
+unreadable_count=0
+
+while IFS= read -r found_line; do
+	# clamdscan writes "<path>: <SIGNATURE> FOUND". Signatures never contain spaces, so
+	# taking the last ": " keeps paths that contain colons intact.
+	rest="${found_line% FOUND}"
+	signature="${rest##*: }"
+	found_path="${rest%": $signature"}"
+
+	file_hash=$(shasum -a 256 "$found_path" 2>/dev/null | awk '{print $1}')
+	if [ -z "$file_hash" ]; then
+		# Cannot hash it, so cannot prove it is the accepted file. Treat as new: failing
+		# toward alerting is the safe direction.
+		unreadable_count=$((unreadable_count + 1))
+		new_count=$((new_count + 1))
+		printf 'UNREADABLE\t%s\t%s\n' "$signature" "$found_path" >>"$NEW_FINDINGS"
+		continue
+	fi
+
+	if grep -qF "$(printf '%s\t%s' "$file_hash" "$signature")" "$BASELINE" 2>/dev/null; then
+		known_count=$((known_count + 1))
+	else
+		new_count=$((new_count + 1))
+		printf '%s\t%s\t%s\n' "$file_hash" "$signature" "$found_path" >>"$NEW_FINDINGS"
+	fi
+done < <(grep 'FOUND$' "$RUN_SCAN_LOG" 2>/dev/null || true)
+
+baseline_size=$(grep -cvE '^[[:space:]]*(#|$)' "$BASELINE" 2>/dev/null || true)
+log "findings: $new_count new, $known_count previously accepted (baseline holds $baseline_size)"
+if [ "$unreadable_count" -gt 0 ]; then
+	log "WARNING: $unreadable_count flagged file(s) could not be hashed; counted as new"
+fi
+
 case "$scan_rc" in
 0) log "scan clean" ;;
-1) log "ALERT: infected files found — see $SCAN_LOG" ;;
+1)
+	if [ "$new_count" -gt 0 ]; then
+		log "ALERT: $new_count NEW finding(s) — review $NEW_FINDINGS"
+	else
+		log "all findings already accepted; nothing new"
+	fi
+	;;
 *) log "WARNING: clamdscan exited $scan_rc" ;;
 esac
+
+# Only surface a failure for findings nobody has adjudicated. A clamdscan error (rc >= 2)
+# still fails, because that means the scan itself did not do its job.
+if [ "$scan_rc" -eq 1 ] && [ "$new_count" -eq 0 ]; then
+	scan_rc=0
+fi
 
 # ── 5. hand the memory back ───────────────────────────────────────────────────
 # Unconditional by design: ephemeral clamd is the point of this schedule. If a daemon

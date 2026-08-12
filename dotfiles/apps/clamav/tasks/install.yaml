@@ -65,6 +65,16 @@
     dest: "{{ clamav_fangfrisch_conf }}"
     mode: "0600"
 
+# force: false is the point — this file records findings you have reviewed and accepted,
+# so re-running the role must never overwrite it. It ships empty: nothing is pre-accepted
+# on your behalf, and the first run will list every current finding for explicit review.
+- name: "Install the findings baseline (once; never overwritten)"
+  ansible.builtin.template:
+    src: baseline.tsv.j2
+    dest: "{{ clamav_baseline }}"
+    mode: "0600"
+    force: false
+
 # ── Scan script and schedule ──────────────────────────────────────────────────
 - name: "Install the daily maintenance script"
   ansible.builtin.template:

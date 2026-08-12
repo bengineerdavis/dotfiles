@@ -20,6 +20,16 @@ clamav_automation_dir: "{{ ansible_facts['env']['HOME'] }}/.clamav_automation"
 clamav_socket: "{{ clamav_automation_dir }}/clamd.ctl"
 
 clamav_scan_log: "{{ clamav_automation_dir }}/scan.log"
+
+# Findings you have reviewed and accepted. Keyed on the file's SHA-256 plus the signature
+# name, deliberately NOT on the path: if a baselined file's contents change, its hash
+# changes, it stops matching, and it alerts again. A path-keyed baseline would let someone
+# swap malware into an accepted path and never be reported.
+clamav_baseline: "{{ clamav_automation_dir }}/baseline.tsv"
+
+# Anything flagged that is not in the baseline, written with hashes prefilled so accepting
+# an entry is an append. Never added automatically.
+clamav_new_findings: "{{ clamav_automation_dir }}/new-findings.tsv"
 clamav_run_log: "{{ clamav_automation_dir }}/run.log"
 clamav_fangfrisch_conf: "{{ clamav_automation_dir }}/fangfrisch.conf"
 clamav_fangfrisch_db: "{{ clamav_automation_dir }}/fangfrisch.db"
