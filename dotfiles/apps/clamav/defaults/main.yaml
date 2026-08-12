@@ -91,6 +91,39 @@ clamav_exclude_paths:
   - '^{{ ansible_facts["env"]["HOME"] }}/\.docker/'
   - '^{{ ansible_facts["env"]["HOME"] }}/Library/.*\.(raw|qcow2|img)$'
 
+  # ── Trees whose integrity is already guaranteed by something better ──────────
+  # Both of these produced daily false positives. They are excluded because another
+  # mechanism verifies them more strongly than a signature scan can, not merely to
+  # quieten the log.
+  #
+  # git object packs: content-addressed and checksummed by git itself, so a modified
+  # object is detected by git before ClamAV would ever see it. They are also zlib
+  # streams, which is why a pack file tripped Heuristics.Broken.Media.PNG — a pack is
+  # not a PNG, the heuristic simply misfired on compressed binary.
+  - '^{{ ansible_facts["env"]["HOME"] }}/(.*/)?\.git/objects/'
+  #
+  # Go module download cache: every archive here is verified against go.sum and the
+  # public checksum database, which is a stronger guarantee than a signature match.
+  # Note this covers only cache/download — the *extracted* modules under
+  # ~/go/pkg/mod/<module>@<version>/ are still scanned in full, because that extracted
+  # source is what actually gets compiled and is the real supply-chain surface.
+  - '^{{ ansible_facts["env"]["HOME"] }}/go/pkg/mod/cache/download/'
+  #
+  # testdata/ directories, under ~/code and ~/go only. `testdata` is a Go convention
+  # meaning exactly "deliberately odd fixtures", and that is precisely what trips anomaly
+  # heuristics: bodgit/sevenzip ships six encrypted .7z archives so it can test decrypting
+  # them, and every one fires Heuristics.Encrypted.7Zip. Same shape as an archive library
+  # shipping corrupt archives, or an Office parser shipping macro-bearing documents.
+  #
+  # The heuristics themselves stay on, because they earn their keep on attachments — an
+  # encrypted archive arriving in a support ticket is worth a look. They are just a poor
+  # match for source trees.
+  #
+  # This is a real blind spot, accepted knowingly: test code does execute, so a fixture
+  # directory is not a nonsensical hiding place. Scoped to two roots and to the exact
+  # directory name to keep it as narrow as possible. `tests/` generally is NOT excluded.
+  - '^{{ ansible_facts["env"]["HOME"] }}/(code|go)/(.*/)?testdata/'
+
 # Heuristic alerting. These are anomaly rules rather than known-malware signatures:
 # they fire on truncated, encrypted and macro-bearing files. Deliberately on, because
 # a support attachment that is encrypted or macro-bearing is worth knowing about.
