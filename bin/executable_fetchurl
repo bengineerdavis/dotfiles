@@ -1,0 +1,2866 @@
+#!/usr/bin/env -S uv run --script#
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["httpx2>=2.9", "diskcache>=5.6"]
+# ///
+"""
+fetchurl - download URLs, with file-type detection and pagination awareness.
+
+  uv run fetchurl.py https://example.com/data.csv
+  uv run fetchurl.py https://api.example.com/v1/items --token "$TOKEN" -v
+  uv run fetchurl.py -i urls.txt -o ./downloads
+  uv run fetchurl.py -i report.html          # finds URLs in it, asks what to grab
+
+Without uv:  pip install httpx2 && python3 fetchurl.py ...
+
+Exit codes: 0 ok | 2 bad usage/URL | 3 network | 4 auth | 5 HTTP error | 6 output
+            1 unexpected | 130 interrupted
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import binascii
+import contextlib
+import csv
+import functools
+import getpass
+import hashlib
+import io
+import json
+import logging
+import mimetypes
+import os
+import random
+import re
+import sys
+import time
+import unicodedata
+from collections.abc import Iterator, Sequence
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
+from email.message import Message as EmailMessage
+from html.parser import HTMLParser
+from pathlib import Path
+from typing import Any
+from urllib.parse import parse_qsl, unquote, urlencode, urljoin, urlsplit, urlunsplit
+
+try:
+    import httpx2 as httpx
+except ImportError:
+    sys.exit(
+        "fetchurl: missing dependency 'httpx2'.\n"
+        "  uv run fetchurl.py <url>   (installs it for you)\n"
+        "  or: pip install httpx2"
+    )
+
+try:  # optional: better text-encoding detection
+    import chardet
+except ImportError:
+    chardet = None
+
+try:  # optional: the response cache. Without it we simply always hit the network.
+    import diskcache
+except ImportError:
+    diskcache = None
+
+PROGRAM, VERSION = "fetchurl", "2.0.0"
+log = logging.getLogger(PROGRAM)
+
+
+# --------------------------------------------------------------------------- #
+# Errors -- each one carries a human-readable message and, ideally, a hint.
+# --------------------------------------------------------------------------- #
+
+
+class FetchError(Exception):
+    exit_code = 1
+
+    def __init__(self, message: str, hint: str | None = None):
+        super().__init__(message)
+        self.message, self.hint = message, hint
+
+    def render(self) -> str:
+        return self.message + (f"\n  hint: {self.hint}" if self.hint else "")
+
+
+class UsageError(FetchError):
+    exit_code = 2
+
+
+class InvalidURLError(UsageError):
+    pass
+
+
+class NetworkError(FetchError):
+    exit_code = 3
+
+    def __init__(self, message: str, hint: str | None = None, permanent: bool = False):
+        super().__init__(message, hint)
+        self.permanent = (
+            permanent  # retrying will not help (bad hostname, bad certificate)
+        )
+
+
+class AuthError(FetchError):
+    exit_code = 4
+
+
+class HTTPError(FetchError):
+    exit_code = 5
+
+
+class OutputError(FetchError):
+    exit_code = 6
+
+
+# --------------------------------------------------------------------------- #
+# Logging -- concurrent jobs each get a coloured tag so output stays readable.
+# --------------------------------------------------------------------------- #
+
+_COLORS = {
+    "DEBUG": "\033[38;5;110m",
+    "WARNI": "\033[38;5;214m",
+    "ERROR": "\033[38;5;203m",
+}
+_TAGS = [
+    "\033[38;5;80m",
+    "\033[38;5;114m",
+    "\033[38;5;180m",
+    "\033[38;5;176m",
+    "\033[38;5;209m",
+    "\033[38;5;147m",
+]
+_DIM, _RESET = "\033[38;5;244m", "\033[0m"
+DUMP_HEADERS = False  # set by -vv
+
+
+class _Formatter(logging.Formatter):
+    def __init__(self, color: bool, timestamps: bool):
+        super().__init__()
+        self.color, self.timestamps = color, timestamps
+
+    def format(self, record: logging.LogRecord) -> str:
+        level = record.levelname[:5]
+        job = getattr(record, "job", "")
+        stamp = (
+            time.strftime("%H:%M:%S ", time.localtime(record.created))
+            if self.timestamps
+            else ""
+        )
+        msg = record.getMessage()
+        if record.exc_info:
+            msg += "\n" + self.formatException(record.exc_info)
+        if not self.color:
+            return f"{stamp}{level:<5} {f'[{job}] ' if job else ''}{msg}"
+        tag = (
+            f"{_TAGS[getattr(record, 'slot', 0) % len(_TAGS)]}[{job}]{_RESET} "
+            if job
+            else ""
+        )
+        lc = _COLORS.get(level, "")
+        when = f"{_DIM}{stamp}{_RESET}" if stamp else ""
+        return f"{when}{lc}{level:<5}{_RESET} {tag}{msg}"
+
+
+class JobLog(logging.LoggerAdapter):
+    """A logger bound to one URL, so interleaved async output stays attributable."""
+
+    def __init__(self, job: str, slot: int = 0):
+        super().__init__(log, {"job": job, "slot": slot})
+
+    def process(self, msg, kwargs):
+        kwargs.setdefault("extra", {}).update(self.extra)
+        return msg, kwargs
+
+
+def setup_logging(verbose: int) -> None:
+    global DUMP_HEADERS
+    DUMP_HEADERS = verbose >= 2
+    level = logging.DEBUG if verbose else logging.INFO
+    color = sys.stderr.isatty() and not os.environ.get("NO_COLOR")
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(_Formatter(color, timestamps=verbose > 0))
+    log.handlers = [handler]
+    log.setLevel(level)
+    log.propagate = False
+    logging.getLogger("httpx2").setLevel(logging.WARNING)
+
+
+def human_bytes(n: int | None) -> str:
+    if n is None:
+        return "unknown size"
+    value = float(n)
+    for unit in ("B", "KiB", "MiB", "GiB"):
+        if value < 1024 or unit == "GiB":
+            return f"{value:.0f} {unit}" if unit == "B" else f"{value:.1f} {unit}"
+        value /= 1024
+    return f"{value:.1f} GiB"
+
+
+def human_time(seconds: float) -> str:
+    if seconds < 1:
+        return f"{seconds * 1000:.0f}ms"
+    return (
+        f"{seconds:.1f}s"
+        if seconds < 60
+        else f"{int(seconds // 60)}m{seconds % 60:.0f}s"
+    )
+
+
+# --------------------------------------------------------------------------- #
+# URLs: validation, redaction, identity
+# --------------------------------------------------------------------------- #
+
+
+def validate_url(raw: str, context: str = "URL") -> str:
+    """Normalise a URL or raise InvalidURLError explaining exactly what is wrong."""
+    if not raw or not str(raw).strip():
+        raise InvalidURLError(
+            f"{context} is empty", "pass a full URL, e.g. https://example.com/file.csv"
+        )
+    url = str(raw).strip().strip("<>\"'")
+
+    if "://" not in url:
+        if re.match(r"^[\w.\-]+\.[A-Za-z]{2,}(/|$|\?|:)", url):
+            raise InvalidURLError(
+                f"{context} {raw!r} has no scheme", f"did you mean https://{url} ?"
+            )
+        raise InvalidURLError(
+            f"{context} {raw!r} is not a URL",
+            "expected something like https://host/path",
+        )
+
+    try:
+        p = urlsplit(url)
+        port = p.port
+    except ValueError as exc:
+        raise InvalidURLError(f"{context} {raw!r} could not be parsed: {exc}") from exc
+
+    if p.scheme.lower() not in ("http", "https"):
+        extra = "; for local files just copy them" if p.scheme.lower() == "file" else ""
+        raise InvalidURLError(
+            f"{context} uses unsupported scheme {p.scheme!r}",
+            f"only http and https are supported{extra}",
+        )
+    host = p.hostname or ""
+    if not host:
+        raise InvalidURLError(
+            f"{context} {raw!r} has no host", "expected https://HOST/path"
+        )
+    if port is not None and not 0 < port < 65536:
+        raise InvalidURLError(f"{context} has an out-of-range port {port}")
+
+    netloc = p.netloc
+    if not host.isascii():  # IDN -> punycode so sockets and logs agree
+        try:
+            netloc = netloc.replace(host, host.encode("idna").decode("ascii"))
+        except UnicodeError as exc:
+            raise InvalidURLError(
+                f"{context} has an invalid international hostname {host!r}: {exc}"
+            ) from exc
+    return urlunsplit((p.scheme.lower(), netloc, p.path or "/", p.query, p.fragment))
+
+
+_SECRETISH = re.compile(
+    r"token|key|secret|signature|sig|pass|auth|credential", re.IGNORECASE
+)
+
+
+def redact(url: str) -> str:
+    """Blank out obvious secrets before a URL reaches the logs."""
+    p = urlsplit(url)
+    netloc = "<redacted>@" + p.netloc.rsplit("@", 1)[1] if "@" in p.netloc else p.netloc
+    if not p.query:
+        return urlunsplit((p.scheme, netloc, p.path, "", p.fragment))
+    params = [
+        (k, "<redacted>" if _SECRETISH.search(k) else v)
+        for k, v in parse_qsl(p.query, keep_blank_values=True)
+    ]
+    return urlunsplit((p.scheme, netloc, p.path, urlencode(params), p.fragment))
+
+
+def resource_id(url: str) -> tuple[str, str]:
+    """The part of a URL identifying *which* resource -- pagination lives in the query."""
+    p = urlsplit(url)
+    return p.netloc.lower(), p.path.rstrip("/") or "/"
+
+
+def set_param(url: str, key: str, value: str) -> str:
+    p = urlsplit(url)
+    params = [
+        (k, v) for k, v in parse_qsl(p.query, keep_blank_values=True) if k != key
+    ] + [(key, value)]
+    return urlunsplit((p.scheme, p.netloc, p.path, urlencode(params), p.fragment))
+
+
+# --------------------------------------------------------------------------- #
+# Filenames and file-type detection
+# --------------------------------------------------------------------------- #
+
+# (offset, signature, extension, mime) -- first match wins.
+_MAGIC = [
+    (0, b"\x89PNG\r\n\x1a\n", "png", "image/png"),
+    (0, b"\xff\xd8\xff", "jpg", "image/jpeg"),
+    (0, b"GIF8", "gif", "image/gif"),
+    (0, b"BM", "bmp", "image/bmp"),
+    (0, b"%PDF-", "pdf", "application/pdf"),
+    (0, b"PK\x03\x04", "zip", "application/zip"),
+    (0, b"PK\x05\x06", "zip", "application/zip"),
+    (0, b"\x1f\x8b", "gz", "application/gzip"),
+    (0, b"BZh", "bz2", "application/x-bzip2"),
+    (0, b"\xfd7zXZ\x00", "xz", "application/x-xz"),
+    (0, b"(\xb5/\xfd", "zst", "application/zstd"),
+    (0, b"7z\xbc\xaf\x27\x1c", "7z", "application/x-7z-compressed"),
+    (0, b"Rar!\x1a\x07", "rar", "application/vnd.rar"),
+    (257, b"ustar", "tar", "application/x-tar"),
+    (0, b"SQLite format 3\x00", "sqlite", "application/vnd.sqlite3"),
+    (0, b"\x7fELF", "bin", "application/x-executable"),
+    (0, b"\x00asm", "wasm", "application/wasm"),
+    (0, b"ID3", "mp3", "audio/mpeg"),
+    (0, b"fLaC", "flac", "audio/flac"),
+    (0, b"OggS", "ogg", "audio/ogg"),
+    (0, b"\x1aE\xdf\xa3", "mkv", "video/x-matroska"),
+    (0, b"PAR1", "parquet", "application/vnd.apache.parquet"),
+]
+# Zip containers that are really something more specific.
+_OOXML = "application/vnd.openxmlformats-officedocument"
+_ZIP_KINDS = [
+    (b"word/", "docx", f"{_OOXML}.wordprocessingml.document"),
+    (b"xl/", "xlsx", f"{_OOXML}.spreadsheetml.sheet"),
+    (b"ppt/", "pptx", f"{_OOXML}.presentationml.presentation"),
+    (b"META-INF/MANIFEST.MF", "jar", "application/java-archive"),
+    (b"mimetypeapplication/epub+zip", "epub", "application/epub+zip"),
+]
+
+_MIME_EXT = {
+    "application/json": "json",
+    "application/x-ndjson": "ndjson",
+    "application/ld+json": "json",
+    "application/geo+json": "geojson",
+    "text/csv": "csv",
+    "text/tab-separated-values": "tsv",
+    "text/plain": "txt",
+    "text/markdown": "md",
+    "text/html": "html",
+    "application/xhtml+xml": "html",
+    "text/xml": "xml",
+    "application/xml": "xml",
+    "application/yaml": "yaml",
+    "application/pdf": "pdf",
+    "application/zip": "zip",
+    "application/gzip": "gz",
+    "application/x-gzip": "gz",
+    "application/x-tar": "tar",
+    "application/octet-stream": "bin",
+    "image/jpeg": "jpg",
+    "image/svg+xml": "svg",
+    "text/javascript": "js",
+    "application/javascript": "js",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+    "application/vnd.ms-excel": "xls",
+}
+_GENERIC_MIMES = {
+    None,
+    "",
+    "application/octet-stream",
+    "binary/octet-stream",
+    "application/x-download",
+    "*/*",
+}
+
+
+def sniff_magic(head: bytes) -> tuple[str | None, str | None]:
+    for offset, sig, ext, mime in _MAGIC:
+        if head[offset : offset + len(sig)] == sig:
+            if ext == "zip":
+                for marker, zip_ext, zip_mime in _ZIP_KINDS:
+                    if marker in head[:4096]:
+                        return zip_ext, zip_mime
+            return ext, mime
+    return None, None
+
+
+def decode_text(raw: bytes) -> str:
+    for bom, enc in (
+        (b"\xef\xbb\xbf", "utf-8-sig"),
+        (b"\xff\xfe", "utf-16-le"),
+        (b"\xfe\xff", "utf-16-be"),
+    ):
+        if raw.startswith(bom):
+            with contextlib.suppress(UnicodeDecodeError):
+                return raw.decode(enc)
+    with contextlib.suppress(UnicodeDecodeError):
+        return raw.decode("utf-8")
+    if chardet and (guess := chardet.detect(raw[:100_000]).get("encoding")):
+        with contextlib.suppress(UnicodeDecodeError, LookupError):
+            return raw.decode(guess)
+    return raw.decode("utf-8", "replace")
+
+
+def is_binary(head: bytes) -> bool:
+    sample = head[:8000]
+    if b"\x00" in sample:
+        return True
+    printable = bytes(range(0x20, 0x7F)) + b"\n\r\t\f\b"
+    odd = sum(1 for b in sample if b < 0x80 and b not in printable)
+    return bool(sample) and odd / len(sample) > 0.3
+
+
+_RESERVED = {
+    "CON",
+    "PRN",
+    "AUX",
+    "NUL",
+    *(f"COM{i}" for i in range(1, 10)),
+    *(f"LPT{i}" for i in range(1, 10)),
+}
+
+
+def safe_name(name: str, fallback: str = "download") -> str:
+    """A filesystem-safe basename that cannot escape the output directory."""
+    name = (
+        unicodedata.normalize("NFC", unquote(name or ""))
+        .replace("\\", "/")
+        .rsplit("/", 1)[-1]
+    )
+    name = re.sub(r"[\x00-\x1f\x7f]", "", name)
+    name = re.sub(r'[<>:"|?*]', "_", name).strip().strip(".")
+    if not name or name in (".", ".."):
+        return fallback
+    stem, dot, ext = name.rpartition(".")
+    if (stem or name).upper() in _RESERVED:
+        name = f"{stem}_{dot}{ext}" if dot else f"{name}_"
+    if len(name.encode()) > 200:
+        stem, dot, ext = name.rpartition(".")
+        keep = 200 - len(ext.encode()) - 1 if dot and len(ext) < 20 else 200
+        name = stem.encode()[:keep].decode("utf-8", "ignore") + (
+            f".{ext}" if dot else ""
+        )
+    return name or fallback
+
+
+_NAME_PARAMS = (
+    "name",
+    "filename",
+    "file",
+    "attachment",
+    "downloadname",
+    "originalfilename",
+)
+
+
+def name_from_url(url: str) -> str:
+    p = urlsplit(url)
+    # Attachment links usually carry the real filename in the query string -- Zendesk uses
+    # ?name=, S3 presigned URLs use response-content-disposition. Prefer those: the path
+    # segment is typically an opaque token.
+    for key, value in parse_qsl(p.query, keep_blank_values=True):
+        low = key.lower()
+        if low == "response-content-disposition" and (
+            found := content_disposition_name(value)
+        ):
+            return safe_name(found)
+        if low in _NAME_PARAMS and value and "." in value:
+            return safe_name(unquote(value))
+
+    segment = unquote(p.path.rstrip("/").rsplit("/", 1)[-1]) or (
+        p.hostname or "download"
+    ).replace(".", "_")
+    if p.query and "." not in segment:  # keep ?id=1 and ?id=2 from colliding
+        segment += f"-{binascii.crc32(p.query.encode()) & 0xFFFFFFFF:08x}"
+    return safe_name(segment)
+
+
+def content_disposition_name(value: str) -> str | None:
+    """RFC 6266 filename / filename* extraction."""
+    if not value:
+        return None
+    msg = EmailMessage()
+    msg["Content-Disposition"] = value
+    if name := msg.get_filename():
+        return name
+    if m := re.search(r"filename\*\s*=\s*([^;]+)", value, re.IGNORECASE):
+        parts = m.group(1).strip().strip('"').split("'", 2)
+        if len(parts) == 3:
+            with contextlib.suppress(Exception):
+                return unquote(parts[2], encoding=parts[0] or "utf-8", errors="replace")
+    return None
+
+
+@dataclass
+class FileType:
+    ext: str | None
+    mime: str | None
+    source: str  # which signal we trusted, for the logs
+    name: str | None = None  # only when the server named the file outright
+
+
+def detect_type(url: str, headers, head: bytes, jlog: JobLog) -> FileType:
+    """Work out the file type from the most trustworthy signal available."""
+    disposition = headers.get("content-disposition", "")
+    mime = (headers.get("content-type", "").split(";")[0] or "").strip().lower() or None
+    magic_ext, magic_mime = sniff_magic(head)
+    jlog.debug(
+        "type signals: disposition=%s content-type=%s magic=%s url-ext=%s",
+        disposition or "-",
+        mime or "-",
+        magic_ext or "-",
+        url_ext(url) or "-",
+    )
+
+    # 1. The server explicitly named the file.
+    if disposition and (name := content_disposition_name(disposition)):
+        clean = safe_name(name)
+        ext = clean.rsplit(".", 1)[-1].lower() if "." in clean else None
+        return FileType(ext, mime or magic_mime, "Content-Disposition", clean)
+
+    # 2. Magic bytes beat a generic or contradictory Content-Type -- servers lie.
+    generic = mime in _GENERIC_MIMES
+    if magic_ext and (
+        generic
+        or (magic_mime and mime and magic_mime.split("/")[0] != mime.split("/")[0])
+    ):
+        if not generic:
+            jlog.debug(
+                "Content-Type %s contradicts magic bytes %s -- trusting the bytes",
+                mime,
+                magic_mime,
+            )
+        return FileType(magic_ext, magic_mime or mime, "magic-bytes")
+
+    # 3. Content-Type.
+    if not generic and mime:
+        ext = _MIME_EXT.get(mime) or (mimetypes.guess_extension(mime) or "").lstrip(".")
+        if ext:
+            return FileType(ext, mime, "Content-Type")
+
+    # 4. The URL path, then a last-resort peek at the bytes.
+    if ext := url_ext(url):
+        return FileType(ext, mime or magic_mime, "url-path")
+    if magic_ext:
+        return FileType(magic_ext, magic_mime, "magic-bytes")
+    if head and not is_binary(head):
+        text = decode_text(head[:8192]).lstrip()
+        if text[:1] in "[{":
+            return FileType("json", "application/json", "content-sniff")
+        if re.match(r"<\s*(!doctype\s+html|html)\b", text, re.IGNORECASE):
+            return FileType("html", "text/html", "content-sniff")
+        if text.startswith("<?xml"):
+            return FileType("xml", "application/xml", "content-sniff")
+        return FileType("txt", mime or "text/plain", "content-sniff")
+    return FileType("bin", mime or "application/octet-stream", "fallback")
+
+
+def url_ext(url: str) -> str:
+    name = unquote(urlsplit(url).path).rsplit("/", 1)[-1]
+    ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+    return ext if ext.isalnum() and 1 <= len(ext) <= 8 else ""
+
+
+# --------------------------------------------------------------------------- #
+# Content shape -- decides how (and whether) pages can be merged
+# --------------------------------------------------------------------------- #
+
+JSON_ARRAY, JSON_OBJECT, NDJSON, CSV, HTML, HTML_TABLE, XML, TEXT, BINARY = (
+    "json-array",
+    "json-object",
+    "ndjson",
+    "csv",
+    "html",
+    "html-table",
+    "xml",
+    "text",
+    "binary",
+)
+
+_LIST_KEYS = (
+    "data",
+    "results",
+    "items",
+    "records",
+    "entries",
+    "rows",
+    "values",
+    "hits",
+    "edges",
+    "nodes",
+    "events",
+    "issues",
+    "objects",
+    "list",
+)
+
+
+@dataclass
+class Shape:
+    kind: str
+    mime: str | None = None
+    top_keys: tuple[str, ...] = ()
+    list_key: str | None = None
+    item_keys: tuple[str, ...] = ()
+    header: str | None = None
+    count: int | None = None
+    title: str | None = None
+
+    def describe(self) -> str:
+        bits = [self.kind]
+        if self.list_key:
+            bits.append(f"list={self.list_key!r}")
+        if self.count is not None:
+            bits.append(f"records={self.count}")
+        if self.header:
+            bits.append(f"header={self.header[:40]!r}")
+        return " ".join(bits)
+
+
+def analyse(body: bytes, ftype: FileType, jlog: JobLog) -> tuple[Shape, Any]:
+    """Classify a page body. Returns (shape, parsed-JSON-or-None)."""
+    ext, mime = (ftype.ext or "").lower(), ftype.mime
+    if is_binary(body[:8192]) and ext not in (
+        "json",
+        "csv",
+        "txt",
+        "ndjson",
+        "jsonl",
+        "html",
+        "xml",
+    ):
+        return Shape(BINARY, mime), None
+
+    text = decode_text(body)
+    head = text.lstrip()
+
+    if (
+        ext in ("json", "geojson", "jsonl", "ndjson")
+        or (mime and "json" in mime)
+        or head[:1] in "[{"
+    ):
+        if ext in ("jsonl", "ndjson") or (mime and "ndjson" in mime):
+            if (records := parse_ndjson(text)) is not None:
+                return Shape(NDJSON, mime, count=len(records)), records
+        try:
+            data = json.loads(text)
+        except ValueError as exc:
+            if (records := parse_ndjson(text)) is not None:
+                jlog.debug(
+                    "not a single JSON document, but valid NDJSON (%d records)",
+                    len(records),
+                )
+                return Shape(NDJSON, mime, count=len(records)), records
+            jlog.debug("looked like JSON but would not parse: %s", exc)
+        else:
+            if isinstance(data, list):
+                keys = (
+                    tuple(sorted(data[0])) if data and isinstance(data[0], dict) else ()
+                )
+                return Shape(JSON_ARRAY, mime, item_keys=keys, count=len(data)), data
+            if isinstance(data, dict):
+                key = guess_list_key(data)
+                items = data.get(key) if key else None
+                item_keys = (
+                    tuple(sorted(items[0]))
+                    if isinstance(items, list) and items and isinstance(items[0], dict)
+                    else ()
+                )
+                count = len(items) if isinstance(items, list) else None
+                return Shape(
+                    JSON_OBJECT, mime, tuple(sorted(data)), key, item_keys, count=count
+                ), data
+
+    if (
+        ext in ("html", "htm")
+        or (mime and "html" in mime)
+        or re.match(r"<\s*(!doctype\s+html|html)\b", head, re.IGNORECASE)
+    ):
+        m = re.search(r"<title[^>]*>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
+        title = re.sub(r"\s+", " ", m.group(1)).strip()[:120] if m else None
+        # One table with a real header row is a record set, not a document -- and if it
+        # turns out to be paginated we can merge it the same way we merge CSV.
+        if table := parse_html_table(text):
+            header, rows = table
+            jlog.debug(
+                "HTML holds a single table: %d columns, %d rows", len(header), len(rows)
+            )
+            return Shape(
+                HTML_TABLE, mime, header=",".join(header), count=len(rows), title=title
+            ), table
+        return Shape(HTML, mime, title=title), None
+
+    if ext == "xml" or (mime and "xml" in mime) or head.startswith("<?xml"):
+        return Shape(XML, mime), None
+
+    if ext in ("csv", "tsv") or (mime and ("csv" in mime or "tab-separated" in mime)):
+        lines = text.splitlines()
+        return Shape(
+            CSV, mime, header=lines[0] if lines else None, count=max(0, len(lines) - 1)
+        ), None
+
+    # Unmarked, but every line has the same number of commas? Call it CSV.
+    lines = [ln for ln in text.splitlines()[:20] if ln.strip()]
+    if (
+        len(lines) >= 3
+        and lines[0].count(",") >= 1
+        and len({ln.count(",") for ln in lines}) == 1
+    ):
+        return Shape(CSV, mime, header=lines[0], count=len(text.splitlines()) - 1), None
+
+    return Shape(TEXT, mime), None
+
+
+class _TableParser(HTMLParser):
+    """Reads the one outermost <table> in a document into a header row plus data rows."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.tables = 0  # outermost tables seen; >1 means ambiguous
+        self.header: list[str] | None = None
+        self.rows: list[list[str]] = []
+        self._depth = 0
+        self._row: list[str] | None = None
+        self._cell: list[str] | None = None
+        self._row_has_th = False
+        self._in_thead = False
+        self._in_tfoot = False
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "table":
+            self._depth += 1
+            self.tables += 1 if self._depth == 1 else 0
+        elif self._depth != 1:
+            return  # ignore nested tables entirely
+        elif tag == "thead":
+            self._in_thead = True
+        elif tag == "tfoot":
+            self._in_tfoot = True
+        elif tag == "tr":
+            self._row, self._row_has_th = [], False
+        elif tag in ("td", "th"):
+            self._cell = []
+            self._row_has_th |= tag == "th"
+        elif tag == "br" and self._cell is not None:
+            self._cell.append(" ")
+
+    def handle_data(self, data):
+        if self._depth == 1 and self._cell is not None:
+            self._cell.append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "table":
+            self._depth -= 1
+        elif self._depth != 1:
+            return
+        elif tag == "thead":
+            self._in_thead = False
+        elif tag == "tfoot":
+            self._in_tfoot = False
+        elif tag in ("td", "th"):
+            if self._row is not None and self._cell is not None:
+                self._row.append(re.sub(r"\s+", " ", "".join(self._cell)).strip())
+            self._cell = None
+        elif tag == "tr" and self._row is not None:
+            if (
+                self.header is None
+                and not self.rows
+                and (self._in_thead or self._row_has_th)
+            ):
+                self.header = self._row
+            elif (
+                self._row and not self._in_tfoot
+            ):  # tfoot is usually a totals row, not data
+                self.rows.append(self._row)
+            self._row = None
+
+
+def parse_html_table(text: str) -> tuple[list[str], list[list[str]]] | None:
+    """A paginated HTML table, or None. Deliberately strict: exactly one table, with
+    a real header row (<thead> or <th>), so we never merge documents we misread."""
+    parser = _TableParser()
+    try:
+        parser.feed(text)
+        parser.close()
+    except Exception:
+        return None
+    if parser.tables != 1 or not parser.header or not parser.rows:
+        return None
+    return parser.header, parser.rows
+
+
+def parse_ndjson(text: str) -> list[Any] | None:
+    lines = [ln for ln in text.splitlines() if ln.strip()]
+    if len(lines) < 2:
+        return None
+    out = []
+    for line in lines:
+        try:
+            out.append(json.loads(line))
+        except ValueError:
+            return None
+    return out
+
+
+def guess_list_key(data: dict) -> str | None:
+    keys = [k for k, v in data.items() if isinstance(v, list)]
+    if not keys:
+        return None
+    for preferred in _LIST_KEYS:
+        for key in keys:
+            if key.lower() == preferred:
+                return key
+    return max(keys, key=lambda k: len(data[k]))
+
+
+# --------------------------------------------------------------------------- #
+# Pagination: finding the next page, then deciding what it means
+# --------------------------------------------------------------------------- #
+
+_NEXT_URL_KEYS = {
+    "next",
+    "next_url",
+    "next_page",
+    "next_page_url",
+    "next_href",
+    "next_link",
+    "more_url",
+}
+_CURSOR_KEYS = {
+    "next_cursor",
+    "next_token",
+    "next_page_token",
+    "continuation_token",
+    "end_cursor",
+    "scroll_id",
+    "next_offset",
+    "next_key",
+    "after",
+}
+_META_KEYS = {
+    "meta",
+    "pagination",
+    "paging",
+    "page_info",
+    "links",
+    "_links",
+    "cursor",
+    "response_metadata",
+}
+_MORE_FLAGS = {"has_more", "has_next", "has_next_page", "more"}
+_PAGING_PARAMS = {
+    "page",
+    "offset",
+    "start",
+    "skip",
+    "cursor",
+    "after",
+    "before",
+    "from",
+    "next",
+    "page_token",
+    "continuation",
+    "scroll_id",
+    "marker",
+    "index",
+    "limit",
+    "per_page",
+}
+
+
+@dataclass
+class NextPage:
+    url: str
+    source: str
+    confidence: str  # "high" | "medium" | "low"
+
+
+class _NextFinder(HTMLParser):
+    _LOOKS_NEXT = re.compile(
+        r"^\s*(next(\s+page)?|older(\s+posts?)?|»|>>|→|›)\s*$", re.IGNORECASE
+    )
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.rel_next = self.text_next = None
+        self._href, self._buf = None, []
+
+    def handle_starttag(self, tag, attrs):
+        a = {k.lower(): (v or "") for k, v in attrs}
+        if (
+            tag in ("link", "a")
+            and "next" in a.get("rel", "").lower().split()
+            and a.get("href")
+        ):
+            self.rel_next = self.rel_next or a["href"]
+        if tag == "a":
+            self._href, self._buf = a.get("href"), []
+            if a.get("aria-label") and self._LOOKS_NEXT.match(a["aria-label"]):
+                self.text_next = self.text_next or self._href
+
+    def handle_data(self, data):
+        if self._href:
+            self._buf.append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "a" and self._href:
+            if not self.text_next and self._LOOKS_NEXT.match("".join(self._buf)):
+                self.text_next = self._href
+            self._href, self._buf = None, []
+
+
+def parse_link_header(value: str, base: str) -> dict[str, str]:
+    """RFC 8288 Link header -> {rel: absolute url}."""
+    out = {}
+    for chunk in re.split(r",\s*(?=<)", value or ""):
+        m = re.match(r"\s*<([^>]*)>\s*(.*)", chunk)
+        rels = (
+            re.search(r'rel\s*=\s*"?([^";]+)"?', m.group(2), re.IGNORECASE)
+            if m
+            else None
+        )
+        if m and rels:
+            for rel in rels.group(1).split():
+                out[rel.lower()] = urljoin(base, m.group(1).strip())
+    return out
+
+
+def find_next(
+    url: str, headers, shape: Shape, parsed: Any, body: bytes, jlog: JobLog
+) -> NextPage | None:
+    """Look for a next page, most trustworthy signal first."""
+    if next_url := parse_link_header(headers.get("link", ""), url).get("next"):
+        jlog.debug("pagination: Link header advertises rel=next")
+        return NextPage(next_url, 'Link: rel="next"', "high")
+
+    for name in ("x-next-page", "x-pagination-next", "next-page"):
+        if raw := headers.get(name):
+            jlog.debug("pagination: %s header points at the next page", name)
+            return NextPage(urljoin(url, raw.strip()), f"{name} header", "high")
+
+    obj = (
+        parsed
+        if isinstance(parsed, dict)
+        else (
+            parsed[-1]
+            if shape.kind == NDJSON
+            and isinstance(parsed, list)
+            and parsed
+            and isinstance(parsed[-1], dict)
+            else None
+        )
+    )
+    if obj is not None and (found := json_next(obj, url, jlog)):
+        return found
+
+    if shape.kind in (HTML, HTML_TABLE):
+        finder = _NextFinder()
+        with contextlib.suppress(Exception):
+            finder.feed(decode_text(body))
+            finder.close()
+        if finder.rel_next:
+            jlog.debug("pagination: HTML rel=next link found")
+            return NextPage(urljoin(url, finder.rel_next), "HTML rel=next", "high")
+        if finder.text_next:
+            return NextPage(urljoin(url, finder.text_next), 'anchor text "next"', "low")
+
+    jlog.debug("pagination: no next-page signal in this response")
+    return None
+
+
+def json_next(obj: dict, url: str, jlog: JobLog) -> NextPage | None:
+    """Search a JSON body and its usual metadata containers for a next-page pointer."""
+    scopes = [("$", obj)] + [
+        (f"$.{k}", v)
+        for k, v in obj.items()
+        if k.lower() in _META_KEYS and isinstance(v, dict)
+    ]
+    norm = lambda k: k.lower().replace("-", "_")
+
+    for prefix, scope in scopes:  # an explicit "no more pages" flag wins outright
+        for key, value in scope.items():
+            if norm(key) in _MORE_FLAGS and value is False:
+                jlog.debug(
+                    "pagination: %s.%s is false -- no further pages", prefix, key
+                )
+                return None
+
+    for prefix, scope in scopes:  # a ready-made URL
+        for key, value in scope.items():
+            if norm(key) not in _NEXT_URL_KEYS:
+                continue
+            if isinstance(value, dict):
+                value = value.get("href") or value.get("url")
+            if isinstance(value, str) and value.strip():
+                jlog.debug(
+                    "pagination: JSON field %s.%s holds the next URL", prefix, key
+                )
+                return NextPage(urljoin(url, value.strip()), f"{prefix}.{key}", "high")
+
+    for prefix, scope in scopes:  # a cursor we must graft onto the current URL
+        for key, value in scope.items():
+            if norm(key) not in _CURSOR_KEYS or value in (None, "", False):
+                continue
+            param = cursor_param(key, url)
+            jlog.debug(
+                "pagination: cursor %s.%s -> re-requesting with ?%s=",
+                prefix,
+                key,
+                param,
+            )
+            return NextPage(
+                set_param(url, param, str(value)),
+                f"{prefix}.{key} -> ?{param}=",
+                "medium",
+            )
+    return None
+
+
+def cursor_param(json_key: str, url: str) -> str:
+    """Map a response cursor field onto the request param that consumes it."""
+    base = re.sub(r"^next_?", "", json_key.lower().replace("-", "_")) or "cursor"
+    existing = {
+        k.lower() for k, _ in parse_qsl(urlsplit(url).query, keep_blank_values=True)
+    }
+    return next(
+        (
+            c
+            for c in (base, "cursor", "page_token", "after", "offset", "page")
+            if c in existing
+        ),
+        base,
+    )
+
+
+def is_continuation(
+    prev_url: str, prev: Shape, url: str, shape: Shape
+) -> tuple[bool, str]:
+    """Is this page more of the same file, or a brand new one? Returns (continuation, why)."""
+    if resource_id(prev_url) != resource_id(url):
+        a, b = resource_id(prev_url)[1], resource_id(url)[1]
+        # /report/page/1 -> /report/page/2 is still one resource; /a -> /b is not.
+        if re.sub(r"\d+", "#", a) != re.sub(r"\d+", "#", b):
+            return False, f"path changed ({a} -> {b}), so this is a different resource"
+
+    if (
+        prev.mime
+        and shape.mime
+        and prev.mime != shape.mime
+        and prev.mime.split("/")[0] != shape.mime.split("/")[0]
+    ):
+        return False, f"content type changed ({prev.mime} -> {shape.mime})"
+    if prev.kind != shape.kind:
+        return False, f"structure changed ({prev.kind} -> {shape.kind})"
+
+    if shape.kind == JSON_ARRAY:
+        if prev.item_keys and shape.item_keys:
+            shared = len(set(prev.item_keys) & set(shape.item_keys)) / max(
+                len(prev.item_keys), len(shape.item_keys)
+            )
+            if shared < 0.5:
+                return (
+                    False,
+                    f"array elements have a different schema (only {shared:.0%} of fields shared)",
+                )
+        return True, "both pages are JSON arrays of the same record type"
+
+    if shape.kind == JSON_OBJECT:
+        if prev.list_key and prev.list_key == shape.list_key:
+            return True, f"same envelope with a shared {prev.list_key!r} collection"
+        a, b = set(prev.top_keys), set(shape.top_keys)
+        if not a or not b:
+            return True, "same JSON object shape"
+        shared = len(a & b) / len(a | b)
+        if shared < 0.6:
+            return False, f"top-level keys differ (only {shared:.0%} shared)"
+        if not (prev.list_key or shape.list_key):
+            return False, "similar shape but no repeating collection to append to"
+        return True, f"envelope keys are {shared:.0%} identical"
+
+    if shape.kind == NDJSON:
+        return True, "newline-delimited JSON appends cleanly"
+    if shape.kind == CSV:
+        if prev.header and shape.header:
+            if prev.header.strip() == shape.header.strip():
+                return True, "identical CSV header row"
+            return False, "CSV header row differs, so these are different tables"
+        return True, "delimited text with a consistent shape"
+    if shape.kind == HTML_TABLE:
+        if prev.header and shape.header and prev.header.strip() == shape.header.strip():
+            return True, "the same HTML table continues (identical column headers)"
+        return (
+            False,
+            "the HTML tables have different columns, so these are different tables",
+        )
+    if shape.kind == HTML:
+        return (
+            False,
+            "HTML pages are standalone documents; concatenating them would be invalid markup",
+        )
+    if shape.kind == XML:
+        return False, "each XML document needs its own root element"
+    if shape.kind == BINARY:
+        return False, "binary payloads cannot be safely concatenated"
+
+    before = dict(parse_qsl(urlsplit(prev_url).query, keep_blank_values=True))
+    after = dict(parse_qsl(urlsplit(url).query, keep_blank_values=True))
+    changed = {k for k in before | after if before.get(k) != after.get(k)}
+    if changed and changed <= _PAGING_PARAMS:
+        return (
+            True,
+            f"plain text and only paging params changed ({', '.join(sorted(changed))})",
+        )
+    return True, "plain text appends cleanly"
+
+
+# --------------------------------------------------------------------------- #
+# Output files
+# --------------------------------------------------------------------------- #
+
+
+@dataclass
+class Page:
+    url: str
+    body: bytes
+    shape: Shape
+    ftype: FileType
+    parsed: Any
+
+
+@dataclass
+class OutFile:
+    """One output entity: a first page plus every page judged to continue it."""
+
+    index: int
+    pages: list[Page] = field(default_factory=list)
+    path: Path | None = None
+    size: int = 0
+    note: str = ""
+    ext_override: str | None = (
+        None  # set when merging changes the format (HTML table -> CSV)
+    )
+
+    @property
+    def first(self) -> Page:
+        return self.pages[0]
+
+    def records(self) -> int | None:
+        counts = [p.shape.count for p in self.pages if p.shape.count is not None]
+        return sum(counts) if counts else None
+
+
+def merge(out: OutFile, jlog: JobLog) -> tuple[bytes, str]:
+    """Combine a logical file's pages into the bytes we write."""
+    if len(out.pages) == 1:
+        return out.first.body, "single page, written verbatim"
+    kind = out.first.shape.kind
+    jlog.debug("merging %d pages of kind %s", len(out.pages), kind)
+
+    if kind == JSON_ARRAY:
+        combined = [
+            item for p in out.pages if isinstance(p.parsed, list) for item in p.parsed
+        ]
+        return dump_json(
+            combined
+        ), f"merged into one JSON array of {len(combined)} elements"
+
+    if kind == JSON_OBJECT:
+        key = out.first.shape.list_key
+        if key and isinstance(out.first.parsed, dict):
+            combined = []
+            for page in out.pages:
+                chunk = page.parsed.get(key) if isinstance(page.parsed, dict) else None
+                if isinstance(chunk, list):
+                    combined.extend(chunk)
+            merged = strip_paging_keys(out.first.parsed)
+            merged[key] = combined
+            merged["_fetchurl"] = {
+                "merged_pages": len(out.pages),
+                "merged_records": len(combined),
+            }
+            return dump_json(
+                merged
+            ), f"merged {len(combined)} records into {key!r} (page-1 envelope kept)"
+        return dump_json(
+            [p.parsed for p in out.pages]
+        ), f"wrapped {len(out.pages)} page documents in an array"
+
+    if kind == NDJSON:
+        lines = [
+            json.dumps(r, ensure_ascii=False)
+            for p in out.pages
+            for r in (p.parsed or [])
+        ]
+        return (
+            "\n".join(lines) + "\n"
+        ).encode(), f"concatenated {len(lines)} NDJSON records"
+
+    if kind == HTML_TABLE:
+        # The pages cannot be concatenated as HTML, but the table they share can be:
+        # lift the rows out and write the whole thing as CSV.
+        header = out.first.parsed[0]
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(header)
+        rows = ragged = 0
+        for page in out.pages:
+            for row in page.parsed[1]:
+                writer.writerow(row)
+                rows += 1
+                ragged += len(row) != len(header)
+        if ragged:
+            jlog.warning(
+                "%d row(s) did not have %d columns; written as-is", ragged, len(header)
+            )
+        out.ext_override = "csv"
+        return buf.getvalue().encode(), (
+            f"extracted the paginated HTML table from {len(out.pages)} pages into CSV: {rows} rows"
+        )
+
+    if kind == CSV:
+        buf, header, rows = io.StringIO(), out.first.shape.header, 0
+        for n, page in enumerate(out.pages):
+            lines = decode_text(page.body).splitlines()
+            if n and header and lines and lines[0].strip() == header.strip():
+                lines = lines[1:]  # drop the repeated header
+            elif not n and header:
+                rows -= 1  # page 1's header is not a data row
+            for line in lines:
+                buf.write(line + "\n")
+                rows += 1
+        return (
+            buf.getvalue().encode(),
+            f"concatenated {len(out.pages)} CSV pages, {rows} rows under one header",
+        )
+
+    chunks: list[bytes] = []
+    for page in out.pages:
+        if chunks and not chunks[-1].endswith(b"\n"):
+            chunks.append(b"\n")
+        chunks.append(page.body)
+    return b"".join(chunks), f"concatenated {len(out.pages)} page bodies"
+
+
+def strip_paging_keys(obj: dict) -> dict:
+    """Drop cursors and has-more flags -- they are meaningless once pages are merged."""
+    out = {}
+    for key, value in obj.items():
+        normalised = key.lower().replace("-", "_")
+        if normalised in _CURSOR_KEYS | _NEXT_URL_KEYS | _MORE_FLAGS:
+            continue
+        out[key] = (
+            strip_paging_keys(value)
+            if normalised in _META_KEYS and isinstance(value, dict)
+            else value
+        )
+    return out
+
+
+def dump_json(data: Any) -> bytes:
+    return (json.dumps(data, indent=2, ensure_ascii=False) + "\n").encode()
+
+
+class Output:
+    """Allocates unique output paths. Shared by all concurrent jobs."""
+
+    def __init__(self, directory: Path, force: bool):
+        self.dir, self.force = directory, force
+        self.taken: set[Path] = set()
+        self.lock = asyncio.Lock()
+
+    def prepare(self) -> None:
+        if self.dir.exists() and not self.dir.is_dir():
+            raise OutputError(
+                f"output path {self.dir} exists but is not a directory",
+                "-o/--output takes a directory",
+            )
+        try:
+            self.dir.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            raise OutputError(
+                f"cannot create output directory {self.dir}: {exc}",
+                "check the path and permissions",
+            ) from exc
+        if not os.access(self.dir, os.W_OK):
+            raise OutputError(
+                f"output directory {self.dir} is not writable",
+                "check permissions or pick another -o path",
+            )
+
+    async def allocate(self, base: str, ext: str | None) -> Path:
+        async with self.lock:
+            stem, dot, have = base.rpartition(".")
+            if not dot:
+                stem, have = base, ""
+            if ext and have.lower() != ext.lower():
+                # Stack only genuine compound extensions (archive.tar + gz); otherwise
+                # replace, so report.php -> report.json and blog.html -> blog.csv.
+                keep = have if have.lower() == "tar" else ""
+                name = f"{stem}.{keep}.{ext}" if keep else f"{stem}.{ext}"
+            else:
+                name = f"{stem}.{have}" if have else stem
+            name = safe_name(name)
+
+            path = self.dir / name
+            if self.force:
+                self.taken.add(path)
+                return path
+            stem, dot, ext2 = name.rpartition(".")
+            if not dot:
+                stem, ext2 = name, ""
+            n = 1
+            while path in self.taken or path.exists():
+                path = self.dir / (f"{stem}-{n}.{ext2}" if ext2 else f"{stem}-{n}")
+                n += 1
+                if n > 9999:
+                    raise OutputError(
+                        f"could not find a free filename for {name!r} in {self.dir}"
+                    )
+            self.taken.add(path)
+            return path
+
+
+def write_atomic(path: Path, data: bytes) -> int:
+    tmp = path.with_name(path.name + ".part")
+    try:
+        tmp.write_bytes(data)
+        os.replace(tmp, path)
+    except OSError as exc:
+        with contextlib.suppress(OSError):
+            tmp.unlink()
+        raise OutputError(
+            f"failed writing {path}: {exc}",
+            "check free disk space and directory permissions",
+        ) from exc
+    return len(data)
+
+
+# --------------------------------------------------------------------------- #
+# HTTP
+# --------------------------------------------------------------------------- #
+
+CACHE_FRESH_FOR = 3600.0  # serve straight from disk for an hour
+CACHE_EVICT_AFTER = 7 * 86400  # then keep the ETag around for a week, to enable 304s
+CACHE_SIZE_LIMIT = 1 << 30  # 1 GiB, evicted least-recently-used first
+CACHE_MAX_BODY = (
+    64 << 20
+)  # never cache a body bigger than this; it would evict everything
+
+HOST_CONCURRENCY = 4  # simultaneous requests to any single host
+MIN_GAP = 0.1  # seconds between requests to the same host
+MAX_GAP = 30.0
+GAP_DECAY = 0.9  # per clean response; halves the gap every ~7 requests
+RETRIES_TRANSIENT = 3  # connection drops, timeouts, 5xx
+RETRIES_RATELIMIT = 5  # 429s: the server told us to come back, so we do
+
+
+@dataclass
+class Fetched:
+    """One retrieved response, whether it came from the network or the cache."""
+
+    url: str
+    status: int
+    headers: Any  # httpx.Headers
+    body: bytes
+    from_cache: bool = False
+
+
+@dataclass
+class CacheEntry:
+    url: str
+    status: int
+    headers: dict[str, str]  # lowercase keys
+    body: bytes
+    stored_at: float
+
+    def age(self) -> float:
+        return max(0.0, time.time() - self.stored_at)
+
+    def fresh(self) -> bool:
+        return self.age() < CACHE_FRESH_FOR
+
+    def validators(self) -> dict[str, str]:
+        """Headers that let the server answer 304 instead of resending the body."""
+        out = {}
+        if etag := self.headers.get("etag"):
+            out["If-None-Match"] = etag
+        if modified := self.headers.get("last-modified"):
+            out["If-Modified-Since"] = modified
+        return out
+
+    def as_dict(self) -> dict[str, Any]:
+        # Built by hand rather than with dataclasses.asdict(), which deepcopies every
+        # value -- that would duplicate the whole body in memory on each save.
+        return {
+            "url": self.url,
+            "status": self.status,
+            "headers": self.headers,
+            "body": self.body,
+            "stored_at": self.stored_at,
+        }
+
+
+class Cache:
+    """Response cache on disk, so re-runs and interrupted crawls are nearly free.
+
+    diskcache handles atomic writes, LRU eviction and the size ceiling. Two deliberate
+    choices about how it is driven:
+
+    * Every operation goes through ONE dedicated thread, so cache access is sequential.
+      This is thread confinement -- the ordinary way to drive a blocking, thread-affine
+      library from asyncio -- and it is not just about ordering: diskcache's SQLite
+      connections are thread-local and Cache.close() only closes the calling thread's, so
+      handing calls to asyncio.to_thread would open a connection per pool worker and leak
+      all but one. One thread means one connection, no in-process lock contention, and a
+      close() that runs on the thread that opened it.
+    * `expire` is the eviction horizon, not the freshness line. An entry past its TTL is
+      still valuable, because its ETag turns the next request into a cheap 304.
+
+    Across processes, WAL mode plus retry=True absorbs the contention.
+    """
+
+    def __init__(self, refresh: bool):
+        self.refresh = refresh
+        self.store: Any = None
+        self.pool: ThreadPoolExecutor | None = None
+        self.root: Path | None = None
+        self.hits = self.revalidated = 0
+
+    async def open(self) -> None:
+        if diskcache is None:
+            log.debug(
+                "diskcache is not installed -- every request will go to the network"
+            )
+            return
+        self.root = (
+            Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / PROGRAM
+        )
+        self.pool = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix=f"{PROGRAM}-cache"
+        )
+        try:
+            # Opened ON the cache thread, so even the schema-setup connection is the one
+            # every later call reuses.
+            self.store, volume = await self._call(self._open_store)
+        except Exception as exc:  # a broken or unwritable cache must never fail the run
+            log.warning(
+                "cache at %s unavailable (%s); continuing without it", self.root, exc
+            )
+            self.pool.shutdown(wait=False)
+            self.pool = self.store = None
+            return
+        log.debug("cache %s currently holding %s", self.root, human_bytes(volume))
+        if self.refresh:
+            log.info("--refresh: ignoring cached copies, and replacing them as we go")
+
+    def _open_store(self) -> tuple[Any, int]:
+        store = diskcache.Cache(str(self.root), size_limit=CACHE_SIZE_LIMIT)
+        return store, store.volume()
+
+    async def _call(self, fn, *args, **kwargs):
+        """Run one cache operation on the cache thread."""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            self.pool, functools.partial(fn, *args, **kwargs)
+        )
+
+    async def close(self) -> None:
+        if self.pool is None:
+            return
+        if self.store is not None:
+            with contextlib.suppress(Exception):
+                await self._call(self.store.close)
+        self.pool.shutdown(wait=True)
+        self.pool = self.store = None
+
+    @staticmethod
+    def key(url: str, auth: str) -> str:
+        # Auth is part of the key: two tokens must never share a cached body.
+        return hashlib.sha256(f"{url}\n{auth}".encode()).hexdigest()
+
+    async def load(self, key: str) -> CacheEntry | None:
+        if self.store is None:
+            return None
+        try:
+            raw = await self._call(self.store.get, key, retry=True)
+            return CacheEntry(**raw) if isinstance(raw, dict) else None
+        except Exception as exc:  # corrupt or contended: treat as a miss
+            log.debug("ignoring unreadable cache entry: %s", exc)
+            return None
+
+    async def save(self, key: str, entry: CacheEntry) -> None:
+        if self.store is None:
+            return
+        if len(entry.body) > CACHE_MAX_BODY:
+            log.debug(
+                "not caching %s: it would evict most of the cache",
+                human_bytes(len(entry.body)),
+            )
+            return
+        try:
+            await self._call(
+                self.store.set,
+                key,
+                entry.as_dict(),
+                expire=CACHE_EVICT_AFTER,
+                retry=True,
+            )
+        except Exception as exc:
+            log.debug("could not write cache entry: %s", exc)
+
+
+_REMAINING_HEADERS = (
+    "x-ratelimit-remaining",
+    "ratelimit-remaining",
+    "x-rate-limit-remaining",
+    "x-sentry-rate-limit-remaining",
+)
+_RESET_HEADERS = (
+    "x-ratelimit-reset",
+    "ratelimit-reset",
+    "x-rate-limit-reset",
+    "x-sentry-rate-limit-reset",
+)
+_LIMIT_HEADERS = ("x-ratelimit-limit", "ratelimit-limit", "x-rate-limit-limit")
+
+
+def _header_number(headers, names: tuple[str, ...]) -> float | None:
+    for name in names:
+        raw = headers.get(name)
+        if raw:
+            try:
+                return float(str(raw).split(",")[0].strip())
+            except ValueError:
+                continue
+    return None
+
+
+def reset_seconds(headers) -> float | None:
+    """Seconds until the rate-limit window resets. Servers send either a delta or an epoch."""
+    value = _header_number(headers, _RESET_HEADERS)
+    if value is None:
+        return None
+    return max(0.0, value - time.time()) if value > 1e6 else max(0.0, value)
+
+
+class HostLimiter:
+    """Keeps us under one host's rate limit: bounded concurrency, a polite gap between
+    requests, and a gap that widens on its own when the host says we are running low."""
+
+    def __init__(self):
+        self.slots = asyncio.Semaphore(HOST_CONCURRENCY)
+        self.gap = MIN_GAP
+        self.next_at = 0.0
+        self.lock = asyncio.Lock()
+
+    @contextlib.asynccontextmanager
+    async def slot(self, jlog: JobLog):
+        async with self.slots:
+            async with self.lock:  # claim a start time, then release
+                start_at = max(time.monotonic(), self.next_at)
+                self.next_at = start_at + self.gap
+            wait = start_at - time.monotonic()
+            if wait > 0:
+                if wait > 0.5:
+                    jlog.debug(
+                        "waiting %s to stay within this host's rate limit",
+                        human_time(wait),
+                    )
+                await asyncio.sleep(wait)
+            yield
+
+    def observe(self, headers, status: int, jlog: JobLog) -> None:
+        """Adjust pacing from what the response just told us."""
+        if status in (429, 503):
+            self.gap = min(MAX_GAP, max(self.gap * 2, 1.0))
+            jlog.warning(
+                "host pushed back (HTTP %d) -- spacing requests %s apart from now on",
+                status,
+                human_time(self.gap),
+            )
+            return
+
+        remaining = _header_number(headers, _REMAINING_HEADERS)
+        if remaining is None:
+            self.gap = max(
+                MIN_GAP, self.gap * GAP_DECAY
+            )  # no signal; drift back to full speed
+            return
+
+        limit = _header_number(headers, _LIMIT_HEADERS)
+        reset = reset_seconds(headers)
+        threshold = max(5.0, limit * 0.1) if limit else 5.0
+        if remaining <= threshold and reset:
+            # Spread whatever is left over the time until the window resets.
+            needed = reset / max(1.0, remaining)
+            if needed > self.gap:
+                self.gap = min(MAX_GAP, needed)
+                jlog.warning(
+                    "only %d request(s) left before the limit resets in %s -- "
+                    "slowing to one every %s",
+                    int(remaining),
+                    human_time(reset),
+                    human_time(self.gap),
+                )
+        else:
+            self.gap = max(MIN_GAP, self.gap * GAP_DECAY)
+
+
+def backoff_delay(attempt: int, headers=None) -> float:
+    """Exponential backoff with jitter, honouring Retry-After when the server sends one.
+    The jitter matters: without it, concurrent jobs retry in lockstep."""
+    if headers is not None:
+        after = str(headers.get("retry-after", "")).strip()
+        if after.isdigit():
+            return min(float(after), 300.0) + random.random()
+    return (2.0 ** (attempt - 1)) * (0.5 + random.random() * 0.5)
+
+
+_STATUS_MEANING = {
+    400: "the server rejected the request as malformed",
+    401: "authentication is required, or the credentials supplied were rejected",
+    403: "access is forbidden -- the credentials were understood but are not allowed here",
+    404: "the resource does not exist at that URL",
+    405: "the server does not allow GET on that URL",
+    407: "an HTTP proxy requires authentication",
+    410: "the resource has been permanently removed",
+    416: "the requested byte range is not satisfiable",
+    422: "the server understood the request but could not process it",
+    429: "rate limited -- too many requests",
+    500: "the server hit an internal error",
+    502: "a gateway upstream of the server returned an invalid response",
+    503: "the service is unavailable (overloaded, or down for maintenance)",
+    504: "a gateway upstream of the server timed out",
+}
+
+
+class Client:
+    """Async HTTP with a response cache, per-host pacing, retries and Range-resume."""
+
+    def __init__(self, http, auth_used: list[str], auth_fingerprint: str, cache: Cache):
+        self.http, self.auth_used = http, auth_used
+        self.auth_fingerprint, self.cache = auth_fingerprint, cache
+        self.limiters: dict[str, HostLimiter] = {}
+
+    def limiter(self, url: str) -> HostLimiter:
+        host = urlsplit(url).netloc.lower()
+        if host not in self.limiters:
+            self.limiters[host] = HostLimiter()
+        return self.limiters[host]
+
+    async def get(self, url: str, jlog: JobLog) -> Fetched:
+        key = Cache.key(url, self.auth_fingerprint)
+        cached = None if self.cache.refresh else await self.cache.load(key)
+        if cached and cached.fresh():
+            self.cache.hits += 1
+            jlog.info(
+                "cached: %s stored %s ago (no request made)",
+                human_bytes(len(cached.body)),
+                human_time(cached.age()),
+            )
+            return Fetched(
+                cached.url,
+                cached.status,
+                httpx.Headers(cached.headers),
+                cached.body,
+                True,
+            )
+        if cached:
+            jlog.debug("cached copy is %s old; revalidating", human_time(cached.age()))
+
+        limiter = self.limiter(url)
+        buf, started, attempt = bytearray(), time.monotonic(), 0
+        while True:
+            attempt += 1
+            headers = {}
+            if buf:
+                headers["Range"] = f"bytes={len(buf)}-"
+                jlog.info("resuming from byte %d with a Range request", len(buf))
+            elif cached:
+                headers.update(cached.validators())
+            jlog.debug("GET %s", redact(url))
+            try:
+                async with limiter.slot(jlog):
+                    async with self.http.stream("GET", url, headers=headers) as resp:
+                        self._log_response(resp, jlog)
+                        limiter.observe(resp.headers, resp.status_code, jlog)
+
+                        if resp.status_code == 304 and cached:
+                            await resp.aread()
+                            self.cache.revalidated += 1
+                            jlog.info(
+                                "unchanged since last fetch (HTTP 304) -- reusing the cached %s",
+                                human_bytes(len(cached.body)),
+                            )
+                            merged = {
+                                **cached.headers,
+                                **{k.lower(): v for k, v in resp.headers.items()},
+                            }
+                            entry = CacheEntry(
+                                url, cached.status, merged, cached.body, time.time()
+                            )
+                            await self.cache.save(key, entry)
+                            return Fetched(
+                                url,
+                                cached.status,
+                                httpx.Headers(merged),
+                                cached.body,
+                                True,
+                            )
+
+                        if resp.status_code == 416 and buf:
+                            return Fetched(
+                                str(resp.url),
+                                resp.status_code,
+                                resp.headers,
+                                bytes(buf),
+                            )
+                        if buf and resp.status_code == 200:
+                            jlog.warning(
+                                "server ignored the Range request; discarding %s and restarting",
+                                human_bytes(len(buf)),
+                            )
+                            buf.clear()
+
+                        limit = (
+                            RETRIES_RATELIMIT
+                            if resp.status_code == 429
+                            else RETRIES_TRANSIENT
+                        )
+                        if (
+                            resp.status_code == 429 or resp.status_code >= 500
+                        ) and attempt <= limit:
+                            await resp.aread()
+                            delay = backoff_delay(attempt, resp.headers)
+                            jlog.warning(
+                                "HTTP %d -- retrying in %s (attempt %d/%d)",
+                                resp.status_code,
+                                human_time(delay),
+                                attempt,
+                                limit + 1,
+                            )
+                            await asyncio.sleep(delay)
+                            continue
+                        if resp.status_code >= 400:
+                            await resp.aread()
+                            self._raise_status(resp, url)
+
+                        total = (
+                            int(resp.headers["content-length"]) + len(buf)
+                            if (
+                                resp.headers.get("content-length", "").isdigit()
+                                and "content-encoding" not in resp.headers
+                            )
+                            else None
+                        )
+                        last = time.monotonic()
+                        async for chunk in resp.aiter_bytes(65536):
+                            buf.extend(chunk)
+                            if time.monotonic() - last >= 2:
+                                pct = (
+                                    f" ({100 * len(buf) / total:.0f}%)" if total else ""
+                                )
+                                jlog.info(
+                                    "  %s%s downloaded", human_bytes(len(buf)), pct
+                                )
+                                last = time.monotonic()
+
+                        if total is not None and len(buf) != total:
+                            jlog.warning(
+                                "expected %s but got %s -- the transfer looks truncated",
+                                human_bytes(total),
+                                human_bytes(len(buf)),
+                            )
+                        jlog.debug(
+                            "  body complete: %s in %s",
+                            human_bytes(len(buf)),
+                            human_time(time.monotonic() - started),
+                        )
+
+                        body, final = bytes(buf), str(resp.url)
+                        stored = {k.lower(): v for k, v in resp.headers.items()}
+                        await self.cache.save(
+                            key,
+                            CacheEntry(
+                                final, resp.status_code, stored, body, time.time()
+                            ),
+                        )
+                        return Fetched(final, resp.status_code, resp.headers, body)
+
+            except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+                error = self._connect_error(exc, url)
+                if error.permanent or attempt > RETRIES_TRANSIENT:
+                    raise error from exc
+                await self._retry_after(
+                    attempt, jlog, f"connection failed ({type(exc).__name__})"
+                )
+            except (httpx.ReadTimeout, httpx.WriteTimeout, httpx.PoolTimeout) as exc:
+                if attempt > RETRIES_TRANSIENT:
+                    raise NetworkError(
+                        f"timed out reading {redact(url)}",
+                        "raise --timeout, or the server may be stalled",
+                    ) from exc
+                await self._retry_after(attempt, jlog, "timed out")
+            except (httpx.RemoteProtocolError, httpx.ReadError) as exc:
+                if attempt > RETRIES_TRANSIENT:
+                    raise NetworkError(
+                        f"connection to {urlsplit(url).netloc} broke after {human_bytes(len(buf))}: {exc}",
+                        "the server closed the connection early; try again or lower --concurrency",
+                    ) from exc
+                await self._retry_after(
+                    attempt, jlog, f"connection dropped after {human_bytes(len(buf))}"
+                )
+            except httpx.TooManyRedirects as exc:
+                raise NetworkError(
+                    f"too many redirects following {redact(url)}",
+                    "the server is probably bouncing you to a login page -- check your credentials",
+                ) from exc
+            except httpx.HTTPError as exc:
+                raise NetworkError(f"request to {redact(url)} failed: {exc}") from exc
+
+    @staticmethod
+    async def _retry_after(attempt: int, jlog: JobLog, why: str) -> None:
+        delay = backoff_delay(attempt)
+        jlog.warning(
+            "%s -- retrying in %s (attempt %d/%d)",
+            why,
+            human_time(delay),
+            attempt,
+            RETRIES_TRANSIENT + 1,
+        )
+        await asyncio.sleep(delay)
+
+    @staticmethod
+    def _log_response(resp, jlog: JobLog) -> None:
+        for hop in resp.history:
+            jlog.debug(
+                "  redirect %d -> %s",
+                hop.status_code,
+                redact(hop.headers.get("location", "?")),
+            )
+        length = resp.headers.get("content-length", "")
+        jlog.debug(
+            "  <- %d | %s | %s",
+            resp.status_code,
+            resp.headers.get("content-type", "no content-type"),
+            human_bytes(int(length)) if length.isdigit() else "unknown length",
+        )
+        if DUMP_HEADERS:
+            for key, value in resp.headers.items():
+                if key.lower() in ("set-cookie", "authorization"):
+                    value = f"<redacted {len(value)} chars>"
+                jlog.debug("  < %s: %s", key, value)
+
+    @staticmethod
+    def _connect_error(exc: Exception, url: str) -> NetworkError:
+        host, text = urlsplit(url).netloc, str(exc).lower()
+        if any(w in text for w in ("certificate", "ssl", "tls")):
+            return NetworkError(
+                f"TLS handshake with {host} failed: {exc}",
+                "the certificate may be expired, self-signed, or issued for another host",
+                permanent=True,
+            )
+        if any(
+            w in text
+            for w in (
+                "getaddrinfo",
+                "name or service not known",
+                "nodename nor servname",
+                "name resolution",
+            )
+        ):
+            return NetworkError(
+                f"could not resolve the hostname {host!r}",
+                "check the spelling, and that DNS/VPN is working",
+                permanent=True,
+            )
+        if "refused" in text:
+            return NetworkError(
+                f"{host} refused the connection",
+                "nothing is listening there, or a firewall is blocking it",
+            )
+        if "unreachable" in text or "no route to host" in text:
+            return NetworkError(
+                f"no network route to {host}", "check your network connection or VPN"
+            )
+        return NetworkError(f"could not connect to {host}: {exc}")
+
+    def _raise_status(self, resp, url: str) -> None:
+        status = resp.status_code
+        meaning = _STATUS_MEANING.get(status, "the server returned an error")
+        detail = self._server_message(resp)
+        where = redact(url)
+
+        if status in (401, 403, 407):
+            challenge = (
+                resp.headers.get("www-authenticate")
+                or resp.headers.get("proxy-authenticate")
+                or ""
+            )
+            scheme = challenge.split(" ")[0] if challenge else ""
+            bits = [
+                f"credentials were sent ({', '.join(self.auth_used)})"
+                if self.auth_used
+                else "no credentials were sent"
+            ]
+            if scheme:
+                bits.append(f"the server asked for {scheme}")
+                if scheme.lower() == "basic" and "HTTP Basic" not in self.auth_used:
+                    bits.append("try --user USER[:PASS]")
+                elif (
+                    scheme.lower() == "bearer" and "bearer token" not in self.auth_used
+                ):
+                    bits.append("try --token YOUR_TOKEN")
+            elif not self.auth_used:
+                bits.append("try --token, --user or --cookie")
+            if status == 403 and self.auth_used:
+                bits.append(
+                    "the token may lack the required scope, or the resource belongs to another account"
+                )
+            if detail:
+                bits.append(f"server said: {detail}")
+            raise AuthError(f"HTTP {status} for {where}: {meaning}", "; ".join(bits))
+
+        if status == 429:
+            after = resp.headers.get("retry-after")
+            raise HTTPError(
+                f"HTTP 429 for {where}: {meaning}",
+                f"the server asked you to wait {after}s"
+                if after
+                else "lower --concurrency or raise --retries",
+            )
+        if status == 404:
+            hint = "check the URL; if it needs a login, the server may be hiding it behind a 404"
+            raise HTTPError(
+                f"HTTP 404 for {where}: {meaning}",
+                f"{hint}; server said: {detail}" if detail else hint,
+            )
+        raise HTTPError(
+            f"HTTP {status} for {where}: {meaning}",
+            detail or ("usually transient -- try again" if status >= 500 else None),
+        )
+
+    @staticmethod
+    def _server_message(resp) -> str | None:
+        """Most APIs put the real reason in the error body. Surface it."""
+        raw = resp.content[:4000]
+        if not raw:
+            return None
+        if "json" in resp.headers.get("content-type", ""):
+            with contextlib.suppress(Exception):
+                data = json.loads(raw)
+                if isinstance(data, dict):
+                    for key in (
+                        "detail",
+                        "message",
+                        "error_description",
+                        "error",
+                        "reason",
+                        "title",
+                    ):
+                        value = data.get(key)
+                        if isinstance(value, str) and value.strip():
+                            return value.strip()[:200]
+                        if isinstance(value, dict) and isinstance(
+                            value.get("message"), str
+                        ):
+                            return value["message"][:200]
+        if "html" not in resp.headers.get("content-type", "") and not is_binary(raw):
+            return re.sub(r"\s+", " ", decode_text(raw)).strip()[:200] or None
+        return None
+
+
+# --------------------------------------------------------------------------- #
+# The download job
+# --------------------------------------------------------------------------- #
+
+
+@dataclass
+class Result:
+    url: str
+    ok: bool = False
+    files: list[OutFile] = field(default_factory=list)
+    pages: int = 0
+    cached: int = 0
+    downloaded: int = 0
+    error: FetchError | None = None
+
+
+async def download(url: str, slot: int, client: Client, output: Output, opts) -> Result:
+    jlog = JobLog(f"{slot + 1:02d}:{name_from_url(url)[:20]}", slot)
+    result = Result(url)
+    try:
+        await _download(url, jlog, client, output, opts, result)
+        result.ok = True
+    except FetchError as exc:
+        result.error = exc
+        jlog.error("%s", exc.render())
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        result.error = FetchError(f"unexpected failure: {type(exc).__name__}: {exc}")
+        jlog.error("unexpected failure: %s: %s", type(exc).__name__, exc)
+        jlog.debug("traceback", exc_info=True)
+    return result
+
+
+async def _download(
+    url: str, jlog: JobLog, client: Client, output: Output, opts, result: Result
+) -> None:
+    jlog.info("starting: %s", redact(url))
+    files = [OutFile(0)]
+    visited: set[str] = set()
+
+    while True:
+        if url in visited:
+            jlog.warning(
+                "pagination loop detected (%s already fetched) -- stopping", redact(url)
+            )
+            break
+        visited.add(url)
+
+        got = await client.get(url, jlog)
+        body, final = got.body, got.url
+        result.pages += 1
+        result.downloaded += 0 if got.from_cache else len(body)
+        result.cached += got.from_cache
+
+        ftype = detect_type(final, got.headers, body[:8192], jlog)
+        shape, parsed = analyse(body, ftype, jlog)
+        jlog.info(
+            "page %d: %s, %s, type=%s (via %s)",
+            result.pages,
+            human_bytes(len(body)),
+            shape.describe(),
+            f".{ftype.ext}" if ftype.ext else "unknown",
+            ftype.source,
+        )
+
+        page = Page(final, body, shape, ftype, parsed)
+        current = files[-1]
+        if not current.pages:
+            current.pages.append(page)
+        else:
+            prev = current.pages[-1]
+            same, why = is_continuation(prev.url, prev.shape, final, shape)
+            if same:
+                jlog.info("  -> CONTINUATION of file #%d: %s", current.index + 1, why)
+                current.pages.append(page)
+            else:
+                jlog.info("  -> NEW FILE #%d: %s", len(files) + 1, why)
+                files.append(OutFile(len(files), [page]))
+
+        if not opts.paginate:
+            break
+        if result.pages >= opts.max_pages:
+            jlog.warning(
+                "stopped at --max-pages=%d; there may be more pages left",
+                opts.max_pages,
+            )
+            break
+
+        nxt = find_next(final, got.headers, shape, parsed, body, jlog)
+        if not nxt:
+            jlog.debug("pagination complete after %d page(s)", result.pages)
+            break
+        if nxt.confidence == "low":
+            jlog.info("ignoring a low-confidence next-page signal (%s)", nxt.source)
+            break
+        try:
+            url = validate_url(nxt.url, "next-page URL")
+        except InvalidURLError as exc:
+            jlog.warning("next-page URL is unusable, stopping: %s", exc.message)
+            break
+        jlog.info("next page via %s: %s", nxt.source, redact(url))
+
+    jlog.info("fetched %d page(s) -> %d output file(s)", result.pages, len(files))
+    # Later parts are named after page 1, not after their own ?page=N URL.
+    job_base = files[0].first.ftype.name or name_from_url(files[0].first.url)
+    for out in files:
+        data, out.note = merge(out, jlog)
+        if out.first.ftype.name:
+            base = out.first.ftype.name  # the server named this one itself
+        elif out.index:
+            stem, dot, ext = job_base.rpartition(".")
+            base = f"{stem or job_base}-part{out.index + 1}" + (
+                f".{ext}" if dot else ""
+            )
+        else:
+            base = job_base
+        out.path = await output.allocate(base, out.ext_override or out.first.ftype.ext)
+        out.size = write_atomic(out.path, data)
+        records = out.records()
+        jlog.info(
+            "wrote %s (%s%s) -- %s",
+            out.path,
+            human_bytes(out.size),
+            f", {records} records" if records is not None else "",
+            out.note,
+        )
+    result.files = files
+
+
+# --------------------------------------------------------------------------- #
+# Finding URLs inside a document, and telling files from webpages
+# --------------------------------------------------------------------------- #
+
+FILE_EXTS = {
+    "csv",
+    "tsv",
+    "json",
+    "jsonl",
+    "ndjson",
+    "geojson",
+    "xml",
+    "yaml",
+    "yml",
+    "toml",
+    "txt",
+    "log",
+    "md",
+    "sql",
+    "parquet",
+    "avro",
+    "har",
+    "pdf",
+    "doc",
+    "docx",
+    "xls",
+    "xlsx",
+    "ppt",
+    "pptx",
+    "odt",
+    "ods",
+    "rtf",
+    "epub",
+    "zip",
+    "tar",
+    "gz",
+    "tgz",
+    "bz2",
+    "xz",
+    "zst",
+    "7z",
+    "rar",
+    "iso",
+    "dmg",
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "bmp",
+    "svg",
+    "webp",
+    "ico",
+    "tif",
+    "tiff",
+    "heic",
+    "avif",
+    "mp3",
+    "wav",
+    "flac",
+    "ogg",
+    "m4a",
+    "mp4",
+    "mov",
+    "avi",
+    "mkv",
+    "webm",
+    "whl",
+    "jar",
+    "apk",
+    "deb",
+    "rpm",
+    "msi",
+    "exe",
+    "dll",
+    "so",
+    "bin",
+    "wasm",
+    "pem",
+    "crt",
+    "key",
+    "sig",
+    "torrent",
+    "sqlite",
+    "db",
+    "dump",
+    "css",
+    "js",
+    "woff",
+    "woff2",
+    "ttf",
+}
+PAGE_EXTS = {"html", "htm", "xhtml", "php", "asp", "aspx", "jsp", "cgi", "shtml", "do"}
+
+# Attachment URLs as they appear in support transcripts, ticket exports and chat logs.
+# These are the whole point of scanning a transcript, so they are recognised by name --
+# both to classify them confidently and to tell you where each file came from.
+ATTACHMENT_SOURCES = [
+    (re.compile(r"(?i)\.zendesk\.com/attachments/"), "Zendesk attachment"),
+    (re.compile(r"(?i)^https?://files\.slack\.com/files-"), "Slack file"),
+    (re.compile(r"(?i)^https?://[\w.-]+\.slack\.com/files/"), "Slack file"),
+    (
+        re.compile(r"(?i)^https?://drive\.usercontent\.google\.com/download"),
+        "Google Drive download",
+    ),
+    (re.compile(r"(?i)^https?://drive\.google\.com/uc\b"), "Google Drive download"),
+    (
+        re.compile(r"(?i)^https?://docs\.google\.com/\w+/.*/export"),
+        "Google Docs export",
+    ),
+    (re.compile(r"(?i)^https?://(www\.)?dropbox\.com/s(cl)?/"), "Dropbox share"),
+    (re.compile(r"(?i)^https?://dl\.dropboxusercontent\.com/"), "Dropbox direct link"),
+    (re.compile(r"(?i)\.atlassian\.net/secure/attachment/"), "Jira attachment"),
+    (
+        re.compile(r"(?i)\.atlassian\.net/rest/api/[\w.]+/attachment/"),
+        "Jira attachment (API)",
+    ),
+    (
+        re.compile(r"(?i)^https?://github\.com/[\w.-]+/[\w.-]+/files/"),
+        "GitHub issue attachment",
+    ),
+    (re.compile(r"(?i)^https?://user-images\.githubusercontent\.com/"), "GitHub image"),
+    (re.compile(r"(?i)\.intercomcdn\.com/"), "Intercom attachment"),
+    (re.compile(r"(?i)\.freshdesk\.com/.*attachment"), "Freshdesk attachment"),
+    (re.compile(r"(?i)\.sentry\.io/api/0/.*/attachments/"), "Sentry event attachment"),
+    (re.compile(r"(?i)\.sharepoint\.com/.*(download|Doc\.aspx)"), "SharePoint file"),
+    (
+        re.compile(r"(?i)^https?://[\w.-]*\.notion\.(so|site)/.*\.\w{2,4}\?"),
+        "Notion attachment",
+    ),
+]
+_DOWNLOADISH = re.compile(
+    r"(?i)(/download/|/downloads/|/raw/|/export/|/attachments?/|/artifacts?/|/blob/|/files?/|"
+    r"[?&](download|export|attachment|raw)=|[?&]format=(csv|json|xlsx?|pdf|tsv|xml|zip)|"
+    r"response-content-disposition=|x-amz-signature=)"
+)
+_ASSET_HOST = re.compile(
+    r"(?i)^(raw\.githubusercontent\.com|objects\.githubusercontent\.com|files\.pythonhosted\.org|"
+    r"storage\.googleapis\.com|s3\.amazonaws\.com|cdn\..+|.+\.s3[.-][\w-]*\.amazonaws\.com|"
+    r".+\.blob\.core\.windows\.net|.+\.r2\.cloudflarestorage\.com)$"
+)
+
+_URL_RE = re.compile(r"https?://[^\s<>\"'`\\\]\[{}|^]+")
+_JUNK = ".,;:!?)]}>'\"`*_"
+
+
+@dataclass
+class Found:
+    url: str
+    verdict: str = "page"  # "file" | "page"
+    why: str = ""
+    size: int | None = None
+    name: str | None = None  # what it would be saved as
+
+
+class _HrefScanner(HTMLParser):
+    ATTRS = ("href", "src", "data-url", "data-href", "poster")
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.urls: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        a = {k.lower(): (v or "") for k, v in attrs}
+        self.urls += [a[x].strip() for x in self.ATTRS if a.get(x, "").strip()]
+
+
+def extract_urls(text: str, source: str) -> list[str]:
+    """Pull http(s) URLs out of HTML, JSON, Markdown, logs -- whatever it is."""
+    out, seen = [], set()
+
+    def add(raw: str) -> None:
+        candidate = raw.strip().strip("<>\"'").rstrip(_JUNK)
+        while candidate.endswith(")") and candidate.count(")") > candidate.count("("):
+            candidate = candidate[:-1]
+        if not candidate.lower().startswith(("http://", "https://")):
+            return
+        try:
+            candidate = validate_url(candidate)
+        except InvalidURLError:
+            return
+        if candidate not in seen:
+            seen.add(candidate)
+            out.append(candidate)
+
+    if re.search(r"<\s*(a|link|img|script|html)\b", text[:20000], re.IGNORECASE):
+        scanner = _HrefScanner()
+        with contextlib.suppress(Exception):
+            scanner.feed(text)
+            scanner.close()
+        for url in scanner.urls:
+            add(url)
+
+    if text.lstrip()[:1] in "{[":
+        with contextlib.suppress(ValueError):
+            for url in walk_json_strings(json.loads(text)):
+                add(url)
+
+    for match in _URL_RE.finditer(text):
+        add(match.group(0))
+
+    log.debug("extracted %d unique URL(s) from %s", len(out), source)
+    return out
+
+
+def walk_json_strings(node: Any, depth: int = 0) -> Iterator[str]:
+    if depth > 20:
+        return
+    if isinstance(node, str):
+        if node.lower().startswith(("http://", "https://")):
+            yield node
+    elif isinstance(node, dict):
+        for value in node.values():
+            yield from walk_json_strings(value, depth + 1)
+    elif isinstance(node, list):
+        for value in node[:2000]:
+            yield from walk_json_strings(value, depth + 1)
+
+
+def classify(url: str) -> Found:
+    """Guess file-vs-webpage from the URL alone."""
+    p, ext = urlsplit(url), url_ext(url)
+    host = (p.hostname or "").lower()
+    verdict, why = "page", "no extension and no download markers"
+    for pattern, label in ATTACHMENT_SOURCES:
+        if pattern.search(url):
+            verdict, why = "file", label
+            break
+    else:
+        if ext in PAGE_EXTS:
+            verdict, why = "page", f"ends in .{ext}, a rendered page"
+        elif ext in FILE_EXTS:
+            verdict, why = "file", f"ends in .{ext}"
+        elif _DOWNLOADISH.search(url):
+            verdict, why = "file", "URL contains a download/export marker"
+        elif _ASSET_HOST.match(host):
+            verdict, why = "file", f"{host} is an object store / CDN"
+        elif p.path in ("", "/") and not p.query:
+            verdict, why = "page", "bare site root"
+        elif p.path.endswith("/"):
+            verdict, why = "page", "path ends in a slash"
+        elif ext:
+            verdict, why = "file", f"unrecognised .{ext}, but it looks like a filename"
+        elif re.search(r"(?i)/api/|/v\d+/", p.path):
+            verdict, why = "file", "looks like an API endpoint"
+    return Found(url, verdict, why, name=name_from_url(url))
+
+
+async def confirm_types(items: list[Found], client: Client, concurrency: int) -> None:
+    """Ask each server what its URL really is. Cheap, and far more accurate than guessing."""
+    log.info("checking %d URL(s) with HEAD requests...", len(items))
+    sem = asyncio.Semaphore(concurrency)
+
+    async def probe(item: Found) -> None:
+        async with sem:
+            try:
+                async with client.limiter(item.url).slot(JobLog("probe", 0)):
+                    resp = await client.http.head(item.url)
+                    if resp.status_code in (403, 405, 501):
+                        resp = await client.http.get(
+                            item.url, headers={"Range": "bytes=0-2047"}
+                        )
+            except httpx.HTTPError as exc:
+                log.debug(
+                    "probe of %s failed: %s", redact(item.url), type(exc).__name__
+                )
+                item.why += " (server did not respond to a probe)"
+                return
+            if resp.status_code >= 400:
+                item.why = f"HTTP {resp.status_code} on probe; {item.why}"
+                return
+            ctype = (
+                (resp.headers.get("content-type", "").split(";")[0] or "")
+                .strip()
+                .lower()
+            )
+            if resp.headers.get("content-length", "").isdigit():
+                item.size = int(resp.headers["content-length"])
+            disposition = resp.headers.get("content-disposition", "")
+            if named := content_disposition_name(disposition):
+                item.name = safe_name(named)  # the server's own name beats any guess
+            if "attachment" in disposition.lower():
+                item.verdict = "file"
+                item.why = f"server sends it as an attachment{f' named {item.name!r}' if item.name else ''}"
+            elif ctype in ("text/html", "application/xhtml+xml"):
+                item.verdict, item.why = "page", f"server returns {ctype}"
+            elif ctype:
+                item.verdict, item.why = "file", f"server returns {ctype}"
+
+    await asyncio.gather(*(probe(i) for i in items))
+
+
+def parse_selection(spec: str, count: int) -> list[int] | None:
+    """'1,3,5-9' / 'all' / 'files' / 'none' -> zero-based indices. None means "files"."""
+    spec = spec.strip().lower()
+    if spec in ("", "f", "files"):
+        return None
+    if spec in ("a", "all", "y", "yes"):
+        return list(range(count))
+    if spec in ("n", "no", "none", "q", "quit"):
+        return []
+    picked: list[int] = []
+    for chunk in re.split(r"[,\s]+", spec):
+        if not chunk:
+            continue
+        if "-" in chunk[1:]:
+            lo, _, hi = chunk.partition("-")
+            try:
+                lo_i, hi_i = sorted((int(lo), int(hi)))
+            except ValueError:
+                raise UsageError(f"could not understand the range {chunk!r}")
+            picked += [n - 1 for n in range(lo_i, hi_i + 1) if 1 <= n <= count]
+        else:
+            try:
+                n = int(chunk)
+            except ValueError:
+                raise UsageError(
+                    f"could not understand {chunk!r}",
+                    "use numbers, ranges (2-5), 'files', 'all' or 'none'",
+                )
+            if not 1 <= n <= count:
+                raise UsageError(f"{n} is out of range (1-{count})")
+            picked.append(n - 1)
+    return list(dict.fromkeys(picked))
+
+
+def choose(items: list[Found], assume_yes: bool) -> list[str]:
+    """Show what was found and ask which URLs to download."""
+    file_idx = [n for n, i in enumerate(items) if i.verdict == "file"]
+    if assume_yes:
+        chosen = file_idx or list(range(len(items)))
+        log.info("--yes: taking %d URL(s)", len(chosen))
+        return [items[n].url for n in chosen]
+
+    print(
+        f"\nFound {len(items)} URL(s); {len(file_idx)} look like downloadable files:\n",
+        file=sys.stderr,
+    )
+    for n, item in enumerate(items, 1):
+        size = f", {human_bytes(item.size)}" if item.size else ""
+        saves = f" -> {item.name}" if item.verdict == "file" and item.name else ""
+        print(
+            f"  {n:>3}. [{'FILE' if item.verdict == 'file' else 'page'}]{saves or ' ' + item.url}",
+            file=sys.stderr,
+        )
+        detail = f"       {item.why}{size}"
+        print(detail if not saves else f"{detail}\n       {item.url}", file=sys.stderr)
+    print(
+        "\n  files = the FILE ones (default) | all | 1,3,5-9 | none\n", file=sys.stderr
+    )
+
+    if not sys.stdin.isatty():
+        raise UsageError(
+            "cannot prompt: stdin is not a terminal",
+            "pass -y to take the file-looking URLs automatically",
+        )
+    while True:
+        try:
+            answer = input("selection [files]: ")
+        except (EOFError, KeyboardInterrupt):
+            print(file=sys.stderr)
+            return []
+        try:
+            picked = parse_selection(answer, len(items))
+        except UsageError as exc:
+            print(f"  {exc.message}", file=sys.stderr)
+            continue
+        if picked is None:
+            if not file_idx:
+                print(
+                    "  nothing looks like a file -- choose 'all', some numbers, or 'none'.",
+                    file=sys.stderr,
+                )
+                continue
+            picked = file_idx
+        return [items[n].url for n in picked]
+
+
+# --------------------------------------------------------------------------- #
+# CLI
+# --------------------------------------------------------------------------- #
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog=PROGRAM,
+        description="Download URLs, with file-type detection and pagination awareness.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""examples:
+  %(prog)s https://example.com/data.csv
+  %(prog)s https://api.example.com/v1/items --token "$TOKEN" -v
+  %(prog)s https://a.com/1.pdf https://b.com/2.pdf -o ~/Downloads
+  %(prog)s -i urls.txt -o ./out
+  %(prog)s -i report.html        # extracts URLs, shows which look like files, asks
+""",
+    )
+    p.add_argument(
+        "urls",
+        nargs="*",
+        metavar="URL",
+        help="URLs to download; the first must be a valid http(s) URL",
+    )
+    p.add_argument(
+        "-i",
+        "--input",
+        metavar="FILE",
+        help="read URLs from FILE ('-' for stdin). A bare URL list is downloaded as-is; "
+        "any other document is scanned for URLs and you are asked which to take",
+    )
+    p.add_argument(
+        "-o",
+        "--output",
+        metavar="DIR",
+        default=".",
+        help="output directory, absolute or relative (default: current directory)",
+    )
+    p.add_argument(
+        "-y",
+        "--yes",
+        action="store_true",
+        help="do not prompt; take the URLs that look like files",
+    )
+    p.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="overwrite existing files instead of adding -1, -2",
+    )
+    p.add_argument(
+        "-c",
+        "--concurrency",
+        type=int,
+        default=4,
+        metavar="N",
+        help="download N URLs at once (default: 4)",
+    )
+    p.add_argument(
+        "--timeout",
+        type=float,
+        default=30.0,
+        metavar="SEC",
+        help="per-operation timeout (default: 30)",
+    )
+    p.add_argument(
+        "--refresh",
+        action="store_true",
+        help="ignore cached copies and re-fetch everything",
+    )
+    p.add_argument(
+        "--max-pages",
+        type=int,
+        default=100,
+        metavar="N",
+        help="stop after N pages per URL (default: 100)",
+    )
+    p.add_argument(
+        "--no-paginate",
+        dest="paginate",
+        action="store_false",
+        help="fetch only the first page",
+    )
+    p.add_argument(
+        "--token", metavar="TOKEN", help="send 'Authorization: Bearer TOKEN'"
+    )
+    p.add_argument(
+        "-u",
+        "--user",
+        metavar="USER[:PASS]",
+        help="HTTP Basic auth; prompts for the password if omitted",
+    )
+    p.add_argument(
+        "--cookie",
+        metavar="STRING",
+        help="send a Cookie header, e.g. 'session=abc; csrf=xyz'",
+    )
+    p.add_argument(
+        "-H",
+        "--header",
+        action="append",
+        default=[],
+        metavar="'K: V'",
+        help="extra request header (repeatable)",
+    )
+    p.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="-v debug, -vv also dump response headers",
+    )
+    p.add_argument("--version", action="version", version=f"{PROGRAM} {VERSION}")
+    return p
+
+
+def check_options(opts, parser: argparse.ArgumentParser) -> None:
+    if not opts.urls and not opts.input:
+        parser.error("no URL given. Pass a URL, or use -i/--input FILE.")
+    for name, value in (
+        ("--concurrency", opts.concurrency),
+        ("--max-pages", opts.max_pages),
+    ):
+        if value < 1:
+            raise UsageError(f"{name} must be at least 1")
+    if opts.timeout <= 0:
+        raise UsageError("--timeout must be positive")
+
+
+def build_http(opts) -> tuple[Any, list[str], str]:
+    """Create the HTTP client, report which credentials it will send, and fingerprint
+    those credentials so cached bodies are never shared across identities."""
+    headers = {"User-Agent": f"{PROGRAM}/{VERSION}", "Accept": "*/*"}
+    used: list[str] = []
+
+    for raw in opts.header:
+        if ":" not in raw:
+            raise UsageError(f"malformed --header {raw!r}", "use 'Name: value'")
+        key, _, value = raw.partition(":")
+        if not key.strip():
+            raise UsageError(f"malformed --header {raw!r}: empty header name")
+        headers[key.strip()] = value.strip()
+        if key.strip().lower() in ("authorization", "x-api-key", "private-token"):
+            used.append("custom auth header")
+
+    if opts.token:
+        token = opts.token.strip()
+        headers["Authorization"] = (
+            f"Bearer {token[7:].strip() if token.lower().startswith('bearer ') else token}"
+        )
+        used.append("bearer token")
+    if opts.cookie:
+        headers["Cookie"] = opts.cookie
+        used.append("cookies")
+
+    auth = None
+    if opts.user:
+        user, sep, password = opts.user.partition(":")
+        if not user:
+            raise UsageError("--user needs a username", "format: --user USER[:PASS]")
+        if not sep:
+            if not sys.stdin.isatty():
+                raise UsageError(
+                    "no password given and stdin is not a terminal",
+                    "use --user USER:PASS",
+                )
+            try:
+                password = getpass.getpass(f"Password for {user}: ")
+            except (EOFError, KeyboardInterrupt):
+                raise UsageError("password entry cancelled")
+        auth = httpx.BasicAuth(user, password)
+        used.append("HTTP Basic")
+
+    client = httpx.AsyncClient(
+        headers=headers,
+        auth=auth,
+        follow_redirects=True,
+        trust_env=True,
+        timeout=httpx.Timeout(opts.timeout, connect=min(10.0, opts.timeout)),
+        limits=httpx.Limits(
+            max_connections=max(10, opts.concurrency * 2),
+            max_keepalive_connections=opts.concurrency,
+        ),
+    )
+    # Credentials AND any custom header belong in the cache identity: a header can change
+    # what the server returns (that is what Vary describes), so two runs that send
+    # different headers must not share a cached body.
+    material = "|".join(
+        (
+            headers.get("Authorization", ""),
+            headers.get("Cookie", ""),
+            opts.user or "",
+            *sorted(opts.header),
+        )
+    )
+    fingerprint = (
+        hashlib.sha256(material.encode()).hexdigest()[:16]
+        if material.strip("|")
+        else "anonymous"
+    )
+    return client, used, fingerprint
+
+
+def read_input(path: str) -> tuple[str, bool]:
+    """Read a file (or stdin). Returns (text, is_a_bare_url_list)."""
+    if path == "-":
+        text = sys.stdin.read()
+    else:
+        target = Path(path).expanduser()
+        if not target.exists():
+            raise UsageError(
+                f"input file not found: {target}",
+                "check the path, or use '-' for stdin",
+            )
+        if target.is_dir():
+            raise UsageError(f"input path is a directory, not a file: {target}")
+        try:
+            text = decode_text(target.read_bytes())
+        except OSError as exc:
+            raise UsageError(f"cannot read {target}: {exc}") from exc
+    lines = [ln.strip() for ln in text.splitlines()]
+    real = [ln for ln in lines if ln and not ln.startswith("#")]
+    bare = bool(real) and all(
+        " " not in ln and ln.lower().startswith(("http://", "https://")) for ln in real
+    )
+    return text, bare
+
+
+def resolve_urls(opts) -> list[str]:
+    """Validate the positional URLs, warning about (but skipping) any that are unusable."""
+    urls: list[str] = []
+    problems: list[str] = []
+    for n, raw in enumerate(opts.urls, 1):
+        try:
+            urls.append(validate_url(raw, f"URL from argument {n}"))
+        except InvalidURLError as exc:
+            problems.append(exc.render())
+    for problem in problems:
+        log.warning("skipping unusable URL -- %s", problem)
+    if problems and not urls and not opts.input:
+        raise UsageError("no usable URLs given")
+    return urls
+
+
+async def run(opts, parser: argparse.ArgumentParser) -> int:
+    check_options(opts, parser)
+
+    directory = Path(opts.output).expanduser()
+    directory = (
+        (Path.cwd() / directory).resolve()
+        if not directory.is_absolute()
+        else directory.resolve()
+    )
+    output = Output(directory, opts.force)
+    output.prepare()
+    log.debug("output directory: %s", directory)
+
+    http, auth_used, fingerprint = build_http(opts)
+    cache = Cache(opts.refresh)
+    await cache.open()
+    client = Client(http, auth_used, fingerprint, cache)
+    log.info("authentication: %s", ", ".join(auth_used) if auth_used else "none")
+
+    async with http:
+        urls = resolve_urls(opts)
+
+        if opts.input:
+            text, bare = read_input(opts.input)
+            if bare:
+                entries = [
+                    ln.strip()
+                    for ln in text.splitlines()
+                    if ln.strip() and not ln.startswith("#")
+                ]
+                log.info("%s is a URL list (%d entries)", opts.input, len(entries))
+                for n, raw in enumerate(entries, 1):
+                    try:
+                        urls.append(validate_url(raw, f"URL from {opts.input}:{n}"))
+                    except InvalidURLError as exc:
+                        log.warning("skipping unusable URL -- %s", exc.render())
+            else:
+                log.info("%s is not a URL list -- scanning it for URLs", opts.input)
+                found = [classify(u) for u in extract_urls(text, opts.input)]
+                if not found:
+                    raise UsageError(
+                        f"no http(s) URLs found in {opts.input}",
+                        "the file may only contain relative links, or none at all",
+                    )
+                log.info(
+                    "found %d URL(s): %d look like files",
+                    len(found),
+                    sum(f.verdict == "file" for f in found),
+                )
+                await confirm_types(found, client, opts.concurrency)
+                log.info(
+                    "after checking: %d file(s), %d page(s)",
+                    sum(f.verdict == "file" for f in found),
+                    sum(f.verdict == "page" for f in found),
+                )
+                urls += await asyncio.to_thread(choose, found, opts.yes)
+
+        urls = list(dict.fromkeys(urls))
+        if not urls:
+            log.info("nothing to download")
+            return 0
+
+        log.info(
+            "downloading %d URL(s), %d at a time, into %s",
+            len(urls),
+            opts.concurrency,
+            directory,
+        )
+        semaphore = asyncio.Semaphore(opts.concurrency)
+
+        async def worker(url: str, slot: int) -> Result:
+            async with semaphore:
+                return await download(url, slot, client, output, opts)
+
+        started = time.monotonic()
+        try:
+            results = await asyncio.gather(*(worker(u, n) for n, u in enumerate(urls)))
+        finally:
+            await cache.close()
+
+    ok = [r for r in results if r.ok]
+    failed = [r for r in results if not r.ok]
+    served = sum(r.cached for r in results)
+    log.info("-" * 55)
+    log.info(
+        "done in %s: %d/%d succeeded, %d page(s), %d file(s), %s transferred",
+        human_time(time.monotonic() - started),
+        len(ok),
+        len(results),
+        sum(r.pages for r in results),
+        sum(len(r.files) for r in ok),
+        human_bytes(sum(r.downloaded for r in results)),
+    )
+    if served:
+        log.info(
+            "%d of those page(s) came from the cache (%d served outright, %d revalidated as unchanged)",
+            served,
+            cache.hits,
+            cache.revalidated,
+        )
+    for r in ok:
+        for f in r.files:
+            log.info("  ok    %s (%s)", f.path, human_bytes(f.size))
+    for r in failed:
+        log.error("  FAIL  %s", redact(r.url))
+        if r.error:
+            log.error("        %s", r.error.message)
+            if r.error.hint:
+                log.error("        hint: %s", r.error.hint)
+
+    if not failed:
+        return 0
+    return max((r.error.exit_code for r in failed if r.error), default=1)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = build_parser()
+    opts = parser.parse_args(argv)
+    setup_logging(opts.verbose)
+    log.debug(
+        "%s %s | httpx2 %s | python %s",
+        PROGRAM,
+        VERSION,
+        getattr(httpx, "__version__", "?"),
+        sys.version.split()[0],
+    )
+    try:
+        return asyncio.run(run(opts, parser))
+    except FetchError as exc:
+        log.error("%s", exc.render())
+        return exc.exit_code
+    except KeyboardInterrupt:
+        log.warning("interrupted")
+        return 130
+    except Exception as exc:
+        log.error("unexpected error: %s: %s", type(exc).__name__, exc)
+        log.debug("traceback", exc_info=True)
+        if not opts.verbose:
+            log.error("run again with -v for a traceback")
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
