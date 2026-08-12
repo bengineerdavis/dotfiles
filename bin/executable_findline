@@ -34,6 +34,22 @@
 #
 # Author: bdavis
 # License: MIT (assumed, specify if different)
+#
+# Why this stays bash despite its size:
+#   The convention here is Python once a script passes ~80-100 lines, on the
+#   grounds that bash gets verbose and error-prone for real logic. This script is
+#   the exception, and deliberately so. Of its ~256 code lines almost none are
+#   logic: it builds an rg command, pipes it to fzf with a bat preview, parses
+#   the one selected line, and opens an editor. rg, fzf and bat are all Rust, and
+#   they do every part that costs anything — the shell runs once and then waits.
+#
+#   So a port cannot make it faster, and both directions make it worse. Python
+#   would add interpreter startup to a tool invoked interactively and constantly.
+#   Rust would mean reimplementing or binding fzf's interactive selection: a
+#   large project to end up shelling out to the same binaries.
+#
+#   Judge this script by lines of logic, not lines of file. If real logic ever
+#   accumulates here — beyond argument parsing and result parsing — revisit.
 ###############
 ## Logging   ##
 ###############
