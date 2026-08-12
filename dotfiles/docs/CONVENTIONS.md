@@ -100,6 +100,96 @@ The check fails under `bootstrap`, `prerequisites`, `install`, `upgrade`, and
 `provision`. It warns-but-continues under `remove`, since you may be tearing
 down the very tool the requirement was satisfied by.
 
+## Shared dependencies
+
+`provides_map` answers *"which topic installs X"*. Teardown needs the opposite
+question — *"who still needs X"* — so the parent playbook also builds a reverse
+index:
+
+```yaml
+requires_map = {dep_name: [topic_name, ...]}   # every topic requiring dep_name
+```
+
+Any dep with more than one consumer is reported at run start as a
+`[shared-dep]` line naming the topics involved.
+
+`requires_map` is built from **every** topic in `apps/`, not just the topics in
+the current run. A topic excluded by `topic_os` is still a consumer; only a dep
+that no topic anywhere claims is safe to uninstall.
+
+**A topic must not uninstall a dependency another topic requires.** Where the
+CRUD invariant below says a topic tears down what it created, this is the
+exception that makes teardown safe for shared *system* packages. A teardown of
+a shared dep consults `requires_map` and skips if anyone else claims it — see
+`apps/mise/tasks/remove.yaml`, which owns `ffmpeg` for `llm-video-frames`:
+
+```yaml
+- name: "Remove: find other topics that require ffmpeg"
+  ansible.builtin.set_fact:
+    mise_ffmpeg_consumers: >-
+      {{ (requires_map | default({})).get('ffmpeg', [])
+         | reject('equalto', 'mise') | list }}
+```
+
+Two rules for writing one of these:
+
+- **Fail safe when the index is absent.** `run-role.sh` invokes a topic's
+  standalone playbook, which skips the parent's `pre_tasks`, so `requires_map`
+  is undefined there. Undefined means *unproven*, not *unshared* — skip the
+  removal rather than assume it is harmless.
+- **Make it opt-in as well.** The index only proves no *topic* claims the dep;
+  it cannot know what the human installed by hand. Pair the check with a
+  `<topic>_remove_<dep>` default of `false`.
+
+To declare a shared system dependency: the owning topic lists it in
+`topic_provides` (so it resolves for everyone else), and each consumer lists it
+in `topic_requires`. That is what populates both maps.
+
+## Script dependency guards (`~/bin`)
+
+**Every standalone script checks every dependency it shells out to, before
+doing any work.** Both kinds count:
+
+| Kind            | Examples                        | Arrives via              |
+|-----------------|---------------------------------|--------------------------|
+| system tool     | `llm`, `ollama`, `ffmpeg`, `jq` | an Ansible topic         |
+| user script     | `llm-ctx`, `brew-init`          | `chezmoi apply ~/bin`    |
+
+Being topic-managed is **not** grounds for skipping a check. It only means
+something *should* have installed the dependency, which is exactly the
+assumption that breaks on a fresh, half-applied, or non-provisioned machine —
+and a standalone script is by definition one that may run there. A guard costs
+one `command -v` and converts a confusing downstream failure into a named
+missing dependency.
+
+The guard is a `require` function — `command -v` in bash, `shutil.which` in
+Python — that collects **all** missing names before failing, so one run reports
+every gap rather than one per invocation. It exits **127**, the conventional
+"command not found" status, and runs before any file is opened for writing:
+
+```bash
+require() {
+    local missing=() cmd
+    for cmd in "$@"; do
+        command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
+    done
+    if ((${#missing[@]})); then
+        printf '%s: missing dependencies: %s\n' "${0##*/}" "${missing[*]}" >&2
+        exit 127
+    fi
+}
+
+require llm-ctx
+```
+
+Order matters: a guard that runs after `> "$OUTPUT_FILE"` has already truncated
+the output, and a script that reports a missing dependency but exits 0 (as
+`bin/mailbox` once did) looks like a success to everything calling it.
+
+Conditional dependencies are checked at the point the feature is used, not up
+front — `bin/llm-ctx` checks `ffmpeg` only once a video has actually matched, so
+an ffmpeg-less machine stays perfectly usable for text and images.
+
 ## CRUD ownership invariant
 
 **Any state a topic creates in `bootstrap.yaml`, `prerequisites.yaml`,
