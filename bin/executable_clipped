@@ -1,98 +1,97 @@
-#!/usr/bin/env bash
-# ------------------------------------------------------------------------------
-# Universal clipped script
-#
-# A cross-platform shell utility for copying and pasting text to/from the 
-# system clipboard. Works consistently across macOS, Linux, FreeBSD, and other
-# Unix-like systems by automatically detecting available clipboard utilities.
-#
-# Author: Ben Davis <bengineerdavis@gmail.com>
-# Updated: 2025-09-02 by Ben Davis <bengineerdavis@gmail.com>
-#
-# Usage:
-#   clipped [command]
-#
-# Commands:
-#   copy, c     Copy from stdin to system clipboard
-#   paste, p    Paste from system clipboard to stdout
-#   --help, -h  Show this help message
-#   --version   Show version information
-#
-# Examples:
-#   echo 'hello world' | clipped copy
-#   clipped paste
-#   ls -la | clipped c
-#   clipped p > output.txt
-#   cat file.txt | clipped copy && clipped paste
-#
-# Dependencies:
-#   macOS: Built-in pbcopy/pbpaste (no additional dependencies)
-#   Linux: xclip, xsel, or wl-copy (Wayland)
-#   FreeBSD/OpenBSD/NetBSD: xclip or xsel
-#   Other Unix: pbcopy/pbpaste (if available)
-#
-# Notes:
-#   - Automatically detects and uses available clipboard utilities
-#   - Prioritizes native tools (pbcopy on macOS) over alternatives
-#   - Supports both X11 and Wayland display servers on Linux
-#   - Falls back to pbcopy/pbpaste if available on non-Darwin systems
-#
-# ------------------------------------------------------------------------------
-# MIT License
-#
-# Copyright (c) 2025 Ben Davis - bengineerdavis@gmail.com
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-# ------------------------------------------------------------------------------
+#!/usr/bin/env python3
+"""
+clipped — universal clipboard utility
 
-# Script version
-VERSION="1.0.0"
+Copies to and pastes from the system clipboard, picking whichever backend the
+machine actually has: pbcopy/pbpaste on macOS, xclip/xsel/wl-clipboard on Linux
+and the BSDs, clip.exe/powershell.exe under the Windows subsystems.
 
-# Error handling
-set -euo pipefail
+Ported from bash. The platform dispatch is the reason: three nested layers of
+`case`/`command -v` fallbacks, duplicated once for copy and once for paste, is
+exactly the branchy logic that bash makes verbose and easy to get subtly wrong.
+Here the backends are a table and the dispatch is one loop.
 
-# Function to display help
-show_help() {
-    cat << 'EOF'
-clipped - Universal clipboard utility
+Behaviour follows tests/clipped.bats, which was written as a specification
+before the behaviour existed — auto mode, file arguments and the guidance
+messages were all specified there and never implemented. See CHOICES below.
+
+Author: Ben Davis <bengineerdavis@gmail.com>
+License: MIT
+Dependencies:
+  macOS            pbcopy/pbpaste (built in)
+  Ubuntu/Debian    sudo apt install xclip xsel wl-clipboard
+  Fedora           sudo dnf install xclip xsel wl-clipboard
+  Arch             sudo pacman -S xclip xsel wl-clipboard
+  FreeBSD          pkg install xclip xsel
+"""
+
+from __future__ import annotations
+
+import platform
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+VERSION = "1.2.0"
+
+PROG = "clipped"
+
+# Backend candidates per platform, in preference order. First one present on
+# PATH wins. Native tools come first; pbcopy/pbpaste trail every list because
+# they can show up anywhere via homebrew and make a decent last resort.
+#
+# The Windows entries stay in the table even though this script runs under a
+# Unix shell: Cygwin/MSYS/Git-Bash all report their own uname and do have
+# clip.exe on PATH.
+_COPY_BACKENDS = {
+    "Darwin":  [["pbcopy"]],
+    "Linux":   [["xclip", "-selection", "clipboard"],
+                ["xsel", "--clipboard", "--input"],
+                ["wl-copy"],
+                ["pbcopy"]],
+    "Windows": [["clip.exe"], ["pbcopy"]],
+}
+
+_PASTE_BACKENDS = {
+    "Darwin":  [["pbpaste"]],
+    "Linux":   [["xclip", "-selection", "clipboard", "-o"],
+                ["xsel", "--clipboard", "--output"],
+                ["wl-paste"],
+                ["pbpaste"]],
+    "Windows": [["powershell.exe", "-command", "Get-Clipboard"], ["pbpaste"]],
+}
+
+HELP = f"""\
+{PROG} - Universal clipboard utility
 
 USAGE:
-    clipped [COMMAND]
+    {PROG} [COMMAND] [FILE...]
 
 COMMANDS:
-    copy, c         Copy from stdin to system clipboard
-    paste, p        Paste from system clipboard to stdout
+    copy, c         Copy to the clipboard, from FILE(s) or stdin
+    paste, p        Paste from the clipboard to stdout
     --help, -h      Show this help message
     --version       Show version information
 
+Auto mode:
+    Run {PROG} with no command and it picks one for you: when stdin is piped
+    it copies what arrives, and when stdin is a TTY it pastes. That makes
+    `... | {PROG}` and a bare `{PROG}` both do the obvious thing.
+
 EXAMPLES:
-    echo 'hello world' | clipped copy
-    clipped paste
-    ls -la | clipped c
-    clipped p > output.txt
-    cat file.txt | clipped copy && clipped paste
+    echo 'hello world' | {PROG} copy
+    {PROG} paste
+    {PROG} c README.md              # copy a file's contents
+    {PROG} c src/*.py               # several files, concatenated
+    ls -la | {PROG}                 # auto mode: copies
+    {PROG} > out.txt                # auto mode: pastes
 
 SUPPORTED SYSTEMS:
-    macOS           Uses pbcopy/pbpaste (built-in)
-    Linux           Uses xclip, xsel, or wl-copy
-    FreeBSD         Uses xclip or xsel
-    Other Unix      Falls back to pbcopy/pbpaste if available
+    macOS           pbcopy/pbpaste (built in)
+    Linux           xclip, xsel, or wl-clipboard
+    FreeBSD         xclip or xsel
+    Other Unix      falls back to pbcopy/pbpaste if present
 
 INSTALLATION REQUIREMENTS:
     macOS:          No additional packages needed
@@ -101,167 +100,140 @@ INSTALLATION REQUIREMENTS:
     Fedora:         sudo dnf install xclip xsel wl-clipboard
     Arch Linux:     sudo pacman -S xclip xsel wl-clipboard
     FreeBSD:        pkg install xclip xsel
+"""
 
-EOF
-}
+USAGE_HINT = f"""\
+Usage: {PROG} [copy|paste|--help|--version] [FILE...]
 
-# Function to display version
-show_version() {
-    echo "clipped version $VERSION"
-    echo "Copyright (c) 2025 Ben Davis"
-    echo "MIT License"
-}
+Commands:
+  copy, c      Copy to clipboard, from FILE(s) or stdin
+  paste, p     Paste from clipboard to stdout
+  --help, -h   Show detailed help
+  --version    Show version information
 
-# Enhanced clipboard copy function
-clipped_copy() {
-    case "$(uname -s)" in
-        Darwin) 
-            # macOS - use native pbcopy
-            if command -v pbcopy >/dev/null 2>&1; then
-                pbcopy
-            else
-                echo "Error: pbcopy not found on macOS system" >&2
-                exit 1
-            fi
-            ;;
-        Linux|*BSD) 
-            # Try clipboard utilities in order of preference
-            if command -v xclip >/dev/null 2>&1; then
-                xclip -selection clipboard
-            elif command -v xsel >/dev/null 2>&1; then
-                xsel --clipboard --input
-            elif command -v wl-copy >/dev/null 2>&1; then
-                # Wayland clipboard
-                wl-copy
-            elif command -v pbcopy >/dev/null 2>&1; then
-                # Fallback to pbcopy if available (e.g., via homebrew on Linux)
-                pbcopy
-            else
-                echo "Error: No clipboard utility found." >&2
-                echo "Please install one of: xclip, xsel, wl-clipboard, or pbcopy" >&2
-                exit 1
-            fi
-            ;;
-        CYGWIN*|MINGW*|MSYS*)
-            # Windows subsystems
-            if command -v clip.exe >/dev/null 2>&1; then
-                clip.exe
-            elif command -v pbcopy >/dev/null 2>&1; then
-                pbcopy
-            else
-                echo "Error: No clipboard utility found for Windows environment" >&2
-                exit 1
-            fi
-            ;;
-        *) 
-            # Try pbcopy as last resort for unknown systems
-            if command -v pbcopy >/dev/null 2>&1; then
-                pbcopy
-            else
-                echo "Error: Unsupported operating system: $(uname -s)" >&2
-                echo "Please install pbcopy or run on a supported system" >&2
-                exit 1
-            fi
-            ;;
-    esac
-}
+Auto: copy stdin, or paste if no stdin
 
-# Enhanced clipboard paste function
-clipped_paste() {
-    case "$(uname -s)" in
-        Darwin) 
-            # macOS - use native pbpaste
-            if command -v pbpaste >/dev/null 2>&1; then
-                pbpaste
-            else
-                echo "Error: pbpaste not found on macOS system" >&2
-                exit 1
-            fi
-            ;;
-        Linux|*BSD)
-            # Try clipboard utilities in order of preference
-            if command -v xclip >/dev/null 2>&1; then
-                xclip -selection clipboard -o
-            elif command -v xsel >/dev/null 2>&1; then
-                xsel --clipboard --output
-            elif command -v wl-paste >/dev/null 2>&1; then
-                # Wayland clipboard
-                wl-paste
-            elif command -v pbpaste >/dev/null 2>&1; then
-                # Fallback to pbpaste if available
-                pbpaste
-            else
-                echo "Error: No clipboard utility found." >&2
-                echo "Please install one of: xclip, xsel, wl-clipboard, or pbpaste" >&2
-                exit 1
-            fi
-            ;;
-        CYGWIN*|MINGW*|MSYS*)
-            # Windows subsystems
-            if command -v powershell.exe >/dev/null 2>&1; then
-                powershell.exe -command "Get-Clipboard"
-            elif command -v pbpaste >/dev/null 2>&1; then
-                pbpaste
-            else
-                echo "Error: No clipboard utility found for Windows environment" >&2
-                exit 1
-            fi
-            ;;
-        *) 
-            # Try pbpaste as last resort for unknown systems
-            if command -v pbpaste >/dev/null 2>&1; then
-                pbpaste
-            else
-                echo "Error: Unsupported operating system: $(uname -s)" >&2
-                echo "Please install pbpaste or run on a supported system" >&2
-                exit 1
-            fi
-            ;;
-    esac
-}
+Examples:
+  echo 'hello world' | {PROG} copy
+  {PROG} paste
+  {PROG} c README.md
+  ls | {PROG} c"""
 
-# Main command handler
-main() {
-    # Handle case when no arguments provided
-    if [[ $# -eq 0 ]]; then
-        echo "Error: No command specified" >&2
-        echo "Use 'clipped --help' for usage information" >&2
-        exit 1
-    fi
 
-    case "$1" in
-        copy|c)
-            clipped_copy
-            ;;
-        paste|p)
-            clipped_paste
-            ;;
-        --help|-h|help)
-            show_help
-            ;;
-        --version)
-            show_version
-            ;;
-        *)
-            echo "Error: Unknown command '$1'" >&2
-            echo "" >&2
-            echo "Usage: clipped {copy|paste|--help|--version}" >&2
-            echo "" >&2
-            echo "Commands:" >&2
-            echo "  copy, c      Copy from stdin to clipboard" >&2
-            echo "  paste, p     Paste from clipboard to stdout" >&2
-            echo "  --help, -h   Show detailed help" >&2
-            echo "  --version    Show version information" >&2
-            echo "" >&2
-            echo "Examples:" >&2
-            echo "  echo 'hello world' | clipped copy" >&2
-            echo "  clipped paste" >&2
-            echo "  ls | clipped c" >&2
-            echo "  clipped p > file.txt" >&2
-            exit 1
-            ;;
-    esac
-}
+def die(*lines: str) -> None:
+    for line in lines:
+        print(line, file=sys.stderr)
+    raise SystemExit(1)
 
-# Run main function with all arguments
-main "$@"
+
+def platform_key(system: str | None = None) -> str:
+    """Map a uname-style system name onto a key in the backend tables.
+
+    Everything BSD-ish shares Linux's X11/Wayland tooling, and anything
+    unrecognised is treated the same way — the lists all end in pbcopy/pbpaste,
+    so an unknown Unix still gets a shot at working rather than a hard refusal.
+    """
+    name = system if system is not None else platform.system()
+    if name == "Darwin":
+        return "Darwin"
+    if name.startswith(("CYGWIN", "MINGW", "MSYS", "Windows")):
+        return "Windows"
+    return "Linux"
+
+
+def find_backend(action: str, system: str | None = None) -> list[str]:
+    """Return the argv for the first available clipboard backend.
+
+    Exits with installation guidance when nothing is present, since that is a
+    setup problem the user has to fix rather than something to paper over.
+    """
+    table = _COPY_BACKENDS if action == "copy" else _PASTE_BACKENDS
+    key = platform_key(system)
+    for argv in table[key]:
+        if shutil.which(argv[0]):
+            return argv
+
+    tools = ", ".join(sorted({argv[0] for argv in table[key]}))
+    die(
+        f"{PROG}: no clipboard utility found for {platform.system()}.",
+        f"{PROG}: looked for: {tools}",
+        f"{PROG}: on Debian/Ubuntu try: sudo apt install xclip xsel wl-clipboard",
+    )
+    raise AssertionError("unreachable")  # die() exits
+
+
+def read_files(paths: list[str]) -> bytes:
+    """Concatenate the given files, in order, as raw bytes.
+
+    Bytes rather than text: the clipboard is happy to carry a UTF-16 snippet or
+    a stray latin-1 byte, and decoding here would fail on content that would
+    otherwise have round-tripped fine.
+    """
+    chunks = []
+    for name in paths:
+        path = Path(name)
+        try:
+            chunks.append(path.read_bytes())
+        except FileNotFoundError:
+            die(f"{PROG}: file not found: {name}")
+        except IsADirectoryError:
+            die(f"{PROG}: not a file: {name}")
+        except OSError as exc:
+            die(f"{PROG}: cannot read {name}: {exc}")
+    return b"".join(chunks)
+
+
+def do_copy(files: list[str]) -> None:
+    if files:
+        data = read_files(files)
+    elif sys.stdin.isatty():
+        # Nothing piped in and no files named: the user almost certainly meant
+        # one of the two, so say which rather than hanging on an empty read.
+        die(
+            f"{PROG}: copy mode expects stdin or file arguments.",
+            f"{PROG}: try: echo hello | {PROG} c",
+            f"{PROG}:  or: {PROG} c README.md",
+        )
+    else:
+        data = sys.stdin.buffer.read()
+
+    argv = find_backend("copy")
+    result = subprocess.run(argv, input=data)
+    if result.returncode != 0:
+        die(f"{PROG}: {argv[0]} failed with status {result.returncode}")
+
+
+def do_paste() -> None:
+    argv = find_backend("paste")
+    result = subprocess.run(argv, stdout=subprocess.PIPE)
+    if result.returncode != 0:
+        die(f"{PROG}: {argv[0]} failed with status {result.returncode}")
+    sys.stdout.buffer.write(result.stdout)
+    sys.stdout.buffer.flush()
+
+
+def main(argv: list[str]) -> None:
+    if not argv:
+        # Auto mode. Piped input is something to store; a TTY means the user is
+        # asking to see what is already there.
+        do_copy([]) if not sys.stdin.isatty() else do_paste()
+        return
+
+    command, rest = argv[0], argv[1:]
+
+    if command in ("copy", "c"):
+        do_copy(rest)
+    elif command in ("paste", "p"):
+        do_paste()
+    elif command in ("--help", "-h", "help"):
+        print(HELP, end="")
+    elif command == "--version":
+        print(f"{PROG} version {VERSION}")
+        print("Copyright (c) 2025 Ben Davis")
+        print("MIT License")
+    else:
+        die(f"{PROG}: Unknown command '{command}'", "", USAGE_HINT)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
