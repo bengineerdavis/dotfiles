@@ -1,0 +1,198 @@
+#!/usr/bin/env bash
+# -----------------------------------------------------------------------------
+# ask-research — run a research brief through llm/OpenRouter as a RESUMABLE
+# session: web search on, Zero-Data-Retention routing on, full transcript saved.
+#
+# Usage:
+#   ask-research start BRIEF.md [--session NAME]     begin a session
+#   ask-research ask "follow-up question"            continue it
+#   ask-research ask-file NOTES.md                   continue with a file
+#   ask-research show                                session info + transcript
+#   ask-research list                                all sessions
+#
+# Options:
+#   --session NAME   name the session (default: "default")
+#   --model M        override the model
+#   --no-online      disable web search
+#   --no-zdr         disable Zero-Data-Retention routing (see the warning below)
+#   --dry-run        print the llm command without running it
+#
+# Dependencies:       llm, python3 (both must be on PATH)
+#                     Installed and verified by the mise topic.
+#
+# Exit codes: 0 ok | 1 usage/aborted | 127 missing dependency
+# -----------------------------------------------------------------------------
+#
+# Three OpenRouter/llm features do the work (all verified on this machine):
+#   -o online true             web search via Exa. NOT the `:online` model
+#                              suffix, which llm-openrouter rejects.
+#   -o provider '{"zdr":true}' route only to Zero-Data-Retention endpoints.
+#   --cid <id>                 continue a specific conversation.
+#
+# WHY --cid AND NOT -c
+# `llm -c` continues the *most recent* conversation globally — so any unrelated
+# `llm` call in between silently hijacks your follow-up. This captures the
+# conversation id on the first turn and targets it explicitly forever after.
+#
+# WHY OPTIONS ARE RE-PASSED EVERY TURN
+# llm options do not persist across a conversation. ZDR and web search must be
+# supplied on each call or a follow-up quietly downgrades — the leak would be
+# invisible.
+#
+# ⚠ --online sends a search query derived from your prompt to Exa, a third
+#   party. Fine for public-facts research; think twice for anything sensitive.
+#
+# Why this stays bash, provisionally:
+#   CONVENTIONS.md calls for Python past ~80-100 lines. This sits at ~150 and is
+#   a borderline case kept in bash because almost none of it is logic: it builds
+#   an `llm` invocation, redirects the reply to a file, and appends to a
+#   transcript. The one real computation — pulling conversation_id out of JSON —
+#   already delegates to python3.
+#
+#   It earns a port the moment it needs to *read* what it stored, because
+#   parsing transcripts in bash is exactly the error-prone work the convention
+#   exists to prevent. Treat this header as the trigger, not an exemption.
+# -----------------------------------------------------------------------------
+set -euo pipefail
+
+show_help() {
+  # Print the header block between the first two ruler lines, comments stripped.
+  # Marker-based so inserting lines above cannot desynchronise the help output,
+  # which a hardcoded `sed -n '2,32p'` range silently would.
+  awk '/^# -{10,}$/{n++; next} n==1' "$0" | sed 's/^#\( \|$\)//'
+}
+
+# Collect every missing dependency before failing, so one run reports all gaps.
+# Runs before any file is created or opened for writing.
+require() {
+  local missing=() cmd
+  for cmd in "$@"; do
+    command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
+  done
+  if ((${#missing[@]})); then
+    printf '%s: missing dependencies: %s\n' "${0##*/}" "${missing[*]}" >&2
+    exit 127
+  fi
+}
+
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/ask-research"
+SESSION=default; MODEL=""; ONLINE=1; ZDR=1; DRY=0
+CMD="${1:-}"; shift || true
+ARG=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --session)   SESSION="$2"; shift 2 ;;
+    --model)     MODEL="$2"; shift 2 ;;
+    --no-online) ONLINE=0; shift ;;
+    --no-zdr)    ZDR=0; shift ;;
+    --dry-run)   DRY=1; shift ;;
+    -h|--help)   show_help; exit 0 ;;
+    *)           ARG="$1"; shift ;;
+  esac
+done
+
+# A dry run only prints the command it would have run, so it needs no tools.
+[ "$DRY" = 1 ] || require llm python3
+
+DIR="$STATE/$SESSION"; CIDFILE="$DIR/cid"; LOG="$DIR/transcript.md"
+mkdir -p "$DIR"
+
+# PyMuPDF writes its deprecation notice to STDOUT, which would land inside the
+# saved response. Same fix as apps/mise/files/zsh/env.zsh, repeated so this
+# script stays correct when run outside a configured shell.
+export PYMUPDF_MESSAGE=fd:2
+
+MODEL="${MODEL:-${OLLAMA_ROLE_ESCALATE:-openrouter/anthropic/claude-sonnet-5}}"
+
+opts=()
+[ "$ONLINE" = 1 ] && opts+=(-o online true)
+[ "$ZDR"    = 1 ] && opts+=(-o provider '{"zdr":true}')
+
+# Count response files, excluding the accumulated transcript. `grep -c` exits
+# non-zero on no match, so it cannot be combined with `|| echo 0` without
+# printing twice.
+count_turns() {
+  local n=0 f
+  for f in "$1"/*.md; do
+    [ -e "$f" ] || continue
+    case "$(basename "$f")" in transcript.md) ;; *) n=$((n+1)) ;; esac
+  done
+  printf '%s' "$n"
+}
+
+banner() {
+  { echo "session: $SESSION   model: $MODEL"
+    echo "web    : $([ "$ONLINE" = 1 ] && echo 'ON (queries → Exa)' || echo off)   \
+zdr: $([ "$ZDR" = 1 ] && echo ON || echo '*** OFF — provider may retain ***')"
+  } >&2
+}
+
+# Run one turn. $1 = stdin source file, $2 = human label for the transcript.
+turn() {
+  local src="$1" label="$2" cid_args=()
+  [ -s "$CIDFILE" ] && cid_args=(--cid "$(cat "$CIDFILE")")
+
+  if [ "$DRY" = 1 ]; then
+    echo "dry-run: llm -m $MODEL ${opts[*]} ${cid_args[*]} < $src" >&2; return 0
+  fi
+
+  case "$MODEL" in *opus*|*gpt-5*|*kimi-k3*)
+    printf 'Expensive tier. Continue? [y/N] ' >&2
+    read -r ok </dev/tty; [ "$ok" = y ] || { echo aborted >&2; exit 1; } ;;
+  esac
+
+  local out start; out="$DIR/$(date -u +%Y%m%dT%H%M%SZ).md"; start=$(date +%s)
+  llm -m "$MODEL" "${opts[@]}" "${cid_args[@]}" < "$src" > "$out"
+
+  # Capture the conversation id on the first turn so every later turn is
+  # explicit rather than relying on "most recent".
+  if [ ! -s "$CIDFILE" ]; then
+    llm logs -n 1 --json 2>/dev/null \
+      | python3 -c "import json,sys;d=json.load(sys.stdin);print((d[0] if isinstance(d,list) else d).get('conversation_id',''))" \
+      > "$CIDFILE" 2>/dev/null || true
+    [ -s "$CIDFILE" ] && echo "conversation: $(cat "$CIDFILE")" >&2
+  fi
+
+  { echo; echo "## $label — $(date -u +%FT%TZ)"; echo; cat "$out"; } >> "$LOG"
+  echo "done in $(( $(date +%s) - start ))s → $out" >&2
+  echo "appended to $LOG" >&2
+  cat "$out"
+}
+
+case "$CMD" in
+  start)
+    [ -f "$ARG" ] || { echo "usage: ask-research start BRIEF.md" >&2; exit 1; }
+    [ -s "$CIDFILE" ] && { echo "session '$SESSION' already started (--session NAME for a new one)" >&2; exit 1; }
+    banner; echo "brief  : $ARG (~$(wc -w < "$ARG" | tr -d ' ') words)" >&2; echo >&2
+    turn "$ARG" "BRIEF: $(basename "$ARG")"
+    ;;
+  ask)
+    [ -n "$ARG" ] || { echo 'usage: ask-research ask "question"' >&2; exit 1; }
+    [ -s "$CIDFILE" ] || { echo "no session '$SESSION' — run start first" >&2; exit 1; }
+    banner; printf '%s\n' "$ARG" > "$DIR/.q"; turn "$DIR/.q" "Q: $ARG"
+    ;;
+  ask-file)
+    [ -f "$ARG" ] || { echo "usage: ask-research ask-file FILE.md" >&2; exit 1; }
+    [ -s "$CIDFILE" ] || { echo "no session '$SESSION' — run start first" >&2; exit 1; }
+    banner; turn "$ARG" "FILE: $(basename "$ARG")"
+    ;;
+  show)
+    echo "session : $SESSION"; echo "dir     : $DIR"
+    echo "cid     : $([ -s "$CIDFILE" ] && cat "$CIDFILE" || echo '(not started)')"
+    echo "turns   : $(count_turns "$DIR")"
+    [ -f "$LOG" ] && { echo "---"; tail -40 "$LOG"; }
+    ;;
+  list)
+    for d in "$STATE"/*/; do
+      [ -d "$d" ] || continue
+      n=$(basename "$d")
+      printf '  %-18s turns=%-4s cid=%s\n' "$n" \
+        "$(count_turns "$d")" \
+        "$([ -s "$d/cid" ] && cat "$d/cid" || echo '-')"
+    done ;;
+  # Help is a successful outcome. Reached when help is the *subcommand*
+  # (`ask-research --help`); the flag loop above handles it after a subcommand.
+  -h|--help) show_help; exit 0 ;;
+  *) show_help; exit 1 ;;
+esac
