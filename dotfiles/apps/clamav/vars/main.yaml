@@ -10,6 +10,13 @@ clamav_brew_prefix: >-
 clamav_etc_dir: "{{ clamav_brew_prefix }}/etc/clamav"
 clamav_db_dir: "{{ clamav_brew_prefix }}/var/lib/clamav"
 
+# Passed to every binary with --config-file rather than left to the compiled-in
+# default location. The suffix matters: install.yaml already registers
+# `clamav_clamd_conf` on its render task, and registered vars outrank role vars,
+# so reusing that name would substitute a task-result dict for the path here.
+clamav_clamd_conf_path: "{{ clamav_etc_dir }}/clamd.conf"
+clamav_freshclam_conf_path: "{{ clamav_etc_dir }}/freshclam.conf"
+
 # Everything this topic owns in $HOME lives under one directory, so remove.yaml can
 # take it all back in a single task.
 clamav_automation_dir: "{{ ansible_facts['env']['HOME'] }}/.clamav_automation"

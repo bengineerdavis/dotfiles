@@ -30,6 +30,12 @@ RUN_LOG="{{ clamav_run_log }}"
 CLAMD="{{ clamav_brew_prefix }}/sbin/clamd"
 CLAMDSCAN="{{ clamav_brew_prefix }}/bin/clamdscan"
 FRESHCLAM="{{ clamav_brew_prefix }}/bin/freshclam"
+
+# Passed explicitly to every binary rather than relying on the compiled-in default
+# location. Same class of bug as the socket mismatch above: an implicit lookup is
+# fine until something else writes a config to that path.
+CLAMD_CONF="{{ clamav_clamd_conf_path }}"
+FRESHCLAM_CONF="{{ clamav_freshclam_conf_path }}"
 FANGFRISCH="{{ clamav_fangfrisch_bin }}"
 FANGFRISCH_CONF="{{ clamav_fangfrisch_conf }}"
 MAX_LOG_BYTES={{ clamav_log_max_bytes }}
@@ -95,7 +101,7 @@ else
 		done
 	fi
 	log "starting clamd"
-	if ! "$CLAMD" --foreground=no; then
+	if ! "$CLAMD" --config-file="$CLAMD_CONF" --foreground=no; then
 		log "ERROR: clamd failed to start; aborting"
 		exit 1
 	fi
@@ -116,7 +122,7 @@ fi
 log "clamd ready after ${counter}s"
 
 # ── 2. official signatures ────────────────────────────────────────────────────
-if "$FRESHCLAM" --quiet >>"$RUN_LOG" 2>&1; then
+if "$FRESHCLAM" --config-file="$FRESHCLAM_CONF" --quiet >>"$RUN_LOG" 2>&1; then
 	log "official signatures refreshed"
 else
 	log "WARNING: freshclam exited $? — official signatures may be stale"
@@ -158,9 +164,9 @@ trap 'rm -f "$RUN_SCAN_LOG"' EXIT
 {% if clamav_multiscan %}
 # --multiscan is enabled. It was measured to exhaust memory and crash clamd on this
 # machine; see the note in defaults/main.yaml before leaving it on.
-nice -n 20 "$CLAMDSCAN" --infected --multiscan "${SCAN_PATHS[@]}" --log="$RUN_SCAN_LOG"
+nice -n 20 "$CLAMDSCAN" --config-file="$CLAMD_CONF" --infected --multiscan "${SCAN_PATHS[@]}" --log="$RUN_SCAN_LOG"
 {% else %}
-nice -n 20 "$CLAMDSCAN" --infected "${SCAN_PATHS[@]}" --log="$RUN_SCAN_LOG"
+nice -n 20 "$CLAMDSCAN" --config-file="$CLAMD_CONF" --infected "${SCAN_PATHS[@]}" --log="$RUN_SCAN_LOG"
 {% endif %}
 scan_rc=$?
 cat "$RUN_SCAN_LOG" >>"$SCAN_LOG"
