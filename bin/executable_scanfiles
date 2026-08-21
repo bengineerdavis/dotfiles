@@ -1,0 +1,658 @@
+#!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.10"
+# dependencies = []
+# ///
+"""
+scanfiles - check downloaded files for malware and for disguise.
+
+Two independent layers, because they catch different things:
+
+  structural  What the file actually IS versus what it claims to be. Magic bytes vs
+              extension, double extensions, right-to-left filename tricks, macros in
+              Office documents, executables hiding inside archives, encrypted archives,
+              zip-slip paths. No dependencies, instant, offline. Catches deliberate
+              disguise, including malware too new to have a signature.
+
+  clamav      Known-malware signatures. Uses clamdscan against a running clamd when it
+              is there (fast), otherwise clamscan (slow, loads signatures each run).
+              Catches known-bad; blind to novel or disguised files.
+
+Nothing is ever moved, quarantined or deleted. Findings are reported and the exit code
+tells you what happened, so this composes:
+
+    uv run fetchurl.py -i thread.md -o ./attachments && uv run scanfiles.py ./attachments
+
+USAGE
+    scanfiles.py                    # scan the current directory
+    scanfiles.py ./attachments      # scan a directory, recursively
+    scanfiles.py a.pdf b.zip        # scan specific files
+    scanfiles.py ./out --no-clamav  # structural checks only
+    scanfiles.py ./out -v           # show every file examined, not just findings
+
+EXIT CODES
+    0 clean              3 suspicious (structural findings only)
+    1 error              4 malware found by ClamAV
+    2 bad usage          5 signature scan could not complete (ClamAV present but failed)
+                       127 missing dependency (ClamAV not installed)
+
+    5 and 127 exist so a degraded scan can never look like a clean one. If you asked for
+    a signature scan and it did not happen, the exit code says so; pass --no-clamav to
+    ask for structural checks only, which then exits 0/3 on its own merits.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tarfile
+import unicodedata
+import zipfile
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Iterator, Sequence
+
+PROGRAM = "scanfiles"
+VERSION = "1.0.0"
+
+CRITICAL, WARNING, NOTE = "critical", "warning", "note"
+_RANK = {CRITICAL: 3, WARNING: 2, NOTE: 1}
+
+# Exit codes. 127 is the conventional "command not found" status; 5 distinguishes "the
+# signature scan was requested and could not run" from "it ran and found nothing", so a
+# caller can never read a degraded scan as a clean bill of health. See
+# dotfiles/docs/CONVENTIONS.md, "Script dependency guards".
+EXIT_CLEAN, EXIT_ERROR, EXIT_USAGE = 0, 1, 2
+EXIT_SUSPICIOUS, EXIT_MALWARE, EXIT_INCOMPLETE = 3, 4, 5
+EXIT_MISSING_DEP = 127
+
+_COLOR = {CRITICAL: "\033[1;38;5;203m", WARNING: "\033[38;5;214m", NOTE: "\033[38;5;110m"}
+_DIM, _RESET, _BOLD = "\033[38;5;244m", "\033[0m", "\033[1m"
+COLOR = sys.stderr.isatty() and not os.environ.get("NO_COLOR")
+
+
+def paint(text: str, code: str) -> str:
+    return f"{code}{text}{_RESET}" if COLOR else text
+
+
+def human_bytes(n: int) -> str:
+    value = float(n)
+    for unit in ("B", "KiB", "MiB", "GiB"):
+        if value < 1024 or unit == "GiB":
+            return f"{value:.0f} {unit}" if unit == "B" else f"{value:.1f} {unit}"
+        value /= 1024
+    return f"{value:.1f} GiB"
+
+
+# =========================================================================== #
+# What counts as dangerous                                                     #
+# =========================================================================== #
+
+# Extensions that can execute, directly or via a double-click handler.
+EXECUTABLE_EXTS = {
+    "exe", "com", "scr", "pif", "cpl", "msi", "msp", "dll", "sys", "drv",
+    "bat", "cmd", "ps1", "psm1", "vbs", "vbe", "js", "jse", "wsf", "wsh", "hta", "lnk",
+    "sh", "bash", "zsh", "command", "csh", "run",
+    "app", "pkg", "dmg", "scpt", "scptd", "workflow", "action", "terminal",
+    "jar", "apk", "class", "py", "pl", "rb", "php", "reg",
+}
+# Extensions that a user reads as "harmless document", used as the decoy half of a
+# double extension: report.pdf.exe
+DECOY_EXTS = {
+    "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "rtf", "csv", "log",
+    "jpg", "jpeg", "png", "gif", "bmp", "svg", "webp", "heic", "mp4", "mov", "mp3",
+    "zip", "json", "xml", "html", "htm", "md", "har",
+}
+# Office formats that carry macros by definition.
+MACRO_EXTS = {"docm", "dotm", "xlsm", "xltm", "xlam", "pptm", "potm", "ppam", "sldm"}
+# Containers that bypass macOS/Windows mark-of-the-web when used to wrap a payload.
+WRAPPER_EXTS = {"iso", "img", "vhd", "vhdx", "cab"}
+
+# Bidirectional and invisible characters used to make a filename read backwards or hide
+# part of itself. U+202E is the classic "annexe[RLO]txt.exe" trick.
+DECEPTIVE_CHARS = {
+    "‪": "LEFT-TO-RIGHT EMBEDDING", "‫": "RIGHT-TO-LEFT EMBEDDING",
+    "‬": "POP DIRECTIONAL FORMATTING", "‭": "LEFT-TO-RIGHT OVERRIDE",
+    "‮": "RIGHT-TO-LEFT OVERRIDE", "⁦": "LEFT-TO-RIGHT ISOLATE",
+    "⁧": "RIGHT-TO-LEFT ISOLATE", "⁨": "FIRST STRONG ISOLATE",
+    "⁩": "POP DIRECTIONAL ISOLATE", "​": "ZERO WIDTH SPACE",
+    "‎": "LEFT-TO-RIGHT MARK", "‏": "RIGHT-TO-LEFT MARK",
+    "­": "SOFT HYPHEN", "﻿": "ZERO WIDTH NO-BREAK SPACE",
+}
+
+# (offset, signature, label, executable?) -- what the bytes actually say.
+SIGNATURES: list[tuple[int, bytes, str, bool]] = [
+    (0, b"MZ", "DOS/Windows executable", True),
+    (0, b"\x7fELF", "ELF executable", True),
+    (0, b"\xfe\xed\xfa\xce", "Mach-O executable (32-bit)", True),
+    (0, b"\xfe\xed\xfa\xcf", "Mach-O executable (64-bit)", True),
+    (0, b"\xce\xfa\xed\xfe", "Mach-O executable (reverse-endian)", True),
+    (0, b"\xcf\xfa\xed\xfe", "Mach-O executable (64-bit, reverse-endian)", True),
+    (0, b"\xca\xfe\xba\xbe", "Mach-O universal binary or Java class", True),
+    (0, b"#!", "script with an interpreter line", True),
+    (0, b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1", "legacy Office/OLE compound document", False),
+    (0, b"%PDF-", "PDF", False),
+    (0, b"PK\x03\x04", "ZIP-based file", False),
+    (0, b"PK\x05\x06", "empty ZIP", False),
+    (0, b"\x89PNG\r\n\x1a\n", "PNG image", False),
+    (0, b"\xff\xd8\xff", "JPEG image", False),
+    (0, b"GIF8", "GIF image", False),
+    (0, b"BM", "BMP image", False),
+    (0, b"\x1f\x8b", "gzip archive", False),
+    (0, b"BZh", "bzip2 archive", False),
+    (0, b"\xfd7zXZ\x00", "xz archive", False),
+    (0, b"7z\xbc\xaf\x27\x1c", "7-Zip archive", False),
+    (0, b"Rar!\x1a\x07", "RAR archive", False),
+    (0, b"(\xb5/\xfd", "zstd archive", False),
+    (257, b"ustar", "tar archive", False),
+    (0, b"SQLite format 3\x00", "SQLite database", False),
+    (0, b"ID3", "MP3 audio", False),
+    (0, b"OggS", "Ogg media", False),
+    (0, b"fLaC", "FLAC audio", False),
+    (0, b"\x1aE\xdf\xa3", "Matroska video", False),
+    (0, b"%!PS", "PostScript", False),
+    (0, b"{\\rtf", "RTF document", False),
+]
+
+# Which extensions legitimately match which detected label.
+CONSISTENT: dict[str, set[str]] = {
+    "PDF": {"pdf"},
+    "PNG image": {"png"},
+    "JPEG image": {"jpg", "jpeg", "jfif"},
+    "GIF image": {"gif"},
+    "BMP image": {"bmp"},
+    "gzip archive": {"gz", "tgz", "gzip", "svgz"},
+    "bzip2 archive": {"bz2", "tbz", "tbz2"},
+    "xz archive": {"xz", "txz"},
+    "7-Zip archive": {"7z"},
+    "RAR archive": {"rar"},
+    "zstd archive": {"zst", "zstd"},
+    "tar archive": {"tar"},
+    "SQLite database": {"sqlite", "sqlite3", "db"},
+    "MP3 audio": {"mp3"},
+    "FLAC audio": {"flac"},
+    "Ogg media": {"ogg", "oga", "ogv", "opus"},
+    "Matroska video": {"mkv", "webm", "mka"},
+    "PostScript": {"ps", "eps"},
+    "RTF document": {"rtf", "doc"},
+    "legacy Office/OLE compound document": {"doc", "xls", "ppt", "msi", "msg", "dot", "xlt", "pot", "db"},
+    "ZIP-based file": {
+        "zip", "docx", "xlsx", "pptx", "docm", "xlsm", "pptm", "odt", "ods", "odp",
+        "epub", "jar", "war", "apk", "whl", "ipa", "crx", "nupkg", "xpi", "kmz", "sketch",
+    },
+    "empty ZIP": {"zip", "docx", "xlsx", "pptx", "jar", "whl", "epub"},
+    "DOS/Windows executable": {"exe", "dll", "sys", "scr", "com", "cpl", "ocx", "msi", "drv", "efi"},
+    "ELF executable": {"so", "bin", "elf", "o", "ko"},
+    "Mach-O executable (32-bit)": {"dylib", "bundle", "so", "o", "bin"},
+    "Mach-O executable (64-bit)": {"dylib", "bundle", "so", "o", "bin"},
+    "Mach-O executable (reverse-endian)": {"dylib", "bundle", "so", "o", "bin"},
+    "Mach-O executable (64-bit, reverse-endian)": {"dylib", "bundle", "so", "o", "bin"},
+    "Mach-O universal binary or Java class": {"class", "dylib", "bundle", "so", "o", "bin"},
+    "script with an interpreter line": {
+        "sh", "bash", "zsh", "csh", "command", "py", "pl", "rb", "php", "js", "awk", "env", "run",
+    },
+}
+
+MAX_HEAD = 8192          # bytes read for magic detection
+ARCHIVE_ENTRY_CAP = 5000  # stop listing after this many entries
+BOMB_RATIO = 200          # compressed:uncompressed ratio that looks like a zip bomb
+BOMB_MIN_TOTAL = 100 << 20
+
+
+# =========================================================================== #
+# Findings                                                                     #
+# =========================================================================== #
+
+@dataclass
+class Finding:
+    path: Path
+    severity: str
+    kind: str
+    detail: str
+
+
+@dataclass
+class Report:
+    scanned: int = 0
+    skipped: list[tuple[Path, str]] = field(default_factory=list)
+    findings: list[Finding] = field(default_factory=list)
+    clamav_ran: bool = False
+    clamav_how: str = ""
+
+    def worst(self) -> str | None:
+        return max((f.severity for f in self.findings), key=lambda s: _RANK[s], default=None)
+
+
+# =========================================================================== #
+# Structural inspection                                                        #
+# =========================================================================== #
+
+def extensions(name: str) -> list[str]:
+    """All trailing extensions, lowercased: 'a.tar.gz' -> ['tar', 'gz']."""
+    parts = name.lower().split(".")[1:]
+    return [p for p in parts if p and len(p) <= 12 and p.isalnum()]
+
+
+def sniff(head: bytes) -> tuple[str | None, bool]:
+    """(label, is_executable) from the leading bytes."""
+    for offset, sig, label, executable in SIGNATURES:
+        if head[offset : offset + len(sig)] == sig:
+            return label, executable
+    return None, False
+
+
+def looks_textual(head: bytes) -> bool:
+    if b"\x00" in head:
+        return False
+    printable = bytes(range(0x20, 0x7F)) + b"\n\r\t\f\v\b"
+    odd = sum(1 for b in head if b < 0x80 and b not in printable)
+    return not head or odd / len(head) < 0.15
+
+
+def check_filename(path: Path) -> Iterator[Finding]:
+    name = path.name
+    for char, label in DECEPTIVE_CHARS.items():
+        if char in name:
+            visible = name.replace(char, f"<{label}>")
+            yield Finding(path, CRITICAL, "deceptive filename",
+                          f"contains U+{ord(char):04X} {label}, which makes the name display "
+                          f"differently from what it is: {visible}")
+
+    if any(unicodedata.category(c) == "Cf" for c in name):
+        yield Finding(path, WARNING, "deceptive filename", "contains invisible formatting characters")
+
+    exts = extensions(name)
+    if len(exts) >= 2 and exts[-1] in EXECUTABLE_EXTS and exts[-2] in DECOY_EXTS:
+        yield Finding(path, CRITICAL, "double extension",
+                      f"looks like a .{exts[-2]} but the real extension is .{exts[-1]}, "
+                      f"which executes")
+    elif exts and exts[-1] in EXECUTABLE_EXTS:
+        yield Finding(path, WARNING, "executable extension",
+                      f".{exts[-1]} can execute; do not open it without knowing why it arrived")
+    if exts and exts[-1] in MACRO_EXTS:
+        yield Finding(path, WARNING, "macro-enabled document",
+                      f".{exts[-1]} is a macro-enabled Office format")
+    if exts and exts[-1] in WRAPPER_EXTS:
+        yield Finding(path, WARNING, "container format",
+                      f".{exts[-1]} images are used to smuggle payloads past download warnings")
+
+
+def check_content(path: Path, head: bytes, size: int) -> Iterator[Finding]:
+    label, executable = sniff(head)
+    exts = extensions(path.name)
+    actual_ext = exts[-1] if exts else ""
+
+    if executable:
+        if actual_ext in CONSISTENT.get(label, set()):
+            yield Finding(path, WARNING, "executable", f"is a{'n' if label[0] in 'AEIOU' else ''} {label}")
+        else:
+            yield Finding(path, CRITICAL, "disguised executable",
+                          f"the bytes are a{'n' if label[0] in 'AEIOU' else ''} {label}"
+                          f"{f', but the name says .{actual_ext}' if actual_ext else ', with no revealing extension'}")
+    elif label and actual_ext:
+        allowed = CONSISTENT.get(label)
+        if allowed and actual_ext not in allowed:
+            severity = WARNING if actual_ext in DECOY_EXTS else NOTE
+            yield Finding(path, severity, "type mismatch",
+                          f"named .{actual_ext} but the bytes are {label}")
+
+    if size == 0:
+        yield Finding(path, NOTE, "empty file", "zero bytes -- the download may have failed")
+
+    # An SVG or HTML attachment carrying script is a phishing staple.
+    if actual_ext in ("svg", "html", "htm", "xhtml") and looks_textual(head):
+        text = head.decode("utf-8", "replace").lower()
+        if "<script" in text or "javascript:" in text or "onerror=" in text:
+            yield Finding(path, WARNING, "active content",
+                          f".{actual_ext} contains script; opening it in a browser runs that code")
+
+
+def check_zip(path: Path) -> Iterator[Finding]:
+    try:
+        with zipfile.ZipFile(path) as archive:
+            infos = archive.infolist()[:ARCHIVE_ENTRY_CAP]
+            names = [i.filename for i in infos]
+
+            if any(i.flag_bits & 0x1 for i in infos):
+                yield Finding(path, WARNING, "encrypted archive",
+                              "entries are password-protected, so no scanner can see inside")
+
+            for name in names:
+                if name.startswith("/") or ".." in Path(name).parts:
+                    yield Finding(path, CRITICAL, "path traversal in archive",
+                                  f"entry {name!r} would extract outside the target directory (zip slip)")
+                    break
+
+            if "vbaProject.bin" in names or any(n.endswith("/vbaProject.bin") for n in names):
+                yield Finding(path, CRITICAL, "macro-enabled document",
+                              "contains vbaProject.bin, i.e. embedded VBA macros")
+
+            risky = sorted({n for n in names
+                            if (e := extensions(Path(n).name)) and e[-1] in EXECUTABLE_EXTS})
+            if risky:
+                shown = ", ".join(risky[:4]) + (f" and {len(risky) - 4} more" if len(risky) > 4 else "")
+                yield Finding(path, CRITICAL, "executable inside archive",
+                              f"contains executable entries: {shown}")
+
+            total = sum(i.file_size for i in infos)
+            packed = sum(i.compress_size for i in infos) or 1
+            if total > BOMB_MIN_TOTAL and total / packed > BOMB_RATIO:
+                yield Finding(path, WARNING, "possible archive bomb",
+                              f"expands {total / packed:.0f}x to {human_bytes(total)}")
+    except zipfile.BadZipFile:
+        yield Finding(path, WARNING, "damaged archive", "claims to be a ZIP but will not open")
+    except Exception as exc:
+        yield Finding(path, NOTE, "unreadable archive", f"could not inspect: {exc}")
+
+
+def check_tar(path: Path) -> Iterator[Finding]:
+    try:
+        with tarfile.open(path) as archive:
+            risky, traversal = [], None
+            for n, member in enumerate(archive):
+                if n >= ARCHIVE_ENTRY_CAP:
+                    break
+                name = member.name
+                if name.startswith("/") or ".." in Path(name).parts:
+                    traversal = traversal or name
+                if member.issym() or member.islnk():
+                    target = member.linkname
+                    if target.startswith("/") or ".." in Path(target).parts:
+                        traversal = traversal or f"{name} -> {target}"
+                exts = extensions(Path(name).name)
+                if exts and exts[-1] in EXECUTABLE_EXTS:
+                    risky.append(name)
+            if traversal:
+                yield Finding(path, CRITICAL, "path traversal in archive",
+                              f"entry {traversal!r} would extract outside the target directory")
+            if risky:
+                shown = ", ".join(sorted(risky)[:4])
+                yield Finding(path, CRITICAL, "executable inside archive",
+                              f"contains executable entries: {shown}")
+    except tarfile.TarError as exc:
+        yield Finding(path, NOTE, "unreadable archive", f"could not inspect tar: {exc}")
+    except Exception as exc:
+        yield Finding(path, NOTE, "unreadable archive", f"could not inspect: {exc}")
+
+
+def inspect(path: Path, verbose: bool) -> list[Finding]:
+    """Every structural check for one file."""
+    findings = list(check_filename(path))
+    try:
+        size = path.stat().st_size
+        with open(path, "rb") as fh:
+            head = fh.read(MAX_HEAD)
+    except OSError as exc:
+        return findings + [Finding(path, NOTE, "unreadable", f"could not read: {exc}")]
+
+    findings += list(check_content(path, head, size))
+
+    label, _ = sniff(head)
+    if label in ("ZIP-based file", "empty ZIP") or zipfile.is_zipfile(path):
+        findings += list(check_zip(path))
+    elif label == "tar archive" or (path.suffix.lower() in (".tar", ".tgz") and tarfile.is_tarfile(path)):
+        findings += list(check_tar(path))
+
+    if verbose and not findings:
+        print(f"  {paint('ok', _DIM)}  {path}  ({human_bytes(size)}, {label or 'unrecognised bytes'})",
+              file=sys.stderr)
+    return findings
+
+
+# =========================================================================== #
+# ClamAV                                                                       #
+# =========================================================================== #
+
+def clamav_commands() -> list[tuple[list[str], str]]:
+    """Candidate scanners, best first, to be tried in order.
+
+    A list rather than one choice because `clamdscan --version` succeeds even with no
+    daemon listening — so probing the binary proves nothing about reachability. The
+    clamav topic runs clamd ephemerally (started for the daily scan, stopped straight
+    after to hand back ~1.3 GB), which means for most of the day the daemon is *expected*
+    to be down. Trying clamdscan and falling back to clamscan on a connection failure is
+    what makes the docstring's promise true.
+    """
+    found: list[tuple[list[str], str]] = []
+    if shutil.which("clamdscan"):
+        found.append((["clamdscan", "--no-summary"], "clamdscan (daemon)"))
+    if shutil.which("clamscan"):
+        found.append((["clamscan", "--no-summary", "--stdout"], "clamscan (loads signatures per run)"))
+    return found
+
+
+def clamav_command() -> tuple[list[str], str] | None:
+    """The preferred scanner, or None when ClamAV is not installed at all."""
+    candidates = clamav_commands()
+    return candidates[0] if candidates else None
+
+
+_NO_DAEMON = ("can't connect", "could not connect", "connect() error", "no such file or directory")
+
+
+def _is_daemon_unreachable(output: str) -> bool:
+    low = output.lower()
+    return any(marker in low for marker in _NO_DAEMON)
+
+
+_CLAM_LINE = re.compile(r"^(?P<path>.*?): (?P<verdict>.+?)(?: (?P<state>FOUND|OK|ERROR|Empty file))?$")
+
+
+def run_clamav(paths: list[Path], verbose: bool) -> tuple[list[Finding], str, str | None]:
+    """Returns (findings, how, error). Falls back from the daemon to clamscan."""
+    candidates = clamav_commands()
+    if not candidates:
+        return [], "", ("ClamAV is not installed. Install it with 'brew install clamav', then run "
+                        "'freshclam' to fetch signatures -- or pass --no-clamav to skip this layer.")
+
+    output, how, last_error = "", "", None
+    for index, (argv, label) in enumerate(candidates):
+        how = label
+        try:
+            proc = subprocess.run(argv + [str(p) for p in paths], capture_output=True, text=True, timeout=1800)
+        except subprocess.TimeoutExpired:
+            return [], how, "ClamAV timed out after 30 minutes"
+        except OSError as exc:
+            return [], how, f"could not run ClamAV: {exc}"
+
+        output = proc.stdout + proc.stderr
+        if proc.returncode != 2 or "FOUND" in output:
+            last_error = None
+            break
+
+        detail = next((ln for ln in output.splitlines() if ln.strip()), "no detail")
+        remaining = candidates[index + 1 :]
+        if _is_daemon_unreachable(output) and remaining:
+            # Expected most of the day: clamd is ephemeral. Drop to the slower scanner
+            # rather than reporting a failure, which is what the docstring promises.
+            print(f"  clamd is not listening; falling back to {remaining[0][1]}", file=sys.stderr)
+            last_error = None
+            continue
+        hint = ""
+        if _is_daemon_unreachable(output):
+            hint = " (clamd not listening, and no clamscan to fall back to)"
+        elif "No supported database" in output or "loaddb" in output.lower():
+            hint = " (no signature database -- run 'freshclam')"
+        last_error = f"ClamAV reported an error: {detail}{hint}"
+        break
+
+    if last_error:
+        return [], how, last_error
+
+    findings = []
+    for line in output.splitlines():
+        match = _CLAM_LINE.match(line.strip())
+        if not match or match.group("state") != "FOUND":
+            continue
+        verdict = match.group("verdict")
+        # Heuristics.* and PUA.* are structural anomaly rules, not known-malware matches.
+        # They fire routinely on truncated or encrypted files, so treating them as malware
+        # would bury the real hits in noise.
+        if verdict.startswith(("Heuristics.", "PUA.")):
+            findings.append(Finding(Path(match.group("path")), WARNING, "clamav heuristic",
+                                    f"{verdict} -- an anomaly rule, not a known-malware match "
+                                    f"(often just a truncated or encrypted file)"))
+        else:
+            findings.append(Finding(Path(match.group("path")), CRITICAL, "malware signature",
+                                    f"ClamAV matched {verdict}"))
+    if verbose:
+        for line in output.splitlines():
+            if line.strip().endswith(": OK"):
+                print(f"  {paint('ok', _DIM)}  {line.strip()[:-4]}  (ClamAV clean)", file=sys.stderr)
+    return findings, how, None
+
+
+# =========================================================================== #
+# Walking                                                                      #
+# =========================================================================== #
+
+def collect(targets: Sequence[str], report: Report) -> list[Path]:
+    files: list[Path] = []
+    for raw in targets:
+        root = Path(raw).expanduser()
+        if not root.exists():
+            raise SystemExit(f"{PROGRAM}: no such file or directory: {root}")
+        if root.is_symlink():
+            report.skipped.append((root, "symlink -- not followed"))
+            continue
+        if root.is_file():
+            files.append(root)
+            continue
+        for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+            dirnames[:] = [d for d in dirnames if not Path(dirpath, d).is_symlink()]
+            for name in sorted(filenames):
+                candidate = Path(dirpath, name)
+                if candidate.is_symlink():
+                    report.skipped.append((candidate, "symlink -- not followed"))
+                elif candidate.is_file():
+                    files.append(candidate)
+    return files
+
+
+# =========================================================================== #
+# Reporting                                                                    #
+# =========================================================================== #
+
+def print_report(report: Report, root_hint: str) -> None:
+    by_file: dict[Path, list[Finding]] = {}
+    for finding in report.findings:
+        by_file.setdefault(finding.path, []).append(finding)
+
+    if by_file:
+        print(file=sys.stderr)
+        for path, findings in sorted(by_file.items(), key=lambda kv: -max(_RANK[f.severity] for f in kv[1])):
+            worst = max(findings, key=lambda f: _RANK[f.severity]).severity
+            print(f"{paint(worst.upper(), _COLOR[worst])}  {paint(str(path), _BOLD if COLOR else '')}",
+                  file=sys.stderr)
+            for finding in sorted(findings, key=lambda f: -_RANK[f.severity]):
+                print(f"    {finding.kind}: {finding.detail}", file=sys.stderr)
+
+    print(file=sys.stderr)
+    counts = {level: sum(1 for f in report.findings if f.severity == level)
+              for level in (CRITICAL, WARNING, NOTE)}
+    summary = ", ".join(f"{counts[level]} {level}" for level in (CRITICAL, WARNING, NOTE) if counts[level])
+    print(f"scanned {report.scanned} file(s) in {root_hint}: "
+          f"{summary or 'nothing to report'}", file=sys.stderr)
+    if report.clamav_ran:
+        print(f"  signature scan: {report.clamav_how}", file=sys.stderr)
+    else:
+        print("  signature scan: skipped -- structural checks only", file=sys.stderr)
+    for path, why in report.skipped:
+        print(f"  skipped {path}: {why}", file=sys.stderr)
+    if counts[CRITICAL]:
+        print(f"\n{paint('Do not open the CRITICAL files.', _COLOR[CRITICAL])} "
+              f"They are either known malware or deliberately disguised.", file=sys.stderr)
+
+
+# =========================================================================== #
+# CLI                                                                          #
+# =========================================================================== #
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog=PROGRAM,
+        description="Scan files for malware signatures and for disguise.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""examples:
+  %(prog)s                          scan the current directory
+  %(prog)s ./attachments            scan a directory, recursively
+  %(prog)s report.pdf archive.zip   scan specific files
+  %(prog)s ./out --no-clamav        structural checks only, no signatures
+
+exit codes: 0 clean | 2 usage | 3 suspicious | 4 malware found
+""")
+    parser.add_argument("paths", nargs="*", default=["."], metavar="PATH",
+                        help="files or directories to scan (default: the current directory)")
+    parser.add_argument("--no-clamav", dest="clamav", action="store_false",
+                        help="skip the signature scan and run structural checks only")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="list every file examined, not just the ones with findings")
+    parser.add_argument("--version", action="version", version=f"{PROGRAM} {VERSION}")
+    opts = parser.parse_args(argv)
+    targets = opts.paths or ["."]
+
+    # Dependency guard, before any scanning work. ClamAV is a *conditional* dependency:
+    # --no-clamav is supported and the structural layer stands alone, so this only fires
+    # when a signature scan was actually asked for. Reporting a missing scanner and then
+    # exiting 0 on a clean structural pass is the exact failure the convention warns
+    # about — it looks like a full clean scan to anything calling this.
+    if opts.clamav and clamav_command() is None:
+        print(
+            f"{PROGRAM}: missing dependency: clamdscan or clamscan\n"
+            "  install it with 'brew install clamav', then run 'freshclam' to fetch\n"
+            "  signatures -- or pass --no-clamav for structural checks only.",
+            file=sys.stderr,
+        )
+        return EXIT_MISSING_DEP
+
+    report = Report()
+    try:
+        files = collect(targets, report)
+    except SystemExit as exc:
+        print(str(exc), file=sys.stderr)
+        return EXIT_USAGE
+
+    if not files:
+        print(f"{PROGRAM}: no files to scan in {', '.join(targets)}", file=sys.stderr)
+        return EXIT_CLEAN
+
+    report.scanned = len(files)
+    print(f"{PROGRAM}: examining {len(files)} file(s)...", file=sys.stderr)
+
+    for path in files:
+        report.findings.extend(inspect(path, opts.verbose))
+
+    if opts.clamav:
+        findings, how, error = run_clamav(files, opts.verbose)
+        report.clamav_how = how
+        if error:
+            print(f"  warning: {error}", file=sys.stderr)
+            report.clamav_ran = False
+        else:
+            report.clamav_ran = True
+            report.findings.extend(findings)
+
+    print_report(report, ", ".join(targets))
+
+    # Real findings outrank an incomplete scan: knowing there is malware is more urgent
+    # than knowing the scan was partial.
+    if any(f.kind == "malware signature" for f in report.findings):
+        return EXIT_MALWARE
+    if report.worst() in (CRITICAL, WARNING):
+        return EXIT_SUSPICIOUS
+    # Asked for signatures, ClamAV was installed, but the scan did not complete. Not clean.
+    if opts.clamav and not report.clamav_ran:
+        return EXIT_INCOMPLETE
+    return EXIT_CLEAN
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        print("\ninterrupted", file=sys.stderr)
+        sys.exit(1)
