@@ -190,6 +190,54 @@ Conditional dependencies are checked at the point the feature is used, not up
 front — `bin/llm-ctx` checks `ffmpeg` only once a video has actually matched, so
 an ffmpeg-less machine stays perfectly usable for text and images.
 
+## Commit granularity
+
+One commit should be one reviewable decision. The test is not file count or diff size —
+it is whether a reader can hold the *why* in their head, and whether the change can be
+reverted on its own without taking unrelated work with it.
+
+Two failure modes, and the repo has an example of each.
+
+**Too coarse.** `491c9ca "fetchurl: download what it finds by default, with live parallel
+progress"` touched one file, so it looked atomic, but it bundled four independent
+decisions: a stray-character fix in the shebang, a change to what a positional argument
+means, a new progress display, and two new pipeline flags. Reverting the progress bars
+there means reverting the CLI contract too. The message had to spend five paragraphs
+because it was narrating four stories.
+
+**Right-sized.** The Debian port of `apps/clamav` landed as five commits —
+`--config-file` plumbing, per-platform path resolution, the netcat dependency, apt
+install, the systemd timer, then flipping `topic_os`. Each is independently revertible and
+each subject line is a complete thought. That is the shape to aim for.
+
+### Where to draw the line
+
+| Split when | Keep together when |
+|---|---|
+| A reader would ask "why is this here?" about part of the diff | The parts are meaningless alone — a flag and the code reading it |
+| One part could be reverted while keeping the rest | Splitting would leave a commit that does not run or test green |
+| The subject line needs "and" | The change is one decision expressed in several files |
+| A drive-by fix rode along with a feature | A rename or signature change touching many call sites |
+
+Do **not** split to the point where commits cannot stand alone. A commit that leaves the
+tree broken so the next one can fix it is worse than a slightly coarse one: it breaks
+`git bisect`, and it makes every intermediate state a lie. Atomic means *self-contained*,
+not *small*.
+
+### Messages
+
+Subject: `scope: imperative statement`, lower case after the colon, no trailing period,
+under ~72 characters. Scope is the topic or script the change belongs to (`clamav:`,
+`fetchurl:`, `docs:`, `tests:`).
+
+The body explains **why**, not what — the diff already says what. Worth the words:
+measurements that justify a choice, the failure the change prevents, an option considered
+and rejected, and any blind spot knowingly accepted. Those are the things a reader cannot
+reconstruct from the code, and they are the reason the body exists at all.
+
+If the body is enumerating unrelated changes rather than explaining one, that is the
+signal to go back and split.
+
 ## CRUD ownership invariant
 
 **Any state a topic creates in `bootstrap.yaml`, `prerequisites.yaml`,
