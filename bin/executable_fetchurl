@@ -1,15 +1,16 @@
-#!/usr/bin/env -S uv run --script#
+#!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.10"
-# dependencies = ["httpx2>=2.9", "diskcache>=5.6"]
+# dependencies = ["httpx2>=2.9", "diskcache>=5.6", "rich>=13.7"]
 # ///
 """
 fetchurl - download URLs, with file-type detection and pagination awareness.
 
-  uv run fetchurl.py https://example.com/data.csv
-  uv run fetchurl.py https://api.example.com/v1/items --token "$TOKEN" -v
-  uv run fetchurl.py -i urls.txt -o ./downloads
-  uv run fetchurl.py -i report.html          # finds URLs in it, asks what to grab
+  fetchurl https://example.com/data.csv
+  fetchurl thread.md                    # finds the attachments and downloads them
+  fetchurl thread.md -i                 # ...but ask which ones first
+  fetchurl urls.txt -o ./downloads
+  fetchurl thread.md -q --json | jq -r .path
 
 Without uv:  pip install httpx2 && python3 fetchurl.py ...
 
@@ -175,17 +176,138 @@ class JobLog(logging.LoggerAdapter):
         return msg, kwargs
 
 
-def setup_logging(verbose: int) -> None:
+def setup_logging(verbose: int, quiet: bool = False) -> None:
     global DUMP_HEADERS
     DUMP_HEADERS = verbose >= 2
-    level = logging.DEBUG if verbose else logging.INFO
+    if quiet:
+        level = logging.ERROR
+    else:
+        level = logging.DEBUG if verbose else logging.INFO
     color = sys.stderr.isatty() and not os.environ.get("NO_COLOR")
-    handler = logging.StreamHandler(sys.stderr)
+    handler = _DisplayHandler()
     handler.setFormatter(_Formatter(color, timestamps=verbose > 0))
     log.handlers = [handler]
     log.setLevel(level)
     log.propagate = False
     logging.getLogger("httpx2").setLevel(logging.WARNING)
+
+
+class _DisplayHandler(logging.StreamHandler):
+    """Writes to stderr, unless a live progress display owns the terminal.
+
+    rich redraws its bars in place, so anything written straight to stderr while that is
+    happening lands in the middle of a frame. Routing through the display's console makes
+    rich scroll the line out above the bars instead.
+    """
+
+    def __init__(self):
+        super().__init__(sys.stderr)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        display = DISPLAY
+        if display is not None and display.live:
+            try:
+                display.write(self.format(record))
+                return
+            except Exception:
+                pass  # fall back to plain stderr rather than lose the message
+        super().emit(record)
+
+
+# The active progress display, or None. Module-level so the logging handler can find it
+# without every call site threading it through.
+DISPLAY: "Display | None" = None
+
+
+class Display:
+    """Live per-file download progress: one bar per concurrent transfer.
+
+    Deliberately inert unless stderr is a real terminal. Under a pipe, cron, or --json
+    there is nobody to watch an animation and control codes would corrupt the output; the
+    ordinary log lines are the progress report in those cases.
+    """
+
+    def __init__(self, enabled: bool):
+        self.live = False
+        self.progress = None
+        self._tasks: dict[int, Any] = {}
+        self._next = 0
+        if not enabled:
+            return
+        try:
+            from rich.console import Console
+            from rich.progress import (
+                BarColumn,
+                DownloadColumn,
+                Progress,
+                SpinnerColumn,
+                TextColumn,
+                TimeRemainingColumn,
+                TransferSpeedColumn,
+            )
+        except ImportError:
+            log.debug("rich is unavailable; falling back to plain log-line progress")
+            return
+        self.progress = Progress(
+            SpinnerColumn(),
+            TextColumn("[bold]{task.fields[label]}", justify="left"),
+            BarColumn(bar_width=24),
+            DownloadColumn(),
+            TransferSpeedColumn(),
+            TimeRemainingColumn(),
+            TextColumn("{task.fields[note]}"),
+            console=Console(stderr=True),
+            transient=False,
+            refresh_per_second=8,
+        )
+
+    def __enter__(self) -> "Display":
+        global DISPLAY
+        DISPLAY = self
+        if self.progress is not None:
+            self.progress.start()
+            self.live = True
+        return self
+
+    def __exit__(self, *exc) -> None:
+        global DISPLAY
+        self.live = False
+        if self.progress is not None:
+            # stop() restores the cursor. Skipping it on an exception path leaves the
+            # terminal with a hidden cursor, which outlives the process.
+            self.progress.stop()
+        DISPLAY = None
+
+    def write(self, message: str) -> None:
+        if self.progress is not None:
+            # soft_wrap: let the terminal wrap long paths rather than having rich insert
+            # its own breaks mid-path, which makes them uncopyable.
+            self.progress.console.print(
+                message, markup=False, highlight=False, soft_wrap=True
+            )
+        else:
+            print(message, file=sys.stderr)
+
+    def add(self, label: str) -> int:
+        """Register a transfer and return a handle, whether or not bars are showing."""
+        self._next += 1
+        handle = self._next
+        if self.progress is not None:
+            self._tasks[handle] = self.progress.add_task(
+                "download", label=label[:28], note="", total=None, start=True
+            )
+        return handle
+
+    def advance(self, handle: int, done: int, total: int | None) -> None:
+        task = self._tasks.get(handle)
+        if task is not None and self.progress is not None:
+            self.progress.update(task, completed=done, total=total)
+
+    def finish(self, handle: int, note: str) -> None:
+        task = self._tasks.pop(handle, None)
+        if task is not None and self.progress is not None:
+            self.progress.update(task, note=note)
+            self.progress.stop_task(task)
 
 
 def human_bytes(n: int | None) -> str:
@@ -1647,7 +1769,7 @@ class Client:
             self.limiters[host] = HostLimiter()
         return self.limiters[host]
 
-    async def get(self, url: str, jlog: JobLog) -> Fetched:
+    async def get(self, url: str, jlog: JobLog, on_bytes=None) -> Fetched:
         key = Cache.key(url, self.auth_fingerprint)
         cached = None if self.cache.refresh else await self.cache.load(key)
         if cached and cached.fresh():
@@ -1753,9 +1875,15 @@ class Client:
                             else None
                         )
                         last = time.monotonic()
+                        if on_bytes is not None:
+                            on_bytes(len(buf), total)
                         async for chunk in resp.aiter_bytes(65536):
                             buf.extend(chunk)
-                            if time.monotonic() - last >= 2:
+                            if on_bytes is not None:
+                                # A live bar is showing this transfer; periodic log lines
+                                # would only fight it for the same terminal.
+                                on_bytes(len(buf), total)
+                            elif time.monotonic() - last >= 2:
                                 pct = (
                                     f" ({100 * len(buf) / total:.0f}%)" if total else ""
                                 )
@@ -1988,8 +2116,9 @@ class Result:
 async def download(url: str, slot: int, client: Client, output: Output, opts) -> Result:
     jlog = JobLog(f"{slot + 1:02d}:{name_from_url(url)[:20]}", slot)
     result = Result(url)
+    handle = DISPLAY.add(name_from_url(url)) if DISPLAY is not None else None
     try:
-        await _download(url, jlog, client, output, opts, result)
+        await _download(url, jlog, client, output, opts, result, handle)
         result.ok = True
     except FetchError as exc:
         result.error = exc
@@ -2000,11 +2129,23 @@ async def download(url: str, slot: int, client: Client, output: Output, opts) ->
         result.error = FetchError(f"unexpected failure: {type(exc).__name__}: {exc}")
         jlog.error("unexpected failure: %s: %s", type(exc).__name__, exc)
         jlog.debug("traceback", exc_info=True)
+    if handle is not None and DISPLAY is not None:
+        if result.ok:
+            written = sum(f.size for f in result.files)
+            DISPLAY.finish(handle, f"ok {human_bytes(written)}")
+        else:
+            DISPLAY.finish(handle, "FAILED")
     return result
 
 
 async def _download(
-    url: str, jlog: JobLog, client: Client, output: Output, opts, result: Result
+    url: str,
+    jlog: JobLog,
+    client: Client,
+    output: Output,
+    opts,
+    result: Result,
+    handle: int | None = None,
 ) -> None:
     jlog.info("starting: %s", redact(url))
     files = [OutFile(0)]
@@ -2018,7 +2159,13 @@ async def _download(
             break
         visited.add(url)
 
-        got = await client.get(url, jlog)
+        on_bytes = None
+        if handle is not None and DISPLAY is not None and DISPLAY.live:
+
+            def on_bytes(done: int, total: int | None, _h=handle) -> None:
+                DISPLAY.advance(_h, done, total)
+
+        got = await client.get(url, jlog, on_bytes=on_bytes)
         body, final = got.body, got.url
         result.pages += 1
         result.downloaded += 0 if got.from_cache else len(body)
@@ -2424,12 +2571,12 @@ def parse_selection(spec: str, count: int) -> list[int] | None:
     return list(dict.fromkeys(picked))
 
 
-def choose(items: list[Found], assume_yes: bool) -> list[str]:
+def choose(items: list[Found], assume_yes: bool = False) -> list[str]:
     """Show what was found and ask which URLs to download."""
     file_idx = [n for n, i in enumerate(items) if i.verdict == "file"]
     if assume_yes:
         chosen = file_idx or list(range(len(items)))
-        log.info("--yes: taking %d URL(s)", len(chosen))
+        log.info("taking %d URL(s) without prompting", len(chosen))
         return [items[n].url for n in chosen]
 
     print(
@@ -2452,7 +2599,7 @@ def choose(items: list[Found], assume_yes: bool) -> list[str]:
     if not sys.stdin.isatty():
         raise UsageError(
             "cannot prompt: stdin is not a terminal",
-            "pass -y to take the file-looking URLs automatically",
+            "drop -i to take every confirmed file automatically",
         )
     while True:
         try:
@@ -2488,24 +2635,30 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""examples:
   %(prog)s https://example.com/data.csv
-  %(prog)s https://api.example.com/v1/items --token "$TOKEN" -v
+  %(prog)s thread.md                 # finds the attachments and downloads them
+  %(prog)s thread.md -i              # ...but ask me which ones first
+  %(prog)s urls.txt -o ./out
   %(prog)s https://a.com/1.pdf https://b.com/2.pdf -o ~/Downloads
-  %(prog)s -i urls.txt -o ./out
-  %(prog)s -i report.html        # extracts URLs, shows which look like files, asks
+  %(prog)s thread.md -q --json | jq  # for pipelines: no progress, one record per file
+
+A target is a URL or a local file. A file containing a bare URL list is taken as-is;
+any other document is scanned for URLs, and the ones that look like files are
+downloaded. Use '-' to read a document from stdin.
 """,
     )
     p.add_argument(
-        "urls",
+        "targets",
         nargs="*",
-        metavar="URL",
-        help="URLs to download; the first must be a valid http(s) URL",
+        metavar="URL|FILE",
+        help="URLs to download, or documents to pull downloadable URLs out of "
+        "('-' for stdin)",
     )
     p.add_argument(
         "-i",
-        "--input",
-        metavar="FILE",
-        help="read URLs from FILE ('-' for stdin). A bare URL list is downloaded as-is; "
-        "any other document is scanned for URLs and you are asked which to take",
+        "--interactive",
+        action="store_true",
+        help="list what was found and ask which to download, instead of taking every "
+        "confirmed file automatically",
     )
     p.add_argument(
         "-o",
@@ -2513,12 +2666,6 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="DIR",
         default=".",
         help="output directory, absolute or relative (default: current directory)",
-    )
-    p.add_argument(
-        "-y",
-        "--yes",
-        action="store_true",
-        help="do not prompt; take the URLs that look like files",
     )
     p.add_argument(
         "-f",
@@ -2588,13 +2735,37 @@ def build_parser() -> argparse.ArgumentParser:
         default=0,
         help="-v debug, -vv also dump response headers",
     )
+    p.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="errors only: no progress bars, no per-file lines. The exit code carries "
+        "the result",
+    )
+    p.add_argument(
+        "--json",
+        dest="as_json",
+        action="store_true",
+        help="write one JSON record per downloaded file to stdout (logs stay on stderr), "
+        "for piping into jq",
+    )
     p.add_argument("--version", action="version", version=f"{PROGRAM} {VERSION}")
     return p
 
 
 def check_options(opts, parser: argparse.ArgumentParser) -> None:
-    if not opts.urls and not opts.input:
-        parser.error("no URL given. Pass a URL, or use -i/--input FILE.")
+    if not opts.targets:
+        parser.error("nothing to do. Pass a URL, or a file to pull URLs out of.")
+    if opts.interactive and opts.quiet:
+        raise UsageError(
+            "-i/--interactive and -q/--quiet contradict each other",
+            "the picker has to print the list it is asking you about",
+        )
+    if opts.interactive and not sys.stdin.isatty():
+        raise UsageError(
+            "-i/--interactive needs a terminal to prompt on",
+            "drop -i to take every confirmed file automatically",
+        )
     for name, value in (
         ("--concurrency", opts.concurrency),
         ("--max-pages", opts.max_pages),
@@ -2704,20 +2875,64 @@ def read_input(path: str) -> tuple[str, bool]:
     return text, bare
 
 
-def resolve_urls(opts) -> list[str]:
-    """Validate the positional URLs, warning about (but skipping) any that are unusable."""
+def split_targets(targets: list[str]) -> tuple[list[str], list[str]]:
+    """Sort each target into (urls, documents).
+
+    A target is a document when a file of that name exists, or it is '-' for stdin.
+    Anything else is treated as a URL, so a mistyped path still produces a URL error
+    naming what you actually typed rather than a confusing file-not-found.
+    """
     urls: list[str] = []
+    documents: list[str] = []
     problems: list[str] = []
-    for n, raw in enumerate(opts.urls, 1):
+    for n, raw in enumerate(targets, 1):
+        if raw == "-" or Path(raw).expanduser().is_file():
+            documents.append(raw)
+            continue
         try:
-            urls.append(validate_url(raw, f"URL from argument {n}"))
+            urls.append(validate_url(raw, f"target {n}"))
         except InvalidURLError as exc:
             problems.append(exc.render())
     for problem in problems:
-        log.warning("skipping unusable URL -- %s", problem)
-    if problems and not urls and not opts.input:
-        raise UsageError("no usable URLs given")
-    return urls
+        log.warning("skipping unusable target -- %s", problem)
+    if problems and not urls and not documents:
+        raise UsageError("no usable targets given")
+    return urls, documents
+
+
+def emit_json(results: list[Result]) -> None:
+    """One record per output file on stdout, plus one per failed target.
+
+    Logs stay on stderr so this composes: `fetchurl thread.md --json | jq -r .path`.
+    """
+    for r in results:
+        if r.ok:
+            for f in r.files:
+                print(
+                    json.dumps(
+                        {
+                            "status": "ok",
+                            "url": redact(r.url),
+                            "path": str(f.path),
+                            "bytes": f.size,
+                            "kind": f.first.shape.kind,
+                            "pages": len(f.pages),
+                            "records": f.records(),
+                        }
+                    ),
+                    flush=True,
+                )
+        else:
+            print(
+                json.dumps(
+                    {
+                        "status": "failed",
+                        "url": redact(r.url),
+                        "error": r.error.message if r.error else "unknown",
+                    }
+                ),
+                flush=True,
+            )
 
 
 async def run(opts, parser: argparse.ArgumentParser) -> int:
@@ -2740,42 +2955,64 @@ async def run(opts, parser: argparse.ArgumentParser) -> int:
     log.info("authentication: %s", ", ".join(auth_used) if auth_used else "none")
 
     async with http:
-        urls = resolve_urls(opts)
+        urls, documents = split_targets(opts.targets)
 
-        if opts.input:
-            text, bare = read_input(opts.input)
+        for source in documents:
+            text, bare = read_input(source)
             if bare:
                 entries = [
                     ln.strip()
                     for ln in text.splitlines()
                     if ln.strip() and not ln.startswith("#")
                 ]
-                log.info("%s is a URL list (%d entries)", opts.input, len(entries))
+                log.info("%s is a URL list (%d entries)", source, len(entries))
                 for n, raw in enumerate(entries, 1):
                     try:
-                        urls.append(validate_url(raw, f"URL from {opts.input}:{n}"))
+                        urls.append(validate_url(raw, f"URL from {source}:{n}"))
                     except InvalidURLError as exc:
                         log.warning("skipping unusable URL -- %s", exc.render())
+                continue
+
+            log.info("%s is not a URL list -- scanning it for URLs", source)
+            found = [classify(u) for u in extract_urls(text, source)]
+            if not found:
+                raise UsageError(
+                    f"no http(s) URLs found in {source}",
+                    "the file may only contain relative links, or none at all",
+                )
+            log.info(
+                "found %d URL(s): %d look like files",
+                len(found),
+                sum(f.verdict == "file" for f in found),
+            )
+            await confirm_types(found, client, opts.concurrency)
+            confirmed = [f for f in found if f.verdict == "file"]
+            log.info(
+                "after checking: %d file(s), %d page(s)",
+                len(confirmed),
+                sum(f.verdict == "page" for f in found),
+            )
+
+            if opts.interactive:
+                urls += await asyncio.to_thread(choose, found, False)
             else:
-                log.info("%s is not a URL list -- scanning it for URLs", opts.input)
-                found = [classify(u) for u in extract_urls(text, opts.input)]
-                if not found:
-                    raise UsageError(
-                        f"no http(s) URLs found in {opts.input}",
-                        "the file may only contain relative links, or none at all",
+                # The default: take what was confirmed to be a file and get on with it.
+                # Pages are never auto-downloaded -- asking for a document's attachments
+                # should not silently scrape every page it happens to link to.
+                if not confirmed:
+                    log.warning(
+                        "none of the %d URL(s) in %s resolved to a downloadable file; "
+                        "re-run with -i to pick from the full list",
+                        len(found),
+                        source,
                     )
-                log.info(
-                    "found %d URL(s): %d look like files",
-                    len(found),
-                    sum(f.verdict == "file" for f in found),
-                )
-                await confirm_types(found, client, opts.concurrency)
-                log.info(
-                    "after checking: %d file(s), %d page(s)",
-                    sum(f.verdict == "file" for f in found),
-                    sum(f.verdict == "page" for f in found),
-                )
-                urls += await asyncio.to_thread(choose, found, opts.yes)
+                for item in confirmed:
+                    log.info(
+                        "  will download %s (%s)",
+                        item.name or name_from_url(item.url),
+                        item.why,
+                    )
+                urls += [f.url for f in confirmed]
 
         urls = list(dict.fromkeys(urls))
         if not urls:
@@ -2794,9 +3031,20 @@ async def run(opts, parser: argparse.ArgumentParser) -> int:
             async with semaphore:
                 return await download(url, slot, client, output, opts)
 
+        # Bars only when a person is watching: not under -q, not with --json (control
+        # codes would corrupt piped output), and not when stderr is redirected.
+        show_progress = (
+            not opts.quiet
+            and not opts.as_json
+            and sys.stderr.isatty()
+            and not os.environ.get("NO_COLOR")
+        )
         started = time.monotonic()
         try:
-            results = await asyncio.gather(*(worker(u, n) for n, u in enumerate(urls)))
+            with Display(show_progress):
+                results = await asyncio.gather(
+                    *(worker(u, n) for n, u in enumerate(urls))
+                )
         finally:
             await cache.close()
 
@@ -2830,6 +3078,9 @@ async def run(opts, parser: argparse.ArgumentParser) -> int:
             if r.error.hint:
                 log.error("        hint: %s", r.error.hint)
 
+    if opts.as_json:
+        emit_json(results)
+
     if not failed:
         return 0
     return max((r.error.exit_code for r in failed if r.error), default=1)
@@ -2838,7 +3089,7 @@ async def run(opts, parser: argparse.ArgumentParser) -> int:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     opts = parser.parse_args(argv)
-    setup_logging(opts.verbose)
+    setup_logging(opts.verbose, opts.quiet)
     log.debug(
         "%s %s | httpx2 %s | python %s",
         PROGRAM,
