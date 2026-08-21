@@ -5,9 +5,16 @@ unmanaged hand-rolled setup in `~/.clamav_automation/`.
 
 ## Installation
 
+Handled by the topic — the package manager is guarded in-task, so one command
+covers both platforms:
+
 ```bash
-brew install clamav
+./run-role.sh clamav
 ```
+
+Installs `clamav` via Homebrew on macOS and via apt on Debian/Ubuntu. On Linux it
+installs `clamav` only, **not** `clamav-daemon`: that package runs an always-on
+system clamd, which is exactly what this topic avoids (see below).
 
 ## Usage
 
@@ -36,16 +43,33 @@ Consequence: for most of the day `clamdscan` will fail because nothing is listen
 
 ## What this topic owns
 
-| Artefact | Path |
-|---|---|
-| formula | `clamav` via Homebrew |
-| daemon config | `<brew_prefix>/etc/clamav/clamd.conf` |
-| updater config | `<brew_prefix>/etc/clamav/freshclam.conf` |
-| signature database | `<brew_prefix>/var/lib/clamav/` |
-| automation directory | `~/.clamav_automation/` |
-| scan script | `~/.clamav_automation/daily_scan.sh` |
-| third-party feed config | `~/.clamav_automation/fangfrisch.conf` |
-| launchd agent | `~/Library/LaunchAgents/com.user.clamscan.plist` |
+| Artefact | Path (macOS) | Path (Linux) |
+|---|---|---|
+| package | `clamav` via Homebrew | `clamav` via apt |
+| daemon config | `<brew_prefix>/etc/clamav/clamd.conf` | `~/.clamav_automation/clamd.conf` |
+| updater config | `<brew_prefix>/etc/clamav/freshclam.conf` | `~/.clamav_automation/freshclam.conf` |
+| signature database | `<brew_prefix>/var/lib/clamav/` | `~/.clamav_automation/db/` |
+| automation directory | `~/.clamav_automation/` | same |
+| scan script | `~/.clamav_automation/daily_scan.sh` | same |
+| third-party feed config | `~/.clamav_automation/fangfrisch.conf` | same |
+| scheduler | `~/Library/LaunchAgents/com.user.clamscan.plist` | `~/.config/systemd/user/clamav-scan.{service,timer}` |
+
+### Why the Linux paths differ
+
+Homebrew's prefix is user-writable, so on macOS the configs sit where clamav
+already looks. Debian's `/etc/clamav` is root-owned and the distro package ships
+its own `clamd.conf` and `freshclam.conf` there, driving system-wide
+`clamav-daemon` and `clamav-freshclam` services.
+
+Rather than run as root and fight those services for the same files, on Linux
+this topic keeps its config and signature database inside the automation
+directory it already owns, and passes `--config-file` explicitly to every binary.
+The distro's copies are left untouched, so apt's services and this topic's
+user-owned scan can coexist without either editing the other's state.
+
+`--config-file` is passed on **both** platforms. Relying on the compiled-in
+default location is the same class of bug as the socket mismatch described below:
+it works until something else writes a config to that path.
 
 All of it is torn down by `--tags remove`, per the CRUD invariant in
 `docs/CONVENTIONS.md`.
@@ -73,6 +97,37 @@ the mise config if you want it gone.
 
 Lynis used to be run from `daily_scan.sh` on the first of each month. It now has its own
 topic: **apps/lynis**.
+
+## Linux: the timer needs a session
+
+The macOS agent is per-user, so the Linux side is a systemd **user** timer to
+match. A user timer only fires while you have a session; on an unattended host,
+enable lingering once:
+
+```bash
+sudo loginctl enable-linger "$USER"
+```
+
+`install.yaml` reports this rather than changing your login behaviour for you. It
+also warns if the distro's `clamav-daemon` is active, since an always-on daemon
+holds the signature memory this topic exists to release — but it will not disable
+another package's service on your behalf.
+
+Inspect the schedule with:
+
+```bash
+systemctl --user list-timers clamav-scan.timer
+```
+
+### netcat matters on Debian
+
+The scan script talks to clamd over its Unix socket with `nc -U` — that is how it
+decides the daemon is alive and how it shuts it down afterwards. Debian has two
+providers and only `netcat-openbsd` supports `-U`; `netcat-traditional` does not.
+With the wrong one the PING fails silently, the script concludes clamd never came
+up, and aborts before scanning. `prerequisites.yaml` installs the right package
+and then probes the `nc` actually on `PATH`, failing loudly with the
+`update-alternatives` fix if it is the wrong build.
 
 ## Two bugs this replaces
 

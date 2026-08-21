@@ -8,12 +8,16 @@ topic_name: clamav
 # Nothing subordinate is provided to other topics.
 topic_provides: []
 
-# homebrew installs the clamav formula.
 # mise provides the fangfrisch binary via `"pipx:fangfrisch"` in its config.toml —
 # this topic configures and invokes it but deliberately does not install it.
-topic_requires: [homebrew, mise]
+#
+# The package manager is NOT declared here: brew on Darwin and apt on Debian are
+# both guarded in-task (5a pattern), the same way apps/ollama does it. Naming
+# homebrew would make the topic unschedulable on Linux.
+topic_requires: [mise]
 
-# clamd.conf, the launchd agent and the scan script are all macOS-specific.
-topic_os: [Darwin]
+# The scan script and configs are portable; only the scheduler differs — a launchd
+# agent on macOS, a systemd user timer on Linux.
+topic_os: [Darwin, Debian]
 
 topic_tier: app
