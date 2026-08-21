@@ -27,9 +27,9 @@ set -uo pipefail
 SOCKET="{{ clamav_socket }}"
 SCAN_LOG="{{ clamav_scan_log }}"
 RUN_LOG="{{ clamav_run_log }}"
-CLAMD="{{ clamav_brew_prefix }}/sbin/clamd"
-CLAMDSCAN="{{ clamav_brew_prefix }}/bin/clamdscan"
-FRESHCLAM="{{ clamav_brew_prefix }}/bin/freshclam"
+CLAMD="{{ clamav_sbin_dir }}/clamd"
+CLAMDSCAN="{{ clamav_bin_dir }}/clamdscan"
+FRESHCLAM="{{ clamav_bin_dir }}/freshclam"
 
 # Passed explicitly to every binary rather than relying on the compiled-in default
 # location. Same class of bug as the socket mismatch above: an implicit lookup is
