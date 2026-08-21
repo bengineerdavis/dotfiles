@@ -1,0 +1,83 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# PERSONAL LAYER — lowest precedence, versioned, portable
+#
+# The author's own preferences. Applies ONLY where neither the ethics layer nor
+# the machine's company layer has spoken. It is a catch-all, never an override:
+# if a higher layer forbids something, nothing here can permit it.
+#
+# This is the layer that survives a job change untouched. Keep it free of
+# anything employer-specific — those facts belong in the company layer, which is
+# regenerated per machine.
+#
+# Preferences may set defaults (how long, which model, where). They may not
+# grant access to anything a higher layer restricts.
+# ─────────────────────────────────────────────────────────────────────────────
+
+meta:
+  layer: personal
+  precedence: 3                     # ethics(1) → company(2) → personal(3)
+  portable: true
+  relaxable_by_lower_layers: false  # nothing is below this
+
+# Defaults for material the higher layers have not classified. Anything the
+# company layer marks work-tagged is governed there, not here.
+retention:
+  # 90 days of operating history is enough to see drift in prompts and models
+  # without accumulating a corpus worth breaching.
+  local_logs_days: 90
+  traces_days: 90
+  # Eval cases are graduated deliberately, so they do not expire on a timer.
+  eval_cases_days: null
+  # Deletion is scheduled, not remembered. An unenforced window is not a window.
+  enforcement: automatic
+  on_expiry: delete
+
+# Where things are allowed to sit by default.
+storage:
+  logs: machine_local
+  traces: machine_local
+  eval_cases: versioned
+  # Archives are encrypted client-side; the provider is assumed hostile.
+  archive:
+    client_side_encryption_required: true
+    provider_trusted: false
+
+# Model routing preferences. Capability gates live in the ollama manifest; this
+# only expresses which way to lean when both would work.
+models:
+  prefer: local
+  # Remote inference is an egress event, so the ethics layer's review gate
+  # applies. This preference cannot and does not bypass it.
+  remote_allowed_for:
+    - public_facts_research
+    - general_capability_work
+  remote_forbidden_for:
+    - anything_the_company_layer_marks_work_tagged
+  # Cost and latency tiers resolve through ollama-role, not here.
+  tier_default: balanced
+
+# How evaluation and feedback behave.
+evaluation:
+  # Grade everything automatically; sample a fraction for human review, because
+  # automated grading drifts without a human anchor.
+  automated_grading: all
+  human_review_sample_pct: 10
+  # Only prompt when a human is actually there to answer.
+  prompt_when: stdout_is_tty
+  # A skipped prompt is recorded as skipped, never as approval.
+  unanswered_prompt_counts_as: not_reviewed
+
+# Working preferences that shape output rather than restrict it.
+authoring:
+  # KISS is a requirement here, not an aspiration.
+  prefer_fewer_moving_parts: true
+  prefer_terminal_first: true
+  # A design needing a daemon fleet or a paid service to stay correct has
+  # failed, regardless of how good it is.
+  reject_designs_requiring_hosted_services: true
+  document_why_not_just_what: true
+
+# Anything unlisted falls through to the system default, which is refusal.
+resolution:
+  fail_closed: true
+  unlisted_defaults_to: deny

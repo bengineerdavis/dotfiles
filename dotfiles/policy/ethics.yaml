@@ -1,0 +1,76 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ETHICS LAYER — highest precedence, versioned, portable
+#
+# Commitments that hold regardless of employer, policy, or machine. This is the
+# only layer that is never relaxed by anything below it: where a company or
+# personal rule would permit something forbidden here, this wins.
+#
+# Portable by construction. Nothing employer-specific may enter this file — if a
+# rule cannot be stated without naming an employer, it belongs in the company
+# layer instead. See docs/GOALS.md for the provenance test these encode.
+#
+# RESTRICTIONS ONLY. No field here authorises anything.
+# ─────────────────────────────────────────────────────────────────────────────
+
+meta:
+  layer: ethics
+  precedence: 1                     # lower number wins; see docs/GOALS.md
+  portable: true
+  relaxable_by_lower_layers: false
+
+# Absolute boundaries. A lower layer may make these stricter, never looser.
+boundaries:
+  # The provenance test, mechanised. Derivation is defined by the path taken,
+  # not by how recognisable the result is — so scrubbing does not lift this.
+  derived_artifacts:
+    may_be_retained: false
+    may_be_versioned: false
+    definition: >-
+      Material produced by reading, transforming, summarising, or abstracting
+      employer or customer material, however little of the original survives.
+
+  # Provenance claims are the one thing the whole system rests on. A wrong
+  # label here silently corrupts every downstream decision.
+  provenance:
+    may_be_misrepresented: false
+    may_be_inferred_after_the_fact: false
+    unknown_origin_defaults_to: derived
+
+  # Other people appear in prompts without having agreed to anything.
+  third_parties:
+    may_be_retained_identifiably: false
+    may_be_used_for_evaluation: false
+    applies_to: >-
+      Colleagues, customers, and anyone else named or identifiable in a prompt,
+      response, attachment, or trace.
+
+  # Anything crossing the machine boundary is reviewed by a human first. The
+  # gate exists because automated scrubbing has no reliable success signal.
+  egress:
+    may_bypass_human_review: false
+    may_be_automated_end_to_end: false
+
+  # A control that can be quietly switched off is not a control.
+  enforcement:
+    may_be_disabled_silently: false
+    may_be_circumvented_by_tooling_built_here: false
+
+# Commitments that constrain what gets built, not just what gets stored.
+conduct:
+  # Tools are allowed to make compliance easy. They are not allowed to make
+  # non-compliance invisible.
+  no_evasion_tooling: true
+  no_covert_collection: true
+  honour_deletion_requests: true
+  # Where this system's output could be mistaken for someone else's work or
+  # words, it is labelled.
+  no_unattributed_reuse: true
+
+# When this layer cannot decide, it still refuses. Ethics never abstains into
+# permission; it abstains into the next layer only for questions it does not
+# address at all.
+resolution:
+  silent_on: >-
+    Questions of operational convenience — retention windows, model choice,
+    storage location — which carry no ethical content and belong below.
+  fail_closed: true
