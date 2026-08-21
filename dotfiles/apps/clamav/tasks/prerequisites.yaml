@@ -1,20 +1,50 @@
-# apps/<topic>/tasks/prerequisites.yaml
+# apps/clamav/tasks/prerequisites.yaml
 # Core dependencies required before this topic can install or upgrade.
 #
-# Only pkg-manager-tier topics typically need real content here (e.g., Xcode
-# CLI tools for Homebrew). App-tier and runtime-manager topics leave this
-# empty — their dependencies are expressed via topic_requires in topic.yml
-# and resolved by the parent playbook.
+# Normally an app-tier topic leaves this empty and expresses its dependencies via
+# topic_requires. netcat is the exception, and only on Linux: the scan script talks
+# to clamd over its Unix socket with `nc -U` — that is how it decides the daemon is
+# alive (PING/PONG) and how it shuts the daemon down afterwards.
+#
+# macOS ships an nc that supports -U. Debian has two competing providers, and only
+# one does: netcat-openbsd supports -U, netcat-traditional does not. If the wrong
+# one is present the PING silently fails, the script concludes clamd never came up,
+# and aborts before scanning anything — a working install that never scans.
 #
 # Idempotent: safe to re-run. No confirmation needed.
 # Do NOT put install, upgrade, or remove logic here.
+---
+- name: "Prerequisites: install netcat-openbsd for `nc -U` (Debian)"
+  ansible.builtin.apt:
+    name: netcat-openbsd
+    state: present
+    update_cache: true
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
 
-# ── Example: install core dependencies via Homebrew ───────────────────────────
-# - name: "Prerequisites: install core packages"
-#   community.general.homebrew:
-#     name:
-#       - <package1>
-#       - <package2>
-#     state: present
-#     path: "{{ homebrew_prefix }}/bin"
-#   when: ansible_facts['os_family'] == 'Darwin'
+# `state: present` only proves apt thinks it is installed. What matters is that the
+# nc actually on PATH understands -U, since netcat-traditional can win the
+# alternatives link. Probing the flag is the only check that answers that.
+- name: "Prerequisites: confirm the nc on PATH supports Unix sockets"
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      nc -h 2>&1 | grep -q -- ' -U'
+    executable: /bin/bash
+  register: clamav_nc_check
+  changed_when: false
+  failed_when: false
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "Prerequisites: fail when nc cannot speak to a Unix socket"
+  ansible.builtin.fail:
+    msg: >-
+      The `nc` on PATH does not support -U, so the scan script cannot reach clamd's
+      socket — it would abort every run before scanning. Point the alternatives link
+      at the OpenBSD build:
+      sudo update-alternatives --set nc /bin/nc.openbsd
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - clamav_nc_check is defined
+    - clamav_nc_check.rc is defined
+    - clamav_nc_check.rc != 0
