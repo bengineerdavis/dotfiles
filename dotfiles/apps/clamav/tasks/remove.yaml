@@ -71,6 +71,18 @@
   become: false
   when: ansible_facts['os_family'] == 'Darwin'
 
+# ── Linux (apt) ───────────────────────────────────────────────────────────────
+# netcat-openbsd is deliberately left alone: prerequisites.yaml installs it, but
+# it is a general-purpose tool other things may rely on.
+- name: "Remove clamav via apt (Debian)"
+  ansible.builtin.apt:
+    name: clamav
+    state: absent
+    purge: true
+    autoremove: true
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
 # fangfrisch is deliberately left alone: apps/mise owns it. Drop
 # `"pipx:fangfrisch"` from apps/mise/files/config.toml if you want it gone.
 - name: "Note what this topic did not remove"

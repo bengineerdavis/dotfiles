@@ -16,6 +16,24 @@
   become: false
   when: ansible_facts['os_family'] == 'Darwin'
 
+# ── Linux (apt) ───────────────────────────────────────────────────────────────
+# `clamav` only — deliberately NOT `clamav-daemon`.
+#
+# That package runs an always-on system clamd, which is the opposite of what this
+# topic does: it starts clamd for a scan and stops it afterwards to hand back the
+# ~1.3 GB of resident signature data (step 5 of the scan script). Installing both
+# would leave a second daemon holding that memory around the clock.
+#
+# The `clamav` package still ships clamd, clamdscan, clamscan and freshclam, so
+# only the always-on service is skipped, not the tooling.
+- name: "Install clamav via apt (Debian)"
+  ansible.builtin.apt:
+    name: clamav
+    state: present
+    update_cache: true
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
 # fangfrisch is NOT installed here. apps/mise declares `"pipx:fangfrisch" = "latest"`
 # in files/config.toml and owns the binary. This topic owns only its configuration and
 # invocation, which are clamav-specific.
