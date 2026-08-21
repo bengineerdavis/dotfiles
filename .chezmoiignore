@@ -15,6 +15,7 @@ tests/
 
 # Dev tooling — tracked in git but not deployed to home
 .claude
+AGENTS.md
 .gitignore
 .hypothesis
 .pytest_cache

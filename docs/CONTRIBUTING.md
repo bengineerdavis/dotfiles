@@ -106,6 +106,36 @@ No task logic in the router — only `import_tasks` with tags:
 
 ---
 
+**7. One logical change per commit.**
+
+The same idea as rule 1, applied to history. Not "how many files" — three questions:
+is the tree working before and after (atomic), can it be reverted without
+untangling something else, and can a reviewer hold it in their head?
+
+Split a cross-platform change from a behaviour change to existing platforms:
+
+```
+# ✅ correct — the macOS fix can be reverted without losing Linux support
+clamav: pass --config-file to every clamav binary
+clamav: resolve config, database and binary paths per platform
+clamav: enable the topic on Debian
+
+# ❌ wrong — five concerns welded together, revert takes all or nothing
+clamav: extend the topic to Debian/Ubuntu
+```
+
+Order so every intermediate state works: land the inert parts first, and the
+switch that activates them (usually `topic_os`) last.
+
+Do **not** split a mechanical change spanning many files, or a feature whose
+pieces are individually dead code — a unit template without the task that
+installs it is not atomic. A list of files is not a list of concerns.
+
+Full guidance, including the language, test and model conventions, is in
+`AGENTS.md` at the repo root.
+
+---
+
 ## Adding a System Role
 
 System roles (`homebrew`, `apt`, `docker`) follow the same topic structure  
