@@ -157,7 +157,28 @@
   when: ansible_facts['os_family'] == "Darwin"
   tags: ollama_zsh
 
-# TODO: verify placement
+# DUAL OWNERSHIP, DELIBERATE — do not "fix" without deciding the question below.
+#
+# This dest is also chezmoi-managed, so two tools write the same path. That
+# normally violates the CRUD ownership invariant in docs/CONVENTIONS.md, and it
+# is allowed here on purpose: ansible performs the *initial* setup (fetching the
+# completion, which is not in the repo until it exists), and chezmoi owns it
+# afterwards so pulled changes apply without re-running the play.
+#
+# The practical consequence, stated plainly so it is never a surprise: after
+# setup, `chezmoi apply` reverts whatever this task last downloaded. That is the
+# intended direction — chezmoi is the source of truth once the topic exists —
+# but it does mean re-running install does not durably pick up a newer upstream
+# gist. Getting a new version means committing it to chezmoi.
+#
+# Note the inversion: for THIS file the topic-root copy is the live one — it is
+# what ~/.zsh_completions/_ollama symlinks to — while
+# files/zsh/_ollama_zsh_completion is unreachable. Every *.zsh fragment is the
+# other way round (files/zsh live, root dead). The .zshrc glob only takes
+# `*.zsh`, so it never applied to this file in either location.
+#
+# UNDECIDED: whether to formalise this by giving one tool sole ownership.
+# Deferred, not overlooked.
 - name: Install or update Ollama Zsh completion under dotfiles topic
   ansible.builtin.copy:
     src: "/tmp/_ollama.zsh"
