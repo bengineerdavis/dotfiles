@@ -4,6 +4,9 @@
 
 topic_name: lynis
 topic_provides: []
-topic_requires: [homebrew]
-topic_os: [Darwin]
+# No pkg-manager dependency declared: brew on Darwin and apt on Debian are both
+# guarded in-task (5a pattern), the same way apps/ollama does it. Declaring
+# homebrew here would make the topic unschedulable on Linux.
+topic_requires: []
+topic_os: [Darwin, Debian]
 topic_tier: app

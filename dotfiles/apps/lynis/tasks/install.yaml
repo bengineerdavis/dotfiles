@@ -15,6 +15,16 @@
   become: false
   when: ansible_facts['os_family'] == 'Darwin'
 
+# ── Linux (apt) ───────────────────────────────────────────────────────────────
+# Package manager guarded in-task (5a pattern), same as apps/mise's ffmpeg.
+- name: "Install lynis via apt (Debian)"
+  ansible.builtin.apt:
+    name: lynis
+    state: present
+    update_cache: true
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
 - name: "Create the lynis state directory"
   ansible.builtin.file:
     path: "{{ lynis_state_dir }}"
@@ -47,6 +57,68 @@
   when:
     - ansible_facts['os_family'] == 'Darwin'
     - lynis_agent_file.changed
+
+# ── Linux (systemd user timer) ────────────────────────────────────────────────
+# The macOS side is a per-user launchd agent, so this is a systemd *user* timer
+# rather than a system one — same ownership, same privileges, no root needed.
+- name: "Create the systemd user unit directory"
+  ansible.builtin.file:
+    path: "{{ lynis_systemd_user_dir }}"
+    state: directory
+    mode: "0755"
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "Install the lynis systemd service and timer"
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "0644"
+  loop:
+    - { src: lynis-audit.service.j2, dest: "{{ lynis_service_unit }}" }
+    - { src: lynis-audit.timer.j2, dest: "{{ lynis_timer_unit }}" }
+  register: lynis_units
+  when: ansible_facts['os_family'] == 'Debian'
+
+# systemd caches unit files, so an edited template needs a reload before enable
+# picks it up — the counterpart to the bootout/bootstrap cycle above.
+- name: "Reload the systemd user daemon"
+  ansible.builtin.systemd:
+    daemon_reload: true
+    scope: user
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - lynis_units.changed
+
+- name: "Enable and start the lynis audit timer"
+  ansible.builtin.systemd:
+    name: lynis-audit.timer
+    enabled: true
+    state: started
+    scope: user
+  when: ansible_facts['os_family'] == 'Debian'
+
+# A user timer only runs while the user has a session. Lingering keeps it alive on
+# an unattended box, but it changes login behaviour beyond this topic's remit, so
+# report rather than enable it.
+- name: "Check whether lingering is enabled for this user"
+  ansible.builtin.command:
+    cmd: "loginctl show-user {{ ansible_facts['env']['USER'] }} --property=Linger --value"
+  register: lynis_linger
+  changed_when: false
+  failed_when: false
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "Note that the timer needs lingering to fire without a login session"
+  ansible.builtin.debug:
+    msg: >-
+      lynis-audit.timer is a systemd *user* timer, and this user does not have
+      lingering enabled — it will only fire while you are logged in. For an
+      unattended host run:
+      sudo loginctl enable-linger {{ ansible_facts['env']['USER'] }}
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - lynis_linger is defined
+    - (lynis_linger.stdout | default('')) | trim | lower != 'yes'
 
 # ── Migration from the clamav-owned audit ─────────────────────────────────────
 - name: "Check for the audit log the clamav script used to write"

@@ -25,6 +25,38 @@
     state: absent
   when: ansible_facts['os_family'] == 'Darwin'
 
+# ── Linux (systemd user timer) ────────────────────────────────────────────────
+# Mirrors the launchd teardown above: stop it, disable it, then remove the units.
+- name: "Linux: stop and disable the lynis audit timer"
+  ansible.builtin.systemd:
+    name: lynis-audit.timer
+    state: stopped
+    enabled: false
+    scope: user
+  failed_when: false
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "Linux: remove the lynis systemd units"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ lynis_timer_unit }}"
+    - "{{ lynis_service_unit }}"
+  register: lynis_units_removed
+  when: ansible_facts['os_family'] == 'Debian'
+
+# Without this systemd keeps serving the deleted units from cache, so a later
+# reinstall would look like a no-op.
+- name: "Linux: reload the systemd user daemon after removal"
+  ansible.builtin.systemd:
+    daemon_reload: true
+    scope: user
+  failed_when: false
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - lynis_units_removed.changed
+
 # Takes the audit script, the run log and every retained audit report.
 - name: "Remove the lynis state directory"
   ansible.builtin.file:
@@ -37,3 +69,11 @@
     state: absent
   become: false
   when: ansible_facts['os_family'] == 'Darwin'
+
+- name: "Remove lynis via apt (Debian)"
+  ansible.builtin.apt:
+    name: lynis
+    state: absent
+    purge: true
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'

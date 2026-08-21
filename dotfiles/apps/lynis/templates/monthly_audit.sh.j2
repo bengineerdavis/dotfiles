@@ -2,7 +2,9 @@
 # {{ ansible_managed }}
 # Rendered from apps/lynis/templates/monthly_audit.sh.j2 — edits here are overwritten.
 #
-# Monthly Lynis system audit, run by the {{ lynis_agent_label }} launchd agent.
+# Monthly Lynis system audit. Driven by the {{ lynis_agent_label }} launchd agent on
+# macOS and by the lynis-audit.timer systemd user timer on Linux — the script itself is
+# identical either way, which is why the scheduler owns the cadence and this does not.
 #
 # Previously this rode inside apps/clamav's daily_scan.sh behind a `date +%d` check,
 # which meant it inherited that script's failure modes and its /dev/null output. It now
@@ -13,7 +15,7 @@
 
 set -uo pipefail
 
-LYNIS="{{ lynis_brew_prefix }}/bin/lynis"
+LYNIS="{{ lynis_bin }}"
 STATE_DIR="{{ lynis_state_dir }}"
 RUN_LOG="{{ lynis_run_log }}"
 KEEP={{ lynis_keep_logs }}

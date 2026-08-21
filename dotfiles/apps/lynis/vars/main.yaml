@@ -14,3 +14,24 @@ lynis_run_log: "{{ lynis_state_dir }}/run.log"
 lynis_agent_label: com.user.lynis-audit
 lynis_agent_plist: >-
   {{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents/{{ lynis_agent_label }}.plist
+
+# Where the lynis binary lands. Homebrew puts it under its own prefix; apt puts it
+# in /usr/bin. The audit script calls it by absolute path rather than relying on
+# PATH, because neither launchd nor a systemd timer inherits an interactive shell's
+# environment — so this has to be resolved here, not assumed at run time.
+lynis_bin: >-
+  {{ (lynis_brew_prefix ~ '/bin/lynis')
+     if ansible_facts['os_family'] == 'Darwin'
+     else '/usr/bin/lynis' }}
+
+# ── Linux scheduling ──────────────────────────────────────────────────────────
+# The macOS side is a per-user launchd agent, so the Linux equivalent is a systemd
+# *user* timer, not a system one: same privileges, same ownership, and it needs no
+# root. (Contrast apps/ollama, which genuinely wants a system service.)
+#
+# A user timer only fires while the user has a session. For an unattended box,
+# `loginctl enable-linger $USER` keeps it running — noted in the README rather
+# than done here, since it changes login behaviour beyond this topic's remit.
+lynis_systemd_user_dir: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user"
+lynis_service_unit: "{{ lynis_systemd_user_dir }}/lynis-audit.service"
+lynis_timer_unit: "{{ lynis_systemd_user_dir }}/lynis-audit.timer"
