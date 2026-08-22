@@ -107,63 +107,18 @@ force-push, valid until someone pushes on top.
 Each of the three commits carries a `git notes` PROVENANCE entry explaining the
 split and pointing at the prevention. Read with `git notes show <sha>`.
 
-## Purge the work email from git history
+## Private tasks
 
-Privacy, and portability if the author moves on: no work email should survive in
-this repo. Personal addresses are fine — `ruubixo@gmail.com` on one 2020 commit is
-an old address of the author's and is deliberately left alone.
+Some work cannot be described here without reproducing the thing it is trying to
+remove. Those live in `~/.local/state/chezmoi/private-tasks.md` — machine-local,
+never in git, same pattern as `~/.local/state/ai-policy/company.yaml`.
 
-### What is actually there
+Currently one item there: a history-rewrite to remove an employer-domain string
+from file contents. Scope, method and prerequisites are recorded in that file.
 
-Searched author fields, committer fields, commit messages, git notes and file
-contents across all history.
-
-| Where | Finding |
-|---|---|
-| author / committer fields | **Clean.** 323 of 324 commits are `bengineerdavis@gmail.com`; the one exception is the personal alt address. No work email ever authored a commit. |
-| commit messages, git notes | **Clean.** |
-| current working tree | **Clean.** The header was corrected to the canonical address. |
-| **file contents in history** | **`ben.davis@sentry.io`** in `bin/executable_binned`'s `# Author:` header — introduced by `7fc74a5` (2026-04-25), present in the tree of **123 commits** on `main`. |
-| also in history | `docs.sentry.io` and `sentry.io/changelog` URLs, generalised out of `triage` by `a5d9e51`. Employer references, not PII. |
-
-So the leak is one string in one file, but it is baked into 123 commit trees and
-`git log -p` will surface it in any clone.
-
-### What removing it costs
-
-`git filter-repo --replace-text` rewriting from `7fc74a5` forward — **133
-descendant commits**, so every SHA from April onward changes. That is a second
-full-history force-push, and it invalidates the SHAs the PROVENANCE notes
-reference, which would need re-attaching again.
-
-`.mailmap` does **not** help here: it remaps author identities, not file contents.
-This one genuinely requires a rewrite or nothing.
-
-### Options
-
-1. **`git filter-repo --replace-text`** on the email string alone. Precise, keeps
-   the URLs, rewrites 133 commits. The right call if this repo will ever be
-   public or shared.
-2. **Same, plus the URLs**, if employer references should go too rather than just
-   PII. Same cost, broader result.
-3. **Leave it.** Private repo, single contributor. The current tree is clean, so
-   anyone reading the code sees nothing; only `git log -p` reveals it.
-
-**Recommendation: option 1, batched with anything else needing a rewrite.** Two
-full-history rewrites in one week is worse than one, so it is worth deciding
-whether the URLs go at the same time rather than discovering them later.
-
-### Before running it
-
-- Same prerequisites as any rewrite: all sessions idle, second machine reset
-  afterwards, backup branch first, verify the tree is byte-identical except for
-  the intended string, re-attach and re-push notes.
-- Add a guard afterwards so it cannot return — a pre-commit check for
-  work-domain strings would catch the next one at the point it enters, which is
-  the enforcement principle in `dotfiles/docs/GOALS.md`. Key it off a pattern in
-  `dotfiles/policy/`, not a hardcoded domain, or the guard needs editing at
-  exactly the moment it matters most — the employer change it exists to prepare
-  for.
+Note for whoever runs it: `TASKS.md` itself is in scope. An earlier revision of
+this section quoted the target string literally before it was redacted, so the
+purge must cover this file as well as the original.
 
 ## Decisions waiting on the author
 
