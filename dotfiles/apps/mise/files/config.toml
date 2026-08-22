@@ -4,6 +4,18 @@ pipx.uvx = true
 
 [tools]
 "cargo:https://github.com/sondr3/git-ignore" = { version = "branch:main", crate = "git-ignore-generator" }
+# Encryption for bin/quarantine. aqua: resolves upstream's own release binaries
+# rather than a third-party plugin. age is a single static binary with no
+# network behaviour, and its file format is documented and stable — which is
+# what makes an archive written today still openable by hand years from now,
+# with nothing but the binary and the key.
+age = "latest"
+# Password-manager CLIs, so bin/quarantine can stream a decryption key straight
+# from the vault to age's stdin instead of leaving it in a file. Neither is
+# required: the keychain and file backends need no extra tool. The 1Password app
+# ships only op-ssh-sign, not the `op` CLI, which is why this is declared.
+"aqua:1password/cli" = "latest"
+"aqua:bitwarden/clients" = "latest"
 fd = "latest"
 fzf = "latest"
 
