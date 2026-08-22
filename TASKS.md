@@ -64,69 +64,36 @@ delete the line and say so in your commit.
   captured `llm` output. Draft is written; one-line fix is `import pymupdf`.
   **[blocked: `gh auth login` — the device flow expired]**
 
-## Unscramble the cross-session commits — deferred, not abandoned
+## History was rewritten on 2026-08-21 — reset before you resume
 
-Two published commits each carry another session's work under a subject that does
-not mention it, because all sessions share one `.git/index` and a bare
-`git commit` takes the whole index:
+`main` was force-pushed. Every SHA from `bc72f5c` onward is new. Two mixed
+commits were unscrambled: `b3ad740` split into a clamav half and a pii-redactor
+half, and `5692a86` reworded to describe the 52 zsh deletions it actually
+contains. Verified lossless — the tree is byte-identical to before, and the suite
+is 218 passed / 7 deselected.
 
-| Commit | Subject says | Also contains |
-|---|---|---|
-| `b3ad740` | clamav systemd timer | a pii-redactor rewrite (8 files total) |
-| `5692a86` | pii-redactor layering | 52 zsh deletions (52 files total) |
+**Anything holding the old history must hard-reset, not pull.** A pull merges old
+and new and resurrects the mixed commits.
 
-Neither can be reverted without taking unrelated work with it. Both are published
-ancestors of `origin/main`, with 18 and 16 commits stacked on top respectively,
-and both carry git notes keyed to their SHAs.
+```bash
+git fetch origin
+git reset --hard origin/main
+git fetch origin 'refs/notes/*:refs/notes/*'   # notes are published now
+```
 
-**The cheap fix is already done.** Both SHAs carry a `git notes` SCOPE CORRECTION
-explaining what else is inside, cross-referencing each other, with the cause and
-the prevention. Read them with `git notes show <sha>`. The tree is correct and the
-suite passes; only the subject lines and clean-revert are affected. `git commit -o`
-stops it recurring and is in AGENTS.md.
+Who needs this:
 
-**The one gap: those notes are local-only.** No notes refspec is configured, and
-`git ls-remote origin 'refs/notes/*'` is empty — so a fresh clone sees the mixed
-commits with no explanation at all. Publishing them is one command:
+- **The second machine.** Not currently contributing, so no work is at risk — but
+  it must reset before its next commit or it will reintroduce the old SHAs.
+- **Any session idle-but-not-finished.** Reset before resuming; a commit against
+  the old HEAD undoes the unscramble.
 
-    git push origin refs/notes/commits
+Pre-rewrite history is on `backup/pre-unscramble-272bdf7` if anything needs
+recovering. Rollback is `git reset --hard backup/pre-unscramble-272bdf7` plus a
+force-push, valid until someone pushes on top.
 
-Deliberately not setting `remote.origin.push`, which would override default
-branch-push behaviour. Decide whether the annotation should be shared before
-considering the rewrite below — if the notes are published, the rewrite is
-probably unnecessary.
-
-### What is still needed before touching this
-
-Answer these first; several may make the whole thing not worth doing.
-
-1. **Has anyone else cloned or pulled `origin/main`?** A rewrite forces every
-   consumer to reset. If this repo is only ever this machine, the cost is near
-   zero; if it is on a second machine, that machine has to be reconciled by hand.
-2. **Are all sessions stopped?** A rewrite while another session holds a stale
-   HEAD produces exactly the scramble it is meant to fix. This needs a quiet
-   window with every session confirmed idle, not merely unresponsive.
-3. **What should the git notes follow?** `git filter-branch`/`rebase` rewrite
-   SHAs, and notes are keyed to the old ones. They must be re-attached
-   deliberately or they silently detach. Note they are also **local-only** — no
-   notes refspec is configured, so they are not on the remote either way.
-4. **Is splitting worth it, or is documenting enough?** Splitting means an
-   interactive rebase 18 commits deep, re-resolving each, and force-pushing. A
-   `git notes` annotation on both SHAs saying what else is inside costs minutes
-   and breaks nothing. Default to the annotation unless there is a concrete need
-   to revert one half.
-5. **Whose call is the attribution?** Both commits are authored `Ben Davis`, so
-   there is no authorship to correct — only the subject line and the ability to
-   revert cleanly. If neither half is likely to be reverted, this is cosmetic.
-
-### If it does go ahead
-
-- Take a backup branch first, as the earlier reconcile did
-  (`backup/pre-reconcile-d39ff82` is the precedent and is still present).
-- Rewrite from the older commit (`5692a86`) so a single pass covers both.
-- Verify at tree level afterwards: the final tree must be byte-identical to the
-  pre-rewrite tree. That check is what proved the last reconcile lossless.
-- Re-run the full suite; it was 220 passed / 5 skipped at the time of writing.
+Each of the three commits carries a `git notes` PROVENANCE entry explaining the
+split and pointing at the prevention. Read with `git notes show <sha>`.
 
 ## Decisions waiting on the author
 
