@@ -58,6 +58,23 @@ delete the line and say so in your commit.
   right home for agent process; CONVENTIONS.md § Commit granularity still covers
   only granularity and messages. Leaving it split is defensible — just do not let
   the two drift.
+- Build the policy resolver: read `dotfiles/policy/ethics.yaml`,
+  `~/.local/state/ai-policy/company.yaml`, `dotfiles/policy/personal.yaml` in that
+  precedence order, first layer to speak wins, missing rule denies. The three
+  files and the ordering exist and are validated; nothing reads them yet, so no
+  rule is currently enforced by anything. See `dotfiles/docs/GOALS.md`.
+- Wire `--no-log` for work-tagged prompts, gated on the resolver above. This is
+  the concrete reason the resolver matters: until it exists, work content keeps
+  landing in the `llm` log with no retention rule applied.
+- Scope and apply retention to the 8 rows of work content already in the `llm`
+  log. `company.yaml`'s `open_questions.indefinite_local_log` defaults to
+  `treat_as_non_compliant`, so the current state is the non-compliant one by our
+  own reading. Blocked on the resolver only for automation — the rows can be
+  scoped by hand first.
+- Add tests for `bin/triage`. It has none, which is why a `platform=None`
+  reporting bug reached the deployed script and was caught by a manual smoke test
+  rather than the 218-test suite. The env/flag/fallback resolution is the obvious
+  first case.
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 
@@ -107,7 +124,7 @@ contents across all history.
 | commit messages, git notes | **Clean.** |
 | current working tree | **Clean.** The header was corrected to the canonical address. |
 | **file contents in history** | **`ben.davis@sentry.io`** in `bin/executable_binned`'s `# Author:` header — introduced by `7fc74a5` (2026-04-25), present in the tree of **123 commits** on `main`. |
-| also in history | `docs.sentry.io` and `sentry.io/changelog` URLs, generalised out of `triage` by `d6e5100`. Employer references, not PII. |
+| also in history | `docs.sentry.io` and `sentry.io/changelog` URLs, generalised out of `triage` by `a5d9e51`. Employer references, not PII. |
 
 So the leak is one string in one file, but it is baked into 123 commit trees and
 `git log -p` will surface it in any clone.
@@ -143,7 +160,10 @@ whether the URLs go at the same time rather than discovering them later.
   the intended string, re-attach and re-push notes.
 - Add a guard afterwards so it cannot return — a pre-commit check for
   work-domain strings would catch the next one at the point it enters, which is
-  the enforcement principle in `dotfiles/docs/GOALS.md`.
+  the enforcement principle in `dotfiles/docs/GOALS.md`. Key it off a pattern in
+  `dotfiles/policy/`, not a hardcoded domain, or the guard needs editing at
+  exactly the moment it matters most — the employer change it exists to prepare
+  for.
 
 ## Decisions waiting on the author
 
@@ -161,6 +181,17 @@ whether the URLs go at the same time rather than discovering them later.
   They cross-reference and roughly half overlaps. Keep both split by audience —
   humans in this repo vs agents in any repo — or consolidate? One commit message
   called CONVENTIONS.md "the single home", so this needs a decision, not a merge.
+- `~/.local/state/ai-policy/company.yaml` has **22 TODO fields** awaiting the
+  author's language. It is machine-local and unversioned by design, so it cannot
+  be tracked here — only pointed at. Until it is filled, `fail_closed` means the
+  company layer denies everything it is asked about, which is safe but not useful.
+  Work top-down: `device.approved` gates the rest.
+- `apps/ollama` writes `_ollama_zsh_completion` from Ansible to a path chezmoi
+  also manages — dual ownership, deliberate, documented in `tasks/install.yaml`
+  with its consequence (`chezmoi apply` reverts a re-download). Marked UNDECIDED:
+  formalise by giving one tool sole ownership, or leave it? Note the inversion —
+  for that file the topic-root copy is the live one, the `files/zsh/` copy is dead,
+  which is backwards from every `*.zsh`.
 
 ## Cross-session hazards
 
