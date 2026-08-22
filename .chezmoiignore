@@ -18,6 +18,7 @@ tests/
 AGENTS.md
 TASKS.md
 .gitignore
+.mailmap
 .hypothesis
 .pytest_cache
 pytest.ini
