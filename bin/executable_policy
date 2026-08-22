@@ -1,0 +1,202 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["pyyaml>=6"]
+# ///
+# -----------------------------------------------------------------------------
+# policy — resolve a rule across the three policy layers.
+#
+# Usage:
+#   policy layers                    show the layers, in precedence order
+#   policy get <dotted.key>          resolved value, and which layer decided
+#   policy explain <dotted.key>      what every layer says about one key
+#   policy check <dotted.key>        exit status for use in scripts
+#
+# Exit codes (check):
+#   0  permitted      a layer explicitly permits it
+#   1  denied         a layer explicitly forbids it
+#   2  unknown        no layer speaks — denied, because fail_closed
+#   3  usage/config error
+#
+# Dependencies:       none beyond the inline pyyaml above; reads files only.
+# -----------------------------------------------------------------------------
+#
+# RESOLUTION
+# ethics(1) -> company(2) -> personal(3). First layer to speak wins. A missing,
+# unparseable, or silent rule denies. See dotfiles/docs/GOALS.md.
+#
+# THE PROPERTY THAT SURPRISES PEOPLE: `check` CAN CURRENTLY NEVER RETURN 0.
+#
+# The layers are restrictions-only by design — every field either forbids or
+# bounds, and none authorises anything. Measured across all three: 17 fields set
+# false, 2 unset, zero set true. So this tool answers "is this restricted?", not
+# "am I allowed?", and exit 0 is reserved rather than reachable.
+#
+# That is deliberate, not a bug to fix by adding `may_*: true` fields. Permission
+# comes from a human, or from the action simply not touching a governed data
+# class — never from a file that a mistake could quietly flip to true. Callers
+# should treat 1 and 2 identically and take the safe branch; the distinction
+# exists so `explain` can tell you whether a rule was written or merely absent.
+#
+# Reads the DEPLOYED copies, because those are what run: $ZSH/policy (default
+# ~/dotfiles/policy) for the two portable layers, and ~/.local/state/ai-policy
+# for the machine-local company layer, which is never versioned or synced.
+
+from __future__ import annotations
+
+import os
+import pathlib
+import sys
+
+import yaml
+
+ZSH = pathlib.Path(os.environ.get("ZSH", pathlib.Path.home() / "dotfiles"))
+STATE = pathlib.Path(
+    os.environ.get("XDG_STATE_HOME", pathlib.Path.home() / ".local" / "state")
+)
+
+# (precedence, name, path, portable)
+LAYERS = [
+    (1, "ethics", ZSH / "policy" / "ethics.yaml", True),
+    (2, "company", STATE / "ai-policy" / "company.yaml", False),
+    (3, "personal", ZSH / "policy" / "personal.yaml", True),
+]
+
+PERMITTED, DENIED, UNKNOWN, ERROR = 0, 1, 2, 3
+
+# A value that means "the author has not answered yet". company.yaml ships full
+# of these, and an unfilled field must not read as an answer.
+UNSET = {None, "", "TODO"}
+
+
+def load(path: pathlib.Path) -> tuple[dict | None, str]:
+    """Return (document, status). A layer that fails to parse is silent, not
+    permissive — fail_closed applies to malformed files exactly as to absent
+    ones, so callers cannot gain permission by corrupting a file."""
+    if not path.exists():
+        return None, "absent"
+    try:
+        doc = yaml.safe_load(path.read_text())
+    except yaml.YAMLError as exc:
+        return None, f"unparseable ({type(exc).__name__})"
+    if not isinstance(doc, dict):
+        return None, "not a mapping"
+    return doc, "ok"
+
+
+def dig(doc: dict, dotted: str):
+    """Walk a dotted key. Returns the sentinel `_MISSING` when absent, so a
+    legitimate stored None is distinguishable from a key that is not there."""
+    node = doc
+    for part in dotted.split("."):
+        if not isinstance(node, dict) or part not in node:
+            return _MISSING
+        node = node[part]
+    return node
+
+
+class _Missing:
+    def __repr__(self) -> str:
+        return "<missing>"
+
+
+_MISSING = _Missing()
+
+
+def resolve(dotted: str):
+    """First layer that speaks wins. Returns (value, layer_name, notes)."""
+    notes = []
+    for _prec, name, path, _portable in LAYERS:
+        doc, status = load(path)
+        if doc is None:
+            notes.append(f"{name}: {status} — treated as silent")
+            continue
+        value = dig(doc, dotted)
+        if value is _MISSING:
+            notes.append(f"{name}: no rule")
+            continue
+        if value in UNSET:
+            notes.append(f"{name}: present but unset ({value!r}) — treated as silent")
+            continue
+        return value, name, notes
+    return _MISSING, None, notes
+
+
+def cmd_layers() -> int:
+    print("resolution order (first to speak wins):")
+    for prec, name, path, portable in LAYERS:
+        doc, status = load(path)
+        declared = (doc or {}).get("meta", {}).get("layer", "-")
+        kind = "portable" if portable else "machine-local"
+        agree = "" if declared in (name, "-") else f"  !! declares layer={declared}"
+        print(f"  {prec}  {name:9s} {status:26s} {kind:14s} {path}{agree}")
+    print("\nmissing, unparseable and unset all count as silent — fail_closed.")
+    return 0
+
+
+def cmd_get(key: str) -> int:
+    value, layer, _notes = resolve(key)
+    if layer is None:
+        print(f"{key}: unresolved — no layer speaks", file=sys.stderr)
+        return UNKNOWN
+    print(f"{value}  ({layer})")
+    return 0
+
+
+def cmd_explain(key: str) -> int:
+    value, layer, notes = resolve(key)
+    print(f"key: {key}")
+    for line in notes:
+        print(f"  {line}")
+    if layer is None:
+        print("  -> unresolved: denied, because fail_closed")
+    else:
+        print(f"  -> {layer} decides: {value!r}")
+    return 0
+
+
+def cmd_check(key: str) -> int:
+    value, layer, _notes = resolve(key)
+    if layer is None:
+        print(f"unknown: no layer speaks on {key} — denied (fail_closed)")
+        return UNKNOWN
+    if value is True:
+        print(f"permitted by {layer}")
+        return PERMITTED
+    if value is False:
+        print(f"denied by {layer}")
+        return DENIED
+    # A non-boolean under `check` is a caller error: `check` is for permissions,
+    # `get` for settings. Denying would imply a rule that was never written.
+    print(
+        f"{key} resolved to a non-boolean ({value!r}) from {layer}; "
+        "use `policy get` for settings",
+        file=sys.stderr,
+    )
+    return ERROR
+
+
+def main() -> int:
+    args = sys.argv[1:]
+    if not args or args[0] in ("-h", "--help"):
+        # Print the header block between the first two rulers.
+        src = pathlib.Path(__file__).read_text().splitlines()
+        rules = [i for i, l in enumerate(src) if l.startswith("# ---")]
+        body = src[rules[0] + 1 : rules[1]] if len(rules) >= 2 else []
+        print("\n".join(l.removeprefix("# ").removeprefix("#") for l in body))
+        return 0 if args else ERROR
+
+    cmd, rest = args[0], args[1:]
+    if cmd == "layers":
+        return cmd_layers()
+    if cmd not in ("get", "check", "explain"):
+        print(f"policy: unknown command {cmd!r}", file=sys.stderr)
+        return ERROR
+    if len(rest) != 1:
+        print(f"policy: {cmd} takes exactly one dotted key", file=sys.stderr)
+        return ERROR
+    return {"get": cmd_get, "check": cmd_check, "explain": cmd_explain}[cmd](rest[0])
+
+
+if __name__ == "__main__":
+    sys.exit(main())
