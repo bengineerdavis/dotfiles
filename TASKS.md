@@ -29,9 +29,7 @@ is exactly the collision it exists to prevent.
 
 Format: `- <UTC start> — <what> — <files or resource>`
 
-<!-- example, delete when the first real claim lands:
-- 2026-08-21T18:30Z — rewriting the fetchurl progress display — bin/executable_fetchurl
--->
+- 2026-08-22T02:14Z — generalizing hardcoded employer defaults — bin/executable_triage, bin/executable_binned, bin/executable_findline
 
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
@@ -48,6 +46,19 @@ delete the line and say so in your commit.
   ByteDance Seed, Cohere are all on the existing OpenRouter account. Rank them
   with `model-bench`, not by assertion: several post-date any model's training
   cutoff, so relative quality is genuinely unknown until measured.
+- Port the two commit rules that `docs/CONVENTIONS.md` § Commit granularity lacks:
+  commit by pathspec (`git commit -- <paths>`, since a bare commit takes whatever
+  another session has staged) and verify contents afterwards (`git show --stat
+  HEAD`). Both are in the `commit-hygiene` skill; each independently prevents the
+  scramble annotated on 5692a86 and b3ad740.
+- Push the git notes on 5692a86 and b3ad740 if they should outlive this clone:
+  `git push origin refs/notes/*`. No notes refspec is configured, so they are
+  local-only. Deliberately did not set `remote.origin.push` — doing so overrides
+  the default branch-push behaviour.
+- Symlink the two new skills into `~/.claude/skills` on each machine that wants
+  them: `ln -s ~/code/personal/ai-prompt-library/skills/<name> ~/.claude/skills/`.
+  Per-machine because `~/.claude` is chezmoi-ignored. Skills are `pii-redaction`
+  and `commit-hygiene`.
 - File the upstream issue on `simonw/llm-pdf-to-images`: it does `import fitz`,
   and PyMuPDF's shim prints a deprecation notice to **stdout**, corrupting any
   captured `llm` output. Draft is written; one-line fix is `import pymupdf`.
@@ -62,6 +73,13 @@ delete the line and say so in your commit.
   or build a generation-side test?
 - `bin/binned`'s SaaS tier is down to five entries after the gpt-* rows were
   dropped. Repopulate from the frontier evaluation above, or leave it thin?
+- Commit-granularity guidance now exists twice: `docs/CONVENTIONS.md` § Commit
+  granularity (repo-specific — scope vocabulary, worked examples from this
+  history, the don't-over-split floor) and the portable `commit-hygiene` skill
+  with executable evals (message-size table, pathspec commits, verify-after).
+  They cross-reference and roughly half overlaps. Keep both split by audience —
+  humans in this repo vs agents in any repo — or consolidate? One commit message
+  called CONVENTIONS.md "the single home", so this needs a decision, not a merge.
 
 ## Cross-session hazards
 
@@ -71,7 +89,10 @@ and `chezmoi status` before editing.
 - `bin/executable_fetchurl` — actively developed; caused the only real merge
   conflict so far.
 - `bin/executable_pii-redactor` — ported to Python, then extended with layered
-  redaction by another session. Suite is 61 tests; run it after any change.
+  redaction by another session. Suite is 63 tests; run it after any change.
+  Its conftest default mock is a *working* model, not `cat`: a pass-through mock
+  plus exit-status assertions is green exactly when the tool leaks, which is the
+  defect the layers exist to prevent. Ask for `mock_llm("cat")` explicitly.
 - `bin/executable_model-bench` — multi-case judge suite; the reference scorecards
   in `CASES` must be re-derived if a case script changes.
 
