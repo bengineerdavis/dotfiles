@@ -57,6 +57,29 @@ def test_no_unsourced_zsh_fragments():
     )
 
 
+def test_no_legacy_zsh_subdirectory_at_all():
+    """
+    The `apps/<topic>/zsh/` layout is dead in its entirety, whatever it holds.
+
+    Guarding only `*.zsh` was not enough. A concurrent rebase reinstated
+    `homebrew/zsh/executable_install.sh` and a `.gitkeep` propping open
+    `tmux/zsh/`, and the *.zsh-scoped test above passed with both present —
+    a dead directory quietly refilled while the suite stayed green.
+
+    So assert on the directory, not the extension: nothing under a topic's
+    `zsh/` is reachable, so the directory should not exist.
+    """
+    legacy = sorted(d for d in APPS.glob("*/zsh") if d.is_dir())
+    assert not legacy, (
+        "legacy zsh/ directories exist; nothing inside them is reachable "
+        f"(canonical is {CANONICAL}):\n  "
+        + "\n  ".join(
+            f"{d.relative_to(REPO)}  ({len(list(d.iterdir()))} entries)"
+            for d in legacy
+        )
+    )
+
+
 def test_scaffold_only_emits_the_canonical_layout():
     """If the generator drifts, every new topic reintroduces the bug."""
     if not TEMPLATE.is_dir():
