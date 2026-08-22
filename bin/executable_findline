@@ -94,7 +94,7 @@ function show_help() {
     echo "  findline --debug --windsurf 'pattern'              # Show debug info and open in windsurf"
     echo "  findline --path-only 'search pattern'              # Only print file path"
     echo "  findline --subdir src 'search pattern'"
-    echo "  findline --subdir ~/code/work/sentry --files '**/*.py' 'pattern'"
+    echo "  findline --subdir ~/code/myproject --files '**/*.py' 'pattern'"
     echo ""
     echo "With --debug, you'll see the parsed file, line, column, and the exact command that would be run before it executes. Useful for troubleshooting or verifying navigation behavior."
 }

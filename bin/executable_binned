@@ -14,7 +14,7 @@
 #                     Deps declared via PEP 723; uv creates an isolated venv on first run.
 #
 # License:            MIT
-# Author:             Ben Davis <ben.davis@sentry.io>
+# Author:             Ben Davis <bengineerdavis@gmail.com>
 # Created:            2026-04-24
 # Last Modified:      2026-04-24
 #

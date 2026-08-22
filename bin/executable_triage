@@ -124,8 +124,8 @@ FLAGS
 
   --provider   local | claude | perplexity | gemini   (default: local)
   --model      Override default model for chosen provider
-  --platform   Product platform label                 (default: Sentry.io)
-  --docs       Space-separated doc URLs               (default: Sentry.io docs)
+  --platform   Product platform label                 ($TRIAGE_PLATFORM)
+  --docs       Space-separated doc URLs               ($TRIAGE_DOCS)
   --help       Show this message and exit
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -147,11 +147,33 @@ from datetime import date
 
 LOCAL_DEFAULT_MODEL = "gemma4:12b-mlx"
 
-SENTRY_DOCS = [
-    "https://docs.sentry.io",
-    "https://develop.sentry.dev",
-    "https://sentry.io/changelog",
-]
+# The product this triages is deployment-specific, so it is configuration, not a
+# constant. Both settings resolve flag -> environment -> generic fallback.
+#
+# Machine-local values belong in ~/.localrc, which .zshrc sources and chezmoi
+# does not manage — so an employer's product name and doc URLs stay on the
+# machine that needs them instead of being committed here. For example:
+#
+#     export TRIAGE_PLATFORM="Example.io"
+#     export TRIAGE_DOCS="https://docs.example.io https://example.io/changelog"
+#
+# The fallback platform label is deliberately generic rather than absent: the
+# memo template stamps it, and an empty stamp reads as a bug rather than as
+# "unconfigured".
+DEFAULT_PLATFORM = "the product"
+ENV_PLATFORM = "TRIAGE_PLATFORM"
+ENV_DOCS = "TRIAGE_DOCS"
+
+
+def resolve_platform(flag: str | None) -> str:
+    return flag or os.environ.get(ENV_PLATFORM) or DEFAULT_PLATFORM
+
+
+def resolve_docs(flag: list[str] | None) -> list[str]:
+    """Doc URLs for the research phase, or an empty list when unconfigured."""
+    if flag:
+        return flag
+    return os.environ.get(ENV_DOCS, "").split()
 
 LLM_INSTALL_INSTRUCTIONS = """\
 [triage] 'llm' is not installed or not on PATH.
@@ -290,7 +312,7 @@ Reason through the following; carry conclusions into the memo:
 
 Using DOC_SOURCES, find the most relevant official docs for the issue class and surface from Phase 0.
 For each gap in the user report, find the doc section explaining why that field is diagnostic.
-If platform is Sentry.io, also check the changelog for recent regressions matching the behavior.
+If any DOC_SOURCES entry is a changelog or release-notes page, also check it for recent regressions matching the behavior.
 Carry 2–4 sourced findings into the memo as background context.
 
 ---
@@ -461,13 +483,13 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument(
         "--platform",
-        default="Sentry.io",
+        default=None,
         metavar="NAME",
         help=(
             "Product platform the email is about. Stamped on the memo and "
             "used to focus the doc research phase. "
             "Change together with --docs to retarget to any SaaS product. "
-            "(default: Sentry.io)"
+            f"Falls back to ${ENV_PLATFORM}, then {DEFAULT_PLATFORM!r}."
         ),
     )
     p.add_argument(
@@ -477,7 +499,7 @@ def parse_args() -> argparse.Namespace:
         metavar="URL",
         help=(
             "One or more official documentation URLs for the research phase. "
-            "Replaces the default Sentry.io doc set when provided. "
+            f"Falls back to ${ENV_DOCS} (space-separated). "
             "Example: --docs https://docs.stripe.com https://stripe.com/docs/api"
         ),
     )
@@ -498,10 +520,23 @@ def main() -> None:
     if not email.strip():
         sys.exit("[triage] stdin was empty.")
 
-    docs = args.docs or SENTRY_DOCS
+    platform = resolve_platform(args.platform)
+    docs = resolve_docs(args.docs)
+
+    # Phase 1 is documentation research, so with no sources it degrades to the
+    # model's own recall. Say so on stderr rather than letting a thinner memo
+    # look like a normal one — and name both fixes, per the repo convention.
+    if not docs:
+        print(
+            f"[triage] no doc sources configured — Phase 1 research will rely on "
+            f"model knowledge alone.\n"
+            f"  set ${ENV_DOCS} in ~/.localrc, or pass --docs URL [URL ...]",
+            file=sys.stderr,
+        )
+
     today = date.today().isoformat()
     system = SYSTEM_PROMPT
-    user = build_prompt(email, args.platform, docs, today)
+    user = build_prompt(email, platform, docs, today)
 
     if args.provider == "local":
         check_llm_installed()
