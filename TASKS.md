@@ -64,6 +64,57 @@ delete the line and say so in your commit.
   captured `llm` output. Draft is written; one-line fix is `import pymupdf`.
   **[blocked: `gh auth login` — the device flow expired]**
 
+## Unscramble the cross-session commits — deferred, not abandoned
+
+Two published commits each carry another session's work under a subject that does
+not mention it, because all sessions share one `.git/index` and a bare
+`git commit` takes the whole index:
+
+| Commit | Subject says | Also contains |
+|---|---|---|
+| `b3ad740` | clamav systemd timer | a pii-redactor rewrite (8 files total) |
+| `5692a86` | pii-redactor layering | 52 zsh deletions (52 files total) |
+
+Neither can be reverted without taking unrelated work with it. Both are published
+ancestors of `origin/main`, with 18 and 16 commits stacked on top respectively,
+and both carry git notes keyed to their SHAs.
+
+**Not urgent.** The tree is correct; only the attribution and the revert story are
+wrong. `git commit -o` stops it recurring — that is the fix that mattered and it
+is already in AGENTS.md.
+
+### What is still needed before touching this
+
+Answer these first; several may make the whole thing not worth doing.
+
+1. **Has anyone else cloned or pulled `origin/main`?** A rewrite forces every
+   consumer to reset. If this repo is only ever this machine, the cost is near
+   zero; if it is on a second machine, that machine has to be reconciled by hand.
+2. **Are all sessions stopped?** A rewrite while another session holds a stale
+   HEAD produces exactly the scramble it is meant to fix. This needs a quiet
+   window with every session confirmed idle, not merely unresponsive.
+3. **What should the git notes follow?** `git filter-branch`/`rebase` rewrite
+   SHAs, and notes are keyed to the old ones. They must be re-attached
+   deliberately or they silently detach. Note they are also **local-only** — no
+   notes refspec is configured, so they are not on the remote either way.
+4. **Is splitting worth it, or is documenting enough?** Splitting means an
+   interactive rebase 18 commits deep, re-resolving each, and force-pushing. A
+   `git notes` annotation on both SHAs saying what else is inside costs minutes
+   and breaks nothing. Default to the annotation unless there is a concrete need
+   to revert one half.
+5. **Whose call is the attribution?** Both commits are authored `Ben Davis`, so
+   there is no authorship to correct — only the subject line and the ability to
+   revert cleanly. If neither half is likely to be reverted, this is cosmetic.
+
+### If it does go ahead
+
+- Take a backup branch first, as the earlier reconcile did
+  (`backup/pre-reconcile-d39ff82` is the precedent and is still present).
+- Rewrite from the older commit (`5692a86`) so a single pass covers both.
+- Verify at tree level afterwards: the final tree must be byte-identical to the
+  pre-rewrite tree. That check is what proved the last reconcile lossless.
+- Re-run the full suite; it was 220 passed / 5 skipped at the time of writing.
+
 ## Decisions waiting on the author
 
 - `gpt-oss:20b` and `ministral-3:8b` sit at 2 stars in `bin/binned`'s
