@@ -95,6 +95,50 @@ force-push, valid until someone pushes on top.
 Each of the three commits carries a `git notes` PROVENANCE entry explaining the
 split and pointing at the prevention. Read with `git notes show <sha>`.
 
+## Normalise the stray author email
+
+`bengineerdavis@gmail.com` is the canonical identity for this repo. It is already
+set locally and globally, so nothing new can be authored wrongly — this is purely
+about one historical commit.
+
+**Scope is one commit out of 324.** `ed0b315` (2020-01-09, "Adding several apps,
+including Fedora virtualization packages") is authored *and* committed as
+`Ben's laptop <ruubixo@gmail.com>`. Everything else already uses the canonical
+address.
+
+Worth stating plainly because it is the case that would matter most: **no employer
+email appears anywhere in this history.** Not as author, not as committer. The
+employer-agnostic property `dotfiles/docs/GOALS.md` describes is intact, and this
+is a tidiness issue rather than a provenance leak.
+
+### The catch
+
+`ed0b315` is from 2020 and has **285 commits after it on `main`**. Rewriting the
+author rewrites every descendant — a full-history force-push, an order of
+magnitude beyond the 21-commit unscramble. It would invalidate every SHA in the
+repo, including the ones the PROVENANCE notes reference.
+
+### Options
+
+1. **`.mailmap`** — maps the old address to the canonical one for `git log`,
+   `git shortlog` and forge UIs, with **no rewrite**. One file, two lines, zero
+   SHA churn. Does not change the stored commit object, so `git log --format=%ae`
+   still shows the original.
+2. **`git filter-repo --mailmap`** — actually rewrites the object. Correct at the
+   storage layer, at the cost of every SHA changing, a force-push, resetting the
+   second machine again, and re-attaching the notes.
+3. **Leave it.** One 2020 commit from a personal alt address, in a repo with one
+   contributor.
+
+**Recommendation: option 1.** It achieves the visible outcome — every view shows
+one identity — without a second full-history rewrite in the same week. Escalate to
+2 only if the stored value itself matters, e.g. before making the repo public.
+
+Whichever is chosen, keep `user.email` pinned in this repo so a machine with a
+different global default cannot reintroduce it:
+
+    git config user.email bengineerdavis@gmail.com   # already set
+
 ## Decisions waiting on the author
 
 - `gpt-oss:20b` and `ministral-3:8b` sit at 2 stars in `bin/binned`'s
