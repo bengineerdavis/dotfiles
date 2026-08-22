@@ -17,6 +17,26 @@ Keep it short. This tracks *open* work and cross-session hazards, not history �
 - When you claim an item, say so in the line. When you finish it, delete the line
   — the commit is the record.
 
+## Claimed
+
+Sessions run in parallel and cannot see each other. Add a line when you start on
+anything that touches a file in **Cross-session hazards** below, or that will hold
+a global resource (ollama, `chezmoi apply`) for more than a minute. Delete your
+line when you stop — including when you stop without finishing.
+
+Append; never reflow or reorder this section. Two sessions editing the same lines
+is exactly the collision it exists to prevent.
+
+Format: `- <UTC start> — <what> — <files or resource>`
+
+<!-- example, delete when the first real claim lands:
+- 2026-08-21T18:30Z — rewriting the fetchurl progress display — bin/executable_fetchurl
+-->
+
+A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
+file and whether a process is still running before assuming it is safe — then
+delete the line and say so in your commit.
+
 ## Open
 
 - Add a cheap gate in front of the LLM judge panel: generate and run the script's

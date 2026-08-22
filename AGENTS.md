@@ -44,6 +44,48 @@ Before editing a `bin/` script, check `chezmoi status`. Committing the source wh
 the deployed copy is ahead silently reverts the working version on the next
 `chezmoi apply`.
 
+## Working alongside other sessions
+
+More than one agent session runs against this repo, sharing one checkout, one
+deployed tree, and one machine. Most work never collides — in practice the only
+real conflict so far came from two sessions rewriting the same large file at once.
+These are the cases that do need care.
+
+**Before `chezmoi apply`, run `chezmoi status`.** Source and deployed drift in both
+directions. Applying picks up whatever another session has committed but not yet
+deployed, which may not be ready — Debian topic changes have sat committed and
+unapplied for exactly this reason. Apply specific paths rather than everything.
+
+**Before benchmarking, run `ollama ps`.** Model memory is global and unforgiving:
+loading an 18 GB model while another is resident kills the server, and the failure
+looks like a model or timeout bug rather than contention. A cold load can also
+exceed a short `--timeout`, and a warmup that times out cascades into every
+subsequent run failing.
+
+**For a large rewrite of a single file, use a worktree and a branch.** Small
+focused commits straight to `main` are fine and collide far less than the ceremony
+would cost. Two caveats if you do branch:
+
+```bash
+git worktree add ../chezmoi-<topic> -b <topic>
+chezmoi -S "$PWD" add ~/bin/<script>     # -S is required, see below
+```
+
+- chezmoi's source directory is **fixed**, not cwd-relative — it resolves to
+  `~/.local/share/chezmoi` wherever you run it. Without `-S "$PWD"` a `chezmoi add`
+  from a worktree writes into the main checkout and silently lands work on another
+  branch.
+- The deployed tree cannot be branched. `~/bin/<script>` is one file no matter how
+  many branches hold versions of it, so `chezmoi apply` from either branch
+  overwrites the other.
+
+**Claim hot files in `TASKS.md` § Claimed** before touching anything listed under
+Cross-session hazards, and delete the line when you stop.
+
+**Other global state to check before assuming it is yours:** `~/.binned/config.toml`
+(the judge pool and generation model), `~/bin` and `~/dotfiles` (deployed copies),
+and long-running background jobs holding the GPU.
+
 ## Commands
 
 ```bash
