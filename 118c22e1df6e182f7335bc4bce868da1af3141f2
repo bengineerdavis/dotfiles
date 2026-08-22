@@ -1,17 +1,12 @@
-SCOPE CORRECTION: this commit's message does not describe its contents.
+PROVENANCE: reworded on 2026-08-21.
 
-Its 52 files are unrelated empty_executable_*.zsh entries. The three-layer
-pii-redactor rewrite this message describes is in b3ad740, along with
-tests/pii_redactor/{conftest.py,test_pii_redactor_layers.py}.
+This commit previously bore the pii-redactor three-layer subject while
+containing only these 52 zsh deletions — two sessions sharing one
+.git/index. The pii-redactor message now sits on 0bf73dc with the code it
+describes; this one describes what it actually deletes.
 
-Cause: two sessions sharing one git index. `git commit` commits the whole
-index, so 'git add <paths>' followed by a bare 'git commit' let each session
-commit the other's staged files. Both commits' contents are correct in the tree
-and 63 tests pass; only the labels are wrong. History left as-is deliberately —
-the branch was already built on.
+Contents unchanged: the same 52 files, verified byte-identical to the
+pre-rewrite tree. Pre-rewrite history is on backup/pre-unscramble-272bdf7.
 
-Prevention: 'git commit -- <paths>' and 'git show --stat HEAD' afterwards. See
-skills/commit-hygiene in ~/code/personal/ai-prompt-library.
-
-(Also note the typo in the body: 'ai-prompto-library' should be
-'ai-prompt-library'.)
+Prevention: `git commit -o <paths>`, then `git show --stat HEAD`. See
+AGENTS.md, "Working alongside other sessions".
