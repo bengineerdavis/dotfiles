@@ -3,6 +3,13 @@
 Instructions for coding agents working in this repository. Human-facing detail lives
 in `docs/` — this file links there rather than restating it, so the two cannot drift.
 
+## Start here
+
+Read `TASKS.md` before starting work and update it before you finish. Sessions
+keep their own in-memory task lists, which fragment as soon as two are running;
+that file is the shared one. It also lists which files another session is
+actively touching.
+
 ## What this repo is
 
 A chezmoi-managed dotfiles repo with an Ansible layer for system state.

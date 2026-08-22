@@ -1,0 +1,65 @@
+# TASKS.md
+
+Shared work queue for this repo. Agent sessions keep their own in-memory task
+lists, which fragment the moment more than one is running — this file is the
+durable version. Read it at the start of a session; update it before you finish.
+
+Keep it short. This tracks *open* work and cross-session hazards, not history —
+`git log` already has history, and duplicating it here just creates drift.
+
+## Conventions
+
+- One line per item, imperative, with enough context to pick it up cold.
+- Mark **[blocked: reason]** rather than deleting — a blocked item that vanishes
+  gets rediscovered from scratch.
+- Mark **[inferred]** for anything reconstructed from repo evidence rather than
+  stated by the author. Those may be wrong; correct them rather than trusting them.
+- When you claim an item, say so in the line. When you finish it, delete the line
+  — the commit is the record.
+
+## Open
+
+- Add a cheap gate in front of the LLM judge panel: generate and run the script's
+  tests, use real pass/fail as the signal, escalate to judges only when the result
+  is inconclusive. Treat formatting/lint as fix-as-you-go, not gate criteria. The
+  accept-vs-revise signal in git history is training data for it.
+- Evaluate frontier cloud alternatives to OpenAI/Grok as judge and generation
+  candidates — Qwen, DeepSeek, Moonshot Kimi, Z.ai GLM, MiniMax, Mistral,
+  ByteDance Seed, Cohere are all on the existing OpenRouter account. Rank them
+  with `model-bench`, not by assertion: several post-date any model's training
+  cutoff, so relative quality is genuinely unknown until measured.
+- File the upstream issue on `simonw/llm-pdf-to-images`: it does `import fitz`,
+  and PyMuPDF's shim prints a deprecation notice to **stdout**, corrupting any
+  captured `llm` output. Draft is written; one-line fix is `import pymupdf`.
+  **[blocked: `gh auth login` — the device flow expired]**
+
+## Decisions waiting on the author
+
+- `gpt-oss:20b` and `ministral-3:8b` sit at 2 stars in `bin/binned`'s
+  `_RECOMMENDED_MODELS`, marked provisional. `model-bench` measures *judging*, not
+  *generation*, which is what the stars document — so promoting them on bench
+  evidence would import a number measured on a different task. Leave provisional,
+  or build a generation-side test?
+- `bin/binned`'s SaaS tier is down to five entries after the gpt-* rows were
+  dropped. Repopulate from the frontier evaluation above, or leave it thin?
+
+## Cross-session hazards
+
+Files with more than one session touching them recently. Check `git log -3 <file>`
+and `chezmoi status` before editing.
+
+- `bin/executable_fetchurl` — actively developed; caused the only real merge
+  conflict so far.
+- `bin/executable_pii-redactor` — ported to Python, then extended with layered
+  redaction by another session. Suite is 61 tests; run it after any change.
+- `bin/executable_model-bench` — multi-case judge suite; the reference scorecards
+  in `CASES` must be re-derived if a case script changes.
+
+## Standing reminders
+
+- `bin/` scripts are chezmoi source (`executable_<name>`); `~/bin/<name>` is what
+  runs. Check `chezmoi status` before editing or you will silently revert the
+  working copy.
+- A bare `pytest tests` reports "24 passed, 89 skipped" and looks green while
+  testing almost nothing. Run it with `typer`, `questionary` and `hypothesis`
+  present — see AGENTS.md.
