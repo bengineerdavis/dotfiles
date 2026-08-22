@@ -131,6 +131,12 @@ FLAGS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
+# `str | None` in an annotation is evaluated at def time and needs 3.10+. This
+# script is plain `#!/usr/bin/env python3`, so it runs on whatever python3 comes
+# first on PATH — 3.9 on macOS system Python, and older than 3.10 on some Debian
+# targets. Deferring annotations keeps the modern syntax working there.
+from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -163,6 +169,32 @@ LOCAL_DEFAULT_MODEL = "gemma4:12b-mlx"
 DEFAULT_PLATFORM = "the product"
 ENV_PLATFORM = "TRIAGE_PLATFORM"
 ENV_DOCS = "TRIAGE_DOCS"
+
+
+# The policy key governing whether prompt/response bodies may be written to the
+# llm log. Resolved by `bin/policy` across ethics -> company -> personal.
+LOG_BODIES_KEY = "boundaries.llm_processing.log_bodies_allowed"
+
+
+def logging_permitted() -> bool:
+    """True only when a policy layer explicitly permits logging bodies.
+
+    `policy check` exits 0 permitted, 1 denied, 2 unknown-denied. Callers must
+    treat 1 and 2 alike: the layers are restrictions-only, so 0 is currently
+    unreachable and denial is the normal answer rather than an error state.
+
+    A missing or broken resolver is itself a denial. Any other reading would
+    mean deleting one script turns logging back on for customer data.
+    """
+    try:
+        result = subprocess.run(
+            ["policy", "check", LOG_BODIES_KEY],
+            capture_output=True,
+            text=True,
+        )
+    except (FileNotFoundError, OSError):
+        return False
+    return result.returncode == 0
 
 
 def resolve_platform(flag: str | None) -> str:
@@ -391,6 +423,18 @@ def run_local(model: str, system: str, user: str) -> str:
         --system       System prompt string
     """
     cmd = ["llm", "-m", model, "--system", system, user]
+
+    # triage only ever sees inbound customer reports, so its prompts are
+    # work-tagged by construction — there is no non-work way to invoke it. Ask
+    # the policy layers whether bodies may be logged, and pass -n when they do
+    # not say yes. See `policy explain` and dotfiles/docs/GOALS.md.
+    if not logging_permitted():
+        cmd.insert(1, "-n")
+        print(
+            "[triage] prompt bodies not logged — policy denies "
+            "(policy explain boundaries.llm_processing.log_bodies_allowed)",
+            file=sys.stderr,
+        )
 
     print(f"[triage] cmd: {' '.join(cmd[:4])} <prompt>", file=sys.stderr)
 

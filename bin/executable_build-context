@@ -66,4 +66,7 @@ MODEL="${MODEL:-gemma4:31b-mlx}"
 ATTACHMENTS=${1-"./**"}
 OUTPUT_FILE=${2-"context.md"}
 
-llm-ctx -v -m "$MODEL" "$ATTACHMENTS" -- "$PROMPT" > "$OUTPUT_FILE"
+# --work: the attachments this analyses are customer-supplied documents, so
+# every run is work-tagged. The policy layers decide what that means for
+# logging; see bin/policy and dotfiles/docs/GOALS.md.
+llm-ctx --work -v -m "$MODEL" "$ATTACHMENTS" -- "$PROMPT" > "$OUTPUT_FILE"
