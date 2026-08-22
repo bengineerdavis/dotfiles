@@ -205,7 +205,7 @@ means, a new progress display, and two new pipeline flags. Reverting the progres
 there means reverting the CLI contract too. The message had to spend five paragraphs
 because it was narrating four stories.
 
-**Right-sized.** The Debian port of `apps/clamav` landed as five commits —
+**Right-sized.** The Debian port of `apps/clamav` landed as six commits —
 `--config-file` plumbing, per-platform path resolution, the netcat dependency, apt
 install, the systemd timer, then flipping `topic_os`. Each is independently revertible and
 each subject line is a complete thought. That is the shape to aim for.

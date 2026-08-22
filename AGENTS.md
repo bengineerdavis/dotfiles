@@ -5,9 +5,16 @@ in `docs/` — this file links there rather than restating it, so the two cannot
 
 ## What this repo is
 
-A chezmoi-managed dotfiles repo with an Ansible layer for system state. Read
-`docs/ARCHITECTURE.md` first; `docs/CONTRIBUTING.md` has the layering rules that
-govern where a change belongs.
+A chezmoi-managed dotfiles repo with an Ansible layer for system state.
+
+**Read `dotfiles/docs/CONVENTIONS.md` first** — topic structure, the `topic.yml`
+schema, tiers, lifecycle tags, dependency resolution, commit granularity and the
+CRUD-ownership invariant. It is the source of truth and the 39 topic files cite it.
+`dotfiles/docs/ARCHITECTURE.md` has the big picture,
+`dotfiles/docs/CONTRIBUTING.md` the workflow around it.
+
+The repo-root `docs/` tree is an older copy of the same material, kept but not
+maintained. Edit the `dotfiles/docs/` copies.
 
 The one rule worth repeating here because it is the most common mistake: **one
 concern per layer.** chezmoi owns dotfiles and symlinks, Ansible owns package
@@ -48,69 +55,30 @@ almost nothing — the `binned_module` fixture skips without `typer`/`questionar
 
 ## Commits
 
-Commit messages here got long because commits were doing too much, not because the
-messages were verbose. The length was the symptom. Fix the granularity and the
-message shrinks on its own.
+**`dotfiles/docs/CONVENTIONS.md` § Commit granularity is the source of truth.** Read
+it before committing. The short version, so this file is usable on its own:
 
-**One logical change per commit.** Logical, not physical — the test is not "how many
-files" but three questions:
-
-- **Atomic** — does the tree work before and after? A commit that leaves a template
-  referencing a task that does not exist yet is not atomic.
-- **Revertable alone** — can this be reverted without untangling something else?
-- **Reviewable** — can a reader hold the whole change in their head?
-
-Subject line: `topic: what changed`, imperative, under ~72 characters. Body: why,
-and only what a reverter needs. Under ~10 lines. Durable *why* belongs in a code
-comment next to the decision, where it survives rebases and is read by people who
-never look at git log.
-
-### A list of changes is a list of commits
-
-If the body needs bullets to enumerate what changed, that is the signal. But
-enumeration is only a signal, not a rule — these are **not** splits:
-
-| Looks like a list | Actually one commit |
-|---|---|
-| The same mechanical change across 40 files | One commit. A list of *files* is not a list of *concerns*, and splitting by file breaks atomicity mid-way. |
-| A feature whose pieces are individually dead | One commit. A systemd unit template plus the task that installs it: template alone is dead code, task alone references a missing file. |
-| "Verified X, Y and Z" | One commit. That is a list of checks, not of changes. |
-| A rename plus its call sites | One commit. Splitting leaves the tree broken. |
-
-And the inverse — these look like one change but are several:
-
-- **A cross-platform change that also alters existing behaviour.** Adding Linux
-  support while changing what macOS does is two commits, or the macOS fix cannot be
-  reverted without losing Linux support.
-- **A refactor bundled with a behaviour change.** Always separate. A reviewer cannot
-  tell which lines were meant to change behaviour.
-- **A fix plus the unrelated cleanup you noticed while there.**
-
-### Ordering
+One commit is one reviewable decision. The test is not file count — it is whether a
+reader can hold the *why* in their head, and whether the change can be reverted on
+its own without taking unrelated work with it.
 
 Sequence commits so every intermediate state works. Land the inert parts first and
 the switch that activates them last — for an Ansible topic that is usually
-`topic_os`, which gates whether any of the preceding commits run at all. That
-ordering makes `git bisect` meaningful and lets the enabling commit be reverted on
-its own to turn a feature off without unpicking the implementation.
+`topic_os`, which gates whether any of the preceding commits run at all.
 
-### Worked example
+Do **not** over-split. A commit that leaves the tree broken so the next one can fix
+it is worse than a slightly coarse one: it breaks `git bisect`. Atomic means
+self-contained, not small.
 
-`clamav: extend the topic to Debian/Ubuntu` was one commit, 9 files, 33 lines of
-body. It became six, and splitting it surfaced a bug the single commit had hidden: a
-new `clamav_clamd_conf` var collided with an existing `register:` of the same name,
-and registered vars outrank role vars — so the rendered script would have received a
-task-result dict instead of a path. Reading each change in isolation is what caught
-it.
+Durable *why* belongs in a code comment next to the decision, where it survives
+rebases and is read by people who never open git log. The commit body carries only
+what a reverter needs.
 
-```
-clamav: pass --config-file to every clamav binary            # behaviour, both platforms
-clamav: resolve config, database and binary paths per platform
-clamav: install netcat-openbsd and verify nc -U on Debian    # independent trap
-clamav: install via apt, without the always-on daemon
-clamav: schedule the daily scan with a systemd user timer on Debian
-clamav: enable the topic on Debian                           # the switch
-```
+Splitting is also a review pass in its own right. Re-reading the clamav Debian port
+as six commits surfaced a bug the single commit had hidden: a new
+`clamav_clamd_conf` var collided with an existing `register:` of the same name, and
+registered vars outrank role vars — so the rendered script would have received a
+task-result dict instead of a path.
 
 ## Languages
 
