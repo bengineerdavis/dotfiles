@@ -29,7 +29,6 @@ is exactly the collision it exists to prevent.
 
 Format: `- <UTC start> — <what> — <files or resource>`
 
-- 2026-08-22T02:14Z — generalizing hardcoded employer defaults — bin/executable_triage, bin/executable_binned, bin/executable_findline
 
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
@@ -46,15 +45,6 @@ delete the line and say so in your commit.
   ByteDance Seed, Cohere are all on the existing OpenRouter account. Rank them
   with `model-bench`, not by assertion: several post-date any model's training
   cutoff, so relative quality is genuinely unknown until measured.
-- Port the two commit rules that `docs/CONVENTIONS.md` § Commit granularity lacks:
-  commit by pathspec (`git commit -- <paths>`, since a bare commit takes whatever
-  another session has staged) and verify contents afterwards (`git show --stat
-  HEAD`). Both are in the `commit-hygiene` skill; each independently prevents the
-  scramble annotated on 5692a86 and b3ad740.
-- Push the git notes on 5692a86 and b3ad740 if they should outlive this clone:
-  `git push origin refs/notes/*`. No notes refspec is configured, so they are
-  local-only. Deliberately did not set `remote.origin.push` — doing so overrides
-  the default branch-push behaviour.
 - Symlink the two new skills into `~/.claude/skills` on each machine that wants
   them: `ln -s ~/code/personal/ai-prompt-library/skills/<name> ~/.claude/skills/`.
   Per-machine because `~/.claude` is chezmoi-ignored. Skills are `pii-redaction`
@@ -63,6 +53,11 @@ delete the line and say so in your commit.
   and PyMuPDF's shim prints a deprecation notice to **stdout**, corrupting any
   captured `llm` output. Draft is written; one-line fix is `import pymupdf`.
   **[blocked: `gh auth login` — the device flow expired]**
+- Decide whether `docs/CONVENTIONS.md` needs the commit rules at all. They now
+  live in `AGENTS.md` (`git commit -o`, then `git show --stat HEAD`), which is the
+  right home for agent process; CONVENTIONS.md § Commit granularity still covers
+  only granularity and messages. Leaving it split is defensible — just do not let
+  the two drift.
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 
@@ -95,49 +90,60 @@ force-push, valid until someone pushes on top.
 Each of the three commits carries a `git notes` PROVENANCE entry explaining the
 split and pointing at the prevention. Read with `git notes show <sha>`.
 
-## Normalise the stray author email
+## Purge the work email from git history
 
-`bengineerdavis@gmail.com` is the canonical identity for this repo. It is already
-set locally and globally, so nothing new can be authored wrongly — this is purely
-about one historical commit.
+Privacy, and portability if the author moves on: no work email should survive in
+this repo. Personal addresses are fine — `ruubixo@gmail.com` on one 2020 commit is
+an old address of the author's and is deliberately left alone.
 
-**Scope is one commit out of 324.** `ed0b315` (2020-01-09, "Adding several apps,
-including Fedora virtualization packages") is authored *and* committed as
-`Ben's laptop <ruubixo@gmail.com>`. Everything else already uses the canonical
-address.
+### What is actually there
 
-Worth stating plainly because it is the case that would matter most: **no employer
-email appears anywhere in this history.** Not as author, not as committer. The
-employer-agnostic property `dotfiles/docs/GOALS.md` describes is intact, and this
-is a tidiness issue rather than a provenance leak.
+Searched author fields, committer fields, commit messages, git notes and file
+contents across all history.
 
-### The catch
+| Where | Finding |
+|---|---|
+| author / committer fields | **Clean.** 323 of 324 commits are `bengineerdavis@gmail.com`; the one exception is the personal alt address. No work email ever authored a commit. |
+| commit messages, git notes | **Clean.** |
+| current working tree | **Clean.** The header was corrected to the canonical address. |
+| **file contents in history** | **`ben.davis@sentry.io`** in `bin/executable_binned`'s `# Author:` header — introduced by `7fc74a5` (2026-04-25), present in the tree of **123 commits** on `main`. |
+| also in history | `docs.sentry.io` and `sentry.io/changelog` URLs, generalised out of `triage` by `d6e5100`. Employer references, not PII. |
 
-`ed0b315` is from 2020 and has **285 commits after it on `main`**. Rewriting the
-author rewrites every descendant — a full-history force-push, an order of
-magnitude beyond the 21-commit unscramble. It would invalidate every SHA in the
-repo, including the ones the PROVENANCE notes reference.
+So the leak is one string in one file, but it is baked into 123 commit trees and
+`git log -p` will surface it in any clone.
+
+### What removing it costs
+
+`git filter-repo --replace-text` rewriting from `7fc74a5` forward — **133
+descendant commits**, so every SHA from April onward changes. That is a second
+full-history force-push, and it invalidates the SHAs the PROVENANCE notes
+reference, which would need re-attaching again.
+
+`.mailmap` does **not** help here: it remaps author identities, not file contents.
+This one genuinely requires a rewrite or nothing.
 
 ### Options
 
-1. **`.mailmap`** — maps the old address to the canonical one for `git log`,
-   `git shortlog` and forge UIs, with **no rewrite**. One file, two lines, zero
-   SHA churn. Does not change the stored commit object, so `git log --format=%ae`
-   still shows the original.
-2. **`git filter-repo --mailmap`** — actually rewrites the object. Correct at the
-   storage layer, at the cost of every SHA changing, a force-push, resetting the
-   second machine again, and re-attaching the notes.
-3. **Leave it.** One 2020 commit from a personal alt address, in a repo with one
-   contributor.
+1. **`git filter-repo --replace-text`** on the email string alone. Precise, keeps
+   the URLs, rewrites 133 commits. The right call if this repo will ever be
+   public or shared.
+2. **Same, plus the URLs**, if employer references should go too rather than just
+   PII. Same cost, broader result.
+3. **Leave it.** Private repo, single contributor. The current tree is clean, so
+   anyone reading the code sees nothing; only `git log -p` reveals it.
 
-**Recommendation: option 1.** It achieves the visible outcome — every view shows
-one identity — without a second full-history rewrite in the same week. Escalate to
-2 only if the stored value itself matters, e.g. before making the repo public.
+**Recommendation: option 1, batched with anything else needing a rewrite.** Two
+full-history rewrites in one week is worse than one, so it is worth deciding
+whether the URLs go at the same time rather than discovering them later.
 
-Whichever is chosen, keep `user.email` pinned in this repo so a machine with a
-different global default cannot reintroduce it:
+### Before running it
 
-    git config user.email bengineerdavis@gmail.com   # already set
+- Same prerequisites as any rewrite: all sessions idle, second machine reset
+  afterwards, backup branch first, verify the tree is byte-identical except for
+  the intended string, re-attach and re-push notes.
+- Add a guard afterwards so it cannot return — a pre-commit check for
+  work-domain strings would catch the next one at the point it enters, which is
+  the enforcement principle in `dotfiles/docs/GOALS.md`.
 
 ## Decisions waiting on the author
 
