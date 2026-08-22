@@ -309,7 +309,7 @@ ollama_linux_models_root: /usr/share/ollama/.ollama/models
 ollama_model_perf:
   "granite4:3b":                  { gen_tok_s: 103.0, prompt_tok_s: 640,  load_ms: 8413,  gb: 2.6 }
   "gemma4:e4b-it-qat":            { gen_tok_s: 67.7,  prompt_tok_s: 159,  load_ms: 4559,  gb: 5.4 }
-  "glm-4.7-flash:q4_K_M":         { gen_tok_s: 58.1,  prompt_tok_s: 205,  load_ms: 5427,  gb: 19.0 }
+  "glm-4.7-flash:q4_k_m":         { gen_tok_s: 58.1,  prompt_tok_s: 205,  load_ms: 5427,  gb: 19.0 }
   "gemma4:12b-mlx":               { gen_tok_s: 47.8,  prompt_tok_s: 199,  load_ms: 2747,  gb: 7.9 }
   "qwen3-vl:8b-instruct-q8_0":    { gen_tok_s: 40.5,  prompt_tok_s: 300,  load_ms: 3556,  gb: 9.2 }
   "granite4:32b-a9b-h":           { gen_tok_s: 38.1,  prompt_tok_s: 136,  load_ms: 5206,  gb: 19.0 }
@@ -394,7 +394,7 @@ ollama_roles:
     ctx: 32768
     tiers:
       fast:     ["gemma4:12b-mlx"]           # 47.8 t/s
-      balanced: ["glm-4.7-flash:q4_K_M"]     # 58.1 t/s — faster AND same size as best
+      balanced: ["glm-4.7-flash:q4_k_m"]     # 58.1 t/s — faster AND same size as best
       best:     ["qwen3.6:27b-mlx"]          # 19.2 t/s, but adds vision
   code:
     ctx: 32768
@@ -406,7 +406,7 @@ ollama_roles:
     ctx: 32768
     tiers:
       fast:     ["gpt-oss:20b"]              # 66.2 t/s, still a reasoning model
-      balanced: ["glm-4.7-flash:q4_K_M"]     # 58.1 t/s, thinking + tools
+      balanced: ["glm-4.7-flash:q4_k_m"]     # 58.1 t/s, thinking + tools
       best:     ["deepseek-r1:32b"]          # 5.2 t/s — 10x slower; earn it
   long:
     # granite4 hybrid-Mamba measured ~19 KB/token — 3-5x cheaper context than
@@ -510,8 +510,8 @@ ollama_models:
       basis:   ram
 
   glm-4.7-flash:            # strong 30B-class (GGUF only)
-    - darwin:  "glm-4.7-flash:q4_K_M"
-      linux:   "glm-4.7-flash:q4_K_M"
+    - darwin:  "glm-4.7-flash:q4_k_m"
+      linux:   "glm-4.7-flash:q4_k_m"
       size_gb: 19
       kv_kb_per_token: 50        # measured, M4 Max
 
