@@ -55,12 +55,18 @@ These are the cases that do need care.
 share one `.git/index`. `git add <paths> && git commit` stages your paths and then
 commits *the entire index* — including whatever another session staged and had not
 yet committed. This is not hypothetical: it has already happened in both
-directions. `b3ad740` is titled as a clamav systemd change and also contains
-another session's pii-redactor rewrite; `5692a86` is titled as a pii-redactor
-change and also contains 52 zsh deletions belonging to a third session. Both are
-pushed and left alone — rewriting shared history costs more than the mislabelling
-— but neither can now be reverted without taking unrelated work with it, which is
-the whole property commits are supposed to have.
+directions. The now-rewritten `b3ad740` was titled as a clamav systemd change and
+also contained another session's pii-redactor rewrite; `5692a86` was titled as a
+pii-redactor change and also contained 52 zsh deletions belonging to a third
+session. Neither could be reverted without taking unrelated work with it, which
+is the whole property commits are supposed to have.
+
+Both were unscrambled on 2026-08-21 into `bc72f5c` (clamav), `0bf73dc`
+(pii-redactor) and `118c22e` (the zsh deletions), each carrying a `git notes`
+PROVENANCE entry. That was judged worth a force-push *once*, while the branch had
+one real consumer; it is not the standing answer. Prevention below is cheaper
+than a rewrite every time, and a rewrite stops being available as soon as anyone
+else has built on the history.
 
     git commit -o <paths> -F -    # --only: commit exactly these, ignore the rest
     git show --stat HEAD          # verify before pushing
