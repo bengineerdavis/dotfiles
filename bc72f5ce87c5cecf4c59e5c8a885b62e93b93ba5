@@ -1,0 +1,13 @@
+PROVENANCE: split out of b3ad740 on 2026-08-21.
+
+b3ad740 carried this clamav timer work AND the pii-redactor three-layer
+rewrite under a clamav-only subject, because all sessions share one
+.git/index and a bare `git commit` takes whatever is staged. This commit is
+the clamav half; 0bf73dc is the pii-redactor half.
+
+The unscramble was an interactive rebase from b3ad740~1, replaying 21
+commits. Verified lossless: the resulting tree is byte-identical to the
+pre-rewrite tree. Pre-rewrite history is on backup/pre-unscramble-272bdf7.
+
+Prevention: `git commit -o <paths>`, then `git show --stat HEAD`. See
+AGENTS.md, "Working alongside other sessions".
