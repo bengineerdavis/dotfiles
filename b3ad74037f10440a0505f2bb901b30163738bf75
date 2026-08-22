@@ -1,0 +1,13 @@
+SCOPE CORRECTION: this commit contains more than its message describes.
+
+Alongside the clamav timer work it carries the pii-redactor three-layer rewrite
+(bin/executable_pii-redactor) and its tests — tests/pii_redactor/conftest.py and
+tests/pii_redactor/test_pii_redactor_layers.py. Those are described by the
+message on 5692a86, which in turn holds files it does not describe.
+
+Cause: two sessions sharing one git index; a bare 'git commit' takes whatever is
+staged. Contents are correct in the tree and 63 tests pass; only the labels are
+wrong. History left as-is deliberately — the branch was already built on.
+
+See the note on 5692a86 for the other half, and skills/commit-hygiene in
+~/code/personal/ai-prompt-library for the prevention.
