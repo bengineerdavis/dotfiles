@@ -117,8 +117,8 @@ and long-running background jobs holding the GPU.
 ## Commands
 
 ```bash
-# Tests — pytest is primary. Needs these three or most of the suite silently skips.
-uv run --with pytest --with hypothesis --with typer --with questionary pytest tests -q
+# Tests — pytest is primary. Needs these four or parts of the suite silently skip.
+uv run --with pytest --with hypothesis --with typer --with questionary --with pyyaml pytest tests -q
 uv run --with pytest pytest tests -m "not llm_judge" -q   # skip real-model tests
 uv run --with pytest pytest tests -m llm_judge -q         # only real-model tests
 
@@ -129,6 +129,10 @@ bats tests/<name>.bats         # bash scripts only — see Languages below
 
 A bare `pytest tests` reports "24 passed, 89 skipped" and looks green while testing
 almost nothing — the `binned_module` fixture skips without `typer`/`questionary`.
+
+Without `pyyaml`, `tests/policy` drops from 22 tests to 15 passed / 1 skipped, and
+the skipped module is the one asserting the policy layers grant no permissions —
+so the check that matters most is the one that disappears quietest.
 
 ## Commits
 
