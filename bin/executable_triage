@@ -542,7 +542,7 @@ def main() -> None:
         check_llm_installed()
         model = args.model or LOCAL_DEFAULT_MODEL
         print(
-            f"[triage] provider=local  model={model}  platform={args.platform}",
+            f"[triage] provider=local  model={model}  platform={platform}",
             file=sys.stderr,
         )
         memo = run_local(model, system, user)
@@ -557,7 +557,7 @@ def main() -> None:
             )
         model = args.model or cfg["model"]
         print(
-            f"[triage] provider={args.provider}  model={model}  platform={args.platform}",
+            f"[triage] provider={args.provider}  model={model}  platform={platform}",
             file=sys.stderr,
         )
         memo = run_cloud(args.provider, model, api_key, system, user)
