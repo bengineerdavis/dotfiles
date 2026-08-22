@@ -79,9 +79,22 @@ Neither can be reverted without taking unrelated work with it. Both are publishe
 ancestors of `origin/main`, with 18 and 16 commits stacked on top respectively,
 and both carry git notes keyed to their SHAs.
 
-**Not urgent.** The tree is correct; only the attribution and the revert story are
-wrong. `git commit -o` stops it recurring — that is the fix that mattered and it
-is already in AGENTS.md.
+**The cheap fix is already done.** Both SHAs carry a `git notes` SCOPE CORRECTION
+explaining what else is inside, cross-referencing each other, with the cause and
+the prevention. Read them with `git notes show <sha>`. The tree is correct and the
+suite passes; only the subject lines and clean-revert are affected. `git commit -o`
+stops it recurring and is in AGENTS.md.
+
+**The one gap: those notes are local-only.** No notes refspec is configured, and
+`git ls-remote origin 'refs/notes/*'` is empty — so a fresh clone sees the mixed
+commits with no explanation at all. Publishing them is one command:
+
+    git push origin refs/notes/commits
+
+Deliberately not setting `remote.origin.push`, which would override default
+branch-push behaviour. Decide whether the annotation should be shared before
+considering the rewrite below — if the notes are published, the rewrite is
+probably unnecessary.
 
 ### What is still needed before touching this
 
