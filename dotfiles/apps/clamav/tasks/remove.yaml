@@ -44,6 +44,38 @@
     state: absent
   when: ansible_facts['os_family'] == 'Darwin'
 
+# ── Linux (systemd user timer) ────────────────────────────────────────────────
+# Mirrors the launchd teardown: stop and disable first, then remove the units.
+- name: "Linux: stop and disable the clamav scan timer"
+  ansible.builtin.systemd:
+    name: clamav-scan.timer
+    state: stopped
+    enabled: false
+    scope: user
+  failed_when: false
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "Linux: remove the clamav systemd units"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ clamav_timer_unit }}"
+    - "{{ clamav_service_unit }}"
+  register: clamav_units_removed
+  when: ansible_facts['os_family'] == 'Debian'
+
+# Without this systemd keeps serving the deleted units from cache, so a later
+# reinstall would look like a no-op.
+- name: "Linux: reload the systemd user daemon after removal"
+  ansible.builtin.systemd:
+    daemon_reload: true
+    scope: user
+  failed_when: false
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - clamav_units_removed.changed
+
 # Takes the scan script, fangfrisch.conf, fangfrisch.db, the socket and the logs.
 - name: "Remove the clamav automation directory"
   ansible.builtin.file:

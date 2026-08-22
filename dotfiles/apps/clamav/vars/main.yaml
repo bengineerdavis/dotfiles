@@ -78,3 +78,10 @@ clamav_fangfrisch_bin: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shi
 clamav_agent_label: com.user.clamscan
 clamav_agent_plist: >-
   {{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents/{{ clamav_agent_label }}.plist
+
+# ── Linux scheduling ──────────────────────────────────────────────────────────
+# A systemd *user* timer, matching the per-user launchd agent above: the scan runs
+# as you, over your files, and needs no root. Same pattern as apps/lynis.
+clamav_systemd_user_dir: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user"
+clamav_service_unit: "{{ clamav_systemd_user_dir }}/clamav-scan.service"
+clamav_timer_unit: "{{ clamav_systemd_user_dir }}/clamav-scan.timer"

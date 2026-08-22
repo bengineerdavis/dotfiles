@@ -1,0 +1,23 @@
+[Unit]
+# {{ ansible_managed }}
+# Rendered from apps/clamav/templates/clamav-scan.timer.j2 — edits are overwritten.
+#
+# Daily, matching the launchd agent's StartCalendarInterval:
+# {{ '%02d:%02d' | format(clamav_scan_hour, clamav_scan_minute) }}.
+Description=Run the daily ClamAV scan
+Documentation=https://docs.clamav.net/
+
+[Timer]
+OnCalendar=*-*-* {{ '%02d:%02d:00' | format(clamav_scan_hour, clamav_scan_minute) }}
+
+# launchd runs a missed StartCalendarInterval job once the machine wakes;
+# Persistent is the systemd equivalent, so a laptop that was asleep at the
+# scheduled time still scans rather than skipping the day entirely.
+Persistent=true
+
+# The scan is long and IO-heavy, so a little spread avoids every machine
+# provisioned from these dotfiles starting at the same instant.
+RandomizedDelaySec=30m
+
+[Install]
+WantedBy=timers.target

@@ -122,6 +122,76 @@
     - ansible_facts['os_family'] == 'Darwin'
     - clamav_agent_file.changed
 
+# ── Linux (systemd user timer) ────────────────────────────────────────────────
+# A user timer, matching the per-user launchd agent: the scan covers your files
+# and runs as you. See apps/lynis for the same pattern.
+- name: "Create the systemd user unit directory"
+  ansible.builtin.file:
+    path: "{{ clamav_systemd_user_dir }}"
+    state: directory
+    mode: "0755"
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "Install the clamav systemd service and timer"
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "0644"
+  loop:
+    - { src: clamav-scan.service.j2, dest: "{{ clamav_service_unit }}" }
+    - { src: clamav-scan.timer.j2, dest: "{{ clamav_timer_unit }}" }
+  register: clamav_units
+  when: ansible_facts['os_family'] == 'Debian'
+
+# systemd caches parsed units, so an edited template needs a reload before enable
+# sees it — the counterpart to the bootout/bootstrap cycle above.
+- name: "Reload the systemd user daemon"
+  ansible.builtin.systemd:
+    daemon_reload: true
+    scope: user
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - clamav_units.changed
+
+- name: "Enable and start the clamav scan timer"
+  ansible.builtin.systemd:
+    name: clamav-scan.timer
+    enabled: true
+    state: started
+    scope: user
+  when: ansible_facts['os_family'] == 'Debian'
+
+# The distro's own always-on daemon would hold the signature memory this topic
+# exists to release, and apt may have pulled it in as a recommend. Report rather
+# than disable it: stopping another package's service is outside this topic's
+# ownership, and the user may want it deliberately.
+- name: "Check whether the distro clamav-daemon service is active"
+  ansible.builtin.command:
+    cmd: systemctl is-active clamav-daemon
+  register: clamav_distro_daemon
+  changed_when: false
+  failed_when: false
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "Warn that the distro clamav-daemon is running alongside this topic"
+  ansible.builtin.debug:
+    msg: >-
+      clamav-daemon is active. This topic starts and stops its own clamd per scan
+      to release ~1.3 GB of signature memory, so an always-on system daemon
+      defeats that. If you did not want it:
+      sudo systemctl disable --now clamav-daemon
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - (clamav_distro_daemon.stdout | default('')) | trim == 'active'
+
+- name: "Note that the timer needs lingering to fire without a login session"
+  ansible.builtin.debug:
+    msg: >-
+      clamav-scan.timer is a systemd *user* timer. Without lingering it only
+      fires while you are logged in. For an unattended host run:
+      sudo loginctl enable-linger {{ ansible_facts['env']['USER'] }}
+  when: ansible_facts['os_family'] == 'Debian'
+
 # ── One-time repair of the unmanaged setup ────────────────────────────────────
 # The previous hand-rolled script pointed its SHUTDOWN at /tmp/clamd.socket, which
 # never existed, so clamd was never stopped and sat resident for weeks holding ~1.3 GB.
