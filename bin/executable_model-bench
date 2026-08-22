@@ -173,6 +173,38 @@ _GOLDEN_PROMPT = (
     f"Score this script according to the rubric."
 )
 
+# ── Judge cases ───────────────────────────────────────────────────────────────
+
+@dataclass(frozen=True)
+class JudgeCase:
+    """One script to be scored, plus what a careful reviewer would score it.
+
+    A judge is measured by how close it lands to `reference`, never by how high it
+    scores. `reference` is a considered reading rather than ground truth, and is
+    deliberately visible so it can be argued with — re-derive it if `script`
+    changes, since a stale reference is worse than none.
+    """
+    key:       str
+    command:   str
+    script:    str
+    reference: dict[str, int]
+    verdict:   str
+
+    @property
+    def prompt(self) -> str:
+        return (
+            f"Original command the script was generated from:\n\n"
+            f"    {self.command}\n\n"
+            f"Generated script:\n\n"
+            f"```bash\n{self.script}\n```\n\n"
+            f"Score this script according to the rubric."
+        )
+
+    @property
+    def reference_mean(self) -> float:
+        return sum(self.reference.values()) / len(self.reference)
+
+
 # ── Reference scorecard ────────────────────────────────────────────────────────
 #
 # What a careful reviewer scores _GOLDEN_SCRIPT against the rubric above. This is
@@ -215,18 +247,255 @@ _GOLDEN_REFERENCE_VERDICT = "pass"
 
 _SCORE_KEYS = tuple(_GOLDEN_REFERENCE)
 
+RSYNC_CASE = JudgeCase(
+    key="rsync-backup",
+    command=_GOLDEN_COMMAND,
+    script=_GOLDEN_SCRIPT,
+    reference=_GOLDEN_REFERENCE,
+    verdict=_GOLDEN_REFERENCE_VERDICT,
+)
 
-def calibration(scores: dict[str, int]) -> float:
+
+# ── Additional cases ──────────────────────────────────────────────────────────
+#
+# One mid-range case cannot tell a discerning judge from a constant one: a model
+# that answers a flat 8 to everything scores 0.90 calibration against rsync alone.
+# These spread the range so agreement has to be earned at both ends, and so
+# ordering can be checked independently of absolute accuracy.
+
+_EXEMPLARY_COMMAND = "tar -czf backup.tar.gz ~/notes"
+
+_EXEMPLARY_SCRIPT = """\
+#!/usr/bin/env bash
+# Archive a directory to a timestamped tarball.
+set -euo pipefail
+
+readonly SOURCE_DIR="${HOME}/notes"
+readonly ARCHIVE_DIR="${HOME}/archives"
+
+die()   { printf '%s: %s\\n' "${0##*/}" "$*" >&2; exit 1; }
+info()  { [[ "$QUIET" == true ]] || printf '[archive-notes] %s\\n' "$*"; }
+
+usage() {
+    cat <<EOF
+Usage: archive-notes [OPTIONS]
+  Archive ${SOURCE_DIR} to a timestamped tarball in ${ARCHIVE_DIR}.
+Options:
+  -h, --help      Show this help and exit
+  -v, --verbose   List each file as it is added
+  -n, --dry-run   Show what would be archived without writing anything
+  -q, --quiet     Suppress progress output
+Examples:
+  archive-notes
+  archive-notes --dry-run
+  archive-notes --verbose
+EOF
+}
+
+VERBOSE=false
+DRY_RUN=false
+QUIET=false
+
+main() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)    usage; exit 0 ;;
+            -v|--verbose) VERBOSE=true ;;
+            -n|--dry-run) DRY_RUN=true ;;
+            -q|--quiet)   QUIET=true ;;
+            *) die "unknown option: $1" ;;
+        esac
+        shift
+    done
+
+    [[ -d "$SOURCE_DIR" ]] || die "source directory not found: $SOURCE_DIR"
+
+    local stamp archive
+    stamp="$(date +%Y%m%d-%H%M%S)"
+    archive="${ARCHIVE_DIR}/notes-${stamp}.tar.gz"
+
+    local flags=(-czf)
+    [[ "$VERBOSE" == true ]] && flags=(-czvf)
+
+    if [[ "$DRY_RUN" == true ]]; then
+        info "would archive ${SOURCE_DIR} -> ${archive}"
+        return 0
+    fi
+
+    mkdir -p "$ARCHIVE_DIR"
+    # Write to a temp name and rename on success, so an interrupted run never
+    # leaves a truncated archive that looks complete.
+    local tmp="${archive}.partial"
+    tar "${flags[@]}" "$tmp" -C "$(dirname "$SOURCE_DIR")" "$(basename "$SOURCE_DIR")" \\
+        || die "tar failed; removed partial archive"
+    mv -- "$tmp" "$archive"
+    info "wrote ${archive}"
+}
+
+main "$@"
+"""
+
+# structure 10 — every element present, including a real main() and entry point.
+# correctness 9 — implements the command and guards a missing source; the archive
+#   directory is created only on the real path, which is right.
+# safety 10 — everything quoted, temp-then-rename so no truncated archive survives.
+# style 9 — readonly globals, lower_snake locals, and the one non-obvious choice
+#   (the .partial rename) carries a why-comment.
+# completeness 9 — no placeholders, three realistic examples, dry-run announces.
+EXEMPLARY_CASE = JudgeCase(
+    key="archive-notes",
+    command=_EXEMPLARY_COMMAND,
+    script=_EXEMPLARY_SCRIPT,
+    reference={"structure": 10, "correctness": 9, "safety": 10, "style": 9, "completeness": 9},
+    verdict="pass",
+)
+
+_TRAP_COMMAND = "grep -rn TODO ~/src | tee todos.txt"
+
+_TRAP_SCRIPT = """\
+#!/usr/bin/env bash
+# Collect TODO comments from a source tree.
+set -euo pipefail
+
+SEARCH_ROOT="${HOME}/src"
+OUTPUT_FILE="todos.txt"
+
+die()   { echo "ERROR: $*" >&2; exit 1; }
+usage() {
+    cat <<EOF
+Usage: collect-todos [OPTIONS] [PATTERN]
+Options:
+  -h, --help      Show this help and exit
+  -v, --verbose   Show the command being run
+  -n, --dry-run   Print what would run without running it
+Examples:
+  collect-todos
+  collect-todos FIXME
+EOF
+}
+
+VERBOSE=false
+DRY_RUN=false
+PATTERN="TODO"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)    usage; exit 0 ;;
+        -v|--verbose) VERBOSE=true ;;
+        -n|--dry-run) DRY_RUN=true ;;
+        *) PATTERN="$1" ;;
+    esac
+    shift
+done
+
+CMD="grep -rn $PATTERN $SEARCH_ROOT"
+
+[[ "$VERBOSE" == true ]] && echo "running: $CMD"
+if [[ "$DRY_RUN" == true ]]; then
+    echo "would run: $CMD"
+    exit 0
+fi
+
+eval "$CMD" | tee "$OUTPUT_FILE"
+"""
+
+# The trap: this reads as competent boilerplate, but PATTERN is user input
+# interpolated into a string and handed to eval. `collect-todos 'x; rm -rf ~'`
+# executes. A judge that pattern-matches on structure scores this well; one that
+# reads the script has to notice.
+#
+# structure 8 — boilerplate present, but no main()/entry-point block.
+# correctness 6 — works for simple patterns, breaks on anything with a space.
+# safety 1 — arbitrary command execution from an argument. Not a quoting nit.
+# style 4 — naming is fine, but unquoted expansions and no why-comments.
+# completeness 7 — no placeholders, examples present, dry-run path works.
+TRAP_CASE = JudgeCase(
+    key="collect-todos",
+    command=_TRAP_COMMAND,
+    script=_TRAP_SCRIPT,
+    reference={"structure": 8, "correctness": 6, "safety": 1, "style": 4, "completeness": 7},
+    verdict="needs-work",
+)
+
+_STUB_COMMAND = "find . -name '*.log' -mtime +30 -delete"
+
+_STUB_SCRIPT = """\
+#!/bin/bash
+# TODO: add usage
+
+# clean old logs
+find . -name "*.log" -mtime +30 -delete
+
+# TODO: add --dry-run
+# TODO: add error handling
+# TODO: add help text
+"""
+
+# structure 1 — a shebang and nothing else. No set -euo pipefail, no die(), no
+#   usage(), no parser, no entry point.
+# correctness 5 — the find line does reproduce the command, unguarded.
+# safety 2 — an unguarded recursive delete from the current directory, with no
+#   dry-run and no confirmation.
+# style 2 — only what-comments, and three of the five lines are TODOs.
+# completeness 1 — the body is mostly placeholders.
+STUB_CASE = JudgeCase(
+    key="clean-logs",
+    command=_STUB_COMMAND,
+    script=_STUB_SCRIPT,
+    reference={"structure": 1, "correctness": 5, "safety": 2, "style": 2, "completeness": 1},
+    verdict="fail",
+)
+
+# Ordered worst to best by reference mean, which is what the discrimination check
+# below compares a judge's ordering against.
+CASES: list[JudgeCase] = [STUB_CASE, TRAP_CASE, RSYNC_CASE, EXEMPLARY_CASE]
+
+
+def calibration(scores: dict[str, int], reference: dict[str, int]) -> float:
     """
-    How close a judge's scorecard sits to _GOLDEN_REFERENCE, in 0..1.
+    How close a judge's scorecard sits to a case's reference, in 0..1.
 
     Mean absolute error across the five criteria, normalised by the 0-10 scale
     and inverted, so 1.0 is a perfect match and being wrong in either direction
     costs the same. Overrating is a real failure mode for a judge — it waves
     through scripts that should have been sent back — so it must not be rewarded.
     """
-    error = sum(abs(scores[k] - _GOLDEN_REFERENCE[k]) for k in _SCORE_KEYS)
+    error = sum(abs(scores[k] - reference[k]) for k in _SCORE_KEYS)
     return max(0.0, 1.0 - (error / len(_SCORE_KEYS)) / 10.0)
+
+
+def discrimination(case_means: dict[str, float]) -> float:
+    """
+    Whether a judge ranks the cases in the reference order, in 0..1.
+
+    Calibration alone cannot catch a judge that answers the same thing to
+    everything: against a single mid-range case, a constant 8 scores 0.90. This
+    counts concordant pairs — for every pair of cases, does the judge put them in
+    the same relative order the reference does.
+
+    Ties count as half, so a judge with no opinion lands at 0.50 rather than 0.
+    That is the no-information baseline, the same convention as AUC: 0.50 means
+    the ordering carries no signal, not that it is wrong. Only a judge that
+    actively inverts the order scores below it. Read 0.50 as a failure, not a
+    pass — a flat scorer is useless even though it is not backwards.
+    """
+    ranked = [c for c in CASES if c.key in case_means]
+    if len(ranked) < 2:
+        return 0.0
+
+    concordant = total = 0.0
+    for i, a in enumerate(ranked):
+        for b in ranked[i + 1:]:
+            ref_delta = b.reference_mean - a.reference_mean
+            if ref_delta == 0:
+                continue
+            total += 1
+            got_delta = case_means[b.key] - case_means[a.key]
+            if got_delta == 0:
+                concordant += 0.5
+            elif (got_delta > 0) == (ref_delta > 0):
+                concordant += 1
+    return concordant / total if total else 0.0
 
 
 # ── Data types ─────────────────────────────────────────────────────────────────
@@ -234,6 +503,7 @@ def calibration(scores: dict[str, int]) -> float:
 @dataclass
 class BenchRun:
     model:      str
+    case:       str
     latency_s:  float
     success:    bool
     json_valid: bool
@@ -258,9 +528,12 @@ class ModelStats:
     json_rate:      float
     mean_score:     float
     score_stddev:   float
-    calibration:    float   # 1.0 = matches _GOLDEN_REFERENCE exactly
+    calibration:    float   # 1.0 = matches every case's reference exactly
+    discrimination: float   # 1.0 = ranks the cases in reference order
     verdict_match:  float   # fraction of runs agreeing with the reference verdict
     composite:      float
+    # Defaulted, so it must follow every field that is not.
+    case_means:     dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -619,11 +892,11 @@ _JSON_FENCE_RE = re.compile(r"^```(?:json)?\s*", re.MULTILINE)
 _FENCE_END_RE  = re.compile(r"```\s*$",          re.MULTILINE)
 
 
-def _run_once(model: str, timeout: int) -> BenchRun:
+def _run_once(model: str, case: JudgeCase, timeout: int) -> BenchRun:
     t0 = time.perf_counter()
     try:
         result = subprocess.run(
-            ["llm", "-m", model, "--system", _JUDGE_SYSTEM, _GOLDEN_PROMPT],
+            ["llm", "-m", model, "--system", _JUDGE_SYSTEM, case.prompt],
             capture_output=True, text=True, timeout=timeout,
         )
         latency = time.perf_counter() - t0
@@ -638,21 +911,21 @@ def _run_once(model: str, timeout: int) -> BenchRun:
             # int() so a model answering "9" as a string still counts as valid;
             # a non-numeric answer raises and is caught as invalid JSON below.
             scores = {key: int(data[key]) for key in _SCORE_KEYS}
-            return BenchRun(model=model, latency_s=latency, success=success,
+            return BenchRun(model=model, case=case.key, latency_s=latency, success=success,
                             json_valid=True,
                             mean_score=sum(scores.values()) / len(scores),
                             scores=scores,
                             verdict=str(data.get("verdict", "")).strip().lower(),
                             raw=raw)
         except Exception:
-            return BenchRun(model=model, latency_s=latency, success=success,
+            return BenchRun(model=model, case=case.key, latency_s=latency, success=success,
                             json_valid=False, mean_score=None, raw=raw,
                             error=result.stderr[:200])
     except subprocess.TimeoutExpired:
-        return BenchRun(model=model, latency_s=time.perf_counter() - t0,
+        return BenchRun(model=model, case=case.key, latency_s=time.perf_counter() - t0,
                         success=False, json_valid=False, mean_score=None, error="timeout")
     except Exception as exc:
-        return BenchRun(model=model, latency_s=time.perf_counter() - t0,
+        return BenchRun(model=model, case=case.key, latency_s=time.perf_counter() - t0,
                         success=False, json_valid=False, mean_score=None, error=str(exc))
 
 
@@ -665,22 +938,38 @@ def _compute_stats(model: str, runs: list[BenchRun]) -> ModelStats:
     mean_score   = statistics.mean(scores) if scores else 0.0
     p50          = statistics.median(latencies)
 
-    # Calibration against _GOLDEN_REFERENCE, not raw magnitude. The previous
-    # formula used mean_score/10 with nothing to compare against, so it scored
-    # generosity: a model answering straight 10s beat one that correctly found
-    # the golden script's real gaps. Measured here, two local models did exactly
-    # that — both awarded 10.0 to a script with no comments and an unguarded
-    # `--delete`, and outranked the model that caught it.
-    cal = [calibration(r.scores) for r in good if r.scores]
+    # Calibration against each case's reference, not raw magnitude. Scoring raw
+    # magnitude measured generosity: a model answering straight 10s beat one that
+    # correctly found a script's real gaps. Two local models did exactly that —
+    # both awarded 10.0 to a script with no comments and an unguarded `--delete`.
+    by_case = {c.key: c for c in CASES}
+    cal = [
+        calibration(r.scores, by_case[r.case].reference)
+        for r in good if r.scores and r.case in by_case
+    ]
     mean_calibration = statistics.mean(cal) if cal else 0.0
+
     verdict_match = (
-        sum(1 for r in good if r.verdict == _GOLDEN_REFERENCE_VERDICT) / len(good)
-        if good else 0.0
+        sum(1 for r in good if r.case in by_case and r.verdict == by_case[r.case].verdict)
+        / len(good) if good else 0.0
     )
 
+    # Mean score per case, then whether those means rank in the reference order.
+    case_scores: dict[str, list[float]] = {}
+    for r in good:
+        if r.mean_score is not None:
+            case_scores.setdefault(r.case, []).append(r.mean_score)
+    case_means = {k: statistics.mean(v) for k, v in case_scores.items()}
+    disc = discrimination(case_means)
+
+    # Calibration and discrimination split the old 0.40 quality weight. They fail
+    # independently: a judge can sit close to every reference on average while
+    # ranking the cases wrongly, and a judge can order them perfectly while being
+    # uniformly too generous. Both matter, so neither can carry the whole term.
     composite = (
-        json_rate * 0.35
-        + mean_calibration * 0.40
+        json_rate * 0.30
+        + mean_calibration * 0.25
+        + disc * 0.20
         + max(0.0, 1.0 - p50 / 120.0) * 0.25
     )
     return ModelStats(
@@ -693,7 +982,9 @@ def _compute_stats(model: str, runs: list[BenchRun]) -> ModelStats:
         mean_score=mean_score,
         score_stddev=statistics.stdev(scores) if len(scores) > 1 else 0.0,
         calibration=mean_calibration,
+        discrimination=disc,
         verdict_match=verdict_match,
+        case_means=case_means,
         composite=composite,
     )
 
@@ -701,19 +992,26 @@ def _compute_stats(model: str, runs: list[BenchRun]) -> ModelStats:
 def _benchmark_model(
     model: str, n_runs: int, n_warmup: int, timeout: int, progress, task_id
 ) -> ModelStats:
+    # Warmup uses the smallest case: its only job is to get the model resident,
+    # and a cold load on an 18 GB model can otherwise eat the whole timeout.
     progress.update(task_id, description=f"  [dim]{model:<36s}[/dim] warming up…")
+    warm_case = min(CASES, key=lambda c: len(c.script))
     for _ in range(n_warmup):
-        _run_once(model, timeout)
+        _run_once(model, warm_case, timeout)
         progress.advance(task_id)
 
     runs: list[BenchRun] = []
+    total = n_runs * len(CASES)
+    done = 0
     for i in range(n_runs):
-        run = _run_once(model, timeout)
-        runs.append(run)
-        progress.advance(task_id)
-        status = "✓" if run.json_valid else ("~" if run.success else "✗")
-        progress.update(task_id,
-            description=f"  [cyan]{model:<36s}[/cyan] run {i+1}/{n_runs}  {status}")
+        for case in CASES:
+            run = _run_once(model, case, timeout)
+            runs.append(run)
+            done += 1
+            progress.advance(task_id)
+            status = "✓" if run.json_valid else ("~" if run.success else "✗")
+            progress.update(task_id,
+                description=f"  [cyan]{model:<36s}[/cyan] {case.key} {done}/{total}  {status}")
 
     progress.update(task_id, description=f"  [green]{model:<36s}[/green] done")
     return _compute_stats(model, runs)
@@ -735,8 +1033,9 @@ def _print_results(ranked: list[ModelStats], n_runs: int, verbose: bool) -> None
         header_style="bold",
         title=f"[bold]model-bench results[/bold]  ({n_runs} runs · {_GOLDEN_COMMAND[:50]}…)",
         title_style="",
-        caption=(f"Composite = calibration×0.40 + JSON validity×0.35 + speed×0.25   "
-                 f"(reference mean {sum(_GOLDEN_REFERENCE.values())/len(_GOLDEN_REFERENCE):.1f})"),
+        caption=(f"Composite = JSON×0.30 + calibration×0.25 + discrimination×0.20 + speed×0.25   "
+                 f"({len(CASES)} cases, reference means "
+                 f"{', '.join(f'{c.reference_mean:.1f}' for c in CASES)})"),
         caption_style="dim",
     )
     tbl.add_column("Rank",      justify="right",  style="bold", no_wrap=True)
@@ -747,15 +1046,20 @@ def _print_results(ranked: list[ModelStats], n_runs: int, verbose: bool) -> None
     tbl.add_column("JSON",      justify="center",             no_wrap=True)
     tbl.add_column("Score",     justify="right",              no_wrap=True)
     tbl.add_column("Cal",       justify="right",              no_wrap=True)
+    tbl.add_column("Disc",      justify="right",              no_wrap=True)
     tbl.add_column("Composite", justify="left",               no_wrap=True, min_width=10)
 
-    ref_mean = sum(_GOLDEN_REFERENCE.values()) / len(_GOLDEN_REFERENCE)
+    # Mean of every case's reference. Score is informational only — calibration and
+    # discrimination are what rank — so it is coloured by distance from what a
+    # correct judge would average across the suite, not by how high it is.
+    ref_mean = statistics.mean(c.reference_mean for c in CASES)
     for rank, s in enumerate(ranked, 1):
         n          = len(s.runs)
         ok_frac    = f"{sum(1 for r in s.runs if r.success)}/{n}"
         json_frac  = f"{sum(1 for r in s.runs if r.json_valid)}/{n}"
         score_str  = f"{s.mean_score:.1f}" if s.json_rate > 0 else "—"
         cal_str    = f"{s.calibration:.2f}" if s.json_rate > 0 else "—"
+        disc_str   = f"{s.discrimination:.2f}" if s.json_rate > 0 else "—"
         # Score is now shown for information only — how far a model sits from the
         # reference is what ranks it, so colour by distance rather than height.
         drift      = abs(s.mean_score - ref_mean)
@@ -768,6 +1072,8 @@ def _print_results(ranked: list[ModelStats], n_runs: int, verbose: bool) -> None
             Text(json_frac, style="green" if s.json_rate    == 1.0 else ("yellow" if s.json_rate    > 0 else "red")),
             Text(score_str, style="green" if drift <= 0.5 else ("yellow" if drift <= 1.5 else "red")),
             Text(cal_str,   style="green" if s.calibration >= 0.90 else ("yellow" if s.calibration >= 0.80 else "red")),
+            # 0.50 is the no-information baseline, not a pass — colour it as such.
+            Text(disc_str,  style="green" if s.discrimination >= 0.90 else ("yellow" if s.discrimination > 0.60 else "red")),
             _bar(s.composite),
         )
 
@@ -971,10 +1277,10 @@ def main(
     def _run_all(progress):
         if sequential:
             for model in models:
-                tid = progress.add_task(f"  {model:<36s}", total=runs + warmup)
+                tid = progress.add_task(f"  {model:<36s}", total=runs * len(CASES) + warmup)
                 all_stats[model] = _benchmark_model(model, runs, warmup, timeout, progress, tid)
         else:
-            tids = {m: progress.add_task(f"  {m:<36s}", total=runs + warmup) for m in models}
+            tids = {m: progress.add_task(f"  {m:<36s}", total=runs * len(CASES) + warmup) for m in models}
             with ThreadPoolExecutor(max_workers=len(models)) as pool:
                 futures = {
                     pool.submit(_benchmark_model, m, runs, warmup, timeout, progress, tids[m]): m
@@ -1018,14 +1324,16 @@ def main(
                 "mean_score": s.mean_score,
                 "score_stddev": s.score_stddev,
                 "calibration": s.calibration,
+                "discrimination": s.discrimination,
                 "verdict_match": s.verdict_match,
+                "case_means": s.case_means,
                 "composite": s.composite,
-                "reference": _GOLDEN_REFERENCE,
+                "references": {c.key: c.reference for c in CASES},
                 "runs": [
                     # Per-criterion scores are exported too: the mean alone cannot
                     # show WHERE a judge diverged from the reference, which is the
                     # interesting part when comparing two similar composites.
-                    {"latency_s": r.latency_s, "success": r.success,
+                    {"case": r.case, "latency_s": r.latency_s, "success": r.success,
                      "json_valid": r.json_valid, "mean_score": r.mean_score,
                      "scores": r.scores, "verdict": r.verdict, "error": r.error}
                     for r in s.runs
