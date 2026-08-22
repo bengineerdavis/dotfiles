@@ -1,0 +1,17 @@
+SCOPE CORRECTION: this commit's message does not describe its contents.
+
+Its 52 files are unrelated empty_executable_*.zsh entries. The three-layer
+pii-redactor rewrite this message describes is in b3ad740, along with
+tests/pii_redactor/{conftest.py,test_pii_redactor_layers.py}.
+
+Cause: two sessions sharing one git index. `git commit` commits the whole
+index, so 'git add <paths>' followed by a bare 'git commit' let each session
+commit the other's staged files. Both commits' contents are correct in the tree
+and 63 tests pass; only the labels are wrong. History left as-is deliberately —
+the branch was already built on.
+
+Prevention: 'git commit -- <paths>' and 'git show --stat HEAD' afterwards. See
+skills/commit-hygiene in ~/code/personal/ai-prompt-library.
+
+(Also note the typo in the body: 'ai-prompto-library' should be
+'ai-prompt-library'.)
