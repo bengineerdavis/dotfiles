@@ -2,27 +2,58 @@
 """
 pii-redactor
 
-Redacts personally identifiable information (PII) from input files using an LLM,
-preserving structure and context while making content safe for sharing.
+Redacts personally identifiable information (PII) from input files, preserving
+structure and context while making content safe for sharing.
+
+Redaction runs in three layers, and all three are required. See the
+pii-redaction skill in ~/code/personal/ai-prompt-library/skills/ for the spec
+this implements.
+
+  1. Deterministic pass. Patterns (plus Luhn for card numbers) remove the
+     classes that are mechanically decidable — emails, phones, IPs, MACs,
+     national ids, cards, cloud keys, JWTs, credentialed URLs. The model never
+     sees these values at all.
+  2. Model pass. The already-scrubbed text goes to an LLM for the classes
+     patterns cannot decide: names, street addresses, organisations, free-text
+     identifiers.
+  3. Verification. The deterministic detectors run again over the model's
+     output. Any hit, an empty or refusal-shaped response, or a model that
+     changed nothing in a document known to contain PII, is a failed run.
+
+Layer 3 exists because a single model call is not a redaction pipeline. Before
+it, this script checked only llm's exit status: a model that echoed its input
+back — which is what an ignored instruction looks like — produced a
+byte-identical "redacted" file and exited 0, and every caller saw success.
+
+Nothing is written until verification passes. There is deliberately no flag to
+skip it; that would defeat the only guarantee this tool makes.
 
 Ported from bash: the arg parsing, the optional-argument -o, and the
 temp-file-then-rename write path had outgrown what bash keeps readable. Stdlib
 only, so there is still nothing to install beyond `llm` itself.
 
 The argument parser is hand-rolled rather than argparse because the CLI contract
-is fixed by bin/pii-redactor.bats: argparse cannot produce "Unknown option: -x"
+is fixed by tests/pii_redactor: argparse cannot produce "Unknown option: -x"
 or treat -o as taking an optional argument without more fighting than the ~40
 lines below.
 
 Dependencies: llm
 """
+# Annotations are strings at runtime, so the `X | None` forms below do not
+# require Python 3.10. A standalone script may well be run by whatever python3 a
+# machine happens to have — /usr/bin/python3 is still 3.9 on macOS — and paying
+# one import to keep working there is cheaper than the traceback that greets
+# someone using this on a box that was never provisioned.
+from __future__ import annotations
 
 import os
+import re
 import shlex
 import shutil
 import subprocess
 import sys
 import tempfile
+from collections import Counter
 from pathlib import Path
 
 MODEL_DEFAULT = "qwen3.5:9b-mlx"
@@ -31,10 +62,14 @@ MODEL_DEFAULT = "qwen3.5:9b-mlx"
 OUTPUT_SUFFIX = "-pii-removed"
 
 SYSTEM_PROMPT = """\
-You are a privacy-focused assistant. Your task is to remove personally identifiable information (PII) from the provided text while preserving the structure, context, and meaning. Follow these rules:
+You are a privacy-focused assistant. Your task is to remove personally identifiable information (PII) from the provided text while preserving the structure, context, and meaning.
 
-1. Identify all PII: names, addresses, phone numbers, email addresses, usernames, IP addresses, and any other sensitive information
-2. Replace PII with appropriate placeholders (e.g., [NAME], [EMAIL], [PHONE], [ADDRESS], [IP])
+The text has already had emails, phone numbers, card numbers, IP addresses and similar mechanically-detectable values replaced with bracketed placeholders such as [EMAIL] or [PHONE]. Leave every existing placeholder exactly as it is.
+
+Your job is the information a pattern cannot find. Follow these rules:
+
+1. Identify remaining PII: personal names, organisation names, street addresses, job titles tied to an individual, usernames, and any other identifying detail
+2. Replace it with an appropriate bracketed placeholder (e.g. [NAME], [ADDRESS], [ORG], [TITLE])
 3. Ensure the text remains readable and maintains its original intent
 4. Preserve all formatting, especially markdown syntax
 5. Output only the redacted text — no explanations, no commentary"""
@@ -42,8 +77,12 @@ You are a privacy-focused assistant. Your task is to remove personally identifia
 USAGE = f"""\
 Usage: pii-redactor [OPTIONS] [ARGS…]
 
-Redacts personally identifiable information (PII) from input files using LLM,
+Redacts personally identifiable information (PII) from input files,
 preserving structure and context while making content safe for sharing.
+
+Redaction runs in three layers: deterministic patterns, then an LLM pass for
+what patterns cannot decide, then verification over the result. Nothing is
+written unless verification passes.
 
 Options:
   -h, --help      Show this help and exit
@@ -66,6 +105,266 @@ Examples:
 def die(msg: str) -> None:
     print(f"[ERROR] {msg}", file=sys.stderr)
     sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
+# Layer 1 — deterministic detection
+# ---------------------------------------------------------------------------
+# Order matters, and the list is applied in sequence:
+#   - credentialed URLs before EMAIL, so user:pass@host is taken whole rather
+#     than having its host half eaten as an address;
+#   - MAC before IPv6, since six colon-separated hex pairs also satisfy a loose
+#     IPv6 pattern;
+#   - CARD before PHONE, so the trailing digits of a card are not mistaken for
+#     a phone number.
+# Placeholders contain no digits, so a later pattern cannot match inside one
+# already substituted by an earlier one.
+
+
+def _luhn_ok(digits: str) -> bool:
+    """Standard Luhn checksum. Cuts the false positives a bare \\d{13,19} finds."""
+    total = 0
+    for i, char in enumerate(reversed(digits)):
+        value = int(char)
+        if i % 2 == 1:
+            value *= 2
+            if value > 9:
+                value -= 9
+        total += value
+    return total % 10 == 0
+
+
+def _card(match: re.Match) -> str | None:
+    digits = re.sub(r"\D", "", match.group(0))
+    if not 13 <= len(digits) <= 19 or not _luhn_ok(digits):
+        return None
+    return "[CARD]"
+
+
+def _ipv4(match: re.Match) -> str | None:
+    # A dotted quad is only an address if every octet fits in a byte; this also
+    # keeps version strings like 1.2.3.400 from being redacted as hosts.
+    if any(int(octet) > 255 for octet in match.group(0).split(".")):
+        return None
+    return "[IP]"
+
+
+def _url_token(match: re.Match) -> str:
+    # Keep the parameter name so the shape of the URL survives; drop the secret.
+    return f"{match.group(1)}[TOKEN]"
+
+
+# (label, pattern, replacement) — replacement is a string, or a callable that
+# returns None to leave the match alone when a validator rejects it.
+DETECTORS: list[tuple[str, re.Pattern, object]] = [
+    (
+        "url_credentials",
+        re.compile(r"\b[a-z][a-z0-9+.\-]*://[^\s/@:]+:[^\s/@]+@[^\s]+"),
+        "[URL_WITH_CREDENTIALS]",
+    ),
+    (
+        "jwt",
+        re.compile(r"\beyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+"),
+        "[JWT]",
+    ),
+    (
+        "cloud_key",
+        re.compile(r"\b(?:AKIA|ASIA|AIza|ghp_|gho_|github_pat_)[0-9A-Za-z_\-]{10,}"),
+        "[CLOUD_KEY]",
+    ),
+    (
+        "url_token",
+        re.compile(
+            r"([?&](?:token|api_key|apikey|access_token|auth|key|secret)=)[^\s&#]+",
+            re.IGNORECASE,
+        ),
+        _url_token,
+    ),
+    (
+        "email",
+        re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b"),
+        "[EMAIL]",
+    ),
+    (
+        "mac",
+        re.compile(r"(?<![:\w])(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}(?![:\w])"),
+        "[MAC]",
+    ),
+    (
+        # Full eight-group form, and the :: compressed form. Deliberately not a
+        # loose "two or more hex groups" pattern — that matches a timestamp.
+        "ipv6",
+        re.compile(
+            r"(?<![:\w])(?:"
+            r"(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}"
+            r"|(?:[0-9A-Fa-f]{1,4}:){1,6}:(?:[0-9A-Fa-f]{1,4}:){0,5}[0-9A-Fa-f]{1,4}"
+            r"|::(?:[0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4}"
+            r")(?![:\w])"
+        ),
+        "[IP]",
+    ),
+    (
+        "ipv4",
+        re.compile(r"(?<![\w.])\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?![\w.])"),
+        _ipv4,
+    ),
+    (
+        "national_id",
+        re.compile(r"(?<!\d)\d{3}-\d{2}-\d{4}(?!\d)"),
+        "[NATIONAL_ID]",
+    ),
+    (
+        "card",
+        re.compile(r"(?<![\d\-])\d(?:[ \-]?\d){12,18}(?![\d\-])"),
+        _card,
+    ),
+    (
+        "phone",
+        re.compile(
+            r"(?<!\d)(?:\+\d{1,3}[ .\-]?)?"
+            r"(?:\(\d{3}\)\s*|\d{3}[ .\-])\d{3}[ .\-]\d{4}(?!\d)"
+        ),
+        "[PHONE]",
+    ),
+]
+
+
+def find_hits(text: str) -> Counter:
+    """Count deterministic PII matches without altering the text.
+
+    Used by verification, so it must apply the same validators as scrub() —
+    otherwise a Luhn-rejected number would pass layer 1 and then be reported as
+    a leak by layer 3.
+    """
+    hits: Counter = Counter()
+    for label, pattern, replacement in DETECTORS:
+        for match in pattern.finditer(text):
+            if callable(replacement) and replacement(match) is None:
+                continue
+            hits[label] += 1
+    return hits
+
+
+def scrub(text: str) -> tuple[str, Counter]:
+    """Replace every deterministically detectable value with a placeholder."""
+    hits: Counter = Counter()
+
+    for label, pattern, replacement in DETECTORS:
+
+        def substitute(match: re.Match, label=label, replacement=replacement) -> str:
+            if callable(replacement):
+                value = replacement(match)
+                if value is None:
+                    return match.group(0)
+            else:
+                value = replacement
+            hits[label] += 1
+            return value
+
+        text = pattern.sub(substitute, text)
+
+    return text, hits
+
+
+# ---------------------------------------------------------------------------
+# Layer 3 — verification
+# ---------------------------------------------------------------------------
+
+# Matched only against short responses: a genuine redaction of a long document
+# can quote a customer saying "I can't reproduce it", and that must not be read
+# as the model refusing.
+REFUSAL_MARKERS = (
+    "i'm sorry",
+    "i am sorry",
+    "i cannot",
+    "i can't",
+    "as an ai",
+    "unable to assist",
+    "unable to help",
+    "cannot assist",
+    "can not help",
+)
+
+# A response this much shorter than what was sent is a truncation or a refusal,
+# not a redaction — placeholders are about as long as what they replace.
+COLLAPSE_RATIO = 0.25
+COLLAPSE_FLOOR = 200  # below this the input is too short for the ratio to mean anything
+REFUSAL_MAX_LEN = 200
+
+# Rough shapes of the PII only the model can remove: two adjacent capitalised
+# words (a person or organisation), or a street address. Used solely to decide
+# whether the model had anything to do — never to redact, since the false
+# positive rate would be far too high for that.
+CONTEXTUAL_CANDIDATES = (
+    re.compile(r"\b[A-Z][a-z]{1,}\s+[A-Z][a-z]{1,}\b"),
+    re.compile(
+        r"\b\d{1,5}\s+[A-Z][a-z]+\s+"
+        r"(?:Street|St|Road|Rd|Avenue|Ave|Lane|Ln|Drive|Dr|Boulevard|Blvd)\b"
+    ),
+)
+
+
+def has_contextual_candidates(text: str) -> bool:
+    """Whether text still holds something only the model could redact.
+
+    This exists to keep the no-op check in verify() sound. "The document
+    contained PII" is not the same question: layer 1 has already removed the
+    decidable classes by the time the model sees the text, so for input whose
+    only PII was an email address there is genuinely nothing left to do, and a
+    model returning it unchanged is correct rather than broken.
+
+    Deliberately conservative — it errs towards claiming there is work to do, so
+    the failure mode is a run that stops and asks a human rather than one that
+    silently accepts an untouched document.
+    """
+    return any(pattern.search(text) for pattern in CONTEXTUAL_CANDIDATES)
+
+
+def verify(candidate: str, sent: str) -> list[str]:
+    """Return the reasons this candidate output must not be written.
+
+    Deliberately returns reasons rather than raising, so a failed run can report
+    everything wrong at once. Reasons name classes and counts only — never the
+    offending value, which would put the PII straight into a log.
+    """
+    problems: list[str] = []
+    stripped = candidate.strip()
+
+    if not stripped:
+        problems.append("the model returned no content")
+        return problems  # nothing further is meaningful
+
+    leaked = find_hits(candidate)
+    if leaked:
+        summary = ", ".join(f"{count}x {label}" for label, count in sorted(leaked.items()))
+        problems.append(f"detectable PII survived into the output ({summary})")
+
+    if len(sent) >= COLLAPSE_FLOOR and len(stripped) < COLLAPSE_RATIO * len(sent):
+        problems.append(
+            f"the model returned {len(stripped)} characters for {len(sent)} sent — "
+            "a truncation or refusal, not a redaction"
+        )
+    elif len(stripped) <= REFUSAL_MAX_LEN:
+        lowered = stripped.lower()
+        if any(marker in lowered for marker in REFUSAL_MARKERS):
+            problems.append("the model declined the request instead of redacting")
+
+    # A model that returns its input byte-for-byte did nothing. That is only
+    # wrong if there was something left for it to do — layer 1 has already taken
+    # the decidable classes out, so a document whose only PII was an email
+    # address legitimately comes back untouched.
+    if candidate == sent and has_contextual_candidates(sent):
+        problems.append(
+            "the model returned its input unchanged although names or addresses "
+            "remain in it — it is not redacting"
+        )
+
+    return problems
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
 
 
 class Options:
@@ -173,20 +472,44 @@ def child_env() -> dict[str, str]:
     return env
 
 
-def run_llm(opts: Options, stdout) -> int:
-    """Invoke llm, reading the input file if given and stdin otherwise."""
+def read_input(opts: Options) -> str:
+    """Read the whole document.
+
+    Layer 1 has to see the text before the model does, so this can no longer
+    stream the file straight into llm's stdin. surrogateescape keeps input that
+    is not quite UTF-8 round-trippable rather than corrupting it with U+FFFD.
+    """
+    if opts.input:
+        raw = Path(opts.input).read_bytes()
+    else:
+        raw = sys.stdin.buffer.read()
+    return raw.decode("utf-8", "surrogateescape")
+
+
+def run_llm(opts: Options, text: str) -> tuple[int, str]:
+    """Send text to the model and capture its response.
+
+    Captured rather than streamed to the destination: nothing may reach the
+    output until layer 3 has passed judgement on it.
+    """
     cmd = build_cmd(opts.model)
-    env = child_env()
     try:
-        if opts.input:
-            with open(opts.input, "rb") as stdin:
-                return subprocess.run(cmd, stdin=stdin, stdout=stdout, env=env).returncode
-        return subprocess.run(cmd, stdout=stdout, env=env).returncode
+        result = subprocess.run(
+            cmd,
+            input=text.encode("utf-8", "surrogateescape"),
+            capture_output=True,
+            env=child_env(),
+            check=False,
+        )
     except FileNotFoundError:
         # Backstop for llm vanishing between require() and here. The preflight in
         # main() is the primary guard.
         die("Dependency 'llm' not found. Please install it first.")
-        return 1  # unreachable; die() exits
+        raise  # unreachable; die() exits
+
+    if result.stderr:
+        sys.stderr.buffer.write(result.stderr)
+    return result.returncode, result.stdout.decode("utf-8", "surrogateescape")
 
 
 def umask_mode() -> int:
@@ -194,6 +517,41 @@ def umask_mode() -> int:
     current = os.umask(0)
     os.umask(current)
     return 0o666 & ~current
+
+
+def write_output(path: str, text: str) -> None:
+    """Stage beside the destination and rename only once fully written.
+
+    Writing straight to the output truncates it up front, so a failure mid-run
+    would leave a half-redacted file sitting exactly where clean output is
+    expected — or destroy a previously verified one.
+    """
+    out = Path(path)
+    try:
+        fd, tmp = tempfile.mkstemp(prefix=f"{out.name}.", dir=str(out.parent))
+    except OSError as exc:
+        die(f"Could not create a temp file beside {path}: {exc}")
+
+    try:
+        # mkstemp creates 0600; a plain redirect used to honour the umask.
+        # Restore that so the redacted file stays as readable as callers expect
+        # — sharing it is the whole point of redacting it.
+        os.chmod(tmp, umask_mode())
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(text.encode("utf-8", "surrogateescape"))
+    except BaseException:
+        # BaseException, not Exception: die() raises SystemExit, and that is the
+        # common path here — the staging file must not survive it.
+        os.unlink(tmp)
+        raise
+
+    os.replace(tmp, path)
+
+
+def describe(hits: Counter) -> str:
+    if not hits:
+        return "none"
+    return ", ".join(f"{count}x {label}" for label, count in sorted(hits.items()))
 
 
 def process(opts: Options) -> None:
@@ -210,36 +568,32 @@ def process(opts: Options) -> None:
         print(f"Would process {source} -> {opts.output or 'stdout'}", file=sys.stderr)
         return
 
+    original = read_input(opts)
+
+    # Layer 1 — deterministic.
+    scrubbed, hits = scrub(original)
+    opts.log_v(f"Deterministic pass redacted: {describe(hits)}")
+
+    # Layer 2 — model.
+    code, candidate = run_llm(opts, scrubbed)
+    if code != 0:
+        die(f"Failed to process {source} with llm")
+
+    # Layer 3 — verification. Fail closed: no output of any kind is produced
+    # unless this passes.
+    problems = verify(candidate, scrubbed)
+    if problems:
+        for problem in problems:
+            print(f"[ERROR] verification failed: {problem}", file=sys.stderr)
+        die(f"Refusing to write unverified output for {source}")
+
+    opts.log_v("Verification passed: no detectable PII in the output")
+
     if not opts.output:
-        if run_llm(opts, None) != 0:
-            die(f"Failed to process {source} with llm")
+        sys.stdout.buffer.write(candidate.encode("utf-8", "surrogateescape"))
         return
 
-    # Stage to a sibling temp file and rename only on success. Writing straight
-    # to the output truncates it up front, so an llm failure mid-run would leave
-    # a half-redacted file sitting exactly where clean output is expected.
-    out = Path(opts.output)
-    try:
-        fd, tmp = tempfile.mkstemp(prefix=f"{out.name}.", dir=str(out.parent))
-    except OSError as exc:
-        die(f"Could not create a temp file beside {opts.output}: {exc}")
-
-    try:
-        # mkstemp creates 0600; a plain redirect used to honour the umask.
-        # Restore that so the redacted file stays as readable as callers expect
-        # — sharing it is the whole point of redacting it.
-        os.chmod(tmp, umask_mode())
-        with os.fdopen(fd, "wb") as handle:
-            failed = run_llm(opts, handle) != 0
-        if failed:
-            die(f"Failed to process {source} with llm")
-    except BaseException:
-        # BaseException, not Exception: die() raises SystemExit, and that is the
-        # common path here — the staging file must not survive it.
-        os.unlink(tmp)
-        raise
-
-    os.replace(tmp, opts.output)
+    write_output(opts.output, candidate)
     opts.log_v(f"Wrote redacted output to: {opts.output}")
 
 

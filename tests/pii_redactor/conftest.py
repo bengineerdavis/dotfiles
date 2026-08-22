@@ -44,18 +44,31 @@ def pii_module():
     return mod
 
 
+# A stand-in for a model that does its job: it redacts the one thing the model
+# layer is actually responsible for, name-shaped capitalised pairs.
+#
+# The default used to be a bare `cat`. That is a model which ignores the
+# instruction, and pairing it with assertions on exit status and file size meant
+# the suite was green precisely when the tool leaked — the defect the three-layer
+# rewrite exists to prevent. Tests about output routing should not be riding on a
+# broken model, so the default is now a working one; the cases that genuinely
+# want a pass-through ask for `cat` explicitly.
+WORKING_MODEL = r"sed -E 's/\b[A-Z][a-z]+ [A-Z][a-z]+\b/[NAME]/g'"
+
+
 @pytest.fixture
 def mock_llm(tmp_path, monkeypatch):
     """Put a fake `llm` at the front of PATH and return a function to redefine it.
 
-    Defaults to echoing stdin back, so callers can inspect what was piped in.
-    Tests that care about argv or the child environment install their own body.
+    Defaults to a model that redacts name-shaped text. Tests that care about
+    argv, the child environment, or a specific failure mode install their own
+    body — `mock_llm("cat")` for a pass-through, for instance.
     """
     bindir = tmp_path / "mockbin"
     bindir.mkdir()
     script = bindir / "llm"
 
-    def install(body: str = "cat") -> pathlib.Path:
+    def install(body: str = WORKING_MODEL) -> pathlib.Path:
         script.write_text(f"#!/usr/bin/env bash\n{body}\n")
         script.chmod(0o755)
         return script
