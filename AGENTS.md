@@ -51,6 +51,28 @@ deployed tree, and one machine. Most work never collides — in practice the onl
 real conflict so far came from two sessions rewriting the same large file at once.
 These are the cases that do need care.
 
+**Commit with `git commit -o <paths>`, never a bare `git commit`.** All sessions
+share one `.git/index`. `git add <paths> && git commit` stages your paths and then
+commits *the entire index* — including whatever another session staged and had not
+yet committed. This is not hypothetical: it has already happened in both
+directions. `b3ad740` is titled as a clamav systemd change and also contains
+another session's pii-redactor rewrite; `5692a86` is titled as a pii-redactor
+change and also contains 52 zsh deletions belonging to a third session. Both are
+pushed and left alone — rewriting shared history costs more than the mislabelling
+— but neither can now be reverted without taking unrelated work with it, which is
+the whole property commits are supposed to have.
+
+    git commit -o <paths> -F -    # --only: commit exactly these, ignore the rest
+    git show --stat HEAD          # verify before pushing
+
+`git add -p` is the other half when two sessions are editing the same file.
+`TASKS.md` is the likeliest place for that, since everyone writes to it.
+
+**A worktree gives you your own index.** That is a stronger reason to use one than
+the file-churn argument below — the index is shared on *every* commit, not just
+during large rewrites. Weigh it against the chezmoi `-S` requirement, which is easy
+to forget and lands work on the wrong branch when you do.
+
 **Before `chezmoi apply`, run `chezmoi status`.** Source and deployed drift in both
 directions. Applying picks up whatever another session has committed but not yet
 deployed, which may not be ready — Debian topic changes have sat committed and
