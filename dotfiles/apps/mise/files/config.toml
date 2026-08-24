@@ -14,8 +14,8 @@ age = "latest"
 # from the vault to age's stdin instead of leaving it in a file. Neither is
 # required: the keychain and file backends need no extra tool. The 1Password app
 # ships only op-ssh-sign, not the `op` CLI, which is why this is declared.
-"aqua:1password/cli" = "latest"
-"aqua:bitwarden/clients" = "latest"
+"1password-cli" = "latest"
+"bitwarden" = "latest"
 fd = "latest"
 fzf = "latest"
 
