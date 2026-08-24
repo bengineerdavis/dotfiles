@@ -88,22 +88,3 @@ edit_dotfiles () {
 
     main
 }
-
-# support-based functions
-openmail () {
-    mailbox "attachments/**" && 
-    support-summarized
-}
-
-investigate () {
-    cat mail.md | \
-    triage --model qwen3.6:27b-mlx \
-    --platform "Sentry.io" \
-    --docs "https://docs.sentry.io" \
-    > triage.md
-}
-
-ticket-update () {
-    openmail && \
-    investigateß
-}

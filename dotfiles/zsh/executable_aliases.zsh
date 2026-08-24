@@ -7,3 +7,8 @@ alias kobo='export WINEPREFIX="$HOME/.wine"; wine "$WINEPREFIX/drive_c/Program F
 # source: "Could not get lock /var/lib/apt/lists/lock" 
 # https://askubuntu.com/a/1545774
 alias unlock-apt='sudo service packagekit restart'
+
+# support-based functions
+alias openmail='mailbox "attachments/**" && support-summarized'
+alias investigate='cat mail.md | triage --model qwen3.6:27b-mlx --platform "Sentry.io" --docs "https://docs.sentry.io" > triage.md'
+alias ticket-update='openmail && investigate'
