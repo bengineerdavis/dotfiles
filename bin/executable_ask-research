@@ -23,9 +23,13 @@
 # Exit codes: 0 ok | 1 usage/aborted | 127 missing dependency
 # -----------------------------------------------------------------------------
 #
-# Three OpenRouter/llm features do the work (all verified on this machine):
-#   -o online true             web search via Exa. NOT the `:online` model
-#                              suffix, which llm-openrouter rejects.
+# Three llm features do the work (all verified against llm-openrouter 0.7):
+#   -T get_answer -T get_contents  web search and page fetch, via llm-tools-exa.
+#                              NOT `-o online true`, which is not a valid option
+#                              on any openrouter model and errors with "Extra
+#                              inputs are not permitted"; and not a `:online`
+#                              model suffix, which does not exist either.
+#                              Requires a separate Exa key: `llm keys set exa`.
 #   -o provider '{"zdr":true}' route only to Zero-Data-Retention endpoints.
 #   --cid <id>                 continue a specific conversation.
 #
@@ -151,8 +155,29 @@ export PYMUPDF_MESSAGE=fd:2
 MODEL="${MODEL:-${OLLAMA_ROLE_ESCALATE:-openrouter/anthropic/claude-sonnet-5}}"
 
 opts=()
-[ "$ONLINE" = 1 ] && opts+=(-o online true)
-[ "$ZDR"    = 1 ] && opts+=(-o provider '{"zdr":true}')
+[ "$ZDR" = 1 ] && opts+=(-o provider '{"zdr":true}')
+
+# Web access is TOOLS, not an option. `-o online true` was invalid and failed
+# every run with "Error: online / Extra inputs are not permitted"; llm-openrouter
+# 0.7 advertises no `online` option and there is no `:online` model id either.
+# llm-tools-exa registers get_answer (search with citations) and get_contents
+# (fetch a URL), which suits a brief that demands primary sources better than a
+# search flag would.
+if [ "$ONLINE" = 1 ]; then
+  # Exa needs its own key. Without one the model still calls the tools, gets a
+  # 401 on each, and reasons its way to "I could not retrieve this" — burning
+  # tokens to produce unsourced output, which is the exact failure this brief
+  # style exists to prevent. Refuse up front instead.
+  if ! llm keys list 2>/dev/null | grep -qx 'exa'; then
+    fail "web research is on, but no Exa API key is configured" \
+      "the search tools would return 401 and the answer would be unsourced" \
+      "" \
+      "fix it:      llm keys set exa" \
+      "or proceed without web access, accepting unverified claims:" \
+      "  ask-research $CMD ... --no-online"
+  fi
+  opts+=(-T get_answer -T get_contents)
+fi
 
 # Count response files, excluding the accumulated transcript. `grep -c` exits
 # non-zero on no match, so it cannot be combined with `|| echo 0` without
@@ -243,7 +268,7 @@ require_session() {
 
 banner() {
   { echo "session: $SESSION   model: $MODEL"
-    echo "web    : $([ "$ONLINE" = 1 ] && echo 'ON (queries → Exa)' || echo off)   \
+    echo "web    : $([ "$ONLINE" = 1 ] && echo 'ON (Exa tools: get_answer, get_contents)' || echo 'off — claims will not be web-verified')   \
 zdr: $([ "$ZDR" = 1 ] && echo ON || echo '*** OFF — provider may retain ***')"
   } >&2
 }
