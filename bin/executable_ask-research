@@ -59,7 +59,10 @@ show_help() {
   # Print the header block between the first two ruler lines, comments stripped.
   # Marker-based so inserting lines above cannot desynchronise the help output,
   # which a hardcoded `sed -n '2,32p'` range silently would.
-  awk '/^# -{10,}$/{n++; next} n==1' "$0" | sed 's/^#\( \|$\)//'
+  # Two expressions rather than `s/^#\( \|$\)//`: `\|` is alternation in GNU
+  # BRE but a literal pipe in BSD, so the one-liner silently left every line
+  # prefixed with "# " on a stock macOS PATH.
+  awk '/^# -{10,}$/{n++; next} n==1' "$0" | sed -e 's/^# //' -e 's/^#$//'
 }
 
 # Collect every missing dependency before failing, so one run reports all gaps.
@@ -75,28 +78,70 @@ require() {
   fi
 }
 
+# Print a diagnosis, not a usage line. $1 is the headline; every later argument
+# is an indented context line, so callers can add detail without fighting
+# quoting. Defined before argument parsing because the parser calls it.
+fail() {
+  printf 'ask-research: %s\n' "$1" >&2
+  shift
+  for line in "$@"; do printf '  %s\n' "$line" >&2; done
+  exit 1
+}
+
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/ask-research"
 SESSION=default; MODEL=""; ONLINE=1; ZDR=1; DRY=0
 CMD="${1:-}"; shift || true
 ARG=""
 
+needs_value() {
+  # $1 = flag, $2 = the value as parsed. A flag consuming the next token is a
+  # silent corruption when that token is another flag or absent entirely:
+  # `--session --dry-run` would name a session "--dry-run".
+  case "${2:-}" in
+    ""|--*) fail "$1 needs a value" \
+              "got: ${2:-(nothing — it was the last argument)}" \
+              "example: $1 ${3:-VALUE}" ;;
+  esac
+}
+
 while [ $# -gt 0 ]; do
   case "$1" in
-    --session)   SESSION="$2"; shift 2 ;;
-    --model)     MODEL="$2"; shift 2 ;;
+    --session)   needs_value --session "${2:-}" NAME;  SESSION="$2"; shift 2 ;;
+    --model)     needs_value --model   "${2:-}" MODEL; MODEL="$2";   shift 2 ;;
     --no-online) ONLINE=0; shift ;;
     --no-zdr)    ZDR=0; shift ;;
     --dry-run)   DRY=1; shift ;;
     -h|--help)   show_help; exit 0 ;;
-    *)           ARG="$1"; shift ;;
+    --*|-?)
+      # Unknown flags used to fall through to the positional branch, so a typo
+      # became the brief path and surfaced as "brief not found: --sesion".
+      fail "unknown option: $1" \
+        "valid options: --session --model --no-online --no-zdr --dry-run --help" \
+        "run 'ask-research --help' for what each does" ;;
+    *)
+      if [ -n "$ARG" ]; then
+        fail "unexpected extra argument: $1" \
+          "already have: $ARG" \
+          "this command takes one path or question; quote it if it contains spaces:" \
+          "  ask-research ask \"your whole question here\""
+      fi
+      ARG="$1"; shift ;;
   esac
 done
 
 # A dry run only prints the command it would have run, so it needs no tools.
 [ "$DRY" = 1 ] || require llm python3
 
+case "$SESSION" in
+  */*|.|..) fail "invalid session name: '$SESSION'" \
+              "a session becomes a directory under $STATE" \
+              "use a plain name, e.g. --session enc" ;;
+esac
+
 DIR="$STATE/$SESSION"; CIDFILE="$DIR/cid"; LOG="$DIR/transcript.md"
-mkdir -p "$DIR"
+mkdir -p "$DIR" 2>/dev/null || fail "cannot create the session directory" \
+  "path: $DIR" \
+  "check permissions, or set XDG_STATE_HOME to a writable location"
 
 # PyMuPDF writes its deprecation notice to STDOUT, which would land inside the
 # saved response. Same fix as apps/mise/files/zsh/env.zsh, repeated so this
@@ -121,6 +166,81 @@ count_turns() {
   printf '%s' "$n"
 }
 
+# Where a relative path might plausibly have been meant. The failure this exists
+# for: a path relative to the chezmoi source tree, typed from somewhere else.
+search_roots() {
+  printf '%s\n' "$PWD" "$HOME/dotfiles" "$HOME/.local/share/chezmoi" "$HOME"
+}
+
+# Resolve a file argument, explaining precisely why it did not resolve.
+# $1 = the argument, $2 = what it should be, for the message.
+resolve_file() {
+  local arg="$1" what="$2" root hit
+
+  [ -n "$arg" ] || fail "no $what given" \
+    "usage: ask-research $CMD <$what>" \
+    "run 'ask-research --help' for the full usage"
+
+  if [ -e "$arg" ]; then
+    [ -d "$arg" ] && fail "'$arg' is a directory, not a $what"
+    [ -r "$arg" ] || fail "'$arg' exists but is not readable" \
+      "mode: $(ls -l "$arg" | awk '{print $1, $3, $4}')"
+    [ -s "$arg" ] || fail "'$arg' is empty" \
+      "a zero-byte brief would send an empty prompt"
+    printf '%s' "$arg"
+    return 0
+  fi
+
+  # Not found. Say what was actually tried, then look for it elsewhere — a
+  # relative path resolves against the caller's cwd, which is the single most
+  # common way this fails.
+  local msgs=()
+  case "$arg" in
+    /*) msgs+=("looked for: $arg") ;;
+    *)  msgs+=("looked for: $PWD/$arg" "(relative paths resolve against your current directory)") ;;
+  esac
+
+  while read -r root; do
+    [ "$root" = "$PWD" ] && continue
+    hit="$root/$arg"
+    [ -f "$hit" ] && msgs+=("" "found it here instead:" "  $hit" "" "re-run with that path, or: cd $root")
+  done < <(search_roots)
+
+  # Fall back to a basename search when the whole relative path is wrong.
+  if [ ${#msgs[@]} -le 2 ]; then
+    local base found
+    base="$(basename "$arg")"
+    found="$(find "$PWD" "$HOME/dotfiles" -maxdepth 4 -name "$base" -type f 2>/dev/null | head -3)"
+    [ -n "$found" ] && msgs+=("" "a file with that name exists at:" "$(printf '  %s\n' $found)")
+  fi
+
+  fail "$what not found: '$arg'" ${msgs[@]+"${msgs[@]}"}
+}
+
+# A follow-up needs a started session. When it is missing, the useful reply is
+# what sessions do exist — usually the answer is a forgotten --session flag.
+require_session() {
+  if [ -s "$CIDFILE" ]; then return 0; fi
+  local existing msgs=()
+  # `|| true`: with no sessions the loop's last command fails, the subshell
+  # exits non-zero, and under `set -e` the assignment takes the whole script
+  # with it — silently, which is how this failed the first time.
+  existing="$(for d in "$STATE"/*/; do
+      [ -d "$d" ] || continue
+      [ -s "$d/cid" ] || continue
+      basename "$d"
+    done 2>/dev/null || true)"
+  if [ -n "$existing" ]; then
+    msgs+=("started sessions:")
+    while read -r s; do msgs+=("  $s  ($(count_turns "$STATE/$s") turns)"); done <<<"$existing"
+    msgs+=("" "pick one with --session NAME, or start this one:")
+  else
+    msgs+=("no sessions have been started yet")
+  fi
+  msgs+=("  ask-research start BRIEF.md --session $SESSION")
+  fail "session '$SESSION' has not been started" ${msgs[@]+"${msgs[@]}"}
+}
+
 banner() {
   { echo "session: $SESSION   model: $MODEL"
     echo "web    : $([ "$ONLINE" = 1 ] && echo 'ON (queries → Exa)' || echo off)   \
@@ -134,16 +254,61 @@ turn() {
   [ -s "$CIDFILE" ] && cid_args=(--cid "$(cat "$CIDFILE")")
 
   if [ "$DRY" = 1 ]; then
-    echo "dry-run: llm -m $MODEL ${opts[*]} ${cid_args[*]} < $src" >&2; return 0
+    # `[*]` needs the same empty-array guard as `[@]`: bash 3.2 with `set -u`
+    # treats an unset element expansion as an error, and macOS ships 3.2.
+    echo "dry-run: llm -m $MODEL ${opts[*]+${opts[*]}} ${cid_args[*]+${cid_args[*]}} < $src" >&2
+    return 0
   fi
 
   case "$MODEL" in *opus*|*gpt-5*|*kimi-k3*)
-    printf 'Expensive tier. Continue? [y/N] ' >&2
-    read -r ok </dev/tty; [ "$ok" = y ] || { echo aborted >&2; exit 1; } ;;
+    # Fail closed when there is no terminal to ask at. Previously `read
+    # </dev/tty` died half way through printing the question, leaving the
+    # prompt on screen and no explanation of what went wrong.
+    # `[ -r /dev/tty ]` is not enough: the device node exists and passes the
+    # permission test even with no controlling terminal, then errors on open.
+    # Actually opening it is the only reliable check.
+    # The redirection has to happen inside a subshell: a failed redirect is
+    # reported by the shell itself, so `: </dev/tty 2>/dev/null` still prints
+    # "Device not configured" before our own message.
+    if ! (exec </dev/tty) 2>/dev/null; then
+      fail "'$MODEL' is an expensive tier and needs confirmation" \
+        "no terminal is available to ask at, so this refuses rather than spending" \
+        "run it interactively, or pick a cheaper model:" \
+        "  ask-research $CMD ... --model \"\$OLLAMA_ROLE_ESCALATE\""
+    fi
+    printf 'Expensive tier (%s). Continue? [y/N] ' "$MODEL" >&2
+    read -r ok </dev/tty || fail "could not read a confirmation from the terminal"
+    case "$ok" in [yY]|[yY][eE][sS]) ;; *) fail "aborted — nothing was sent" ;; esac ;;
   esac
 
-  local out start; out="$DIR/$(date -u +%Y%m%dT%H%M%SZ).md"; start=$(date +%s)
-  llm -m "$MODEL" "${opts[@]}" "${cid_args[@]}" < "$src" > "$out"
+  local out err start rc; out="$DIR/$(date -u +%Y%m%dT%H%M%SZ).md"
+  err="$DIR/.stderr"; start=$(date +%s)
+
+  # Capture llm's stderr rather than letting set -e abort with no explanation,
+  # and never leave a half-written response behind to be mistaken for a result.
+  set +e
+  llm -m "$MODEL" ${opts[@]+"${opts[@]}"} ${cid_args[@]+"${cid_args[@]}"} < "$src" > "$out" 2> "$err"
+  rc=$?
+  set -e
+  if [ "$rc" -ne 0 ]; then
+    rm -f "$out"
+    local detail; detail="$(grep -v '^warning' "$err" | tail -3)"
+    case "$detail" in
+      *"No key found"*|*"API key"*)
+        fail "llm could not authenticate (exit $rc)" "$detail" \
+          "set a key: llm keys set openrouter" ;;
+      *"Unknown model"*)
+        fail "llm rejected the model '$MODEL' (exit $rc)" "$detail" \
+          "list ids: llm models list" \
+          "note ids are case-sensitive and must match 'ollama list' exactly" ;;
+      *)
+        fail "llm failed (exit $rc)" "${detail:-no stderr captured}" \
+          "the response was discarded; the session is unchanged" ;;
+    esac
+  fi
+  [ -s "$out" ] || { rm -f "$out"; fail "llm exited 0 but returned nothing" \
+      "model: $MODEL" "this usually means the prompt was filtered or empty"; }
+  rm -f "$err"
 
   # Capture the conversation id on the first turn so every later turn is
   # explicit rather than relying on "most recent".
@@ -151,7 +316,15 @@ turn() {
     llm logs -n 1 --json 2>/dev/null \
       | python3 -c "import json,sys;d=json.load(sys.stdin);print((d[0] if isinstance(d,list) else d).get('conversation_id',''))" \
       > "$CIDFILE" 2>/dev/null || true
-    [ -s "$CIDFILE" ] && echo "conversation: $(cat "$CIDFILE")" >&2
+    if [ -s "$CIDFILE" ]; then
+      echo "conversation: $(cat "$CIDFILE")" >&2
+    else
+      # Not fatal, but the consequence is specific and worth naming: without an
+      # id, follow-ups fall back to "most recent", which any unrelated llm call
+      # can steal.
+      echo "warning: could not capture the conversation id — follow-ups in this" >&2
+      echo "         session may attach to a different conversation" >&2
+    fi
   fi
 
   { echo; echo "## $label — $(date -u +%FT%TZ)"; echo; cat "$out"; } >> "$LOG"
@@ -162,26 +335,39 @@ turn() {
 
 case "$CMD" in
   start)
-    [ -f "$ARG" ] || { echo "usage: ask-research start BRIEF.md" >&2; exit 1; }
-    [ -s "$CIDFILE" ] && { echo "session '$SESSION' already started (--session NAME for a new one)" >&2; exit 1; }
-    banner; echo "brief  : $ARG (~$(wc -w < "$ARG" | tr -d ' ') words)" >&2; echo >&2
-    turn "$ARG" "BRIEF: $(basename "$ARG")"
+    BRIEF="$(resolve_file "$ARG" "brief")"
+    [ -s "$CIDFILE" ] && fail "session '$SESSION' has already been started" \
+      "started: $(date -u -r "$CIDFILE" +%FT%TZ 2>/dev/null || echo unknown)" \
+      "turns so far: $(count_turns "$DIR")" \
+      "continue it:  ask-research ask \"...\" --session $SESSION" \
+      "start fresh:  ask-research start $ARG --session <new-name>"
+    banner; echo "brief  : $BRIEF (~$(wc -w < "$BRIEF" | tr -d ' ') words)" >&2; echo >&2
+    turn "$BRIEF" "BRIEF: $(basename "$BRIEF")"
     ;;
   ask)
-    [ -n "$ARG" ] || { echo 'usage: ask-research ask "question"' >&2; exit 1; }
-    [ -s "$CIDFILE" ] || { echo "no session '$SESSION' — run start first" >&2; exit 1; }
+    [ -n "$ARG" ] || fail "no question given" \
+      'usage: ask-research ask "your question" [--session NAME]' \
+      "to send a file instead: ask-research ask-file NOTES.md"
+    require_session
     banner; printf '%s\n' "$ARG" > "$DIR/.q"; turn "$DIR/.q" "Q: $ARG"
     ;;
   ask-file)
-    [ -f "$ARG" ] || { echo "usage: ask-research ask-file FILE.md" >&2; exit 1; }
-    [ -s "$CIDFILE" ] || { echo "no session '$SESSION' — run start first" >&2; exit 1; }
-    banner; turn "$ARG" "FILE: $(basename "$ARG")"
+    FILE="$(resolve_file "$ARG" "file")"
+    require_session
+    banner; turn "$FILE" "FILE: $(basename "$FILE")"
     ;;
   show)
     echo "session : $SESSION"; echo "dir     : $DIR"
     echo "cid     : $([ -s "$CIDFILE" ] && cat "$CIDFILE" || echo '(not started)')"
     echo "turns   : $(count_turns "$DIR")"
-    [ -f "$LOG" ] && { echo "---"; tail -40 "$LOG"; }
+    # An `&&` list here is the last command in the branch, so its failure
+    # becomes the script's exit status: `show` on a session with no transcript
+    # yet reported failure while printing a perfectly good summary.
+    if [ -f "$LOG" ]; then
+      echo "---"; tail -40 "$LOG"
+    else
+      echo "(no transcript yet — nothing has been sent in this session)"
+    fi
     ;;
   list)
     for d in "$STATE"/*/; do
