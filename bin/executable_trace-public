@@ -1,0 +1,296 @@
+#!/usr/bin/env python3
+# -----------------------------------------------------------------------------
+# trace-public — reduce a stack trace to the part that is publicly discussable.
+#
+# Usage:
+#   trace-public [FILE]              read a trace, write the reduced form
+#   ... | trace-public               from a pipe
+#   trace-public --explain FILE      show the per-line decision, keep nothing
+#
+# Options:
+#   --explain        annotate every line with why it was kept or dropped
+#   --quiet          reduced trace only, no summary on stderr
+#   --keep-lineno    keep line numbers in public frames (default: keep)
+#   --no-lineno      drop line numbers too
+#
+# Exit codes: 0 reduced | 1 usage/refused | 2 nothing recognisable in the input
+# -----------------------------------------------------------------------------
+#
+# WHITELIST, NOT BLACKLIST — and that is the whole point.
+#
+# bin/pii-redactor removes things it recognises as sensitive. That is the right
+# model for prose, where most of the text is fine and the risk is a few known
+# patterns. A stack trace is the opposite: most of it is site-specific, and only
+# a narrow subset — the exception type and the frames inside public code — is
+# generic enough to post in a forum or match against documentation.
+#
+# So this keeps what it can positively identify as public and drops everything
+# else, including anything it cannot classify. Unrecognised input is dropped, not
+# passed through, because the failure mode of a blacklist is silent leakage and
+# the failure mode of a whitelist is a trace too short to be useful. The second
+# is recoverable; the first is not.
+#
+# WHAT IT CANNOT DO
+# It classifies frames by *path location* — site-packages, node_modules, the Go
+# module cache, stdlib prefixes. That is a proxy for "public", not proof: a
+# vendored private dependency sitting in site-packages will read as public. It
+# also cannot know whether a public function name is being used in a way that
+# reveals something. Treat the output as a draft for review, never as cleared.
+#
+# THIS OUTPUT IS STILL DERIVED
+# dotfiles/docs/GOALS.md is explicit that transformation does not change
+# provenance: a reduced trace was still produced by reading employer material,
+# so it is a derived artifact. This tool therefore reports what the policy layers
+# say and asks for review; it never declares anything safe to send. If a company
+# layer is configured that speaks to derived works, that answer is surfaced
+# rather than second-guessed.
+
+from __future__ import annotations
+
+import argparse
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+# Path fragments that indicate third-party or standard-library code. Ordered
+# roughly by how common they are, since the first match wins.
+PUBLIC_PATH_MARKERS = (
+    "/site-packages/", "/dist-packages/", "/node_modules/",
+    "/lib/python", "/lib64/python", "/usr/lib/", "/usr/local/lib/",
+    "/pkg/mod/", "/.cargo/registry/", "/vendor/bundle/", "/gems/",
+    "/.venv/lib/", "/venv/lib/", "/JavaVirtualMachines/", "/jre/lib/",
+    # Go's standard library ships inside the toolchain, not a package dir.
+    "/libexec/src/", "/go/src/", "/goroot/src/",
+)
+
+# JVM frames carry a class name and a bare source filename — never a path — so
+# path-based classification drops every frame and reduces the trace to its
+# exception type. Package prefix is the only signal available. This list is
+# deliberately short: an unlisted package is treated as first-party, which is
+# the safe direction.
+PUBLIC_JVM_PREFIXES = (
+    "java.", "javax.", "jakarta.", "jdk.", "sun.", "com.sun.",
+    "kotlin.", "scala.", "groovy.",
+    "org.springframework.", "org.apache.", "org.hibernate.", "org.jetbrains.",
+    "org.junit.", "org.slf4j.", "org.eclipse.", "org.gradle.",
+    "com.google.common.", "com.fasterxml.jackson.", "io.netty.",
+)
+
+# An exception or error class: dotted or slashed name ending in a capitalised
+# word, optionally followed by a message. The message is dropped separately.
+EXC_RE = re.compile(
+    r"^\s*(?P<exc>(?:[A-Za-z_][\w.]*\.)?[A-Z]\w*(?:Error|Exception|Warning|Fault|Panic)?)"
+    r"\s*(?::(?P<msg>.*))?$"
+)
+
+# Frame shapes, per language.
+PY_FRAME_RE = re.compile(r'^\s*File "(?P<path>[^"]+)", line (?P<line>\d+), in (?P<func>.+)$')
+JS_FRAME_RE = re.compile(r"^\s*at (?P<func>[^(]+?)\s*\((?P<path>[^:)]+)(?::(?P<line>\d+))?[^)]*\)\s*$")
+# Bare `at /path/file.js:LINE:COL` — the column is captured and discarded so it
+# does not end up rendered as the line number.
+JS_BARE_RE  = re.compile(r"^\s*at (?P<path>[^\s(]+?):(?P<line>\d+)(?::\d+)?\s*$")
+JAVA_RE     = re.compile(r"^\s*at (?P<func>[\w.$]+)\((?P<path>[^:)]+)(?::(?P<line>\d+))?\)\s*$")
+GO_FRAME_RE = re.compile(r"^\s*(?P<path>/\S+\.go):(?P<line>\d+)")
+
+TRACE_HEADERS = (
+    "Traceback (most recent call last):",
+    "During handling of the above exception",
+    "The above exception was the direct cause",
+    "Caused by:",
+    "goroutine ",
+)
+
+POLICY_KEY = "boundaries.derived_artifacts.may_be_retained"
+
+
+def is_public_path(path: str) -> bool:
+    return any(m in path for m in PUBLIC_PATH_MARKERS)
+
+
+def public_tail(path: str) -> str:
+    """The portion of a public path from the marker onward.
+
+    Everything before it is local: a home directory, a checkout name, a build
+    root. `/Users/someone/work/acme/.venv/lib/python3.12/site-packages/urllib3/
+    connectionpool.py` reduces to `urllib3/connectionpool.py`.
+    """
+    for m in PUBLIC_PATH_MARKERS:
+        if m in path:
+            tail = path.split(m, 1)[1]
+            # Strip a leading pythonX.Y/ or similar version directory.
+            tail = re.sub(r"^(python[\d.]+|[\w.-]+@v[\d.]+)/", "", tail)
+            return tail
+    return path
+
+
+class Reducer:
+    def __init__(self, keep_lineno: bool = True):
+        self.keep_lineno = keep_lineno
+        self.kept: list[str] = []
+        self.decisions: list[tuple[str, str, str]] = []  # (verdict, reason, line)
+        self.counts: dict[str, int] = {}
+
+    def _note(self, verdict: str, reason: str, line: str) -> None:
+        self.decisions.append((verdict, reason, line))
+        # Key on the verdict too: a flat reason count cannot tell you whether
+        # "trace header: 1" was kept or dropped, which is the only thing the
+        # summary is for.
+        self.counts[(verdict, reason)] = self.counts.get((verdict, reason), 0) + 1
+
+    def _jvm_frame(self, func: str, path: str, line: str | None) -> bool:
+        """Classify a JVM frame by package prefix. Returns True if handled."""
+        if not func.startswith(PUBLIC_JVM_PREFIXES):
+            self._note("drop", "first-party JVM package", func)
+            return True
+        parts = [func]
+        if line and self.keep_lineno:
+            parts.append(f"({path}:{line})")
+        elif path:
+            parts.append(f"({path})")
+        rendered = "  at " + "".join(parts)
+        self.kept.append(rendered)
+        self._note("keep", "public JVM frame", rendered)
+        return True
+
+    def _frame(self, path: str, func: str | None, line: str | None) -> None:
+        # A JVM frame's "path" is a bare filename like InvoiceJob.java, with no
+        # directory to test, so route it to prefix classification instead.
+        if func and "/" not in path and path.endswith((".java", ".kt", ".scala", ".groovy")):
+            self._jvm_frame(func, path, line)
+            return
+        if not is_public_path(path):
+            self._note("drop", "first-party or unknown frame path", path)
+            return
+        tail = public_tail(path)
+        parts = [tail]
+        if line and self.keep_lineno:
+            parts.append(f"line {line}")
+        if func:
+            parts.append(f"in {func.strip()}")
+        rendered = "  " + ", ".join(parts)
+        self.kept.append(rendered)
+        self._note("keep", "public library frame", rendered)
+
+    def feed(self, raw: str) -> None:
+        line = raw.rstrip("\n")
+        if not line.strip():
+            return
+
+        if any(line.strip().startswith(h) for h in TRACE_HEADERS):
+            self.kept.append(line.strip())
+            self._note("keep", "trace header", line.strip())
+            return
+
+        for rx in (PY_FRAME_RE, JS_FRAME_RE, JAVA_RE, JS_BARE_RE, GO_FRAME_RE):
+            m = rx.match(line)
+            if m:
+                g = m.groupdict()
+                self._frame(g.get("path", ""), g.get("func"), g.get("line"))
+                return
+
+        # Source echo under a Python frame — the actual line of code. Local code
+        # is the thing most likely to be proprietary, and even library source is
+        # reproducible from the frame above, so it is never worth the risk.
+        if raw.startswith(("    ", "\t")) and not raw.lstrip().startswith("at "):
+            self._note("drop", "echoed source line", line.strip()[:60])
+            return
+
+        m = EXC_RE.match(line)
+        if m and m.group("exc"):
+            exc = m.group("exc")
+            self.kept.append(exc + (": <message removed>" if m.group("msg") else ""))
+            self._note("keep", "exception type", exc)
+            return
+
+        self._note("drop", "unclassified", line.strip()[:60])
+
+
+def policy_note() -> list[str]:
+    """What the configured layers say about derived artifacts."""
+    if shutil.which("policy") is None:
+        return ["policy resolver not found — treat this output as derived and unreviewed"]
+    try:
+        r = subprocess.run(["policy", "check", POLICY_KEY], capture_output=True, text=True)
+    except OSError:
+        return ["could not run the policy resolver — treat this output as derived"]
+    # 127 and friends mean the resolver itself could not start (a missing
+    # interpreter, say). Echoing the shell's error as if it were a policy verdict
+    # is worse than saying plainly that the policy is unknown.
+    if r.returncode >= 126:
+        return [
+            "policy verdict unavailable — the resolver could not run",
+            "treat this output as derived and unreviewed",
+        ]
+    verdict = (r.stdout or r.stderr).strip().splitlines()
+    first = verdict[0] if verdict else f"exit {r.returncode}"
+    if r.returncode == 0:
+        return [f"derived artifacts: {first}", "a layer permits retention — review still applies"]
+    return [
+        f"derived artifacts: {first}",
+        "this reduced trace is a derived artifact: it was produced by reading the",
+        "original. Reduction changes what is legible, not where it came from.",
+        "Review it yourself before it leaves the machine.",
+    ]
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(prog="trace-public", add_help=True)
+    p.add_argument("file", nargs="?")
+    p.add_argument("--explain", action="store_true")
+    p.add_argument("--quiet", action="store_true")
+    p.add_argument("--no-lineno", dest="lineno", action="store_false", default=True)
+    p.add_argument("--keep-lineno", dest="lineno", action="store_true")
+    args = p.parse_args()
+
+    if args.file:
+        path = Path(args.file)
+        if not path.exists():
+            print(f"trace-public: not found: {path}", file=sys.stderr)
+            return 1
+        text = path.read_text(errors="replace")
+    else:
+        if sys.stdin.isatty():
+            print("trace-public: no input — pipe a trace or pass a file", file=sys.stderr)
+            print("  example: pbpaste | trace-public", file=sys.stderr)
+            return 1
+        text = sys.stdin.read()
+
+    r = Reducer(keep_lineno=args.lineno)
+    for raw in text.splitlines():
+        r.feed(raw)
+
+    if args.explain:
+        for verdict, reason, line in r.decisions:
+            mark = "keep" if verdict == "keep" else "DROP"
+            print(f"{mark:4}  {reason:34}  {line}")
+        return 0
+
+    if not r.kept:
+        print("trace-public: nothing recognisable as a stack trace", file=sys.stderr)
+        print("  every line was dropped, which is the safe outcome but not a useful one.",
+              file=sys.stderr)
+        print("  run with --explain to see why each line was rejected.", file=sys.stderr)
+        return 2
+
+    print("\n".join(r.kept))
+
+    if not args.quiet:
+        dropped = sum(n for (v, _), n in r.counts.items() if v == "drop")
+        print("", file=sys.stderr)
+        print(f"trace-public: kept {len(r.kept)} line(s), dropped {dropped}", file=sys.stderr)
+        for verdict in ("keep", "drop"):
+            rows = [(rsn, n) for (v, rsn), n in r.counts.items() if v == verdict]
+            for rsn, n in sorted(rows, key=lambda kv: -kv[1]):
+                print(f"  {verdict:4}  {n:>4}  {rsn}", file=sys.stderr)
+        print("", file=sys.stderr)
+        for line in policy_note():
+            print(f"  {line}", file=sys.stderr)
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
