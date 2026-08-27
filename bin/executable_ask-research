@@ -16,6 +16,10 @@
 #   --no-online      disable web search
 #   --no-zdr         disable Zero-Data-Retention routing (see the warning below)
 #   --dry-run        print the llm command without running it
+#   --approve-searches
+#                    confirm every web query before it is sent. Use whenever the
+#                    prompt is work-adjacent: a query is egress, and ZDR covers
+#                    the inference endpoint, not the search provider.
 #
 # Dependencies:       llm, python3 (both must be on PATH)
 #                     Installed and verified by the mise topic.
@@ -93,7 +97,7 @@ fail() {
 }
 
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/ask-research"
-SESSION=default; MODEL=""; ONLINE=1; ZDR=1; DRY=0
+SESSION=default; MODEL=""; ONLINE=1; ZDR=1; DRY=0; APPROVE=0
 CMD="${1:-}"; shift || true
 ARG=""
 
@@ -115,6 +119,7 @@ while [ $# -gt 0 ]; do
     --no-online) ONLINE=0; shift ;;
     --no-zdr)    ZDR=0; shift ;;
     --dry-run)   DRY=1; shift ;;
+    --approve-searches) APPROVE=1; shift ;;
     -h|--help)   show_help; exit 0 ;;
     --*|-?)
       # Unknown flags used to fall through to the positional branch, so a typo
@@ -133,8 +138,22 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# Help and usage must not depend on anything being configured correctly. Reached
+# when help is the *subcommand* (`ask-research --help`), which the flag loop
+# above never sees. This has to run before dependency and key validation, or
+# `--help` reports a missing API key instead of printing help.
+case "$CMD" in
+  -h|--help) show_help; exit 0 ;;
+  "")        show_help; exit 1 ;;
+esac
+
+# Commands that actually send a prompt. `list` and `show` only read local state,
+# so they must not be blocked by a missing tool or an unset search key.
+SENDS=0
+case "$CMD" in start|ask|ask-file) SENDS=1 ;; esac
+
 # A dry run only prints the command it would have run, so it needs no tools.
-[ "$DRY" = 1 ] || require llm python3
+if [ "$SENDS" = 1 ] && [ "$DRY" != 1 ]; then require llm python3; fi
 
 case "$SESSION" in
   */*|.|..) fail "invalid session name: '$SESSION'" \
@@ -163,7 +182,7 @@ opts=()
 # llm-tools-exa registers get_answer (search with citations) and get_contents
 # (fetch a URL), which suits a brief that demands primary sources better than a
 # search flag would.
-if [ "$ONLINE" = 1 ]; then
+if [ "$ONLINE" = 1 ] && [ "$SENDS" = 1 ]; then
   # Exa needs its own key. Without one the model still calls the tools, gets a
   # 401 on each, and reasons its way to "I could not retrieve this" — burning
   # tokens to produce unsourced output, which is the exact failure this brief
@@ -177,6 +196,19 @@ if [ "$ONLINE" = 1 ]; then
       "  ask-research $CMD ... --no-online"
   fi
   opts+=(-T get_answer -T get_contents)
+
+  # ethics.yaml forbids egress bypassing human review. A search query is egress:
+  # it is derived from the prompt and goes to a third party that ZDR routing says
+  # nothing about. --tools-approve is the mechanical form of that gate — every
+  # query is shown and confirmed before it leaves.
+  if [ "$APPROVE" = 1 ]; then
+    if ! (exec </dev/tty) 2>/dev/null; then
+      fail "--approve-searches needs a terminal to ask at" \
+        "there is none here, so it refuses rather than sending unreviewed queries" \
+        "run it interactively, or drop the flag to send without review"
+    fi
+    opts+=(--tools-approve)
+  fi
 fi
 
 # Count response files, excluding the accumulated transcript. `grep -c` exits
