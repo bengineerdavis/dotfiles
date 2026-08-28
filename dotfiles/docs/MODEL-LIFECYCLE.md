@@ -66,8 +66,15 @@ with its reason, so the same model is not reconsidered from scratch next month.
    in the manifest earns attention automatically. An unfamiliar name does not.
 3. **Does it have a build we can use?** MLX on Apple Silicon, the right quant
    on Linux. No usable build, no candidate.
-4. **Is the licence acceptable?** Open weights, redistributable.
-5. **Does it claim a capability we lack?** Longer context, vision, tool use.
+4. **Will the installed runtime load it?** New model formats routinely need a
+   newer engine, and the registry rejects the pull outright — `qwen3.8` returns
+   `412: requires a newer version of Ollama` against a 0.32.6 server. Check the
+   *server* version, not the client: they drift independently, and a launchd or
+   systemd agent keeps running the old binary until it is restarted. A runtime
+   upgrade is its own change with its own risk, so it is a prerequisite to
+   evaluate, never a step to fold silently into adopting a model.
+5. **Is the licence acceptable?** Open weights, redistributable.
+6. **Does it claim a capability we lack?** Longer context, vision, tool use.
 
 What triage explicitly does **not** consider: benchmark scores, announcement
 claims, or vibes. Those are not filters, they are marketing.
