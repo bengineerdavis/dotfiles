@@ -85,9 +85,27 @@ def run_script():
     Merged because the bats suite asserted against combined output, and several
     cases care that a message reaches the user without caring which stream.
     """
-    def _run(*args: str, stdin: str | None = None, cwd=None, env=None):
+    def _run(*args: str, stdin: str | None = None, cwd=None, env=None,
+             gated: bool = False):
+        # Capturing output means stdout is not a terminal, which is exactly what
+        # arms the pre-release review gate — so without this every success-path
+        # case would fail on a prompt it cannot answer. `gated=True` leaves the
+        # gate armed for the tests that are about the gate itself; everything
+        # else waives it, because a test asserting on redaction behaviour is not
+        # a test of review.
+        #
+        # --help and --dry-run never reach the gate, and adding an unknown-looking
+        # flag to an argument-error case would change what it is testing, so both
+        # are left alone.
+        # Prepended, never appended: `--input` with no value is a real test
+        # case, and a flag added after it would be consumed as its argument,
+        # quietly turning a "missing argument" test into something else.
+        skip_gate = not gated and not any(
+            a in ("--help", "-h", "--dry-run") for a in args
+        )
+        extra = ("--assume-reviewed",) if skip_gate else ()
         return subprocess.run(
-            [str(SCRIPT), *args],
+            [str(SCRIPT), *extra, *args],
             input=stdin,
             capture_output=True,
             text=True,
