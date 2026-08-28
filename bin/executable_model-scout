@@ -1,0 +1,379 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["pyyaml>=6"]
+# ///
+# -----------------------------------------------------------------------------
+# model-scout — find candidate models, and say why each one survives or does not.
+#
+# Usage:
+#   model-scout fetch                 refresh the catalogue cache
+#   model-scout triage [--all]        filter candidates against this machine
+#   model-scout status                what is cached, and how stale
+#
+# Options:
+#   --all        show rejected candidates too, with the filter that rejected them
+#   --json       machine-readable output
+#   --offline    triage from cache only; never touch the network
+#
+# Dependencies:       ollama (for local state); network for `fetch`
+# Exit codes: 0 ok | 1 usage/error | 2 cache missing or stale beyond --max-age
+# -----------------------------------------------------------------------------
+#
+# Implements Discover and Triage from dotfiles/docs/MODEL-LIFECYCLE.md. It stops
+# there on purpose:
+#
+#   * It never pulls weights. An 18 GB download is a decision.
+#   * It never benchmarks. That is `ollama-bench`, and it needs the GPU to itself.
+#   * It never edits the manifest. Adoption is a human commit.
+#
+# Discovery is allowed to be wrong, which is what makes it cheap. Nothing
+# downstream trusts its output until triage has filtered it and a human has read
+# the result.
+#
+# WHY THE CACHE IS DATED AND KEPT
+# A candidate rejected in March should not be re-litigated every week. The cache
+# is a record of what the catalogue looked like on a date, so a rejection can
+# cite the numbers it was made on — and so a scheduled run can diff against the
+# last one and report only what changed.
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+STATE = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state"))
+CACHE = STATE / "model-scout"
+MANIFEST = Path.home() / "dotfiles" / "apps" / "ollama" / "defaults" / "main.yaml"
+
+OPENROUTER_MODELS = "https://openrouter.ai/api/v1/models"
+OLLAMA_REGISTRY = "https://registry.ollama.ai/v2/library/{name}/manifests/{tag}"
+
+UA = {"User-Agent": "model-scout (personal dotfiles; catalogue triage)"}
+
+
+def die(msg: str, code: int = 1):
+    print(f"model-scout: {msg}", file=sys.stderr)
+    sys.exit(code)
+
+
+def require(*cmds: str) -> None:
+    missing = [c for c in cmds if shutil.which(c) is None]
+    if missing:
+        die(f"missing dependencies: {' '.join(missing)}", 1)
+
+
+def get_json(url: str, timeout: int = 30):
+    req = urllib.request.Request(url, headers=UA)
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.load(r)
+
+
+# --- machine facts, measured not assumed -------------------------------------
+
+
+def total_ram_gb() -> float:
+    """Physical RAM. Unified memory on Apple Silicon, so this is the GPU budget."""
+    try:
+        out = subprocess.run(["sysctl", "-n", "hw.memsize"], capture_output=True, text=True)
+        if out.returncode == 0:
+            return int(out.stdout.strip()) / 1024**3
+    except OSError:
+        pass
+    try:  # Linux
+        for line in Path("/proc/meminfo").read_text().splitlines():
+            if line.startswith("MemTotal:"):
+                return int(line.split()[1]) / 1024**2
+    except OSError:
+        pass
+    return 0.0
+
+
+def server_version() -> str | None:
+    """The *server* version, which is what refuses a pull — not the client.
+
+    They drift: brew upgrades the binary while a launchd agent keeps the old one
+    resident, so `ollama --version` can report a runtime that is not running.
+    """
+    try:
+        return get_json("http://127.0.0.1:11434/api/version", timeout=5).get("version")
+    except (urllib.error.URLError, OSError, json.JSONDecodeError, TimeoutError):
+        return None
+
+
+def version_tuple(v: str) -> tuple:
+    return tuple(int(x) for x in re.findall(r"\d+", v)[:3])
+
+
+def installed_models() -> dict[str, float]:
+    """tag -> size in GB, from the local daemon."""
+    try:
+        data = get_json("http://127.0.0.1:11434/api/tags", timeout=10)
+    except Exception:
+        return {}
+    return {m["name"]: m.get("size", 0) / 1024**3 for m in data.get("models", [])}
+
+
+def manifest_tags() -> set[str]:
+    """Every model tag the manifest mentions, so 'already tracked' is a fact."""
+    if not MANIFEST.exists():
+        return set()
+    import yaml
+
+    doc = yaml.safe_load(MANIFEST.read_text()) or {}
+    found: set[str] = set()
+
+    def walk(n):
+        if isinstance(n, dict):
+            for k, v in n.items():
+                if isinstance(k, str) and ":" in k and not k.startswith("http"):
+                    found.add(k)
+                walk(v)
+        elif isinstance(n, list):
+            for v in n:
+                walk(v)
+        elif isinstance(n, str) and ":" in n and not n.startswith(("http", "openrouter/")):
+            found.add(n)
+
+    walk(doc)
+    return found
+
+
+def manifest_families() -> set[str]:
+    """Family names, so a successor can be recognised as one."""
+    return {t.split(":")[0] for t in manifest_tags()}
+
+
+def budget_gb() -> float:
+    """What a model may occupy: total RAM minus the manifest's reserve."""
+    import yaml
+
+    reserve = 33
+    if MANIFEST.exists():
+        doc = yaml.safe_load(MANIFEST.read_text()) or {}
+        reserve = doc.get("ollama_ram_reserve_pct", 33)
+    return total_ram_gb() * (1 - reserve / 100)
+
+
+# --- fetch -------------------------------------------------------------------
+
+
+def cmd_fetch(args) -> int:
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    day = CACHE / datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    day.mkdir(parents=True, exist_ok=True)
+
+    wrote = []
+
+    try:
+        data = get_json(OPENROUTER_MODELS)
+        (day / "openrouter.json").write_text(json.dumps(data, indent=1))
+        wrote.append(f"openrouter.json ({len(data.get('data', []))} models)")
+    except Exception as e:
+        print(f"  openrouter: FAILED — {e}", file=sys.stderr)
+
+    local = installed_models()
+    if local:
+        (day / "ollama-local.json").write_text(json.dumps(local, indent=1))
+        wrote.append(f"ollama-local.json ({len(local)} installed)")
+    else:
+        print("  ollama: daemon unreachable, local state not captured", file=sys.stderr)
+
+    meta = {
+        "fetched": stamp,
+        "server_version": server_version(),
+        "total_ram_gb": round(total_ram_gb(), 1),
+        "budget_gb": round(budget_gb(), 1),
+    }
+    (day / "meta.json").write_text(json.dumps(meta, indent=1))
+
+    (CACHE / "latest").write_text(str(day))
+    for w in wrote:
+        print(f"  wrote {w}")
+    print(f"  cache: {day}")
+    return 0 if wrote else 1
+
+
+def latest_cache() -> Path | None:
+    ptr = CACHE / "latest"
+    if ptr.exists():
+        p = Path(ptr.read_text().strip())
+        if p.is_dir():
+            return p
+    days = sorted(d for d in CACHE.glob("20*") if d.is_dir())
+    return days[-1] if days else None
+
+
+# --- triage ------------------------------------------------------------------
+
+
+def triage_cloud(day: Path, tracked: set[str]) -> list[dict]:
+    """Filter hosted models. Cost and ZDR are the constraints that bite here."""
+    f = day / "openrouter.json"
+    if not f.exists():
+        return []
+    rows = []
+    for m in json.loads(f.read_text()).get("data", []):
+        mid = m.get("id", "")
+        pricing = m.get("pricing") or {}
+        try:
+            prompt_cost = float(pricing.get("prompt") or 0) * 1_000_000
+            out_cost = float(pricing.get("completion") or 0) * 1_000_000
+        except (TypeError, ValueError):
+            prompt_cost = out_cost = 0.0
+        created = m.get("created") or 0
+        age_days = (
+            (datetime.now(timezone.utc) - datetime.fromtimestamp(created, timezone.utc)).days
+            if created else None
+        )
+        reject = None
+        if f"openrouter/{mid}" in tracked:
+            reject = "already tracked"
+        elif re.search(r"(^|/)(openai|x-ai)/", mid):
+            reject = "hosted GPT/Grok excluded by policy"
+        elif prompt_cost == 0 and out_cost == 0:
+            reject = "no published price"
+        # openrouter/auto-beta prices at -1e6 as a sentinel for "router decides".
+        # A negative price is not a cheap model, it is an absent one.
+        elif prompt_cost < 0 or out_cost < 0:
+            reject = "sentinel price (router pseudo-model)"
+        # A :batch or :free suffix is the same model on different terms, not a
+        # new candidate. Without this the list doubles and reads as more choice
+        # than there is.
+        elif ":" in mid:
+            reject = f"variant of {mid.split(':')[0]}"
+        elif age_days is not None and age_days > 45:
+            reject = f"not new ({age_days}d)"
+        # The escalation role is the only cloud role, and it exists for work
+        # local models cannot do. Anything at or above the incumbent's price
+        # with no more context is not a candidate for it.
+        elif out_cost > 12.0:
+            reject = f"above the escalation budget (${out_cost}/Mtok out)"
+        rows.append({
+            "id": mid,
+            "kind": "cloud",
+            "context": m.get("context_length"),
+            "in_per_mtok": round(prompt_cost, 2),
+            "out_per_mtok": round(out_cost, 2),
+            "age_days": age_days,
+            "reject": reject,
+        })
+    return rows
+
+
+def triage_local(day: Path, tracked: set[str], families: set[str],
+                 budget: float, server: str | None) -> list[dict]:
+    """Filter what is installed locally against the manifest and the budget.
+
+    Deliberately limited to installed models plus tracked families: Ollama
+    publishes no tag-list endpoint (v2/tags/list is 404), so enumerating brand
+    new families needs the HTML listing, which is not a contract and is not
+    something a scheduled job should silently depend on. See `status` output.
+    """
+    f = day / "ollama-local.json"
+    if not f.exists():
+        return []
+    rows = []
+    for tag, gb in json.loads(f.read_text()).items():
+        reject = None
+        if tag in tracked:
+            reject = "already tracked"
+        elif gb > budget:
+            reject = f"over budget ({gb:.1f}GB > {budget:.1f}GB)"
+        rows.append({
+            "id": tag,
+            "kind": "local",
+            "gb": round(gb, 1),
+            "family": tag.split(":")[0],
+            "successor_of": tag.split(":")[0] if tag.split(":")[0] in families else None,
+            "reject": reject,
+        })
+    return rows
+
+
+def cmd_triage(args) -> int:
+    day = latest_cache()
+    if day is None:
+        die("no cache — run `model-scout fetch` first", 2)
+
+    meta = json.loads((day / "meta.json").read_text()) if (day / "meta.json").exists() else {}
+    tracked, families = manifest_tags(), manifest_families()
+    budget = meta.get("budget_gb") or budget_gb()
+    server = meta.get("server_version")
+
+    rows = triage_local(day, tracked, families, budget, server) + triage_cloud(day, tracked)
+    kept = [r for r in rows if not r["reject"]]
+
+    if args.json:
+        print(json.dumps({"cache": str(day), "meta": meta, "rows": rows}, indent=1))
+        return 0
+
+    print(f"cache {day.name}   budget {budget:.1f}GB   server {server or 'unreachable'}")
+    print(f"{len(rows)} catalogued, {len(kept)} survive triage\n")
+
+    for kind in ("local", "cloud"):
+        subset = [r for r in (rows if args.all else kept) if r["kind"] == kind]
+        if not subset:
+            continue
+        print(f"── {kind} ──")
+        for r in sorted(subset, key=lambda r: (r["reject"] is not None, r["id"])):
+            detail = (f"{r['gb']}GB" if kind == "local"
+                      else f"{r.get('context')}ctx ${r.get('in_per_mtok')}/${r.get('out_per_mtok')}")
+            mark = f"  REJECT: {r['reject']}" if r["reject"] else ""
+            print(f"  {r['id']:<48} {detail:<24}{mark}")
+        print()
+
+    if kept:
+        print("Next: these are candidates, not recommendations. Measure before adopting:")
+        for r in kept[:5]:
+            if r["kind"] == "local":
+                print(f"  ollama-bench run {r['id']} <incumbent>")
+    return 0
+
+
+def cmd_status(args) -> int:
+    day = latest_cache()
+    print(f"  cache root : {CACHE}")
+    if day is None:
+        print("  no cache yet — run `model-scout fetch`")
+        return 2
+    meta = json.loads((day / "meta.json").read_text()) if (day / "meta.json").exists() else {}
+    age = (datetime.now(timezone.utc) - datetime.strptime(day.name, "%Y-%m-%d").replace(tzinfo=timezone.utc)).days
+    print(f"  latest     : {day.name} ({age}d old)")
+    for k, v in meta.items():
+        print(f"  {k:<11}: {v}")
+    for f in sorted(day.glob("*.json")):
+        print(f"  file       : {f.name} ({f.stat().st_size} bytes)")
+    print()
+    print("  Not covered: new Ollama *families*. The registry has no tag-list")
+    print("  endpoint (v2/.../tags/list is 404), so discovering a family that is")
+    print("  not installed still needs a human reading ollama.com/library.")
+    return 0
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(prog="model-scout")
+    sub = p.add_subparsers(dest="cmd")
+    sub.add_parser("fetch")
+    t = sub.add_parser("triage")
+    t.add_argument("--all", action="store_true")
+    t.add_argument("--json", action="store_true")
+    sub.add_parser("status")
+    args = p.parse_args()
+    if not args.cmd:
+        p.print_help()
+        return 1
+    return {"fetch": cmd_fetch, "triage": cmd_triage, "status": cmd_status}[args.cmd](args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
