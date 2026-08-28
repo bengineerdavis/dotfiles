@@ -309,6 +309,9 @@ ollama_linux_models_root: /usr/share/ollama/.ollama/models
 ollama_model_perf:
   "granite4:3b":                  { gen_tok_s: 103.0, prompt_tok_s: 640,  load_ms: 8413,  gb: 2.6 }
   "gemma4:e4b-it-qat":            { gen_tok_s: 67.7,  prompt_tok_s: 159,  load_ms: 4559,  gb: 5.4 }
+  # Measured 2026-08-28, head to head against qwen3.6:27b-mlx in one run.
+  # Needs an ollama server >= 0.32.12; 0.32.6 refuses the pull with a 412.
+  "qwen3.8:27b-mlx":              { gen_tok_s: 44.3,  prompt_tok_s: 111,  load_ms: 5122,  gb: 18.0 }
   "glm-4.7-flash:q4_k_m":         { gen_tok_s: 58.1,  prompt_tok_s: 205,  load_ms: 5427,  gb: 19.0 }
   "gemma4:12b-mlx":               { gen_tok_s: 47.8,  prompt_tok_s: 199,  load_ms: 2747,  gb: 7.9 }
   "qwen3-vl:8b-instruct-q8_0":    { gen_tok_s: 40.5,  prompt_tok_s: 300,  load_ms: 3556,  gb: 9.2 }
@@ -395,7 +398,13 @@ ollama_roles:
     tiers:
       fast:     ["gemma4:12b-mlx"]           # 47.8 t/s
       balanced: ["glm-4.7-flash:q4_k_m"]     # 58.1 t/s — faster AND same size as best
-      best:     ["qwen3.6:27b-mlx"]          # 19.2 t/s, but adds vision
+      # PROVISIONAL (2026-08-28). Missing measurement: generation quality.
+      # Nothing here measures it, so this is NOT a claim that qwen3.8 answers
+      # better. It dominates the model it replaces on every axis that is
+      # measured — 2.25x the generation rate, 2GB smaller, 262144 context —
+      # and quality was equally unmeasured for the incumbent, so the swap
+      # costs no knowledge. Revisit when a generation eval exists.
+      best:     ["qwen3.8:27b-mlx"]          # 44.3 t/s, 18GB, +tools +thinking
   code:
     ctx: 32768
     tiers:
@@ -419,7 +428,7 @@ ollama_roles:
     ctx: 16384
     tiers:
       fast:     ["qwen3-vl:8b-instruct-q8_0"]  # 40.5 t/s, 9.2GB
-      best:     ["qwen3.6:27b-mlx"]            # 19.2 t/s, 20GB
+      best:     ["qwen3.8:27b-mlx"]            # 44.3 t/s, 18GB — see chat/best
   audio:
     # No MLX build can do this at any size; a GGUF -it- build is required.
     requires: [audio]
