@@ -12,8 +12,15 @@
 #   --quiet          reduced trace only, no summary on stderr
 #   --keep-lineno    keep line numbers in public frames (default: keep)
 #   --no-lineno      drop line numbers too
+#   --assume-reviewed
+#                    skip the approval prompt when piping. Announced on stderr.
 #
-# Exit codes: 0 reduced | 1 usage/refused | 2 nothing recognisable in the input
+# REVIEW IS REQUIRED BEFORE OUTPUT LEAVES
+# Printing to a terminal is review: you are looking at it. Piping or redirecting
+# is not, so that path shows the reduced trace and asks for approval first, on
+# /dev/tty so the prompt still reaches you. Declining writes nothing.
+#
+# Exit codes: 0 reduced | 1 usage/refused/not-approved | 2 nothing recognisable
 # -----------------------------------------------------------------------------
 #
 # WHITELIST, NOT BLACKLIST — and that is the whole point.
@@ -104,6 +111,69 @@ TRACE_HEADERS = (
 )
 
 POLICY_KEY = "boundaries.derived_artifacts.may_be_retained"
+
+# ---------------------------------------------------------------------------
+# The review gate
+# ---------------------------------------------------------------------------
+# ethics.yaml: egress.may_bypass_human_review is false. Printing a caveat does
+# not implement that — a caveat is advice, and `trace-public t.txt | pbcopy`
+# ignores advice silently.
+#
+# The signal is whether stdout is a terminal. If it is, the output is going to
+# your eyes and reading it *is* the review. If it is not, the output is headed
+# into a pipe, a file, or a clipboard — somewhere it can leave without anyone
+# having looked. That case asks first, on /dev/tty, so the prompt still reaches
+# you when stdout is redirected.
+#
+# There is a bypass, because a tool that cannot be scripted gets worked around
+# in ways that are worse. It is named to be deliberate and it says on stderr
+# that the gate was skipped, so a bypass is visible in logs rather than silent.
+
+
+def confirm_egress(rendered: str, dropped: int, tty=None) -> bool:
+    """Show the reduced trace and ask. True if the human approved.
+
+    `tty` accepts an already-open read/write stream so the gate can be unit
+    tested. Driving the real /dev/tty from a test requires becoming a session
+    leader with a controlling terminal — enough ceremony that the gate would
+    otherwise go untested, and an untested gate is the one that turns out to
+    have been advisory all along.
+    """
+    opened_here = tty is None
+    try:
+        if tty is None:
+            tty = open("/dev/tty", "r+")
+    except OSError:
+        print(
+            "trace-public: output is not going to a terminal, and there is no\n"
+            "  terminal to ask for approval at. Refusing to emit un-reviewed\n"
+            "  content.\n"
+            "  run it interactively, or pass --assume-reviewed if you have\n"
+            "  already read the reduced trace.",
+            file=sys.stderr,
+        )
+        return False
+    try:
+        print("── reduced trace, for review ──", file=tty)
+        print(rendered, file=tty)
+        print(f"── {dropped} line(s) dropped ──", file=tty)
+        print(
+            "This is a derived artifact. Send it only if you are satisfied\n"
+            "nothing site-specific remains.",
+            file=tty,
+        )
+        tty.write("Approve for output? [y/N] ")
+        tty.flush()
+        answer = tty.readline().strip().lower()
+    finally:
+        # Only close what this function opened; a caller-supplied stream stays
+        # the caller's to manage.
+        if opened_here:
+            tty.close()
+    if answer in ("y", "yes"):
+        return True
+    print("trace-public: not approved — nothing was written", file=sys.stderr)
+    return False
 
 
 def is_public_path(path: str) -> bool:
@@ -243,6 +313,12 @@ def main() -> int:
     p.add_argument("--quiet", action="store_true")
     p.add_argument("--no-lineno", dest="lineno", action="store_false", default=True)
     p.add_argument("--keep-lineno", dest="lineno", action="store_true")
+    p.add_argument(
+        "--assume-reviewed",
+        action="store_true",
+        help="skip the approval prompt when stdout is not a terminal; "
+        "says so on stderr, so a bypass stays visible",
+    )
     args = p.parse_args()
 
     if args.file:
@@ -275,7 +351,20 @@ def main() -> int:
         print("  run with --explain to see why each line was rejected.", file=sys.stderr)
         return 2
 
-    print("\n".join(r.kept))
+    rendered = "\n".join(r.kept)
+    dropped = sum(n for (v, _), n in r.counts.items() if v == "drop")
+
+    # Reading it on a terminal is the review. Anything else is egress.
+    if not sys.stdout.isatty() and not args.assume_reviewed:
+        if not confirm_egress(rendered, dropped):
+            return 1
+    elif args.assume_reviewed and not sys.stdout.isatty():
+        print(
+            "trace-public: review gate skipped via --assume-reviewed",
+            file=sys.stderr,
+        )
+
+    print(rendered)
 
     if not args.quiet:
         dropped = sum(n for (v, _), n in r.counts.items() if v == "drop")

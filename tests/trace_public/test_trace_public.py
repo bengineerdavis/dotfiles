@@ -60,9 +60,22 @@ ALL_TRACES = {
 }
 
 
-def run(text: str, *args: str) -> subprocess.CompletedProcess:
+def run(text: str, *args: str, gated: bool = False) -> subprocess.CompletedProcess:
+    """Invoke the script with stdout captured.
+
+    Capturing stdout means it is not a terminal, which is exactly what engages
+    the review gate — so every content assertion has to declare which side of
+    the gate it is testing. `gated=True` leaves the gate armed (for the tests
+    that are about the gate); everything else passes --assume-reviewed, because
+    a test asserting on reduction output is not a test of the gate.
+
+    Discovering this the hard way is worth recording: adding the gate broke 13
+    existing tests at once, which is what a real control looks like from the
+    inside.
+    """
+    extra = () if gated or "--explain" in args else ("--assume-reviewed",)
     return subprocess.run(
-        ["python3", str(SCRIPT), *args],
+        ["python3", str(SCRIPT), *args, *extra],
         input=text, capture_output=True, text=True,
     )
 
@@ -158,13 +171,113 @@ def test_output_is_never_described_as_safe_to_share():
         assert phrase not in err
 
 
-def test_quiet_suppresses_the_summary_but_not_the_output():
+def test_quiet_suppresses_the_summary_but_not_the_bypass_notice():
+    """--quiet is about noise, not about hiding that review was skipped.
+
+    A flag that silenced the bypass notice would make `--quiet
+    --assume-reviewed` a way to exfiltrate with no trace in the logs, which is
+    the opposite of what either flag is for.
+    """
     result = run(PY_TRACE, "--quiet")
     assert "django/db/models/query.py" in result.stdout
-    assert result.stderr.strip() == ""
+    assert "kept" not in result.stderr, "summary should be suppressed"
+    assert "review gate skipped" in result.stderr, "bypass must stay visible"
 
 
 def test_no_lineno_drops_line_numbers():
     out = run(PY_TRACE, "--no-lineno").stdout
     assert "django/db/models/query.py" in out
     assert "line 496" not in out
+
+
+# --- the review gate ---------------------------------------------------------
+# The gate is the difference between a caveat and a control. Its whole job is to
+# stop `trace-public t.txt | pbcopy` from succeeding unwatched, so the piped
+# path is tested first and hardest.
+
+
+def test_piped_output_is_withheld_without_approval():
+    """No terminal to ask at, so nothing may be emitted."""
+    result = run(PY_TRACE, gated=True)
+    assert result.returncode == 1
+    assert result.stdout.strip() == "", "content escaped without review"
+    assert "Refusing to emit un-reviewed" in result.stderr
+
+
+def test_assume_reviewed_emits_and_announces_the_bypass():
+    result = run(PY_TRACE, "--assume-reviewed", "--quiet")
+    assert result.returncode == 0
+    assert "django/db/models/query.py" in result.stdout
+    assert "review gate skipped" in result.stderr, "a bypass must not be silent"
+
+
+def _module():
+    """Load the script as a module so the gate can be called directly."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_loader("tp", loader=None)
+    mod = importlib.util.module_from_spec(spec)
+    src = SCRIPT.read_text().split("if __name__ ==")[0]
+    exec(compile(src, str(SCRIPT), "exec"), mod.__dict__)
+    return mod
+
+
+class _FakeTTY:
+    """Minimal duplex stream: records writes, returns a queued answer."""
+
+    def __init__(self, answer: str):
+        self._answer = answer
+        self.shown: list[str] = []
+
+    def write(self, s: str) -> int:
+        self.shown.append(s)
+        return len(s)
+
+    def flush(self) -> None:
+        pass
+
+    def readline(self, *a) -> str:
+        return self._answer
+
+    def close(self) -> None:
+        pass
+
+    @property
+    def text(self) -> str:
+        return "".join(self.shown)
+
+
+@pytest.mark.parametrize(
+    "answer,approved",
+    [("y\n", True), ("Y\n", True), ("yes\n", True),
+     ("n\n", False), ("\n", False), ("maybe\n", False), ("", False)],
+)
+def test_gate_honours_the_answer_and_fails_closed(answer, approved):
+    """Anything that is not an explicit yes declines, including a bare Enter."""
+    tp = _module()
+    tty = _FakeTTY(answer)
+    assert tp.confirm_egress("BODY", 3, tty=tty) is approved
+
+
+def test_gate_shows_the_content_and_the_provenance_warning():
+    tp = _module()
+    tty = _FakeTTY("n\n")
+    tp.confirm_egress("REDUCED-TRACE-BODY", 3, tty=tty)
+    assert "REDUCED-TRACE-BODY" in tty.text, "cannot approve what you were not shown"
+    assert "derived artifact" in tty.text
+    assert "Approve for output?" in tty.text
+
+
+def test_gate_does_not_close_a_caller_supplied_stream():
+    """Closing an injected stream would break the caller that owns it."""
+    tp = _module()
+
+    class Tracking(_FakeTTY):
+        closed = False
+
+        def close(self):
+            self.closed = True
+
+    tty = Tracking("y\n")
+    tp.confirm_egress("BODY", 0, tty=tty)
+    assert not tty.closed
