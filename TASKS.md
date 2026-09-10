@@ -153,6 +153,41 @@ delete the line and say so in your commit.
   on pre-commit and the full run on pre-push, matching how the bats hook already
   declares `stages: [pre-commit, pre-push]`.
 
+- Use local models to generate a machine-local policy layer from on-device
+  policy documents. The source documents cannot leave the device, which is
+  exactly why a local model is the right tool: it reads them in place and emits
+  an abstracted set of principles that the resolver can consume. The generated
+  layer is machine-local and never versioned, same as `company.yaml` today.
+  Output must be principles, not quotations — a generated layer that reproduces
+  source text has moved the document, not abstracted it.
+- Design the state backup path, classified by machine ownership and data
+  sensitivity. Back up only what is expensive to regenerate — model weights,
+  eval results, benchmark history — and regenerate the rest. Rules that fall out
+  of the author interview, in priority order: PII never leaves the internal disk
+  under any circumstance; a machine the author does not own can use neither
+  cloud nor external disk, only its internal disk; everything else may use
+  external disk or encrypted cloud. No mechanism exists today, so expensive
+  state currently has no backup at all.
+- Review what may and may not leave a machine the author does not own, against
+  the governing policy for that machine. Feeds both the backup design above and
+  the generated policy layer. Existing work on this is scattered — collect it
+  first rather than restarting.
+- Add employer-specific data filters as a machine-local, generated artifact.
+  They must never be committed: a filter list names what it is filtering for, so
+  a versioned one leaks the thing it exists to catch. Same shape as the
+  generated policy layer above.
+
+- Generalise the work/AI policy so topics consume it rather than embedding it.
+  Policy governs actions on data — remote inference, body logging, device
+  suitability — and those questions do not change when the model runtime does.
+  Today `bin/policy`'s FIELDS are already product-neutral, which is the good
+  half; the gap is that no topic declares the capabilities it exercises, so
+  consumption is by hand at each call site and nothing stops a topic deciding
+  for itself. Wanted: a topic declares which capabilities it uses, the resolver
+  answers, and adding a second local runtime alongside or instead of ollama
+  requires no policy change. Pairs with `spec.md` § Shared code does not assume
+  a provider, which states the rule but has no mechanism behind it.
+
 ## History was rewritten on 2026-08-21 — reset before you resume
 
 `main` was force-pushed. Every SHA from `bc72f5c` onward is new. Two mixed
