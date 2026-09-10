@@ -239,6 +239,65 @@ Two exceptions, and both must be stated in the task itself:
   rebase when the parent merges. A3 builds on A2's CLI, so it cannot start from
   main and still compile.
 
+### What kind of dependency is it
+
+"Depends on" is four different relationships, and they do not get the same
+answer. The discriminator is **whether the earlier item can merge on its own**.
+If it can, the items stay on separate branches. If it cannot, they share one.
+
+**Information dependency — separate branches, strict order.** The earlier item
+produces a decision or a document, not code. A1 answers the roadmap's open
+questions; B1 picks the new home; B2 writes the move manifest; B3 defines the
+state contract. Each merges alone in one small commit, and unblocks the rest by
+being on main. Nothing needs stacking because there is no code to build on.
+
+These are the cheapest items in any plan and they should be landed first and
+fast, because **a decision item is a parallelism unlock**. B1, B2 and B3 on main
+turn B4 through B7 from a serial chain into work several agents can take at
+once. Sitting on an unmerged decision serialises everything behind it.
+
+**Code dependency — stack, or wait for main.** The later item builds on the
+earlier one's code. A3, A4 and A5 all need `topic new` from A2; B6 and B7 need
+the moved resolver from B4. The parent is independently mergeable, so branch the
+child off the parent and rebase when the parent lands — or simply wait, if
+nothing is gained by starting early.
+
+Stacking buys parallelism and charges rebases for it, and the charge compounds:
+every stacked branch rebases when its parent merges, and conflicts multiply with
+depth. Stack two deep freely. Three deep with a reason. Deeper than that, either
+collapse the stack into one branch or admit the decomposition was wrong.
+
+**Atomic dependency — one branch, always.** Neither half stands alone. B4 and B5
+are the case: moving the policy resolver without the capability interface
+relocates the duplication instead of removing it. Note what this actually is —
+not really a dependency, but a decomposition that split something indivisible,
+caught late. Sharing the branch is the repair.
+
+**Verification dependency — the parent must be on main first.** Characterization
+tests have to land before the rewrite starts, so the rewrite branch inherits
+them. Starting the rewrite from a branch that predates its own safety net
+defeats the point of writing it.
+
+**And one thing that looks like a dependency and is not: a collision.** Two items
+touching `conftest.py` or the governance documents are not ordered by logic, they
+just cannot be merged carelessly. The remedy is different — sequence them, or
+land the shared change first as its own item. Treating a collision as a
+dependency builds a stack nothing required.
+
+### What multi-item branches cost
+
+Share a branch only for atomic pairs. The temptation is to group a whole refactor
+onto one long-lived branch, and it should be resisted, because that reproduces
+exactly the problem branches were adopted to fix: a big-bang merge whose diff
+nobody can review and whose conflicts arrive all at once.
+
+There is a useful self-regulating property here. A branch carrying several items
+has a larger blast radius and is likelier to touch a policy path or a deployed
+file, so it fails § Merge gates and drops to review by a human. Multi-item
+branches get more scrutiny automatically — which is right, and which is also a
+signal: if a branch keeps failing the gates, it is probably carrying more than
+one decision.
+
 ### Never branched
 
 - **`TASKS.md`** — the shared queue. Commit it straight to main with nothing else
