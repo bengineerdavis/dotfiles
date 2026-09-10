@@ -137,6 +137,30 @@ delete the line and say so in your commit.
   1.0.0. Common Changelog is the other candidate. Confirm which before writing
   the rule.]**
 
+- Write `PRD.md` — what this repo is for, who it serves, what is out of scope.
+  It is the missing Requirements document: `spec.md` says what must stay TRUE
+  and `TASKS.md` says what is in flight, but nothing states what the project is
+  FOR, so scope arguments have no reference to settle against. Must be written
+  by interviewing the author, not drafted from repo evidence — a PRD inferred
+  from the code is exactly the "compliance artifact that reads as authoritative
+  and is not" that `spec.md` § Ambiguity is marked, not resolved warns about.
+  **[blocked: needs the author for an interview pass]**
+- Install `ty` and typecheck the Python. Named in the house toolchain and
+  currently absent — not installed, zero references in the repo. 32 test files
+  and 36 PEP 723 scripts are unchecked. Note `ty` is pre-1.0; decide whether it
+  gates commits or just reports before wiring it into `prek`.
+- Wire `ruff` into `.pre-commit-config.yaml`. It is installed and the toolchain
+  names it, but the hook config runs shellcheck and bats only, so no Python file
+  in this repo is linted on commit. Settle the ruleset first — 36 scripts written
+  before any linter will not pass a default config cleanly.
+- Reconcile `prek` and `pre-commit`. Both are installed and both read
+  `.pre-commit-config.yaml`. Pick one as the documented runner so hooks cannot
+  pass under one and fail under the other, and say which in AGENTS.md § Commands.
+- Add a pytest hook to pre-commit, or decide deliberately not to. The suite takes
+  104s, which is too slow for every commit — the likely answer is the fast subset
+  on pre-commit and the full run on pre-push, matching how the bats hook already
+  declares `stages: [pre-commit, pre-push]`.
+
 ## History was rewritten on 2026-08-21 — reset before you resume
 
 `main` was force-pushed. Every SHA from `bc72f5c` onward is new. Two mixed
