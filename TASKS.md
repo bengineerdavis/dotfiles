@@ -39,6 +39,7 @@ Format: `- <UTC start> — <what> — <files or resource>`
 
 - 2026-08-27T18:20Z — adding the pre-egress review gate (as in bin/trace-public) — bin/executable_pii-redactor
 - 2026-09-10T21:25Z — adding a chrome browser topic (separate session, reported by the author) — dotfiles/apps/chrome, install/remove tasks
+- 2026-09-10T23:58Z — rebuilding agent permission defaults [agent: claude session 5100b7bb] — .claude/settings.json, branch agent-permissions
 
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
@@ -57,7 +58,7 @@ delete the line and say so in your commit.
   `Bash(git commit -m ' *)` allow staging and committing anything, which sits
   badly beside `spec.md` § Change records.
   Review best practices before designing this — do not invent a scheme. Use the
-  `prior-art-first` skill for that pass; permission models are a solved problem
+  `review-best-practices` skill for that pass; permission models are a solved problem
   in adjacent spaces (sandboxing, capability systems, sudoers), which is exactly
   the case it was written for. Then:
   - **deny is the half that matters and is currently empty.** It should cover
