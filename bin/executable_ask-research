@@ -20,6 +20,11 @@
 #                    confirm every web query before it is sent. Use whenever the
 #                    prompt is work-adjacent: a query is egress, and ZDR covers
 #                    the inference endpoint, not the search provider.
+#   --work-tagged    this session carries work content. Asks the policy layers
+#                    whether prompt bodies may be logged, and passes -n when they
+#                    do not say yes. Unlike `triage`, which is work-tagged by
+#                    construction, this tool is general-purpose — so the tag is
+#                    explicit and defaults off.
 #
 # Dependencies:       llm, python3 (both must be on PATH)
 #                     Installed and verified by the mise topic.
@@ -97,7 +102,7 @@ fail() {
 }
 
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/ask-research"
-SESSION=default; MODEL=""; ONLINE=1; ZDR=1; DRY=0; APPROVE=0
+SESSION=default; MODEL=""; ONLINE=1; ZDR=1; DRY=0; APPROVE=0; WORK=0
 CMD="${1:-}"; shift || true
 ARG=""
 
@@ -120,6 +125,7 @@ while [ $# -gt 0 ]; do
     --no-zdr)    ZDR=0; shift ;;
     --dry-run)   DRY=1; shift ;;
     --approve-searches) APPROVE=1; shift ;;
+    --work-tagged) WORK=1; shift ;;
     -h|--help)   show_help; exit 0 ;;
     --*|-?)
       # Unknown flags used to fall through to the positional branch, so a typo
@@ -175,6 +181,24 @@ MODEL="${MODEL:-${OLLAMA_ROLE_ESCALATE:-openrouter/anthropic/claude-sonnet-5}}"
 
 opts=()
 [ "$ZDR" = 1 ] && opts+=(-o provider '{"zdr":true}')
+
+# ── Work-tagged prompts: ask the policy layers before logging bodies ─────────
+# Mirrors bin/triage. `policy check` exits 0 permitted, 1 denied, 2 unknown, and
+# callers must treat 1 and 2 alike: the layers are restrictions-only, so 0 is
+# currently unreachable and denial is the normal answer rather than an error.
+#
+# A missing or broken resolver is itself a denial. Any other reading would mean
+# deleting one script quietly turns logging back on for work content.
+logging_permitted() {
+  command -v policy >/dev/null 2>&1 || return 1
+  policy check boundaries.llm_processing.log_bodies_allowed >/dev/null 2>&1
+}
+
+if [ "$WORK" = 1 ] && ! logging_permitted; then
+  opts+=(-n)
+  echo "[ask-research] prompt bodies not logged — policy denies, or is silent on," \
+       "boundaries.llm_processing.log_bodies_allowed. See \`policy explain\`." >&2
+fi
 
 # Web access is TOOLS, not an option. `-o online true` was invalid and failed
 # every run with "Error: online / Extra inputs are not permitted"; llm-openrouter
@@ -302,6 +326,12 @@ banner() {
   { echo "session: $SESSION   model: $MODEL"
     echo "web    : $([ "$ONLINE" = 1 ] && echo 'ON (Exa tools: get_answer, get_contents)' || echo 'off — claims will not be web-verified')   \
 zdr: $([ "$ZDR" = 1 ] && echo ON || echo '*** OFF — provider may retain ***')"
+    # `if`, not `[ … ] && echo`: as the last command in this group the test's
+    # own exit status becomes the group's, so an untagged run returned 1 and
+    # `set -e` killed the script right after the banner.
+    if [ "$WORK" = 1 ]; then
+      echo "work   : TAGGED — bodies logged only if policy permits"
+    fi
   } >&2
 }
 
