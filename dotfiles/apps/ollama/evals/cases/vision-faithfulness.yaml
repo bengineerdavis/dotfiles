@@ -1,0 +1,132 @@
+role: vision
+property: faithfulness
+# Grounding in the IMAGE rather than in priors. The count is small and
+# unambiguous, so a model that actually looks gets it and a model that pattern-
+# matches on "how many circles" guesses. This is the second ANSWER-shaped
+# faithfulness case: hedging ("I cannot determine") fails, so a model cannot
+# farm the faithfulness column by refusing everything.
+#
+# The image is SYNTHESISED by the harness from the declarative spec below — no
+# real material, byte-identical on every host, and reviewable as text in git,
+# which a checked-in PNG would not be.
+num_ctx: 16384
+image:
+  size: [320, 240]
+  background: white
+  shapes:
+    - {kind: circle, color: red,  center: [50, 60],  r: 22}
+    - {kind: circle, color: red,  center: [120, 60], r: 22}
+    - {kind: circle, color: red,  center: [190, 60], r: 22}
+    - {kind: rect,   color: blue, at: [40, 130],  size: [70, 70]}
+    - {kind: rect,   color: blue, at: [150, 140], size: [50, 50]}
+vars:
+  expected: 3
+# Counting degrades with object count long before it fails outright, so this is
+# the natural difficulty axis for vision. Each level changes the image AND the
+# expected count together, which is what `vars` is for — the check stays one
+# piece of code and the level rebinds what "correct" means.
+sweep:
+  ordered: true
+  levels:
+    - label: "3"
+      vars: {expected: 3}
+    - label: "6"
+      vars: {expected: 6}
+      image:
+        size: [320, 240]
+        background: white
+        shapes:
+          - {kind: circle, color: red,  center: [45, 45],  r: 18}
+          - {kind: circle, color: red,  center: [110, 45], r: 18}
+          - {kind: circle, color: red,  center: [175, 45], r: 18}
+          - {kind: circle, color: red,  center: [45, 95],  r: 18}
+          - {kind: circle, color: red,  center: [110, 95], r: 18}
+          - {kind: circle, color: red,  center: [175, 95], r: 18}
+          - {kind: rect,   color: blue, at: [40, 150],  size: [60, 60]}
+          - {kind: rect,   color: blue, at: [150, 155], size: [45, 45]}
+    - label: "10"
+      vars: {expected: 10}
+      image:
+        size: [320, 240]
+        background: white
+        shapes:
+          - {kind: circle, color: red,  center: [35, 40],  r: 14}
+          - {kind: circle, color: red,  center: [100, 40], r: 14}
+          - {kind: circle, color: red,  center: [165, 40], r: 14}
+          - {kind: circle, color: red,  center: [230, 40], r: 14}
+          - {kind: circle, color: red,  center: [290, 40], r: 14}
+          - {kind: circle, color: red,  center: [35, 85],  r: 14}
+          - {kind: circle, color: red,  center: [100, 85], r: 14}
+          - {kind: circle, color: red,  center: [165, 85], r: 14}
+          - {kind: circle, color: red,  center: [230, 85], r: 14}
+          - {kind: circle, color: red,  center: [290, 85], r: 14}
+          - {kind: rect,   color: blue, at: [40, 140],  size: [55, 55]}
+          - {kind: rect,   color: blue, at: [150, 145], size: [40, 40]}
+    # Canvas grows with the count so circles stay well separated — a crowded
+    # image would measure resolution, not counting.
+    - label: "15"
+      vars: {expected: 15}
+      image:
+        size: [400, 300]
+        background: white
+        shapes:
+          - {kind: circle, color: red, center: [45, 40],   r: 13}
+          - {kind: circle, color: red, center: [120, 40],  r: 13}
+          - {kind: circle, color: red, center: [195, 40],  r: 13}
+          - {kind: circle, color: red, center: [270, 40],  r: 13}
+          - {kind: circle, color: red, center: [345, 40],  r: 13}
+          - {kind: circle, color: red, center: [45, 100],  r: 13}
+          - {kind: circle, color: red, center: [120, 100], r: 13}
+          - {kind: circle, color: red, center: [195, 100], r: 13}
+          - {kind: circle, color: red, center: [270, 100], r: 13}
+          - {kind: circle, color: red, center: [345, 100], r: 13}
+          - {kind: circle, color: red, center: [45, 160],  r: 13}
+          - {kind: circle, color: red, center: [120, 160], r: 13}
+          - {kind: circle, color: red, center: [195, 160], r: 13}
+          - {kind: circle, color: red, center: [270, 160], r: 13}
+          - {kind: circle, color: red, center: [345, 160], r: 13}
+          - {kind: rect,  color: blue, at: [45, 205],  size: [70, 70]}
+          - {kind: rect,  color: blue, at: [160, 215], size: [50, 50]}
+    - label: "20"
+      vars: {expected: 20}
+      image:
+        size: [400, 300]
+        background: white
+        shapes:
+          - {kind: circle, color: red, center: [45, 35],   r: 12}
+          - {kind: circle, color: red, center: [120, 35],  r: 12}
+          - {kind: circle, color: red, center: [195, 35],  r: 12}
+          - {kind: circle, color: red, center: [270, 35],  r: 12}
+          - {kind: circle, color: red, center: [345, 35],  r: 12}
+          - {kind: circle, color: red, center: [45, 90],   r: 12}
+          - {kind: circle, color: red, center: [120, 90],  r: 12}
+          - {kind: circle, color: red, center: [195, 90],  r: 12}
+          - {kind: circle, color: red, center: [270, 90],  r: 12}
+          - {kind: circle, color: red, center: [345, 90],  r: 12}
+          - {kind: circle, color: red, center: [45, 145],  r: 12}
+          - {kind: circle, color: red, center: [120, 145], r: 12}
+          - {kind: circle, color: red, center: [195, 145], r: 12}
+          - {kind: circle, color: red, center: [270, 145], r: 12}
+          - {kind: circle, color: red, center: [345, 145], r: 12}
+          - {kind: circle, color: red, center: [45, 200],  r: 12}
+          - {kind: circle, color: red, center: [120, 200], r: 12}
+          - {kind: circle, color: red, center: [195, 200], r: 12}
+          - {kind: circle, color: red, center: [270, 200], r: 12}
+          - {kind: circle, color: red, center: [345, 200], r: 12}
+          - {kind: rect,  color: blue, at: [45, 240],  size: [50, 50]}
+          - {kind: rect,  color: blue, at: [150, 245], size: [40, 40]}
+prompt: |
+  Look at the image. How many red circles does it contain? Answer with the
+  number. Do not describe anything the image does not show.
+check: |
+  import re
+  W = {"zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+       "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12}
+  m = re.search(r'\b(\d+)\b', response)
+  if m:
+      n = int(m.group(1))
+  else:
+      wm = re.search(r'\b(' + "|".join(W) + r')\b', response, re.I)
+      assert wm, f"gave no count: {' '.join(response.split())[:120]!r}"
+      n = W[wm.group(1).lower()]
+  assert n == expected, f"counted {n}; the image shows {expected} red circles"

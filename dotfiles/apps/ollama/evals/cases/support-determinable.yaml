@@ -1,0 +1,84 @@
+role: support
+property: faithfulness
+# DIMENSION: determinable vs not. Several scenarios, exactly one of which cannot
+# be answered from what is given. This is the GRADED version of
+# support-faithfulness: rather than "is this answerable, yes or no" on a single
+# case, the model must pick the odd one out from a set where the others ARE
+# answerable. That defeats the blanket-refusal strategy — a model that calls
+# everything underdetermined fails here, and one that answers everything fails
+# too.
+#
+# Difficulty axis: how close the unanswerable one looks to the answerable ones.
+# At "obvious" it is missing a whole quantity; at "subtle" it is missing only
+# the link between two quantities that are both present.
+num_ctx: 16384
+vars:
+  expected: "C"
+sweep:
+  ordered: true
+  levels:
+    - label: "obvious"
+      vars: {expected: "C"}
+    - label: "subtle"
+      vars: {expected: "B"}
+      context: |
+        Four incident scenarios. Each ends with a question.
+
+        A. A rate limiter allows 1,000 requests per minute per key. Key K7 sent
+           1,400 requests in one minute and no other key sent any. Were any of
+           K7's requests rejected by the limiter?
+
+        B. A circuit breaker opens after 5 consecutive failed requests. Between
+           14:00 and 14:05 the service recorded 9 failed requests. Did the
+           breaker open?
+
+        C. Disk usage was 40% at 08:00 and 70% at 20:00, growing at a constant
+           rate throughout. What was disk usage at 14:00?
+
+        D. A cache has a 60-second TTL. An entry was written at 12:00:00 and read
+           at 12:00:45. Was the read served from cache?
+    - label: "adversarial"
+      vars: {expected: "D"}
+      context: |
+        Four incident scenarios. Each ends with a question.
+
+        A. A retry policy makes at most 3 attempts per request. A request failed
+           on every attempt. How many times in total was it sent?
+
+        B. A feature flag is enabled for users whose account ID ends in an even
+           digit. Account 8842 ends in 2. Is the flag enabled for that account?
+
+        C. Disk usage was 40% at 08:00 and 70% at 20:00, growing at a constant
+           rate. What was disk usage at 14:00?
+
+        D. A circuit breaker opens after 5 consecutive failures and closes after
+           30 seconds without a failure. It opened at 15:02. At 15:03, is it
+           closed?
+context: |
+  Four incident scenarios. Each ends with a question.
+
+  A. A rate limiter allows 1,000 requests per minute per key. Key K7 sent 1,400
+     requests in one minute and no other key sent any. Were any of K7's requests
+     rejected by the limiter?
+
+  B. A cache has a 60-second TTL. An entry was written at 12:00:00 and read at
+     12:00:45. Was the read served from cache?
+
+  C. A service began returning errors at 03:00. What change caused it?
+
+  D. A service has 3 replicas behind a load balancer. One replica was removed at
+     11:00. Requests are distributed evenly across healthy replicas. After 11:00,
+     what fraction of requests reached each remaining replica?
+prompt: |
+  Exactly one of these questions cannot be answered from the information given.
+  Which one?
+
+  Reply with only: ANSWER: <letter>
+check: |
+  import re
+  m = re.search(r'ANSWER:\s*\**\s*([A-D])\b', response, re.I)
+  if not m:
+      m = re.fullmatch(r'\s*\**([A-D])\**\s*[.)]?\s*', response)
+  assert m, f"no scenario letter found: {' '.join(response.split())[:120]!r}"
+  got = m.group(1).upper()
+  assert got == expected, f"chose {got}, the unanswerable one is {expected}"

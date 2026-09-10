@@ -1,0 +1,83 @@
+role: think
+property: correctness
+# DIMENSION: counterfactual revision. The model must hold an ordered sequence of
+# state changes, mentally delete ONE of them, and re-run the rest. That is a
+# strict superset of executing the sequence once — which every candidate model
+# already proved it can do — so a failure here isolates the revision step.
+#
+# No arithmetic: the state is a SET of route names, and every operation is an
+# add or a remove. Nothing to add up, nothing to round, no fractions to argue
+# about. This is deliberate — the previous ladder failed because arithmetic
+# phrasing carried hidden ambiguity.
+#
+# Difficulty axis: how far back the deleted operation sits, i.e. how many
+# operations must be re-applied after it.
+#
+# Every level is verified by SIMULATION: the harness-side verifier replays the
+# sequence with and without the deleted step and asserts (a) the declared answer
+# matches the replay and (b) it DIFFERS from the unmodified outcome — otherwise
+# a model could score by ignoring the counterfactual entirely.
+num_ctx: 16384
+vars:
+  expected: "bravo, delta, echo"
+sweep:
+  ordered: true
+  levels:
+    - label: "1-back"
+      vars: {expected: "bravo, delta, echo"}
+      prompt: |
+        Suppose operation 10 had never been applied. Every other operation still
+        happened, in the same order.
+
+        Which routes are in the table at the end? Reply with only:
+        ANSWER: <names, comma-separated, alphabetical>
+    - label: "2-back"
+      vars: {expected: "alpha, bravo, charlie, delta, echo"}
+      prompt: |
+        Suppose operation 9 had never been applied. Every other operation still
+        happened, in the same order.
+
+        Which routes are in the table at the end? Reply with only:
+        ANSWER: <names, comma-separated, alphabetical>
+    - label: "4-back"
+      vars: {expected: "alpha, delta, echo"}
+      prompt: |
+        Suppose operation 7 had never been applied. Every other operation still
+        happened, in the same order.
+
+        Which routes are in the table at the end? Reply with only:
+        ANSWER: <names, comma-separated, alphabetical>
+context: |
+  A routing table starts empty. Adding a route that is already present changes
+  nothing. Removing a route that is not present changes nothing.
+
+  These operations were applied in order:
+
+     1. add alpha
+     2. add bravo
+     3. add charlie
+     4. remove bravo
+     5. add delta
+     6. remove alpha
+     7. add bravo
+     8. add echo
+     9. remove charlie
+    10. add alpha
+prompt: |
+  Suppose operation 10 had never been applied. Every other operation still
+  happened, in the same order.
+
+  Which routes are in the table at the end? Reply with only:
+  ANSWER: <names, comma-separated, alphabetical>
+check: |
+  import re
+  NAMES = ("alpha", "bravo", "charlie", "delta", "echo")
+  seg = response
+  m = re.search(r'ANSWER:\s*(.+)', response, re.I)
+  if m:
+      seg = m.group(1)
+  got = sorted(set(n.lower() for n in re.findall(
+      r'\b(' + "|".join(NAMES) + r')\b', seg, re.I)))
+  want = sorted(n.strip() for n in expected.split(","))
+  assert got, f"named no routes: {' '.join(response.split())[:120]!r}"
+  assert got == want, f"answered {got}, correct is {want}"

@@ -1,0 +1,18 @@
+role: chat
+property: instruction-adherence
+# A shape a script can validate, so the check needs no judgement: three keys,
+# right types, and nothing extra. Models that "helpfully" add commentary around
+# the JSON fail here, which is the failure that breaks callers parsing output.
+prompt: |
+  Reply with ONLY a JSON object, no prose, no code fence. It must have exactly
+  these keys: "city" (string), "population" (integer), "coastal" (boolean).
+  Use Lisbon.
+check: |
+  import json, re
+  raw = response.strip()
+  raw = re.sub(r'^```(?:json)?|```$', '', raw, flags=re.M).strip()
+  d = json.loads(raw)
+  assert set(d) == {"city", "population", "coastal"}, f"keys: {sorted(d)}"
+  assert isinstance(d["city"], str)
+  assert isinstance(d["population"], int)
+  assert isinstance(d["coastal"], bool)

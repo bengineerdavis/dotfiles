@@ -1,0 +1,69 @@
+role: extract
+property: correctness
+# Data extraction is 2.3% of logged traffic but underpins far more — anything
+# that pipes model output into a script depends on it. This is the ANSWER-shaped
+# half: every requested field IS present, so hedging or omitting fails.
+#
+# Two fields need a small reasoning step rather than a copy: `severity` is stated
+# twice and the FINAL value is wanted, and `tenants_affected` is written as a
+# word rather than a digit. A pure pattern-matcher gets those wrong.
+#
+# `extract` is a TASK CLASS, not a routing role — ollama_roles has no `extract`
+# entry, same as `support`.
+num_ctx: 16384
+vars:
+  expected: '{"ticket_id":"TCK-4471","component":"ingest-worker","region":"eu-west-1","severity":"S2","tenants_affected":3}'
+sweep:
+  ordered: true
+  levels:
+    - label: "clean"
+      vars:
+        expected: '{"ticket_id":"TCK-4471","component":"ingest-worker","region":"eu-west-1","severity":"S2","tenants_affected":3}'
+    - label: "buried"
+      vars:
+        expected: '{"ticket_id":"TCK-4471","component":"ingest-worker","region":"eu-west-1","severity":"S1","tenants_affected":12}'
+      context: |
+        ---- paging log ----
+        09:22 UTC  ticket TCK-4470 opened against billing-api in us-east-1, S4,
+                   closed 09:24 as duplicate.
+        09:22 UTC  ticket TCK-4471 opened by the on-call rotation. Reporter:
+                   platform-team. Severity S3.
+        09:31 UTC  TCK-4471 component confirmed as ingest-worker (initially
+                   suspected to be ingest-gateway, ruled out at 09:29).
+        09:40 UTC  TCK-4471 region eu-west-1. Note: a mirror of this workload
+                   also runs in ap-south-1 but was unaffected.
+        10:05 UTC  TCK-4471 severity raised to S2.
+        10:18 UTC  TCK-4471 severity raised again to S1 after twelve tenants
+                   reported delayed ingestion.
+        10:41 UTC  TCK-4471 worker pool restarted. Root cause not yet identified.
+        10:44 UTC  ticket TCK-4472 opened against ingest-worker in eu-west-1, S3.
+context: |
+  ---- ticket ----
+  Ticket TCK-4471 opened 2026-03-14 09:22 UTC by the on-call rotation.
+  Reporter: platform-team.
+  Severity was initially set to S3 and raised to S2 at 10:05.
+  Affected component: ingest-worker.
+  Region: eu-west-1.
+  Customer impact: three tenants reported delayed ingestion.
+  Resolution: restarted the worker pool at 10:41. Root cause not yet identified.
+prompt: |
+  Extract these fields as a single JSON object, and output nothing else:
+
+    ticket_id         (string)
+    component         (string)
+    region            (string)
+    severity          (string — the severity as it stood at the end)
+    tenants_affected  (integer)
+
+  No prose, no code fence.
+check: |
+  import json, re
+  raw = re.sub(r'^```(?:json)?|```$', '', response.strip(), flags=re.M).strip()
+  m = re.search(r'\{.*\}', raw, re.S)
+  assert m, f"no JSON object in the reply: {' '.join(response.split())[:120]!r}"
+  got = json.loads(m.group(0))
+  want = json.loads(expected)
+  missing = [k for k in want if k not in got]
+  assert not missing, f"missing fields: {missing}"
+  wrong = {k: (got[k], want[k]) for k in want if got[k] != want[k]}
+  assert not wrong, f"wrong values (got, want): {wrong}"

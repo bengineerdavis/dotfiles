@@ -1,0 +1,78 @@
+role: ops
+property: correctness
+# `ops-shell` was the last uncovered taxonomy cell with real traffic behind it
+# and zero cases (run `ollama-evals coverage` for the split on this host).
+# Producing or correcting a shell
+# command is work where a wrong answer is executed rather than read, so it is
+# worth testing directly.
+#
+# Multiple choice rather than "write the command", because there are many
+# correct spellings of the same pipeline and grading free-form shell needs a
+# judge. Picking the one correct command out of plausible near-misses is
+# mechanically decidable and tests the same knowledge.
+#
+# Every wrong option is a REAL failure mode, not a strawman: unquoted globs
+# consumed by the shell, `ls` parsed instead of `find`, missing -print0/-0
+# pairing so filenames with spaces break, and `xargs` without -r running the
+# command once with no arguments on empty input.
+#
+# Difficulty axis: how close the distractors are to correct.
+num_ctx: 16384
+vars:
+  expected: "C"
+sweep:
+  ordered: true
+  levels:
+    - label: "obvious"
+      vars: {expected: "C"}
+    - label: "near-miss"
+      vars: {expected: "B"}
+      context: |
+        You need every *.log file under /var/app modified in the last 7 days,
+        compressed with gzip. Filenames may contain spaces.
+      prompt: |
+        Which command is correct?
+
+        A. find /var/app -name *.log -mtime -7 | xargs gzip
+        B. find /var/app -name '*.log' -mtime -7 -print0 | xargs -0 -r gzip
+        C. find /var/app -name '*.log' -mtime -7 | xargs gzip
+        D. ls -R /var/app | grep '\.log$' | xargs gzip
+
+        Reply with only: ANSWER: <letter>
+    - label: "subtle"
+      vars: {expected: "D"}
+      context: |
+        A cron job pipes a possibly-empty list of container IDs into a command
+        that stops them. All three requirements must hold:
+          1. when the list is empty, do nothing
+          2. when the list is empty, do not fail the cron run
+          3. when stopping a running container genuinely fails, DO fail, so the
+             cron run surfaces the error
+      prompt: |
+        Which command is correct?
+
+        A. docker ps -q | xargs docker stop
+        B. docker ps -q | xargs -r docker stop || true
+        C. docker stop $(docker ps -q)
+        D. docker ps -q | xargs -r docker stop
+
+        Reply with only: ANSWER: <letter>
+context: |
+  You need to find every file under /var/log larger than 100 MB and list it.
+prompt: |
+  Which command is correct?
+
+  A. find /var/log -size +100 -print
+  B. ls -lh /var/log | grep '100M'
+  C. find /var/log -type f -size +100M -print
+  D. du -sh /var/log/* | grep G
+
+  Reply with only: ANSWER: <letter>
+check: |
+  import re
+  m = re.search(r'ANSWER:\s*\**\s*([A-D])\b', response, re.I)
+  if not m:
+      m = re.fullmatch(r'\s*\**([A-D])\**\s*[.)]?\s*', response)
+  assert m, f"no option letter found: {' '.join(response.split())[:120]!r}"
+  got = m.group(1).upper()
+  assert got == expected, f"chose {got}, correct is {expected}"
