@@ -137,14 +137,6 @@ delete the line and say so in your commit.
   1.0.0. Common Changelog is the other candidate. Confirm which before writing
   the rule.]**
 
-- Write `PRD.md` — what this repo is for, who it serves, what is out of scope.
-  It is the missing Requirements document: `spec.md` says what must stay TRUE
-  and `TASKS.md` says what is in flight, but nothing states what the project is
-  FOR, so scope arguments have no reference to settle against. Must be written
-  by interviewing the author, not drafted from repo evidence — a PRD inferred
-  from the code is exactly the "compliance artifact that reads as authoritative
-  and is not" that `spec.md` § Ambiguity is marked, not resolved warns about.
-  **[blocked: needs the author for an interview pass]**
 - Install `ty` and typecheck the Python. Named in the house toolchain and
   currently absent — not installed, zero references in the repo. 32 test files
   and 36 PEP 723 scripts are unchecked. Note `ty` is pre-1.0; decide whether it

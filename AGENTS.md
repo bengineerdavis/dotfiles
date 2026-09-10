@@ -12,7 +12,8 @@ policy layer, or anything that reports a measured number.
 
 **Read `spec.md` and `TASKS.md` before starting work.** They pair: `spec.md` says
 what must remain true, `TASKS.md` says what is in flight and who is touching
-which files. Any agent or model working here is expected to have read both — a
+which files. Read `PRD.md` too when the work is about scope — whether something
+belongs here at all. Any agent or model working here is expected to have read both — a
 change that satisfies the task and violates the spec is not done.
 
 **Prime directive: do not work if something is unclear. Ask.** A guess and a
@@ -45,9 +46,11 @@ REPL:
 The step that gets skipped is the first one, and skipping it is what produces
 work nobody asked for. Three files carry the requirements between them:
 
-- **`PRD.md`** — what the project is for and what is out of scope. Not written
-  yet; queued in `TASKS.md`, and it has to come from interviewing the author
-  rather than being inferred from the repo.
+- **`PRD.md`** — what the project is for, who it serves, and what it must never
+  become. Read it when a decision is about scope rather than mechanism. Its
+  north star is "a machine that is ready to use", and its architecture rule —
+  provisioning may install and trigger a tool, never contain its logic or state
+  — settles most questions about where something belongs.
 - **`AGENTS.md`** — this file. How to work here, and the expertise that is not
   obvious from reading the code.
 - **`TASKS.md`** — what is in flight, who has it, and what is blocked.
