@@ -60,7 +60,7 @@ The one lever that would force an install is `ExtensionInstallForcelist`,
 mandatory-level policy. This machine is enrolled in Chrome Browser Cloud
 Management (`CloudManagementEnrollmentMandatory = 1` in
 `/Library/Managed Preferences/com.google.Chrome.plist`), so that belongs to
-Sentry IT's admin console. A local `defaults write` lands as merely
+the org's IT admin console. A local `defaults write` lands as merely
 *recommended* and is outranked anyway. Not a gap here — not ours to set.
 
 ## `source: store` — seeding

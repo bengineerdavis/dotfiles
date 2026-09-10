@@ -173,7 +173,7 @@ chrome_remove_git_clones: false
 # apart from something that appeared without your noticing.
 #
 # `verdict` values:
-#   it-owned   pushed by Sentry IT via the Chrome admin console. A competing
+#   it-owned   pushed by the org's IT via the Chrome admin console. A competing
 #              local seed would produce confusing double-install state.
 #   built-in   ships with Chrome; there is nothing to seed.
 #   review     an unresolved decision, surfaced every run until you either
@@ -221,6 +221,6 @@ chrome_extensions_ignored:
     name: "PerkSpot: Save While You Shop"
     verdict: review
     why: >-
-      Shopping/coupon extension on the profile signed in as ben.davis@sentry.io.
+      Shopping/coupon extension on the profile signed in with the work account.
       Coupon extensions typically hold broad all-sites read/write, and that
       profile is where customer data is viewed. Worth a deliberate decision.

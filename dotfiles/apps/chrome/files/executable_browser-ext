@@ -441,7 +441,7 @@ def profile_label(p: dict) -> str:
 
 
 def short_label(p: dict) -> str:
-    """Two profiles here are both called "sentry.io"; the directory disambiguates."""
+    """Two profiles here can share a display name; the directory disambiguates."""
     return f"{p['name']} ({p['dir']})"
 
 
