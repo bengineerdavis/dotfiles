@@ -266,6 +266,55 @@ Two harness traps found here, worth checking for in any suite you touch:
   `-c`, so two TTY tests could never pass on macOS whatever the code did. Use
   `pty.openpty()`.
 
+### Properties and fuzzing
+
+Most tests here are examples: a specific input, a specific expected result. Two
+other kinds earn their place in specific situations.
+
+**Write a property test when a rule holds for every input, not just the one you
+thought of.** Pure functions with algebraic structure are the candidates — merge,
+path-set, set-difference, normalisation, formatting. `spec.md` § Verification —
+invariants are tested as properties says when this is required.
+
+The rule is the test. State it without reference to how the code works: if your
+property recomputes the function under test, it only proves the code equals
+itself. Good properties look like "content survives", "the result is a subset of
+what was asked for", "running it twice gives the same answer", "it never
+mutates its input".
+
+House examples: `tests/ollama_evals/test_harness_property.py` and
+`tests/binned/test_binned_property.py`. Add `--with hypothesis` to the run
+command; it is already in the one under § Commands.
+
+Two things to watch:
+
+- **A property that passes immediately may be testing nothing.** An `assume()`
+  that is too tight filters away every generated input and hypothesis still
+  reports a pass. This is the generated-input version of grepping an empty
+  string. Check that the property is seeing real data before you trust it.
+- **When a property fails, keep the counterexample.** Hypothesis shrinks the
+  failure to its smallest form. Commit that as its own example test alongside
+  the fix. It is the cheapest regression test you will ever get for that bug,
+  and the generator is under no obligation to produce it again.
+  `test_set_path_names_the_path_when_a_segment_is_not_a_mapping` is one: the
+  property found that a mis-typed sweep path died with a bare `'int' object does
+  not support item assignment`, naming neither the case nor the field.
+
+**Fuzz where input arrives that you did not produce.** In this repo that means
+model output, hand-edited YAML cases, and policy layer files. Model output is the
+sharpest of the three, because the producer is a sampling process rather than a
+program — empty responses, truncation mid-token, echoed prompts and control
+characters are all normal. A harness that raises on those reports its own defect
+as a model failure, which is the worst thing a discriminator can do.
+
+Fuzz the data, not the code path that executes it. `run_check` runs `exec()` on
+the check source, so the tests generate hostile *responses* and draw broken
+*sources* from a fixed list. Generating source text to `exec()` would be running
+arbitrary generated code.
+
+Properties and fuzzing do not replace the mutation check above. Break the code
+and watch the property go red, the same as any other test.
+
 ## Models
 
 Local Ollama first, then Anthropic or Google **via `llm-openrouter`**. The `llm`

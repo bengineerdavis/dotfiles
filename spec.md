@@ -128,6 +128,67 @@ A command's exit status SHALL be read from the command, not through a pipeline.
 - **THEN** do not read it through a pipe. `cmd | head` reports head's status.
   This is in `AGENTS.md` § Verification and was still hit twice in one session
 
+### Behavior: Verification — invariants are tested as properties
+
+Where a function has a rule that holds for ALL inputs rather than for a
+remembered few, it SHALL be tested with generated inputs. Pure functions with
+algebraic structure are the candidates: merge, path-set, normalisation,
+set-difference and formatting helpers. See `tests/binned/test_binned_property.py`
+for the house example.
+
+A property test SHALL state the invariant independently of the implementation. A
+property that recomputes the function under test proves only that the code
+equals itself.
+
+Example tests do not go away. The division is by what the test knows: a property
+knows a rule, an example knows an incident.
+
+#### Scenario: A helper gains a case for one tricky input
+
+- **GIVEN** a pure helper such as `deep_merge` or `unmet_capabilities`
+- **WHEN** the author is writing a test for a specific awkward input
+- **THEN** ask whether the awkwardness is an instance of a rule. If it is, write
+  the property and keep the example as the named regression alongside it
+
+#### Scenario: A property test passes on first run
+
+- **WHEN** a new property passes immediately
+- **THEN** check it is not vacuous before trusting it. An over-tight `assume()`
+  can filter away every generated input, and hypothesis reports a pass. This is
+  the generated-input form of grepping an empty string — assert on the data the
+  property actually received
+
+#### Scenario: A property fails and hypothesis shrinks the input
+
+- **WHEN** hypothesis reports a minimal failing example
+- **THEN** commit that example as its own explicit test as well as fixing the
+  code. The shrunk input is the cheapest regression test that will ever be
+  available for that bug, and the generator may not produce it again
+
+### Behavior: Verification — input handling is fuzzed at the boundary
+
+Code that parses input it did not produce SHALL be exercised with malformed and
+hostile input, not only well-formed input. The boundaries here are the eval case
+loader, the policy field-path parser, and every regex that reads model output.
+
+Model output is an untrusted boundary. It is the input most likely to be
+malformed, because the producer is a sampling process and not a program.
+
+#### Scenario: A check expression parses a model response
+
+- **GIVEN** a `check` expression matching a model's answer with a regex
+- **WHEN** the response is empty, truncated mid-token, or repeats the prompt
+- **THEN** the check fails with a readable message rather than raising. A
+  `NoneType has no group` traceback reports a harness defect as a model failure,
+  which is the worst possible outcome for a discriminator
+
+#### Scenario: A loader reads a hand-written config
+
+- **WHEN** an eval case or policy layer is loaded
+- **THEN** malformed input is rejected with the file and field named. These are
+  hand-edited YAML files, so malformed is the expected state during editing, not
+  an exotic one
+
 ### Behavior: Evidence — measured numbers carry their conditions
 
 A figure moved between documents SHALL carry what produced it — subject, date,

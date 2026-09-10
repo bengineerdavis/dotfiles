@@ -137,10 +137,26 @@ def deep_merge(base: dict, over: dict) -> dict:
 
 
 def set_path(d: dict, path: str, value) -> None:
+    """Write `value` at a dotted path, creating intermediate dicts.
+
+    Raises ValueError naming the path when a segment already holds a scalar.
+    A sweep declaring `param: filler.words` against a case whose `filler` is a
+    number used to die with a bare "'int' object does not support item
+    assignment" from inside the harness — a case-authoring typo reported as a
+    crash, with nothing pointing at the case or the field. Found by
+    tests/ollama_evals/test_harness_property.py.
+    """
     parts = path.split(".")
-    for p in parts[:-1]:
-        d = d.setdefault(p, {})
-    d[parts[-1]] = value
+    cur = d
+    for i, p in enumerate(parts[:-1]):
+        cur = cur.setdefault(p, {})
+        if not isinstance(cur, dict):
+            raise ValueError(
+                f"sweep path {path!r}: {'.'.join(parts[:i + 1])!r} is "
+                f"{type(cur).__name__}, not a mapping")
+    if not isinstance(cur, dict):
+        raise ValueError(f"sweep path {path!r}: target is not a mapping")
+    cur[parts[-1]] = value
 
 
 def expand_sweep(c: dict, enabled: bool) -> list[dict]:
