@@ -4,14 +4,23 @@
 
 ## Scope — what counts
 
-IN SCOPE: strings that identify the employer or the author personally. A reader
-of this repo should not be able to tell who Ben works for.
+**The test:** could I have found or used this WITHOUT being part of a company?
 
-OUT OF SCOPE: generic vendors and tools that many companies use. Naming them
-implies nothing about a particular employer, and stripping them would make the
-configs unreadable for no privacy gain. Explicitly fine to keep:
+If yes, it stays. A public product, a package on npm, a tool any individual can
+buy or download says nothing about who employs you. If no — if having it, being
+enrolled in it, or knowing about it only makes sense as an employee — it goes.
+
+That test decides the cases, rather than a list to maintain. A reader of this
+repo should not be able to work out who Ben works for.
+
+STAYS, by that test — anyone can obtain these:
 
     1Password · Bitwarden · Okta · Kandji · Datadog · Intercom · FileVault
+    @sentry/browser  (public npm SDK, used by thousands of unrelated projects)
+
+GOES — only makes sense from inside the company: the work email, the
+`~/code/work/<employer>/` path, internal tool names, and references to the
+employer's own IT admin console.
 
 ## Scope — what is actually there
 
@@ -36,12 +45,12 @@ employer's IT admin console.
 full search". Note this implies the work-email problem was already known and
 being tracked before this audit.
 
-### One judgement call, not yet decided
+### Resolved: `@sentry/browser` stays
 
-`@sentry/browser` appears twice as an npm dependency. It is a public SDK used by
-thousands of unrelated projects, so on its own it implies nothing. It only
-becomes identifying next to the work path and email — which the scrub removes
-anyway. Recommend keeping it; revisit only if the surrounding context stays.
+Decided 2026-09-10. It appears twice as an npm dependency and passes the test
+above — it is installable by anyone, so its presence implies no employment. It
+was only ever identifying because of the work path and email beside it, and the
+scrub removes those. No action.
 
 ## How to do it
 
