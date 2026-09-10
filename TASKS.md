@@ -38,6 +38,7 @@ Format: `- <UTC start> — <what> — <files or resource>`
 
 
 - 2026-08-27T18:20Z — adding the pre-egress review gate (as in bin/trace-public) — bin/executable_pii-redactor
+- 2026-09-10T21:25Z — adding a chrome browser topic (separate session, reported by the author) — dotfiles/apps/chrome, install/remove tasks
 
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
@@ -187,6 +188,33 @@ delete the line and say so in your commit.
   answers, and adding a second local runtime alongside or instead of ollama
   requires no policy change. Pairs with `spec.md` § Shared code does not assume
   a provider, which states the rule but has no mechanism behind it.
+
+- Build a CLI that manages provisioning config and state, including
+  bootstrapping. Think mise or apt, but for topics and their files: scaffold a
+  new topic from a template, add or remove a dependency, run the bootstrap, and
+  report state. One of the refactors named in `PRD.md`.
+  Why it is worth building rather than tolerating:
+  - It is what makes the PRD's complexity governor true instead of aspirational.
+    The governor says a routine change must never require touching `spec.md` or
+    writing a test — that only holds if a tool does the routine change correctly
+    by construction.
+  - It makes `spec.md` § Layering — teardown changes with the thing it creates
+    structural rather than a discipline. A template that scaffolds install and
+    removal together cannot forget the removal, which is the exact failure that
+    rule was bought by: a hand-copied `launchctl unsetenv` list silently stopped
+    covering a newly added variable.
+  - Adding a topic by hand is the current cost, and it is being paid right now
+    for the chrome topic. That is the motivating case, not a hypothetical.
+  Target shape: the CLI is the trusted process, and an agent drives it rather
+  than editing topic files directly. The CLI stays as the fallback for when the
+  agent is not trusted or not present, so machine configuration can be updated
+  as-you-go by either. Both paths go through one implementation, because two
+  paths means two behaviours.
+  Constraints it inherits: it belongs to the provision layer, so it may install
+  and trigger but must never hold a tool's logic or state (`PRD.md`
+  § Architecture). It must be topic-neutral — no topic gets special handling —
+  and it consumes policy generally rather than embedding rules, per the policy
+  generalisation item above.
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 
