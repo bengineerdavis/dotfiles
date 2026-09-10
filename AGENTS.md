@@ -315,6 +315,24 @@ arbitrary generated code.
 Properties and fuzzing do not replace the mutation check above. Break the code
 and watch the property go red, the same as any other test.
 
+## Writing
+
+Technical docs in this repo use plain language: short sentences, active voice,
+common words, the conclusion first, one idea per paragraph. Write for someone
+deciding what to do. This covers this file, `dotfiles/docs/`, READMEs, changelog
+and release prose, and anything a tool prints to a user.
+
+`spec.md` and any skillet spec are the exception. They keep normative language —
+SHALL, MUST, MUST NOT — with BDD scenarios, because they are read to decide
+whether a rule was met, not what to do next. Softening a SHALL to "should try
+to" changes the meaning, so the exemption is about accuracy rather than taste.
+
+Where a doc explains a rule that `spec.md` states, explain it plainly and link to
+the spec for the binding wording. Two normative statements of one rule drift
+apart; an explanation plus a link does not.
+
+See `spec.md` § Writing — technical docs are plain, specs are normative.
+
 ## Models
 
 Local Ollama first, then Anthropic or Google **via `llm-openrouter`**. The `llm`

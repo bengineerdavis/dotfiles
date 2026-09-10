@@ -404,6 +404,27 @@ unreadable resolver is itself a denial.
 - **WHEN** a tool that performs egress is relocated
 - **THEN** its policy call and its relenting test move with it
 
+### Behavior: Writing — technical docs are plain, specs are normative
+
+Technical documentation SHALL be written to a plain-language standard: short
+sentences, active voice, common words, the conclusion first, and one idea per
+paragraph. This covers `AGENTS.md`, `dotfiles/docs/`, READMEs, changelog and
+release prose, and anything a tool prints to a user.
+
+This file and any skillet spec are exempt and SHALL keep normative language —
+SHALL, MUST, MUST NOT — with BDD scenarios. Plain language optimises for a
+reader deciding what to do; spec language optimises for a reader deciding
+whether a rule was met. Softening SHALL to "should try to" changes the meaning,
+which is why the exemption exists rather than a style preference.
+
+#### Scenario: A doc explains a rule this file states
+
+- **GIVEN** a rule that appears both here and in a doc
+- **WHEN** the doc is written or revised
+- **THEN** the doc explains it plainly and links here for the normative form.
+  Two normative statements of one rule drift; a plain explanation plus a link
+  does not
+
 ## Constraints
 
 ### Constraint: No layer grants permission
