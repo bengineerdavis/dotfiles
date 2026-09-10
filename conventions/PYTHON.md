@@ -2,10 +2,10 @@
 
 Python conventions for this repository.
 
-`AGENTS.md` stays language-neutral so it can be reused across projects.
-Language conventions are pluggable: they live in their own file at the repo
-root, one per language, named for the language. This is the Python one. A repo
-that adds Go gets `GO.md` and changes nothing in `AGENTS.md` except the pointer.
+`AGENTS.md` stays general so it can be reused across projects. Conventions are
+pluggable and live in `conventions/`, one file per subject. This is the Python
+one. A repo that adds Go gets `conventions/GO.md` and changes nothing in
+`AGENTS.md` except the pointer. See `conventions/README.md`.
 
 Everything here assumes `AGENTS.md` § Tests and § Prove the test fails, which are
 language-neutral and stay there.

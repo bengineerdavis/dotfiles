@@ -402,18 +402,19 @@ deps only when third-party packages are genuinely needed, as `bin/llm-ctx` does.
 `bin/binned` applies this rule to the scripts it generates: it counts effective
 lines, recommends Python above 100, and asks a model in the 80–100 band.
 
-### Per-language conventions
+### Conventions
 
-Language-specific conventions live in their own file at the repository root, one
-per language, named for the language:
+Conventions live in **`conventions/`**, one file per subject, so the repository
+root holds only the five documents that govern the project:
 
-- **`PYTHON.md`** — uv, PEP 723 dependency blocks, pytest, ruff, ty, prek,
-  logging and error handling.
+- **`conventions/PYTHON.md`** — uv, PEP 723 dependency blocks, pytest, ruff, ty,
+  prek, logging and error handling.
 
-This file stays language-neutral on purpose. The general practice here is
-reusable across projects; the language conventions are the part that swaps out.
-A repository that adds another language adds `<LANGUAGE>.md` and one bullet
-above, and changes nothing else here.
+This file stays general on purpose. How work runs here is reusable across
+projects; conventions are the part that swaps out. A repository that adds another
+language adds `conventions/<LANGUAGE>.md` and one bullet above, and changes
+nothing else here. See `conventions/README.md` for what belongs there and what
+does not.
 
 ## Tests
 

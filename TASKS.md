@@ -372,8 +372,9 @@ author rather than the machine.
   the branching and merge-gate conventions, and the Python toolchain section.
   Excluded: anything chezmoi, Ansible or model-specific, and anything
   language-specific — language conventions are a pluggable `<LANGUAGE>.md`
-  chosen by copier prompt, so the template ships PYTHON.md as one option rather
-  than baking Python into AGENTS.md. That is what lets the template grow to
+  chosen by copier prompt, so the template ships `conventions/PYTHON.md` as one
+  option rather than baking Python into AGENTS.md. `conventions/` is the unit
+  the template plugs into — adding a language means dropping one file there. That is what lets the template grow to
   cover other languages without a rewrite. This template IS the
   reusable AGENTS.md baseline, so the baseline-versus-overlay split happens here
   rather than separately. Done when a fresh repo scaffolded from it has the full

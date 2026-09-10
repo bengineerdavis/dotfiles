@@ -1,0 +1,84 @@
+"""The governance documents must never deploy into $HOME.
+
+Written because this trap sprang five times in a single session: spec.md,
+PRD.md, ROADMAP.md, PYTHON.md and then conventions/ each had to be added to
+.chezmoiignore by hand, and each was caught only because someone happened to
+read `chezmoi status` before applying. Nothing enforced it.
+
+The failure is quiet in the worst way. chezmoi would write AGENTS.md, PRD.md and
+the rest into the home directory, where they are meaningless — and an apply that
+does it reports success. There is no error to notice.
+
+This asks chezmoi what it MANAGES rather than what it ignores. The first
+version of this test used `chezmoi ignored` and failed on conventions/PYTHON.md
+— wrongly. An ignored directory is pruned whole, so `chezmoi ignored` reports
+`conventions` and never enumerates the files under it. Managed is the property
+that actually matters anyway: a path chezmoi does not manage is a path it cannot
+write to $HOME, whatever the ignore syntax happens to look like.
+
+Parsing .chezmoiignore directly would be worse still — a test that reimplemented
+the matcher would agree with itself while chezmoi disagreed.
+"""
+
+from __future__ import annotations
+
+import pathlib
+import shutil
+import subprocess
+
+import pytest
+
+REPO = pathlib.Path(__file__).resolve().parents[2]
+
+# The five documents that govern the project, plus the conventions directory.
+# RESOURCES.md is deliberately absent: it IS a deployed dotfile.
+GOVERNANCE = ["AGENTS.md", "PRD.md", "ROADMAP.md", "spec.md", "TASKS.md"]
+GOVERNANCE_DIRS = ["conventions"]
+
+pytestmark = pytest.mark.skipif(
+    shutil.which("chezmoi") is None, reason="chezmoi not installed"
+)
+
+
+@pytest.fixture(scope="module")
+def managed() -> set[str]:
+    out = subprocess.run(
+        ["chezmoi", "managed"],
+        cwd=REPO, capture_output=True, text=True, timeout=60,
+    )
+    assert out.returncode == 0, f"chezmoi managed failed: {out.stderr}"
+    paths = {ln.strip() for ln in out.stdout.splitlines() if ln.strip()}
+    assert len(paths) > 100, (
+        f"chezmoi managed returned only {len(paths)} paths — too few to be real, "
+        "and the checks below would pass vacuously"
+    )
+    return paths
+
+
+@pytest.mark.parametrize("doc", GOVERNANCE)
+def test_governance_doc_is_not_deployed(managed, doc):
+    assert (REPO / doc).exists(), f"{doc} is missing from the repo entirely"
+    assert doc not in managed, (
+        f"{doc} would be written to $HOME by `chezmoi apply`. "
+        f"Add it to .chezmoiignore under the dev-tooling block."
+    )
+
+
+@pytest.mark.parametrize("d", GOVERNANCE_DIRS)
+def test_governance_dir_contents_are_not_deployed(managed, d):
+    files = [p for p in (REPO / d).rglob("*") if p.is_file()]
+    assert files, f"{d}/ is empty — the check would pass vacuously"
+    for f in files:
+        rel = str(f.relative_to(REPO))
+        assert rel not in managed, (
+            f"{rel} would be written to $HOME. Note a bare '{d}/' in "
+            f".chezmoiignore does not cover contents; '{d}/**' is also needed."
+        )
+
+
+def test_a_real_dotfile_is_still_deployed(managed):
+    """The relenting direction. Ignore rules broad enough to catch everything
+    would make the tests above pass while deploying nothing at all."""
+    assert "dotfiles/zsh/aliases.zsh" in managed, (
+        "a genuinely deployed file is not managed — the ignore rules are too broad"
+    )
