@@ -185,7 +185,13 @@
     dest: "{{ ansible_facts['env']['HOME'] }}/dotfiles/apps/ollama/_ollama_zsh_completion"
     mode: "0644"
     remote_src: true
-  when: ansible_facts['os_family'] == "Darwin"
+  when:
+    - ansible_facts['os_family'] == "Darwin"
+    # get_url reports "changed" under --check but writes nothing, so /tmp/_ollama.zsh
+    # does not exist there and this copy fails on a missing source — aborting the
+    # parent playbook before the app tier ever runs. The dry run declined to create
+    # the file, so the dry run has no business copying it.
+    - not ansible_check_mode
   tags: ollama_zsh
 
 # TODO: verify placement
