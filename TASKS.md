@@ -342,7 +342,9 @@ author rather than the machine.
   re-reading every line. B6 needs this most — the eval harness is the largest
   surface being moved.
 
-- Build the trust ladder and its ledger. The ladder widens an agent's autonomy
+- Build the LEDGER for the trust ladder. The ladder itself — rungs, promotion
+  streaks, incident classes A-D, what is explicitly not an incident, and ageing
+  — is defined in `AGENTS.md` § Trust ladder. What remains is the record. The ladder widens an agent's autonomy
   per task class and blast radius rather than globally; the ledger is what makes
   promotion evidence-based instead of felt. Rungs: 0 propose only; 1 branch and
   PR; 2 self-merge docs and tests; 3 self-merge code inside a named blast radius;
@@ -351,16 +353,18 @@ author rather than the machine.
   against. Ledger: one line per completed agent item recording the item, the rung
   it ran at, which gates passed, whether the author corrected it, and the class
   of any correction. Promote on a streak of clean items at a rung; demote one
-  rung on a single incident of a defined class. **Define the incident classes
-  before the first promotion, not after** — a class invented to excuse a specific
-  failure is not a class. Note this is the same discipline `spec.md` § Evidence
+  rung on a single incident of a defined class. The incident classes were defined before any
+  promotion existed to argue about, which was the point. Note this is the same discipline `spec.md` § Evidence
   applies to measured numbers: a trust claim carries its conditions or it is an
   assertion. **[open question: whether the ledger is committed or machine-local.
   It records this repo's work rather than usage, which argues for committing it,
   but it is also a running record of agent-versus-author correction that may not
   want to be public.]**
 - Factor a general git repository template out of this work, using copier
-  (9.17.2, installed). **Its own repository** — not a directory here. What has
+  (9.17.2, installed). **Its own repository at `~/code/personal/`**, alongside
+  ai-prompt-library and impromptu — not a directory here, and not under
+  `~/code/work/`. Name is not settled; it is the reusable half of this repo's
+  practice, so something like `spec-driven-repo-template` describes it. What has
   earned its place and is not dotfiles-specific: the document set and its
   separation of concerns (PRD what-for, spec what-must-stay-true, ROADMAP
   what-is-next, TASKS what-is-now, AGENTS how), the RECL loop, the verification
@@ -372,7 +376,8 @@ author rather than the machine.
   document set, passes `skillet validate`, and asks its project-specific parts as
   copier prompts rather than leaving placeholders to hand-edit.
 - Factor a copier template for the chezmoi-Ansible topic format. **Its own
-  repository.** Purpose is that someone can build a topic from scratch with an
+  repository at `~/code/personal/`**, same placement as the general template
+  above. Purpose is that someone can build a topic from scratch with an
   agent, and borrow one piece of this configuration without adopting the whole
   repo — see `PRD.md` § Topics are installable modules. Overlaps refactor A:
   `topic new` scaffolds a topic INSIDE this repo and this template scaffolds one
