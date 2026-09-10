@@ -395,4 +395,6 @@ bootstrap is out of scope for this topic.
   `ollama-profile`).
 
   Not urgent. Recorded so the growth is a decision rather than an accident.
+  What such a move must preserve is specified in
+  [`docs/SPEC-llm-tooling.md`](../../docs/SPEC-llm-tooling.md).
 - RedHat family support.
