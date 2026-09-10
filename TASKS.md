@@ -370,14 +370,24 @@ author rather than the machine.
   what-is-next, TASKS what-is-now, AGENTS how), the RECL loop, the verification
   practices (both-directions, prove-the-test-fails, property and fuzz guidance),
   the branching and merge-gate conventions, and the Python toolchain section.
-  Excluded: anything chezmoi, Ansible or model-specific. This template IS the
+  Excluded: anything chezmoi, Ansible or model-specific, and anything
+  language-specific — language conventions are a pluggable `<LANGUAGE>.md`
+  chosen by copier prompt, so the template ships PYTHON.md as one option rather
+  than baking Python into AGENTS.md. That is what lets the template grow to
+  cover other languages without a rewrite. This template IS the
   reusable AGENTS.md baseline, so the baseline-versus-overlay split happens here
   rather than separately. Done when a fresh repo scaffolded from it has the full
   document set, passes `skillet validate`, and asks its project-specific parts as
   copier prompts rather than leaving placeholders to hand-edit.
 - Factor a copier template for the chezmoi-Ansible topic format. **Its own
   repository at `~/code/personal/`**, same placement as the general template
-  above. Purpose is that someone can build a topic from scratch with an
+  above, and it **inherits from the general template** rather than duplicating
+  it. Copier supports this through nested templates and `_tasks`/subtemplate
+  composition — settle the mechanism as the first step, because it decides
+  whether the general template can evolve without stranding this one. The topic
+  template adds only what is specific to a chezmoi-Ansible topic; everything
+  general (the document set, RECL, verification practice, branching) comes from
+  the parent. Purpose is that someone can build a topic from scratch with an
   agent, and borrow one piece of this configuration without adopting the whole
   repo — see `PRD.md` § Topics are installable modules. Overlaps refactor A:
   `topic new` scaffolds a topic INSIDE this repo and this template scaffolds one
