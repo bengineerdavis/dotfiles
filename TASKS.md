@@ -56,7 +56,10 @@ delete the line and say so in your commit.
   § Applying is main-only, agreed today. `Bash(git add *)` and
   `Bash(git commit -m ' *)` allow staging and committing anything, which sits
   badly beside `spec.md` § Change records.
-  Review best practices before designing this — do not invent a scheme. Then:
+  Review best practices before designing this — do not invent a scheme. Use the
+  `prior-art-first` skill for that pass; permission models are a solved problem
+  in adjacent spaces (sandboxing, capability systems, sudoers), which is exactly
+  the case it was written for. Then:
   - **deny is the half that matters and is currently empty.** It should cover
     the Class A incidents in `AGENTS.md` § Trust ladder, since those are the
     ones that do not reverse: egress of work content, and anything that writes
@@ -84,10 +87,12 @@ delete the line and say so in your commit.
   ByteDance Seed, Cohere are all on the existing OpenRouter account. Rank them
   with `model-bench`, not by assertion: several post-date any model's training
   cutoff, so relative quality is genuinely unknown until measured.
-- Symlink the two new skills into `~/.claude/skills` on each machine that wants
+- Symlink the three skills into `~/.claude/skills` on each machine that wants
   them: `ln -s ~/code/personal/ai-prompt-library/skills/<name> ~/.claude/skills/`.
-  Per-machine because `~/.claude` is chezmoi-ignored. Skills are `pii-redaction`
-  and `commit-hygiene`.
+  Per-machine because `~/.claude` is chezmoi-ignored. Skills are `pii-redaction`,
+  `commit-hygiene` and `prior-art-first`. Note `prior-art-first` is committed in
+  ai-prompt-library but NOT pushed — another session had work in flight there, so
+  only that skill's own directory was staged and pushing was left to its owner.
 - File the upstream issue on `simonw/llm-pdf-to-images`: it does `import fitz`,
   and PyMuPDF's shim prints a deprecation notice to **stdout**, corrupting any
   captured `llm` output. Draft is written; one-line fix is `import pymupdf`.
@@ -113,8 +118,8 @@ delete the line and say so in your commit.
   reporting bug reached the deployed script and was caught by a manual smoke test
   rather than the 218-test suite. The env/flag/fallback resolution is the obvious
   first case.
-- Run the eval suites for the two skills in `~/code/personal/ai-prompt-library`
-  (`pii-redaction`, 6 cases; `commit-hygiene`, 5). Both pass `skillet validate`,
+- Run the eval suites for the three skills in `~/code/personal/ai-prompt-library`
+  (`pii-redaction`, 6 cases; `commit-hygiene`, 5; `prior-art-first`, 4). Both pass `skillet validate`,
   which checks grammar, frontmatter and coverage only — no case has ever been
   executed, so the skills are unproven against a real agent. `skillet eval` spawns
   agents per case and costs real time; `--baseline` compares pass rates without
