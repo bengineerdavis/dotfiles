@@ -15,6 +15,17 @@ what must remain true, `TASKS.md` says what is in flight and who is touching
 which files. Any agent or model working here is expected to have read both — a
 change that satisfies the task and violates the spec is not done.
 
+**Prime directive: do not work if something is unclear. Ask.** A guess and a
+decision look identical once they are written down, and the guess costs the whole
+build while the question costs one exchange. If part of the request is clear and
+part is not, do the clear part and ask about the rest at the point it matters.
+See `spec.md` § Work — unclear requirements stop the work.
+
+**Write the task before you start.** Any work done by an agent or subagent gets a
+line in `TASKS.md` first, saying what it is doing and what done means. Work split
+across several agents is several tasks, one per unit of work. See `spec.md`
+§ Work — agent work is defined and assigned before it starts.
+
 Update `TASKS.md` before you finish. Sessions
 keep their own in-memory task lists, which fragment as soon as two are running;
 that file is the shared one. It also lists which files another session is

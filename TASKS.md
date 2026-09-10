@@ -16,6 +16,13 @@ Keep it short. This tracks *open* work and cross-session hazards, not history �
   stated by the author. Those may be wrong; correct them rather than trusting them.
 - When you claim an item, say so in the line. When you finish it, delete the line
   — the commit is the record.
+- **Work done by an agent or subagent gets its task written first.** Before the
+  agent starts, the line says what it is doing and what done means. Fanning work
+  out across several agents is several tasks, not one — an agent whose unit of
+  work was never defined returns something plausible that nothing can check.
+- Assigned work names its owner: `[agent: <who>]` for a subagent or named
+  session, `[me]` for the author. An unassigned task is a backlog item, not
+  work in flight.
 
 ## Claimed
 

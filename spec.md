@@ -189,6 +189,55 @@ malformed, because the producer is a sampling process and not a program.
   hand-edited YAML files, so malformed is the expected state during editing, not
   an exotic one
 
+### Behavior: Work — agent work is defined and assigned before it starts
+
+Work carried out by an agent or subagent SHALL have a task in `TASKS.md` before
+the work begins. The task SHALL state what done means and who is doing it. Work
+fanned out across several agents SHALL be several tasks, one per unit of work,
+rather than one task naming the fan-out.
+
+Agents are fast and leave no trace of intent. Without a task written first there
+is no record of what was asked, no statement of done to check the result
+against, and no way for a parallel session to see the work exists.
+
+#### Scenario: Several threads of work arrive at once
+
+- **GIVEN** more than one request in flight in a single session
+- **WHEN** the work is about to start
+- **THEN** the tasks are written first. This spec gained five behaviors in a
+  session that carried five undefined threads at once, and the threads were
+  only reconstructable because they were still in the transcript
+
+#### Scenario: Work is delegated to a subagent
+
+- **WHEN** work is handed to an agent
+- **THEN** its task exists, names the agent, and states its done condition
+  before the agent is started. An agent given an undefined unit of work returns
+  something plausible, and nothing exists to check it against
+
+### Behavior: Work — unclear requirements stop the work
+
+An agent SHALL stop and ask when a requirement is unclear, rather than choosing
+the reading that lets the work continue. Guessing SHALL NOT be used to avoid a
+question.
+
+This is the same rule as § Ambiguity is marked, not resolved, applied to work
+instead of to policy. Both exist because a guess and a decision are
+indistinguishable once written down.
+
+#### Scenario: A request admits two readings that lead to different work
+
+- **GIVEN** an instruction that could mean two materially different things
+- **WHEN** the agent notices the ambiguity
+- **THEN** it asks before building. A wrong guess costs the whole build; the
+  question costs one exchange
+
+#### Scenario: Only part of a request is unclear
+
+- **WHEN** some of the work is well defined and some is not
+- **THEN** do the defined part, and ask about the rest at the point it is
+  needed. Stopping everything on one open question is its own failure
+
 ### Behavior: Evidence — measured numbers carry their conditions
 
 A figure moved between documents SHALL carry what produced it — subject, date,
