@@ -46,6 +46,16 @@ judgement, these produce the evidence it judges.
 scoring is a last resort, and no case here needs it yet — a requested shape can
 be parsed, and a fact absent from the context can be searched for.
 
+**A guard that fails closed looks identical to one that never runs.** Both
+refuse. The only test that separates them is making the policy say *yes* and
+checking that behaviour changes. `ask-research` shipped for one commit with its
+policy helper defined after the call site: bash said "command not found",
+returned 127, the guard refused, and every hand-test passed — while the resolver
+was never consulted. See `tests/policy/test_policy_callers.py`, which asserts
+both directions for exactly this reason. The same trap applies to the sweep
+early-exit, the whitespace retry and the capability gate here: each has a
+"declines to run" path that must be shown to relent.
+
 **A check is code, so a check can be wrong — and a wrong check indicts the
 model.** Treat the first FAIL from a new case as suspect until you have read the
 response that produced it. `think-faithfulness` originally failed a completely
