@@ -30,6 +30,8 @@ is exactly the collision it exists to prevent.
 Format: `- <UTC start> — <what> — <files or resource>`
 
 
+- 2026-08-27T18:20Z — adding the pre-egress review gate (as in bin/trace-public) — bin/executable_pii-redactor
+
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
@@ -58,14 +60,13 @@ delete the line and say so in your commit.
   right home for agent process; CONVENTIONS.md § Commit granularity still covers
   only granularity and messages. Leaving it split is defensible — just do not let
   the two drift.
-- Build the policy resolver: read `dotfiles/policy/ethics.yaml`,
-  `~/.local/state/ai-policy/company.yaml`, `dotfiles/policy/personal.yaml` in that
-  precedence order, first layer to speak wins, missing rule denies. The three
-  files and the ordering exist and are validated; nothing reads them yet, so no
-  rule is currently enforced by anything. See `dotfiles/docs/GOALS.md`.
-- Wire `--no-log` for work-tagged prompts, gated on the resolver above. This is
-  the concrete reason the resolver matters: until it exists, work content keeps
-  landing in the `llm` log with no retention rule applied.
+- Wire `--no-log` for work-tagged prompts, gated on `bin/policy`. The resolver
+  exists now and already answers correctly:
+  `policy check boundaries.llm_processing.log_bodies_allowed` exits 2 (unknown ->
+  denied), because the field is still TODO in company.yaml. What is missing is a
+  caller — nothing consults it yet, so work content still reaches the `llm` log.
+  Callers must treat exit 1 and 2 identically; `check` cannot return 0 while the
+  layers stay restrictions-only.
 - Scope and apply retention to the 8 rows of work content already in the `llm`
   log. `company.yaml`'s `open_questions.indefinite_local_log` defaults to
   `treat_as_non_compliant`, so the current state is the non-compliant one by our
@@ -75,6 +76,20 @@ delete the line and say so in your commit.
   reporting bug reached the deployed script and was caught by a manual smoke test
   rather than the 218-test suite. The env/flag/fallback resolution is the obvious
   first case.
+- Run the eval suites for the two skills in `~/code/personal/ai-prompt-library`
+  (`pii-redaction`, 6 cases; `commit-hygiene`, 5). Both pass `skillet validate`,
+  which checks grammar, frontmatter and coverage only — no case has ever been
+  executed, so the skills are unproven against a real agent. `skillet eval` spawns
+  agents per case and costs real time; `--baseline` compares pass rates without
+  the skill installed, which is the number that says whether either earns its
+  keep. Expect to fix cases, not just read results.
+- Document that `git add -p` and `git commit -o` do not compose, in AGENTS.md
+  § Working alongside other sessions. It currently recommends both, but `--only`
+  commits the **working-tree** content of the named paths and discards partial
+  staging — so `git add -p TASKS.md && git commit -o TASKS.md` quietly commits the
+  other session's hunks too. For a co-edited file it has to be `git add -p`, then
+  a bare `git commit` with nothing else staged, verified immediately with
+  `git show --stat HEAD`.
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 
@@ -119,6 +134,14 @@ from file contents. Scope, method and prerequisites are recorded in that file.
 Note for whoever runs it: `TASKS.md` itself is in scope. An earlier revision of
 this section quoted the target string literally before it was redacted, so the
 purge must cover this file as well as the original.
+
+Updated 2026-09-10 — the repo was public until that date and is now private, so
+the rewrite is cleanup rather than mitigation; anything fetched during the window
+is already out of reach. Scope grew: the `chrome` topic, added after the original
+audit, carried more than the email. Its prose is fixed at tip, one functional
+path is knowingly left, and a scoping test was agreed that settles the open
+employer-URL question. Detail in that file. A committed doc for this was tried
+and withdrawn — it reproduced the patterns, exactly as warned above.
 
 ## Decisions waiting on the author
 
