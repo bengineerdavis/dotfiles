@@ -339,6 +339,26 @@ def case_requires(c: dict) -> set[str]:
     return need
 
 
+def unmet_capabilities(caps: set[str] | None, need: set[str]) -> list[str] | None:
+    """Capabilities the model lacks, or None meaning RUN THE CASE.
+
+    Extracted from eval_one so both directions are testable without a server.
+    That matters more than it looks: a gate that skips everything and a gate that
+    skips correctly both produce a clean-looking run, and only the RELENTING
+    direction tells them apart. If model_caps() ever returned an empty set where
+    it means "could not determine", every case carrying a requirement would be
+    silently marked n/a and the suite would report success having tested nothing.
+
+    None is returned when nothing is required, when the model has what is needed,
+    or when capabilities are undeterminable — remote models report none, and an
+    unreachable local one gets the benefit of the doubt and is allowed to fail
+    honestly rather than vanish from the results.
+    """
+    if caps is None or not need or need <= caps:
+        return None
+    return sorted(need - caps)
+
+
 def gen_local(model: str, text: str, images: list[str], num_ctx: int,
               timeout: int, max_tokens: int = 8192) -> tuple[str, dict]:
     payload = {
@@ -425,12 +445,12 @@ def eval_one(model: str, cases: list[dict], num_ctx: int, repeat: int,
     results = []
     caps = model_caps(model)
     for c in cases:
-        need = case_requires(c)
-        if caps is not None and need and not need <= caps:
+        missing = unmet_capabilities(caps, case_requires(c))
+        if missing is not None:
             # not a failure and not an error — the case does not apply
             results.append({
                 "case": c["name"], "role": c["role"], "property": c["property"],
-                "skipped": sorted(need - caps), "passed": 0, "graded": 0,
+                "skipped": missing, "passed": 0, "graded": 0,
                 "errors": 0, "swept": False, "reached": None, "broke_at": None,
                 "errored_at": None, "ws_sensitive": False, "levels": []})
             continue
