@@ -13,7 +13,12 @@ policy layer, or anything that reports a measured number.
 **Read `spec.md` and `TASKS.md` before starting work.** They pair: `spec.md` says
 what must remain true, `TASKS.md` says what is in flight and who is touching
 which files. Read `PRD.md` too when the work is about scope — whether something
-belongs here at all. Any agent or model working here is expected to have read both — a
+belongs here at all.
+
+**When `TASKS.md` § Open is empty, the work is not finished** — check § Someday
+and `PRD.md` § Known gaps. Open is a queue and its lines are deleted on
+completion, so it cannot hold anything long-horizon. An empty queue means
+"nothing scheduled", never "nothing to do". Any agent or model working here is expected to have read both — a
 change that satisfies the task and violates the spec is not done.
 
 **Prime directive: do not work if something is unclear. Ask.** A guess and a
@@ -161,6 +166,72 @@ Cross-session hazards, and delete the line when you stop.
 **Other global state to check before assuming it is yours:** `~/.binned/config.toml`
 (the judge pool and generation model), `~/bin` and `~/dotfiles` (deployed copies),
 and long-running background jobs holding the GPU.
+
+## Branches and integration
+
+**One branch per work item**, named `<group>-<item>` — `topic-cli-a2`,
+`ai-factor-out-b4`. Work items are the lettered entries in `TASKS.md`.
+
+Two exceptions, and both must be stated in the task itself:
+
+- **Items that must land together share a branch.** B4 and B5 are the standing
+  example: moving the policy resolver without the capability interface just
+  relocates the duplication instead of removing it.
+- **Dependent items stack.** Branch off the parent item's branch, not main, and
+  rebase when the parent merges. A3 builds on A2's CLI, so it cannot start from
+  main and still compile.
+
+### Never branched
+
+- **`TASKS.md`** — the shared queue. Commit it straight to main with nothing else
+  staged: `git add -p`, then a bare `git commit`, then `git show --stat HEAD`.
+  It has to stay current for sessions that cannot see your branch. Deleting your
+  own task line is a main-side commit even when the work was done on a branch.
+- **Governance docs** (`spec.md`, `PRD.md`, `AGENTS.md`) — land these as their own
+  commit, and prefer main whenever the change does not depend on branch code.
+  They are the surface where unrelated branches collide.
+
+### Applying is main-only
+
+**Agents never run `chezmoi apply`.** Read-only `chezmoi status` and `chezmoi
+diff` are expected and encouraged — an agent that never checks drift is how
+twenty days of uncaptured work accumulated in `aliases.zsh`.
+
+The reason is structural: there is one deployed tree and it cannot be branched.
+`~/dotfiles` is a single set of files no matter how many branches hold versions
+of them, so two agents applying from two branches overwrite each other. Applying
+happens from main, by the author or by a session holding the apply claim in
+`TASKS.md` § Claimed.
+
+### Merge gates
+
+An agent may merge its own branch to main when **all** of these hold:
+
+- the full suite is green
+- `skillet validate .` exits 0 with no errors
+- the new or changed test has been seen to fail, with the mutation recorded in
+  the commit message
+- nothing under § Cross-session hazards was touched without a claim
+- the change touches no policy path, no egress path, and no deployed-tree file
+
+Anything else: push the branch, open a PR, and report. Stakes and size decide,
+not preference. A new feature goes to PR; so does any change that takes more
+than a paragraph to explain.
+
+### Review starts with the tests
+
+Read the tests first. They should read cleanly enough to serve as the spec, and
+they are where an agent's work is most likely to be wrong in a way the code
+hides — an agent will happily write code and then write tests that ratify
+whatever it just wrote. That is what § Prove the test fails exists to catch.
+
+### Quiz before merge
+
+When a PR is opened, or when a change is too large to explain in a paragraph,
+the agent quizzes the author on what the change contributes before it merges.
+The point is not to test the agent's work; it is to check that the author
+actually understands what was built. A change that passes review while nobody
+internalised the design is a change nobody can maintain.
 
 ## Commands
 

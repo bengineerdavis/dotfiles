@@ -320,6 +320,60 @@ author rather than the machine.
   and it consumes policy generally rather than embedding rules, per the policy
   generalisation item above.
 
+- Research best practices for multi-agent branch orchestration, then design the
+  state file. Wanted: a file the orchestrating agent maintains that records which
+  branch each work item is on, what it is based on, and what needs rebasing when
+  main moves — so a subagent is handed a rebase instead of discovering a conflict
+  mid-task. Stress-testing branch-per-item already surfaced what it must handle:
+  stacked branches for dependent items (A3 on A2), items that must not be split
+  (B4+B5), shared `conftest.py` fixtures, and governance-doc collisions across
+  unrelated branches. Use the questioning skill in
+  `~/code/personal/ai-prompt-library`. Should land before more than two agents
+  run in parallel.
+- Get a fast test loop. The full suite takes 104s, which is too slow to run per
+  change — at that price the loop collapses into run-once-and-hope, which is
+  precisely how regressions slip through. Target a change-relevant subset in
+  around ten seconds. `-m "not llm_judge"` exists already; what is missing is a
+  way for an agent to select the suites matching the files it touched.
+- Put the AI tooling under characterization tests BEFORE starting refactor B, and
+  use them as the parity bridge. Audit the existing behaviour, add tests that pin
+  it, then let the reimplementation run against the same tests. Parity becomes
+  proven rather than assumed, and the rewrite stops being gated on a human
+  re-reading every line. B6 needs this most — the eval harness is the largest
+  surface being moved.
+
+## Someday — ideas with no owner and no date
+
+Unlike **Open**, lines here are **not deleted** when addressed and are not
+expected to be taken in order. This section exists because Open is a queue: its
+convention is to delete the line on completion, so it structurally cannot hold an
+idea that has no done-condition yet. Such an idea would either vanish or sit at
+the top of the queue blocking it.
+
+**Check here whenever Open is empty**, together with `PRD.md` § Known gaps. An
+empty Open means "nothing scheduled", never "nothing to do". Promote a line into
+Open once it has a done-condition; otherwise leave it here and add what you
+learned.
+
+- **A local model that reacts to errors and proposes fixes for review.** Same
+  shape as the agents that turn production errors into pull requests, but local
+  and personal. The trigger is a failure rather than a prompt, which is what
+  makes it different from everything else here. Local by requirement, not
+  preference: error text and stack traces can carry work content, so this is
+  governed by the policy layers and cannot use a remote model under the current
+  rules. Open before it can be scheduled: what it watches (test failures, shell
+  exit codes, a log), whether it may open a PR or only draft a patch, and how it
+  avoids proposing fixes for failures that are symptoms of work still in flight.
+- **A queryable knowledge base of the repository.** Readable by a human directly,
+  not only feedable to a model. It is the artifact that survives context
+  compaction, model swaps and long gaps — session memory does not. `spec.md` and
+  `PRD.md` are the beginning of this; the gap is everything true about the system
+  that is neither a requirement nor a constraint.
+- **Separate the reusable AGENTS.md baseline from the project-specific overlay.**
+  Most of the Python and process guidance here would serve any repo. Keeping the
+  general and the specific separable means future work goes into the delta rather
+  than into re-deriving the baseline.
+
 ## History was rewritten on 2026-08-21 — reset before you resume
 
 `main` was force-pushed. Every SHA from `bc72f5c` onward is new. Two mixed
