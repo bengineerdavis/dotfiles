@@ -25,6 +25,10 @@ Subcommands:
   check [--next-gen]              diff each family's upstream tags vs the manifest;
                                  flag unknown precision/format keywords; with
                                  --next-gen, probe for newer family generations
+
+  `status` and `check` both end by reporting ROLE DRIFT: any tag named in
+  `ollama_roles` that no family declares. Such a pick is unpullable by `sync`
+  and looks like an orphan to `prune` — see role_drift() for why that matters.
   prune [--remove]                list installed models not in the manifest;
                                  --remove deletes them (with confirmation).
                                  Tags listed under `ollama_prune_keep` (bare
@@ -107,7 +111,10 @@ def load_manifest(path: Path):
         # `tight` rather than skipped outright.
         "tolerance": float(data.get("ollama_budget_tolerance_pct", 15)),
     }
-    return reserve, families, keep, ctx
+    # Role picks are tags too, and nothing else cross-checks them against the
+    # families above — see role_drift().
+    roles = data.get("ollama_roles") or {}
+    return reserve, families, keep, ctx, roles
 
 
 # ── host facts ──────────────────────────────────────────────────────────────
@@ -447,7 +454,63 @@ def changed_state(tag: str) -> bool | None:
 
 
 # ── commands ────────────────────────────────────────────────────────────────
-def cmd_sync(args, reserve, families, keep, ctx):
+def declared_tags(families, keep) -> set[str]:
+    """Every tag the manifest declares, under EVERY host key, plus prune-keeps.
+
+    All OS keys, not just this host's: a mac checkout must not treat the nvfp4
+    build a Linux box pulled as undeclared (and vice versa) just because it
+    resolves to a different tag here.
+    """
+    out = set()
+    for members in families.values():
+        for m in members or []:
+            for k in OS_KEYS:
+                if m.get(k):
+                    out.add(m[k].lower())
+    return out | keep
+
+
+# ── role → family drift ──────────────────────────────────────────────────────
+# `ollama_roles` NAMES tags; `ollama_models` DECLARES them. Nothing tied the two
+# together, so a role could point at a tag no family lists — and then `sync`
+# never pulls it (a fresh host cannot satisfy that role at all) while `prune`
+# counts the already-pulled weights as an orphan and offers to delete them.
+# That is exactly how qwen3.8:27b-mlx ended up promoted to chat/vision `best`,
+# 18GB on disk, and one `prune --remove` from deletion (2026-08-28).
+#
+# `openrouter/…` picks are exempt: they are remote escape hatches, resolved by
+# ollama-role as "remote" and never installed locally. Cloud tags are exempt
+# because they are already refused at every other surface — flagging them here
+# too would add noise, not information.
+def role_drift(families, keep, roles) -> list[tuple[str, str, str]]:
+    """[(role, tier, tag)] for role picks no family declares."""
+    declared = declared_tags(families, keep)
+    out = []
+    for role, spec in (roles or {}).items():
+        if not isinstance(spec, dict):
+            continue
+        for tier, tags in ((spec.get("tiers") or {}) or {}).items():
+            for tag in tags or []:
+                if tag.startswith("openrouter/") or is_cloud_tag(tag):
+                    continue
+                if tag.lower() not in declared:
+                    out.append((role, tier, tag))
+    return out
+
+
+def report_role_drift(families, keep, roles) -> None:
+    drift = role_drift(families, keep, roles)
+    if not drift:
+        return
+    print(f"\n! {len(drift)} role pick(s) declared by no family — `sync` cannot "
+          f"pull these, and `prune` counts their weights as orphans:")
+    for role, tier, tag in drift:
+        print(f"    {role}/{tier}: {tag}")
+    print("  fix: add the tag to its family under ollama_models, or to "
+          "ollama_prune_keep if it is deliberately hand-pinned.")
+
+
+def cmd_sync(args, reserve, families, keep, ctx, roles):
     mem, basis = total_ram_gb()
     budget = mem * (100 - reserve) / 100
     # Separate system-RAM budget for members marked `basis: ram` (CPU/split MoE).
@@ -498,7 +561,7 @@ def cmd_sync(args, reserve, families, keep, ctx):
               f"`ollama list`. Edit defaults/main.yaml to use a local build.")
 
 
-def cmd_status(args, reserve, families, keep, ctx):
+def cmd_status(args, reserve, families, keep, ctx, roles):
     mem, basis = total_ram_gb()
     budget = mem * (100 - reserve) / 100
     # Separate system-RAM budget for members marked `basis: ram` (CPU/split MoE).
@@ -538,9 +601,10 @@ def cmd_status(args, reserve, families, keep, ctx):
     if n_cloud:
         print(f"\n! {n_cloud} entr{'y' if n_cloud == 1 else 'ies'} marked "
               f"CLOUD(never) will NEVER install — {CLOUD_WHY}.")
+    report_role_drift(families, keep, roles)
 
 
-def cmd_check(args, reserve, families, keep, ctx):
+def cmd_check(args, reserve, families, keep, ctx, roles):
     manifest_by_family = {}
     for family, members in families.items():
         tags = set()
@@ -599,6 +663,7 @@ def cmd_check(args, reserve, families, keep, ctx):
                 local = [t for t in tags if not t.endswith("cloud")]
                 note = "" if local else "  (cloud-only — no local weights)"
                 print(f"  ⬆ newer generation may exist: {cand}{note}")
+    report_role_drift(families, keep, roles)
 
 
 # Version-like number anywhere in the name, with an optional trailing word.
@@ -644,17 +709,8 @@ def next_gen_candidates(family: str) -> list[str]:
     return [c for c in out if not (c in seen or seen.add(c))]
 
 
-def cmd_prune(args, reserve, families, keep, ctx):
-    # Treat EVERY os/hardware key as "wanted", not just this host's: a mac
-    # checkout must not delete the nvfp4 build a Linux box pulled (and vice
-    # versa) just because it resolves to a different tag here.
-    wanted = set()
-    for members in families.values():
-        for m in members or []:
-            for k in OS_KEYS:
-                if m.get(k):
-                    wanted.add(m[k].lower())
-    wanted |= keep
+def cmd_prune(args, reserve, families, keep, ctx, roles):
+    wanted = declared_tags(families, keep)
     orphans = sorted(t for t in installed_models() if t.lower() not in wanted)
     if not orphans:
         print("no orphans: every installed model is in the manifest")
@@ -699,8 +755,8 @@ def main():
     pr.set_defaults(func=cmd_prune)
 
     args = p.parse_args()
-    reserve, families, keep, ctx = load_manifest(args.manifest)
-    args.func(args, reserve, families, keep, ctx)
+    reserve, families, keep, ctx, roles = load_manifest(args.manifest)
+    args.func(args, reserve, families, keep, ctx, roles)
 
 
 if __name__ == "__main__":
