@@ -218,6 +218,44 @@ which file appeared; called directly, the path edge cases became explicit. Platf
 dispatch in `bin/clipped` could only be exercised by mocking `uname` on `PATH`, so
 in practice only the host platform was ever tested.
 
+### Prove the test fails
+
+`spec.md` § Verification says a test is not finished until it has been seen to
+fail. This is how: break the code on purpose and watch the suite go red. It is
+mutation testing done by hand, and it is cheap.
+
+```bash
+cp bin/executable_thing /tmp/thing.good          # keep the original
+# edit the target: invert a guard, neuter a mechanism, make an error
+# path return a positive value instead of "unknown"
+uv run --with pytest pytest tests/thing -q       # MUST fail, and on the right test
+cp /tmp/thing.good bin/executable_thing          # restore
+uv run --with pytest pytest tests/thing -q       # green again
+```
+
+Mutations worth trying, in rough order of what has actually bitten here:
+
+- **make the guard unconditional** — `if ordered and not cleared:` -> `if True:`
+- **make it never fire** — the same line -> `if False:`
+- **turn "unknown" into a claim** — `return None` -> `return set()` on an error
+  path. This one skipped every case that declared a requirement and reported a
+  clean run
+- **move a definition below its first use** — bash resolves at call time, so the
+  helper becomes "command not found", returns 127, and a fail-closed guard passes
+  for the wrong reason
+
+Read WHICH tests fail, not just how many. Of four regressions injected across the
+eval harness, three were caught and the fourth was not — and that fourth revealed
+the TEST was wrong: its fixture had no blank line inside the prompt, so
+`rfind("\n\n")` landed on the seam by accident and the assertion passed either
+way. A mutation that survives is either a coverage gap or a broken test, and both
+are worth the two minutes.
+
+Where a mechanism can decline, the mutation that matters is the one that makes it
+decline ALWAYS — because refusing looks identical to not running. Same reason
+`tests/policy/test_policy_callers.py` flips the policy to permit and asserts the
+behaviour changes.
+
 Two harness traps found here, worth checking for in any suite you touch:
 
 - A test path pointing at a file that does not exist. `tests/clipped.bats` used
