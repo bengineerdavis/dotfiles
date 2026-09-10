@@ -381,13 +381,35 @@ author rather than the machine.
   copier prompts rather than leaving placeholders to hand-edit.
 - Factor a copier template for the chezmoi-Ansible topic format. **Its own
   repository at `~/code/personal/`**, same placement as the general template
-  above, and it **inherits from the general template** rather than duplicating
-  it. Copier supports this through nested templates and `_tasks`/subtemplate
-  composition — settle the mechanism as the first step, because it decides
-  whether the general template can evolve without stranding this one. The topic
-  template adds only what is specific to a chezmoi-Ansible topic; everything
-  general (the document set, RECL, verification practice, branching) comes from
-  the parent. Purpose is that someone can build a topic from scratch with an
+  above. It **builds on the general template rather than duplicating it** — but
+  by composition, not inheritance. Verified against copier 9.17.2: there is no
+  `extends`, `inherit`, `parent_template` or `base_template` keyword anywhere in
+  the source. Three primitives do the job instead:
+
+  - `answers_file` lets each template record its answers somewhere other than
+    the default `.copier-answers.yml`. That is what makes two templates on one
+    project possible, and `copier update -a <file>` then updates each
+    independently.
+  - `_external_data` (a name-to-YAML-path map, exposed to Jinja as
+    `external.<name>`) lets the topic template READ the general template's
+    answers file and reuse those answers instead of re-asking. Note the path
+    must resolve inside the generated project unless `--trust` is passed, so
+    the parent's answers file has to be committed there — which it is by
+    default.
+  - `_tasks` can shell out to `copier copy` of the general template. Available,
+    and the most fragile of the three; prefer the first two.
+
+  So: apply the general template first writing `.copier-answers.general.yml`,
+  then the topic template writing `.copier-answers.topic.yml` and declaring
+  `_external_data` against the first. The topic template contributes only what
+  is specific to a chezmoi-Ansible topic.
+
+  **The trap to avoid:** if both templates write to the same default answers
+  file, the second silently overwrites the first's tracking and the general
+  template can never be updated in that project again. Separate answers files
+  are the whole mechanism, not a detail — and getting them right is what
+  delivers the actual goal, which is that improving the general template later
+  flows into every project built from it, topic repos included. Purpose is that someone can build a topic from scratch with an
   agent, and borrow one piece of this configuration without adopting the whole
   repo — see `PRD.md` § Topics are installable modules. Overlaps refactor A:
   `topic new` scaffolds a topic INSIDE this repo and this template scaffolds one
