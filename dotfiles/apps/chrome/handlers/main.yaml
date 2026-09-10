@@ -1,0 +1,44 @@
+# apps/chrome/handlers/main.yaml
+#
+# Handlers run when the play finishes, after every role in every tier. That is
+# the only place a message is guaranteed to be the LAST thing on screen rather
+# than scrolled off by whatever topic ran next.
+#
+# This one exists because installing an unpacked Chrome extension cannot be
+# automated on macOS at all (branded Chrome 137 dropped --load-extension; macOS
+# has refused local-CRX external installs since Chrome 44 — see README.md). The
+# one manual click is unavoidable, so the least this topic can do is end the run
+# by saying exactly which directory to point Chrome at.
+#
+# Notified only when the extension is genuinely not loaded in any profile, so a
+# machine that is already set up stays quiet.
+
+- name: "chrome manual load reminder"
+  ansible.builtin.debug:
+    # Block scalar, not folded: a folded scalar collapses every newline and the
+    # reminder becomes one long paragraph, which defeats the point of putting a
+    # path on its own line.
+    msg: |-
+      ════════ ACTION REQUIRED — one-time manual step ════════
+
+      {{ chrome_manual_load_pending | length }} Chrome extension(s) are built and waiting.
+      Chrome cannot be told to load them from the command line, so this last
+      step is yours:
+      {% for e in chrome_manual_load_pending %}
+
+        • {{ e.name }}
+          LOAD THIS DIRECTORY:
+          {{ e.path }}
+      {% endfor %}
+
+      How:
+        1. open  chrome://extensions
+        2. turn on "Developer mode" (top right)
+        3. click "Load unpacked"
+        4. select the directory above
+
+      You only do this once. The path is stable, so the extension keeps one ID
+      and every future `--tags upgrade` replaces it in place — after which a
+      reload on its card in chrome://extensions picks up the new build.
+
+      ═══════════════════════════════════════════════════════
