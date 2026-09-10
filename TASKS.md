@@ -275,20 +275,23 @@ author rather than the machine.
   rule for data currently scattered across `~/.local/share/ollama-{usage,bench,
   evals}` and the `llm` sqlite log. This closes the standing data-ownership
   finding and is a precondition for the backup work, not a follow-up to it.
-- B4. Extract `bin/policy` and its layers first. It is the most self-contained
-  piece, has the best coverage, and everything else depends on it. Done when the
-  resolver runs from its new home, this repo installs it, and
-  `tests/policy` passes against the moved copy — both directions still asserted.
-- B5. Land the capability-declaration interface from the policy generalisation
-  item, so topics consume policy rather than embedding it. Do this WITH B4, not
-  after: moving the resolver without it just relocates the call-site duplication.
-- B6. Extract the eval harness — `ollama-evals`, cases, taxonomy. Largest surface
+- B4. Topics consume policy through a declared capability, from its new home.
+  One item, stated as the outcome rather than as its parts. It was originally
+  cut as two — extract the resolver, then add the interface — and that cut was
+  wrong: the first half alone relocates the call-site duplication instead of
+  removing it, while looking finished. Take the resolver first inside this item,
+  since it is the most self-contained piece and everything else depends on it.
+  Done when the resolver runs from its new home, this repo installs it, topics
+  declare the capabilities they exercise rather than deciding for themselves,
+  and `tests/policy` passes against the moved copy with both directions still
+  asserted.
+- B5. Extract the eval harness — `ollama-evals`, cases, taxonomy. Largest surface
   and the most tests. Done when the suite is green from the new home.
-- B7. Extract `ollama-profile` and `ask-research`.
-- B8. Rewire the ollama role to install the utility pinned and trigger its
+- B6. Extract `ollama-profile` and `ask-research`.
+- B7. Rewire the ollama role to install the utility pinned and trigger its
   initialization at a late stage, per `PRD.md`. Done when a fresh provision
   reaches "tools initialized" without this repo containing any tooling logic.
-- B9. Delete the vacated code and update `spec.md`, `PRD.md` and `AGENTS.md` to
+- B8. Delete the vacated code and update `spec.md`, `PRD.md` and `AGENTS.md` to
   point outward. Done when no AI tooling logic remains here and no doc describes
   it as if it were still local.
 
@@ -360,7 +363,7 @@ author rather than the machine.
   main moves — so a subagent is handed a rebase instead of discovering a conflict
   mid-task. Stress-testing branch-per-item already surfaced what it must handle:
   stacked branches for dependent items (A3 on A2), items that must not be split
-  (B4+B5), shared `conftest.py` fixtures, and governance-doc collisions across
+  (the original B4/B5 cut), shared `conftest.py` fixtures, and governance-doc collisions across
   unrelated branches. Use the questioning skill in
   `~/code/personal/ai-prompt-library`. Should land before more than two agents
   run in parallel.
@@ -373,7 +376,7 @@ author rather than the machine.
   use them as the parity bridge. Audit the existing behaviour, add tests that pin
   it, then let the reimplementation run against the same tests. Parity becomes
   proven rather than assumed, and the rewrite stops being gated on a human
-  re-reading every line. B6 needs this most — the eval harness is the largest
+  re-reading every line. B5 needs this most — the eval harness is the largest
   surface being moved.
 
 - Build the LEDGER for the trust ladder. The ladder itself — rungs, promotion

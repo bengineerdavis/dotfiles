@@ -33,7 +33,7 @@ These are already broken into work items in `TASKS.md`. Listed so this file
 reads as a complete picture, not to duplicate them.
 
 - **The `topic` CLI** (A1–A7). Designed in `dotfiles/docs/ROADMAP-topic-cli.md`.
-- **Factoring the AI/LLM tooling out** (B1–B9). Required by `PRD.md`.
+- **Factoring the AI/LLM tooling out** (B1–B8). Required by `PRD.md`.
 - **The trust ladder and its ledger.**
 - **Two copier templates** — a general repository template, and one for the
   chezmoi-Ansible topic format.

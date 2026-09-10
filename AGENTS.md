@@ -70,9 +70,10 @@ you are in, and it is what Check checks against.
 Turning a roadmap item into work an agent can be handed is the step with the
 least written down, and it is where planning actually happens. `TASKS.md`
 already says what a task line must contain; this says how to arrive at the
-lines. The rules below are the ones A1–A7 and B1–B9 were cut by — recorded
+lines. The rules below are the ones A1–A7 and B1–B8 were cut by — recorded
 after the fact, because they were applied on instinct the first time and that
-does not survive a new session.
+does not survive a new session. One of them was learned by being broken: B4 had
+to be re-cut, and the rule about outcomes is what came out of it.
 
 **One item is one thing with one done-condition.** If you cannot write "done
 when X" in a sentence, you have a theme rather than an item. The done-condition
@@ -85,25 +86,42 @@ and both unblock everything after them. Deciding is cheap; building on an
 undecided foundation is expensive, and the cost lands as rework rather than as
 a failure you can see. The first item in a group is usually a decision.
 
+Keep them small enough to merge on their own, in one commit. A decision item is
+only an unlock while it is landing fast; one that grows an implementation
+alongside it stops unblocking anything and starts blocking everything.
+
 **Sequence by what blocks what, not by what matters most.** Importance decides
 whether a group is scheduled at all. Inside a group, only dependency decides
 order. B3 defines the state contract before the backup work, not because it
 matters more but because you cannot choose what to back up without knowing who
 owns the data.
 
-**Some items must not be split, and the test is sharp.** Split only where each
-half leaves the tree better than not starting. B4 and B5 land together because
-moving the policy resolver without the capability interface relocates the
-duplication rather than removing it — the first half alone is worse than
-nothing, because it looks finished. Say so in the task when it applies;
-`AGENTS.md` § Branches and integration needs it to know what shares a branch.
+**Cut along outcomes, not along components.** This is the rule that prevents
+most bad splits, and it was learned by breaking it. The factor-out was first cut
+as "extract the resolver" and "add the capability interface" — two components,
+neither an outcome — and those two could not be landed separately. Re-stated as
+the outcome, "topics consume policy through a declared capability, from its new
+home", it is obviously one item. Components tempt you to split because they have
+names; outcomes do not split unless the value does.
+
+**Test every cut before you make it, not after.** For each proposed split, ask
+whether you would ship the first half on its own. If the answer is no, do not
+make the cut. The dangerous case is not a half that is obviously incomplete —
+it is one that *looks* finished while leaving the problem in place, which is
+exactly what extracting the resolver alone would have done.
+
+**Say what each item hands to the next.** A dependency is information, code,
+verification, or nothing at all — and which one decides how the work is branched.
+Write it into the task while the reasoning is fresh; § What kind of dependency is
+it explains what each implies. Left unstated, it gets rediscovered as a merge
+conflict.
 
 **Do not decompose past self-containment.** Same rule as commits: atomic means
 self-contained, not small. An item that leaves the repo broken so the next one
 can fix it is a bad split however tidy the boundary looks.
 
 **Find the collision surfaces before assigning anything.** Before handing items
-out, ask which of them touch the same files. Doing that for A1–A7 and B1–B9
+out, ask which of them touch the same files. Doing that for A1–A7 and the factor-out items
 turned up four: dependent items needing stacked branches, items that cannot be
 split, shared `conftest.py` fixtures, and the governance documents that
 unrelated groups all end up editing. Every one of those would have surfaced as
@@ -232,9 +250,10 @@ and long-running background jobs holding the GPU.
 
 Two exceptions, and both must be stated in the task itself:
 
-- **Items that must land together share a branch.** B4 and B5 are the standing
-  example: moving the policy resolver without the capability interface just
-  relocates the duplication instead of removing it.
+- **Items that must land together share a branch.** Rare, and usually a sign
+  the decomposition was wrong — see § Decomposing work into items, which exists
+  to stop producing these. B4 was originally cut as two such items and is now
+  one.
 - **Dependent items stack.** Branch off the parent item's branch, not main, and
   rebase when the parent merges. A3 builds on A2's CLI, so it cannot start from
   main and still compile.
@@ -253,11 +272,11 @@ being on main. Nothing needs stacking because there is no code to build on.
 
 These are the cheapest items in any plan and they should be landed first and
 fast, because **a decision item is a parallelism unlock**. B1, B2 and B3 on main
-turn B4 through B7 from a serial chain into work several agents can take at
+turn B4 through B6 from a serial chain into work several agents can take at
 once. Sitting on an unmerged decision serialises everything behind it.
 
 **Code dependency — stack, or wait for main.** The later item builds on the
-earlier one's code. A3, A4 and A5 all need `topic new` from A2; B6 and B7 need
+earlier one's code. A3, A4 and A5 all need `topic new` from A2; B5 and B6 need
 the moved resolver from B4. The parent is independently mergeable, so branch the
 child off the parent and rebase when the parent lands — or simply wait, if
 nothing is gained by starting early.
@@ -267,11 +286,12 @@ every stacked branch rebases when its parent merges, and conflicts multiply with
 depth. Stack two deep freely. Three deep with a reason. Deeper than that, either
 collapse the stack into one branch or admit the decomposition was wrong.
 
-**Atomic dependency — one branch, always.** Neither half stands alone. B4 and B5
-are the case: moving the policy resolver without the capability interface
-relocates the duplication instead of removing it. Note what this actually is —
-not really a dependency, but a decomposition that split something indivisible,
-caught late. Sharing the branch is the repair.
+**Atomic dependency — one branch, always.** Neither half stands alone. This is
+not really a dependency; it is a decomposition that split something indivisible.
+Sharing a branch is the repair, and re-cutting the items is the fix. The case
+that produced this rule was the factor-out, first cut as "extract the resolver"
+plus "add the capability interface" — it is now the single item B4, because
+either half alone leaves the duplication in place while looking done.
 
 **Verification dependency — the parent must be on main first.** Characterization
 tests have to land before the rewrite starts, so the rewrite branch inherits
