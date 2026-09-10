@@ -3,9 +3,19 @@
 Instructions for coding agents working in this repository. Human-facing detail lives
 in `docs/` — this file links there rather than restating it, so the two cannot drift.
 
+`spec.md`, beside this file, is the third layer: the properties that must remain
+TRUE regardless of who is working. This file is practice, `docs/` is explanation,
+`spec.md` is constraint. Read it before changing a guard, a teardown path, a
+policy layer, or anything that reports a measured number.
+
 ## Start here
 
-Read `TASKS.md` before starting work and update it before you finish. Sessions
+**Read `spec.md` and `TASKS.md` before starting work.** They pair: `spec.md` says
+what must remain true, `TASKS.md` says what is in flight and who is touching
+which files. Any agent or model working here is expected to have read both — a
+change that satisfies the task and violates the spec is not done.
+
+Update `TASKS.md` before you finish. Sessions
 keep their own in-memory task lists, which fragment as soon as two are running;
 that file is the shared one. It also lists which files another session is
 actively touching.
@@ -184,6 +194,11 @@ deps only when third-party packages are genuinely needed, as `bin/llm-ctx` does.
 lines, recommends Python above 100, and asks a model in the 80–100 band.
 
 ## Tests
+
+See `spec.md` § Verification for the properties a suite must have — chiefly that
+a mechanism which can decline is proven to RELENT, and that a test is not
+finished until it has been seen to fail against a deliberately broken copy. Both
+were bought by suites here that passed while testing nothing.
 
 **pytest is primary.** Any Python script gets pytest tests. bats remains correct
 only for scripts that are still bash (`bin/cleanup`).

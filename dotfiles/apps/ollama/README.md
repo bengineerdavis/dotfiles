@@ -396,5 +396,7 @@ bootstrap is out of scope for this topic.
 
   Not urgent. Recorded so the growth is a decision rather than an accident.
   What such a move must preserve is specified in
-  [`docs/SPEC-llm-tooling.md`](../../docs/SPEC-llm-tooling.md).
+  [`spec.md`](../../../spec.md) — chiefly that egress keeps consulting the policy
+  resolver, that usage figures stay off the repo, and that every guard moved
+  keeps the test proving it relents.
 - RedHat family support.

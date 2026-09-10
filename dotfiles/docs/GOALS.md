@@ -96,6 +96,11 @@ The test is only useful if it can return "no". Two habits keep it honest:
 
 ## How the rules are enforced
 
+> The invariants these layers must satisfy — no layer grants permission,
+> ambiguity is marked rather than resolved, egress consults the resolver — are
+> stated in [`spec.md`](../../spec.md) § Policy and § Constraints.
+
+
 Three layers, resolved in order. The first that speaks, wins.
 
 ```
