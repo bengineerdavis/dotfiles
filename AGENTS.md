@@ -147,7 +147,9 @@ so the check that matters most is the one that disappears quietest.
 ## Commits
 
 **`dotfiles/docs/CONVENTIONS.md` § Commit granularity is the source of truth.** Read
-it before committing. The short version, so this file is usable on its own:
+it before committing. `spec.md` § Change records states the invariants — including
+that staging is verified rather than assumed, and that the history is the
+changelog, there being no `CHANGELOG.md` by design. The short version, so this file is usable on its own:
 
 One commit is one reviewable decision. The test is not file count — it is whether a
 reader can hold the *why* in their head, and whether the change can be reverted on

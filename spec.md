@@ -159,6 +159,79 @@ changes what is recognisable, not where a case came from.
 - **THEN** describe the class and write a new case from it. Do not import the
   transcript that revealed it
 
+## Change records
+
+The history IS the changelog. There is deliberately no `CHANGELOG.md`: `git log`
+already holds it, and `TASKS.md` says plainly that duplicating history there just
+creates drift. That is why message quality is a property and not a preference —
+nothing else records why a change happened.
+
+`dotfiles/docs/CONVENTIONS.md` § Commit granularity is the source of truth;
+`AGENTS.md` § Commits carries the short version.
+
+### Behavior: One commit is one reviewable decision
+
+The test is not file count. It is whether a reader can hold the *why* in their
+head, and whether the change can be reverted alone without taking unrelated work
+with it.
+
+#### Scenario: Several unrelated changes are ready together
+
+- **THEN** split by concern, not by file. Splitting is a review pass in its own
+  right — re-reading the clamav Debian port as six commits surfaced a variable
+  collision the single commit had hidden
+
+#### Scenario: Splitting would leave the tree broken
+
+- **THEN** do not split. Atomic means self-contained, not small; a commit that
+  breaks the tree so the next can fix it breaks `git bisect`
+
+### Behavior: What is committed is verified, not assumed
+
+Staging SHALL be checked before the commit and the result checked after.
+
+#### Scenario: Several paths are staged at once
+
+- **THEN** confirm each landed. `git add` given five paths, one of which no
+  longer existed, aborted without staging the other four — and the commit went
+  out carrying only a file DELETION, leaving main briefly with neither the old
+  document nor its replacement
+
+#### Scenario: A file is co-edited by another session
+
+- **THEN** `git add -p`, then a bare `git commit` with nothing else staged, and
+  verify immediately with `git show --stat HEAD`. `git commit -o <path>` commits
+  the WORKING-TREE content of that path and discards partial staging, so it
+  quietly takes the other session's hunks too
+
+### Behavior: Durable why lives in the code, not the message
+
+A commit body carries what a reverter needs. Reasoning that must survive belongs
+in a comment beside the decision, where rebases cannot lose it and readers who
+never open `git log` will find it.
+
+### Behavior: A recorded reason is one that survives scrutiny
+
+#### Scenario: A stated reason is later disproved
+
+- **THEN** correct the record where it lives, not only in conversation. The
+  `deepseek-r1:32b` demotion was written as a correctness failure; the case
+  proved ambiguous and the model scored full marks on the rewrite. The manifest
+  comment now states the latency reason and retracts the original claim
+
+### Behavior: Attribution says whose work it is
+
+#### Scenario: An agent commits changes authored by the human
+
+- **THEN** the message says so. Recording someone else's work is not the same as
+  co-authoring it
+
+### Behavior: History surgery is recorded and bounded
+
+Rewrites SHALL be preceded by a backup branch and explained in `git notes` on the
+resulting commits. Note that a rewrite does not un-publish: anything already
+fetched, forked or indexed is beyond its reach.
+
 ## Models
 
 Detail lives in `dotfiles/docs/MODEL-LIFECYCLE.md` — discovery, triage,
