@@ -9,6 +9,9 @@ alias kobo='export WINEPREFIX="$HOME/.wine"; wine "$WINEPREFIX/drive_c/Program F
 alias unlock-apt='sudo service packagekit restart'
 
 # support-based functions
+alias pull-attached='fetchurl -i attachments/conversation-*.txt -o attachments'
 alias openmail='mailbox "attachments/**" && support-summarized'
-alias investigate='cat mail.md | triage --model qwen3.6:27b-mlx --platform "Sentry.io" --docs "https://docs.sentry.io" > triage.md'
-alias ticket-update='openmail && investigate'
+alias anonymize='pii-redactor --assume-reviewed -i mail.md -o mail.redacted.md'
+alias extract='cat mail.md | triage --model qwen3.6:27b-mlx --platform "Sentry.io" --docs "https://docs.sentry.io" > triage.md'
+# top alias
+alias investigate='pull-attached && openmail && anonymize && extract && investigate'

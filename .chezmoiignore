@@ -17,6 +17,8 @@ tests/
 .claude
 AGENTS.md
 TASKS.md
+spec.md
+PRD.md
 .gitignore
 .mailmap
 .hypothesis

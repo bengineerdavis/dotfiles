@@ -189,6 +189,110 @@ delete the line and say so in your commit.
   requires no policy change. Pairs with `spec.md` § Shared code does not assume
   a provider, which states the rule but has no mechanism behind it.
 
+### Refactor A — the `topic` CLI (provisioning config, state, bootstrapping)
+
+Design already exists: `dotfiles/docs/ROADMAP-topic-cli.md`, marked "designed,
+not built", written 2026-09-09. **Do not redesign it.** MVP is two commands and
+the roadmap says to resist a third. These items implement it. Read the roadmap's
+§ Constraints that are verified, not assumed before starting — they were checked
+against this machine and must not be re-litigated.
+
+- A1. Answer the roadmap's § Open questions for whoever picks this up, and decide
+  § Where `topic` itself lives. Blocks everything below, because it fixes the
+  install path and the language. Done when each open question has an answer
+  recorded in the roadmap rather than in a conversation.
+- A2. Build `topic new <name>`. Replaces `init-config.sh`, which copies
+  `template_dir/` and stops, leaving every `topic.yml` field and five lifecycle
+  stubs to be hand-edited. Done when scaffolding firefox needs no hand-editing to
+  reach a valid, installable topic — and when the generated topic carries its own
+  removal path, per `spec.md` § Layering — teardown changes with the thing it
+  creates. That property is the main reason this tool is worth building.
+- A3. Generalise `browser-ext` into `topic <name> ext add ...`. It already
+  validates IDs, resolves names, pins tags and appends without destroying
+  comments — but it lives inside the chrome topic and only knows browsers. Done
+  when it serves chrome and firefox with no browser-specific code in the CLI.
+- A4. Add dependency add/remove for non-extension topics, following the same
+  comment-preserving edit approach. Done when adding a package to a topic never
+  requires hand-editing YAML.
+- A5. Add `topic bootstrap` — run a topic's install and its late-stage
+  initialization, per `PRD.md` § Architecture. Done when a topic goes from
+  scaffolded to "ready to use" through the CLI alone.
+- A6. Make the CLI the path an agent drives, with the CLI remaining the human
+  fallback. One implementation behind both. Done when an agent can add a topic
+  end-to-end without editing a topic file directly.
+- A7. Work the roadmap's § Migration inventory. Explicitly out of MVP — do not
+  start before A2 and A3 are working.
+
+### Refactor B — factor the AI/LLM tooling out of this repo
+
+Required by `PRD.md`: dotfiles and provisioning are the trunk, this tooling is a
+branch, and the architecture rule says provisioning may install and trigger a
+tool but never contain its logic or state. The Ansible role STAYS — installing a
+runtime and pulling weights is machine setup. What leaves is everything about the
+author rather than the machine.
+
+- B1. Decide the new home and its install method: separate repo, name, and how
+  this repo pins it. Blocks everything below. Note the constraint that the result
+  must be installable by the provisioning layer like any other dependency.
+- B2. Write the move manifest — every affected file classified as leaves, stays,
+  or is deleted. Done when the list exists and later items cite it instead of
+  re-deciding per file.
+- B3. Define the state contract for the new utility: one owner and one retention
+  rule for data currently scattered across `~/.local/share/ollama-{usage,bench,
+  evals}` and the `llm` sqlite log. This closes the standing data-ownership
+  finding and is a precondition for the backup work, not a follow-up to it.
+- B4. Extract `bin/policy` and its layers first. It is the most self-contained
+  piece, has the best coverage, and everything else depends on it. Done when the
+  resolver runs from its new home, this repo installs it, and
+  `tests/policy` passes against the moved copy — both directions still asserted.
+- B5. Land the capability-declaration interface from the policy generalisation
+  item, so topics consume policy rather than embedding it. Do this WITH B4, not
+  after: moving the resolver without it just relocates the call-site duplication.
+- B6. Extract the eval harness — `ollama-evals`, cases, taxonomy. Largest surface
+  and the most tests. Done when the suite is green from the new home.
+- B7. Extract `ollama-profile` and `ask-research`.
+- B8. Rewire the ollama role to install the utility pinned and trigger its
+  initialization at a late stage, per `PRD.md`. Done when a fresh provision
+  reaches "tools initialized" without this repo containing any tooling logic.
+- B9. Delete the vacated code and update `spec.md`, `PRD.md` and `AGENTS.md` to
+  point outward. Done when no AI tooling logic remains here and no doc describes
+  it as if it were still local.
+
+- Use local models to generate a machine-local policy layer from on-device
+  policy documents. The source documents cannot leave the device, which is
+  exactly why a local model is the right tool: it reads them in place and emits
+  an abstracted set of principles that the resolver can consume. The generated
+  layer is machine-local and never versioned, same as `company.yaml` today.
+  Output must be principles, not quotations — a generated layer that reproduces
+  source text has moved the document, not abstracted it.
+- Design the state backup path, classified by machine ownership and data
+  sensitivity. Back up only what is expensive to regenerate — model weights,
+  eval results, benchmark history — and regenerate the rest. Rules that fall out
+  of the author interview, in priority order: PII never leaves the internal disk
+  under any circumstance; a machine the author does not own can use neither
+  cloud nor external disk, only its internal disk; everything else may use
+  external disk or encrypted cloud. No mechanism exists today, so expensive
+  state currently has no backup at all.
+- Review what may and may not leave a machine the author does not own, against
+  the governing policy for that machine. Feeds both the backup design above and
+  the generated policy layer. Existing work on this is scattered — collect it
+  first rather than restarting.
+- Add employer-specific data filters as a machine-local, generated artifact.
+  They must never be committed: a filter list names what it is filtering for, so
+  a versioned one leaks the thing it exists to catch. Same shape as the
+  generated policy layer above.
+
+- Generalise the work/AI policy so topics consume it rather than embedding it.
+  Policy governs actions on data — remote inference, body logging, device
+  suitability — and those questions do not change when the model runtime does.
+  Today `bin/policy`'s FIELDS are already product-neutral, which is the good
+  half; the gap is that no topic declares the capabilities it exercises, so
+  consumption is by hand at each call site and nothing stops a topic deciding
+  for itself. Wanted: a topic declares which capabilities it uses, the resolver
+  answers, and adding a second local runtime alongside or instead of ollama
+  requires no policy change. Pairs with `spec.md` § Shared code does not assume
+  a provider, which states the rule but has no mechanism behind it.
+
 - Build a CLI that manages provisioning config and state, including
   bootstrapping. Think mise or apt, but for topics and their files: scaffold a
   new topic from a template, add or remove a dependency, run the bootstrap, and
