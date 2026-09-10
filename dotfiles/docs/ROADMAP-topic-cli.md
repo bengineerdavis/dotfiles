@@ -52,7 +52,7 @@ re-litigate them; do re-verify if Chrome's major version moves substantially.
   works only where the instance is "managed via MDM, joined to a domain via MCX
   or enrolled in Chrome Enterprise Core." This machine is Kandji MDM-enrolled
   *and* Chrome Enterprise Core-enrolled. The blocker is authority, not
-  capability — the policy must come from Sentry IT's admin console or Kandji.
+  capability — the policy must come from the org's IT admin console or Kandji.
   A local `defaults write` lands as recommended-tier, which
   `ExtensionInstallForcelist` ignores.
 - **Unpacked extension IDs are a hash of the load path.** Loading the same

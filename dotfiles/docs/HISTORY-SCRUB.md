@@ -24,8 +24,10 @@ employer's own IT admin console.
 
 ## Scope — what is actually there
 
-Audited at `main` tip, 2026-09-10, matching `ben.davis@`, `@sentry.io`,
-`sentry.io`, `Sentry IT`, `code/work/sentry`, and internal tool names.
+Audited at `main` tip, 2026-09-10, matching the work email, the employer's
+domain, "<employer> IT", the `~/code/work/<employer>/` path prefix, and internal
+tool names. (Deliberately not spelled out here — an earlier draft of this file
+listed the literal patterns, which put them straight back into the repo.)
 
 **9 occurrences across 5 files:**
 
@@ -51,6 +53,34 @@ Decided 2026-09-10. It appears twice as an npm dependency and passes the test
 above — it is installable by anyone, so its presence implies no employment. It
 was only ever identifying because of the work path and email beside it, and the
 scrub removes those. No action.
+
+## Done so far
+
+**2026-09-10 — chrome topic prose scrubbed** (`fef4fce`). Four replacements in
+comments and a docstring, no functional values touched: "<employer> IT" ->
+"the org's IT" twice, the work email in a profile description -> "the work
+account", and a docstring naming two profiles by the employer's domain ->
+"can share a display name".
+
+**ACCEPTED, not fixed — `chrome_unpacked_root`.** One occurrence of the
+`~/code/work/<employer>/` path remains in `apps/chrome/defaults/main.yaml`. It is
+FUNCTIONAL: Chrome derives an unpacked extension's ID by hashing its absolute
+load path, so renaming that directory silently changes the identity of every
+extension it manages. Removing the string means either changing the path (breaks
+things) or restructuring where the value is supplied — and the topic's
+`vars/main.yaml` is empty by design, so there is no override slot to drop it in
+without a decision.
+
+Accepted for now: it is one path, the repo is private, and the risk of breaking
+extension IDs outweighs a string that only matters if the repo goes public
+again. Revisit as part of any fuller scrub.
+
+**STAYS by the test** — a public docs URL anyone can use:
+`zsh/aliases.zsh` passes the employer's public documentation site to a triage
+tool. Being a user of a product implies nothing about employment.
+
+**Still open:** `docs/ROADMAP-topic-cli.md` names the employer's IT admin
+console in prose. Safe to reword; not yet done.
 
 ## How to do it
 
