@@ -91,6 +91,45 @@ delete the line and say so in your commit.
   a bare `git commit` with nothing else staged, verified immediately with
   `git show --stat HEAD`.
 
+- Add refactoring principles to `spec.md` for the two failure modes we can
+  already see coming: a test suite that grows faster than the behaviour it
+  covers, and features that overlap until no one can say which one owns a
+  concern. The suite is 218+ tests and every new guard adds two (refuse and
+  relent), so growth is structural, not accidental. Wanted: a rule for when a
+  test earns its place, a rule for collapsing near-duplicate cases, and a
+  redundancy check that runs on demand rather than by vibes.
+- Evaluate whether contract testing earns its keep here. The candidate seams are
+  real: `bin/policy`'s exit codes (0/1/2/3) consumed by several callers, the
+  `ollama-evals` case schema shared by 25 YAML files, and the model-manifest
+  shape that `sync`/`prune`/`status` all read. Today each consumer re-asserts the
+  contract in its own tests, which is the duplication the item above is about.
+  Decide: one contract per seam with consumer tests deriving from it, or leave it.
+- Decide whether a panel-of-judges (LLM council) pattern earns its keep for work
+  on this repo, specifically refactoring review and commit review, where a single
+  model's agreement with itself is not evidence. Groupthink is the stated concern:
+  one model, or several from one family, will ratify its own reasoning. Measure it
+  rather than assume it — disagreement rate between judges is the signal that says
+  whether the panel adds anything a single judge did not. Relates to the existing
+  cheap-gate item above: the gate decides WHEN to convene a panel, this decides
+  WHETHER a panel beats one judge, and they should be settled together.
+- Adopt a technical plain-language standard as the default for technical docs in
+  this repo, and sweep the existing ones to it. Exempt: `spec.md` and any skillet
+  spec, which keep spec language (SHALL/MUST) and BDD scenarios — plain language
+  and normative language are different jobs. Applies to `AGENTS.md`, `docs/*.md`,
+  READMEs, changelog entries and user-facing output.
+  **[open question: which published standard to cite — plainlanguage.gov's
+  Federal Plain Language Guidelines and ISO 24495-1:2023 are the two candidates.
+  Marked rather than guessed, per `spec.md` § Ambiguity is marked, not resolved.]**
+- Reconcile changelog style: plain language, the house commit style in
+  `docs/CONVENTIONS.md` § Commit granularity, and the changelog standard have to
+  intersect without contradicting. Note this repo deliberately has no
+  `CHANGELOG.md` — `git log` is the changelog — so this governs release notes and
+  any user-facing summary, not a file we keep.
+  **[open question: "the 2.0 changelog standard" needs pinning down. Keep a
+  Changelog is at 1.1.0 and has no 2.0; `ai-prompt-library/CHANGELOG.md` cites
+  1.0.0. Common Changelog is the other candidate. Confirm which before writing
+  the rule.]**
+
 ## History was rewritten on 2026-08-21 — reset before you resume
 
 `main` was force-pushed. Every SHA from `bc72f5c` onward is new. Two mixed
