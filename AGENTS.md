@@ -15,10 +15,12 @@ what must remain true, `TASKS.md` says what is in flight and who is touching
 which files. Read `PRD.md` too when the work is about scope — whether something
 belongs here at all.
 
-**When `TASKS.md` § Open is empty, the work is not finished** — check § Someday
-and `PRD.md` § Known gaps. Open is a queue and its lines are deleted on
-completion, so it cannot hold anything long-horizon. An empty queue means
-"nothing scheduled", never "nothing to do". Any agent or model working here is expected to have read both — a
+**When `TASKS.md` § Open is empty, the work is not finished** — read `ROADMAP.md`.
+Open is a queue whose lines are deleted on completion, so it cannot hold anything
+long-horizon; an empty queue means "nothing scheduled", never "nothing to do".
+The roadmap says what to do next: take an item, interview the author about it,
+then update `PRD.md` with the requirements that settles and `TASKS.md` with the
+work items it produces. Any agent or model working here is expected to have read both — a
 change that satisfies the task and violates the spec is not done.
 
 **Prime directive: do not work if something is unclear. Ask.** A guess and a

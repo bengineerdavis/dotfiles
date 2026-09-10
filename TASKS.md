@@ -342,37 +342,51 @@ author rather than the machine.
   re-reading every line. B6 needs this most — the eval harness is the largest
   surface being moved.
 
-## Someday — ideas with no owner and no date
-
-Unlike **Open**, lines here are **not deleted** when addressed and are not
-expected to be taken in order. This section exists because Open is a queue: its
-convention is to delete the line on completion, so it structurally cannot hold an
-idea that has no done-condition yet. Such an idea would either vanish or sit at
-the top of the queue blocking it.
-
-**Check here whenever Open is empty**, together with `PRD.md` § Known gaps. An
-empty Open means "nothing scheduled", never "nothing to do". Promote a line into
-Open once it has a done-condition; otherwise leave it here and add what you
-learned.
-
-- **A local model that reacts to errors and proposes fixes for review.** Same
-  shape as the agents that turn production errors into pull requests, but local
-  and personal. The trigger is a failure rather than a prompt, which is what
-  makes it different from everything else here. Local by requirement, not
-  preference: error text and stack traces can carry work content, so this is
-  governed by the policy layers and cannot use a remote model under the current
-  rules. Open before it can be scheduled: what it watches (test failures, shell
-  exit codes, a log), whether it may open a PR or only draft a patch, and how it
-  avoids proposing fixes for failures that are symptoms of work still in flight.
-- **A queryable knowledge base of the repository.** Readable by a human directly,
-  not only feedable to a model. It is the artifact that survives context
-  compaction, model swaps and long gaps — session memory does not. `spec.md` and
-  `PRD.md` are the beginning of this; the gap is everything true about the system
-  that is neither a requirement nor a constraint.
-- **Separate the reusable AGENTS.md baseline from the project-specific overlay.**
-  Most of the Python and process guidance here would serve any repo. Keeping the
-  general and the specific separable means future work goes into the delta rather
-  than into re-deriving the baseline.
+- Build the trust ladder and its ledger. The ladder widens an agent's autonomy
+  per task class and blast radius rather than globally; the ledger is what makes
+  promotion evidence-based instead of felt. Rungs: 0 propose only; 1 branch and
+  PR; 2 self-merge docs and tests; 3 self-merge code inside a named blast radius;
+  4 unattended on a task class with an async report. `AGENTS.md` § Merge gates
+  already describes rungs 2 and 3 — what is missing is the record to promote
+  against. Ledger: one line per completed agent item recording the item, the rung
+  it ran at, which gates passed, whether the author corrected it, and the class
+  of any correction. Promote on a streak of clean items at a rung; demote one
+  rung on a single incident of a defined class. **Define the incident classes
+  before the first promotion, not after** — a class invented to excuse a specific
+  failure is not a class. Note this is the same discipline `spec.md` § Evidence
+  applies to measured numbers: a trust claim carries its conditions or it is an
+  assertion. **[open question: whether the ledger is committed or machine-local.
+  It records this repo's work rather than usage, which argues for committing it,
+  but it is also a running record of agent-versus-author correction that may not
+  want to be public.]**
+- Factor a general git repository template out of this work, using copier
+  (9.17.2, installed). **Its own repository** — not a directory here. What has
+  earned its place and is not dotfiles-specific: the document set and its
+  separation of concerns (PRD what-for, spec what-must-stay-true, ROADMAP
+  what-is-next, TASKS what-is-now, AGENTS how), the RECL loop, the verification
+  practices (both-directions, prove-the-test-fails, property and fuzz guidance),
+  the branching and merge-gate conventions, and the Python toolchain section.
+  Excluded: anything chezmoi, Ansible or model-specific. This template IS the
+  reusable AGENTS.md baseline, so the baseline-versus-overlay split happens here
+  rather than separately. Done when a fresh repo scaffolded from it has the full
+  document set, passes `skillet validate`, and asks its project-specific parts as
+  copier prompts rather than leaving placeholders to hand-edit.
+- Factor a copier template for the chezmoi-Ansible topic format. **Its own
+  repository.** Purpose is that someone can build a topic from scratch with an
+  agent, and borrow one piece of this configuration without adopting the whole
+  repo — see `PRD.md` § Topics are installable modules. Overlaps refactor A:
+  `topic new` scaffolds a topic INSIDE this repo and this template scaffolds one
+  for a repo that is not this one. They should share the canonical template
+  rather than diverge — decide which owns it before the second is built. The
+  module boundary itself is deferred to `ROADMAP.md` and is not a blocker; build
+  against the format as it stands.
+- Pin the version of every external standard this repo follows, and re-check
+  upstream on a stated cadence. Today only skillet is pinned — `spec.md`'s footer
+  says 1.7.0 and 1.8.0 is already available. The plain-language standard is
+  unchosen, the changelog convention is unnamed, and PEP 723, copier and ruff
+  versions are implicit. Wanted: one place recording standard, version, where it
+  is used, and when it was last checked. A convention with no version silently
+  means whatever its latest revision says, which is drift that produces no diff.
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 

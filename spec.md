@@ -11,7 +11,8 @@ real cases, kept deliberately, because a rule without its failure is soon argued
 away — and because the failure is usually the only part a reader believes.
 
 The documents divide as follows. `PRD.md` says what the project is for and is
-where scope questions are settled. `AGENTS.md` says how to work here and is
+where scope questions are settled. `ROADMAP.md` says what is likely next and is
+where an empty task queue is refilled from. `AGENTS.md` says how to work here and is
 procedural. `dotfiles/docs/` explains and is descriptive. This file constrains.
 Where a subject needs instructions of its own the invariant stays here and the
 detail is referenced: `dotfiles/docs/CONVENTIONS.md` for topic structure,

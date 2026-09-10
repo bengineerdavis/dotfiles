@@ -99,6 +99,22 @@ toward rather than a single change. Until it lands, this document describes a
 target shape the repository has not reached — the present tense here is aspiration,
 and `TASKS.md` holds the migration.
 
+### Topics are installable modules
+
+A topic — the unit that installs and configures one thing — should be
+installable on its own. Someone should be able to borrow one piece of this
+configuration without adopting the whole repository, and an agent should be able
+to build a new one from a template rather than by copying a neighbour.
+
+This sharpens the secondary audience promise. "Readable, not runnable" holds for
+the repository as a whole; a topic is the level at which lifting something is
+supposed to actually work.
+
+The boundary is deliberately unsettled — what a topic may depend on, how it
+declares that, and what happens to shared state like the zsh lifecycle files and
+the manifest schema. `ROADMAP.md` holds it. It has to be settled before anyone
+outside this machine depends on it, and not before.
+
 ### Policy is general; topics consume it
 
 Policy governs **actions on data**, not products. It answers questions like "may
