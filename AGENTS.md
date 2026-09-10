@@ -65,6 +65,62 @@ work nobody asked for. Three files carry the requirements between them:
 `spec.md` sits across all four steps: it is what must stay true whichever step
 you are in, and it is what Check checks against.
 
+### Decomposing work into items
+
+Turning a roadmap item into work an agent can be handed is the step with the
+least written down, and it is where planning actually happens. `TASKS.md`
+already says what a task line must contain; this says how to arrive at the
+lines. The rules below are the ones A1–A7 and B1–B9 were cut by — recorded
+after the fact, because they were applied on instinct the first time and that
+does not survive a new session.
+
+**One item is one thing with one done-condition.** If you cannot write "done
+when X" in a sentence, you have a theme rather than an item. The done-condition
+is what the agent gets checked against; without one it picks its own, and
+nothing can say whether the work finished.
+
+**Lead with the deciding items.** A1 answers the roadmap's open questions and
+B1 picks the new home for the factored-out tooling. Neither builds anything,
+and both unblock everything after them. Deciding is cheap; building on an
+undecided foundation is expensive, and the cost lands as rework rather than as
+a failure you can see. The first item in a group is usually a decision.
+
+**Sequence by what blocks what, not by what matters most.** Importance decides
+whether a group is scheduled at all. Inside a group, only dependency decides
+order. B3 defines the state contract before the backup work, not because it
+matters more but because you cannot choose what to back up without knowing who
+owns the data.
+
+**Some items must not be split, and the test is sharp.** Split only where each
+half leaves the tree better than not starting. B4 and B5 land together because
+moving the policy resolver without the capability interface relocates the
+duplication rather than removing it — the first half alone is worse than
+nothing, because it looks finished. Say so in the task when it applies;
+`AGENTS.md` § Branches and integration needs it to know what shares a branch.
+
+**Do not decompose past self-containment.** Same rule as commits: atomic means
+self-contained, not small. An item that leaves the repo broken so the next one
+can fix it is a bad split however tidy the boundary looks.
+
+**Find the collision surfaces before assigning anything.** Before handing items
+out, ask which of them touch the same files. Doing that for A1–A7 and B1–B9
+turned up four: dependent items needing stacked branches, items that cannot be
+split, shared `conftest.py` fixtures, and the governance documents that
+unrelated groups all end up editing. Every one of those would have surfaced as
+a merge conflict discovered mid-task instead.
+
+**A rewrite gets a characterization-test item before it starts.** Pin the
+existing behaviour, then let the reimplementation run against the same tests.
+Parity becomes proven rather than assumed, and review stops meaning "read every
+line". This is its own item because it has its own done-condition and because
+skipping it is invisible until the rewrite is already finished.
+
+**The plan is a hypothesis.** Items merge and split as the work teaches you
+something. When that happens, change `TASKS.md` and say why in the commit —
+a plan quietly diverging from the work is how the queue stops describing
+reality. Anything that turns out to be bigger than expected and unscheduled
+goes to `ROADMAP.md` rather than growing the item.
+
 ## What this repo is
 
 A chezmoi-managed dotfiles repo with an Ansible layer for system state.
