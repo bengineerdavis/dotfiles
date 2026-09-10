@@ -155,11 +155,56 @@ esac
 
 # Commands that actually send a prompt. `list` and `show` only read local state,
 # so they must not be blocked by a missing tool or an unset search key.
+# ── Policy helpers, defined before first use ─────────────────────────────────
+# bash resolves functions at call time in source order, so these must precede
+# the work-tagged check below. Defined later, `remote_permitted` was simply
+# "command not found" — which returned 127 and so happened to fail closed, but
+# never consulted the policy at all. It would have kept refusing even after the
+# rule was relaxed.
+#
+# `policy check` exits 0 permitted, 1 denied, 2 unknown. Callers must treat 1
+# and 2 alike: the layers are restrictions-only, so 0 is currently unreachable.
+# A missing or broken resolver is itself a denial.
+logging_permitted() {
+  command -v policy >/dev/null 2>&1 || return 1
+  policy check boundaries.llm_processing.log_bodies_allowed >/dev/null 2>&1
+}
+
+remote_permitted() {
+  command -v policy >/dev/null 2>&1 || return 1
+  policy check boundaries.llm_processing.remote_model_allowed >/dev/null 2>&1
+}
+
 SENDS=0
 case "$CMD" in start|ask|ask-file) SENDS=1 ;; esac
 
 # A dry run only prints the command it would have run, so it needs no tools.
 if [ "$SENDS" = 1 ] && [ "$DRY" != 1 ]; then require llm python3; fi
+
+# ── Work-tagged content may not leave the machine ────────────────────────────
+# This tool routes to OpenRouter by design, so for work-tagged content it is an
+# EXPORT. The company layer says remote_model_allowed: false, and until today
+# nothing consulted it — the file forbade remote inference while this script did
+# it on every call. Refuse rather than degrade: there is no partial version of
+# sending data to a third party.
+#
+# Deliberately checked regardless of --model. A local-looking tag is not proof
+# of locality (a `:cloud` tag is a hosted call), and this tool has no way to
+# verify where a given model id resolves. Work content that needs a model gets
+# one locally, through a path built for it.
+if [ "$SENDS" = 1 ] && [ "$WORK" = 1 ]; then
+  if ! remote_permitted; then
+    fail "work-tagged content cannot be sent to a remote model" \
+      "policy: boundaries.llm_processing.remote_model_allowed is denied or unset" \
+      "ask-research routes to OpenRouter, so this is an export either way" \
+      "" \
+      "for work content, use a local model instead:" \
+      "  ollama-role get think        # pick a local model for the task" \
+      "  triage ...                   # already policy-gated, work-tagged by design" \
+      "" \
+      "see: policy explain boundaries.llm_processing.remote_model_allowed"
+  fi
+fi
 
 case "$SESSION" in
   */*|.|..) fail "invalid session name: '$SESSION'" \
@@ -189,11 +234,6 @@ opts=()
 #
 # A missing or broken resolver is itself a denial. Any other reading would mean
 # deleting one script quietly turns logging back on for work content.
-logging_permitted() {
-  command -v policy >/dev/null 2>&1 || return 1
-  policy check boundaries.llm_processing.log_bodies_allowed >/dev/null 2>&1
-}
-
 if [ "$WORK" = 1 ] && ! logging_permitted; then
   opts+=(-n)
   echo "[ask-research] prompt bodies not logged — policy denies, or is silent on," \
