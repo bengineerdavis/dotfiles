@@ -426,6 +426,51 @@ author rather than the machine.
   is used, and when it was last checked. A convention with no version silently
   means whatever its latest revision says, which is drift that produces no diff.
 
+- Decide the layout for installable skills and workflows, portable across agent
+  tools. Research first, because the landscape is unsettled and half of what
+  looks like a standard is one vendor's convention.
+  What is actually known:
+  - **`AGENTS.md` is the closest thing to a cross-tool open convention** and this
+    repo already has it. Keep it canonical.
+  - **MCP is a genuine open standard**, but for tools and servers, not for
+    skills or instructions. `.mcp.json` is read by several clients.
+  - **There is no open standard for SKILLS.** The `SKILL.md` format used here is
+    Anthropic's, and `skillet` already validates it — which is an argument for
+    keeping it canonical and adapting outward, not for pretending it is neutral.
+  Approach: one canonical source, tool-specific files generated or symlinked from
+  it. Never hand-maintain two copies — that is the drift the conventions test was
+  just written to prevent.
+  Verify what each tool reads BEFORE writing an adapter; these paths change
+  release to release. Candidates to confirm: `CLAUDE.md`, `.cursor/rules/*.mdc`,
+  `.github/copilot-instructions.md`, `.windsurf/rules/`, `.goosehints`, and
+  aider's convention file plus `.aider.conf.yml`.
+  Build adapters only for tools actually in use. Installed on this machine:
+  claude, cursor, code, aider. Not installed: goose, windsurf, copilot CLI.
+  **Name collision to resolve first:** aider conventionally reads a root
+  `CONVENTIONS.md`; this repo has `dotfiles/docs/CONVENTIONS.md` and now a
+  `conventions/` directory. Three things one word apart is a bug waiting to be
+  filed. Rename or namespace before adding the adapter.
+  Note skills currently live outside this repo — `~/.claude/skills` (2) and
+  `ai-prompt-library/skills` (3) — so this decides whether they move in, stay
+  out and get installed, or split. `PRD.md` § Topics are installable modules is
+  the precedent to follow.
+  Any new root directory needs a `.chezmoiignore` entry;
+  `tests/chezmoi/test_governance_not_deployed.py` will catch it if forgotten,
+  provided the directory is added to its GOVERNANCE_DIRS list.
+- Choose a project templating tool, and benchmark rather than assume. `copier`
+  9.17.2 is installed and is the incumbent, so it is the baseline to beat, not
+  the default to accept. Candidates worth measuring: copier, cookiecutter,
+  cruft (cookiecutter plus the update story it lacks), projen, yeoman, plop,
+  degit, cargo-generate, and plain GitHub template repositories via
+  `gh repo create --template`.
+  Rank on what this project actually needs, in priority order: **update after
+  generation** — the ability to improve the template later and pull the change
+  into projects already built from it, which is the whole stated goal and the
+  thing most of these tools simply do not do; composition, since the topic
+  template has to build on the general one; conditional prompts, for selecting a
+  `conventions/<LANGUAGE>.md`; language-neutrality; and dependency footprint.
+  Do this BEFORE building either template, since the answer decides their shape.
+
 ## History was rewritten on 2026-08-21 — reset before you resume
 
 `main` was force-pushed. Every SHA from `bc72f5c` onward is new. Two mixed
