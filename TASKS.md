@@ -544,6 +544,44 @@ force-push, valid until someone pushes on top.
 Each of the three commits carries a `git notes` PROVENANCE entry explaining the
 split and pointing at the prevention. Read with `git notes show <sha>`.
 
+- Resolve the three CONTRIBUTING.md files. `dotfiles/docs/CONTRIBUTING.md` is the
+  real one and `AGENTS.md` cites it. `docs/CONTRIBUTING.md` is a stale copy in the
+  older repo-root `docs/` tree, differing by 171 lines, which GitHub would surface
+  if `.github/CONTRIBUTING.md` did not now take precedence. Decide whether the
+  whole repo-root `docs/` tree goes rather than patching one file — `AGENTS.md`
+  already calls it an older copy kept but not maintained.
+
+## History was rewritten on 2026-08-21 — reset before you resume
+
+`main` was force-pushed. Every SHA from `bc72f5c` onward is new. Two mixed
+commits were unscrambled: `b3ad740` split into a clamav half and a pii-redactor
+half, and `5692a86` reworded to describe the 52 zsh deletions it actually
+contains. Verified lossless — the tree is byte-identical to before, and the suite
+is 218 passed / 7 deselected.
+
+**Anything holding the old history must hard-reset, not pull.** A pull merges old
+and new and resurrects the mixed commits.
+
+```bash
+git fetch origin
+git reset --hard origin/main
+git fetch origin 'refs/notes/*:refs/notes/*'   # notes are published now
+```
+
+Who needs this:
+
+- **The second machine.** Not currently contributing, so no work is at risk — but
+  it must reset before its next commit or it will reintroduce the old SHAs.
+- **Any session idle-but-not-finished.** Reset before resuming; a commit against
+  the old HEAD undoes the unscramble.
+
+Pre-rewrite history is on `backup/pre-unscramble-272bdf7` if anything needs
+recovering. Rollback is `git reset --hard backup/pre-unscramble-272bdf7` plus a
+force-push, valid until someone pushes on top.
+
+Each of the three commits carries a `git notes` PROVENANCE entry explaining the
+split and pointing at the prevention. Read with `git notes show <sha>`.
+
 ## Private tasks
 
 Some work cannot be described here without reproducing the thing it is trying to
