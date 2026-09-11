@@ -493,8 +493,18 @@ def cmd_status(m: Manifest, args) -> int:
             norm = os.path.normpath(raw)
             name = display_name(eid, v, p["path"])
             if not (src / "manifest.json").exists():
-                print(f"  {tag('stale', bad)} {src.name} {dim(eid)}")
+                # Chrome keeps the registration but does NOT surface an
+                # unloadable unpacked extension in chrome://extensions — there
+                # is no card to remove. Verified on Chrome 152: two entries
+                # whose ~/Downloads source had been deleted stayed in Secure
+                # Preferences (paths absent, prefs freshly written) and appeared
+                # nowhere in the UI. So this is inert residue, not a chore: no
+                # code can run from a path that is gone, and only Chrome can
+                # rewrite its own signed prefs. Report it without implying an
+                # action that does not exist.
+                print(f"  {tag('orphaned', dim)} {src.name} {dim(eid)}")
                 print(f"  {'':<12} {src} {dim('— source gone')}")
+                print(f"  {'':<12} {dim('inert; Chrome does not list it — nothing to click')}")
             elif norm in expected_load:
                 print(f"  {tag('loaded', ok)} {name} {dim(eid)}")
                 print(f"  {'':<12} {src}")
