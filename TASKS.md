@@ -9,6 +9,11 @@ Keep it short. This tracks *open* work and cross-session hazards, not history �
 
 ## Conventions
 
+- **Three tiers, and the test between them.** If you can write "done when X" in
+  one sentence it is a task; if you cannot, it is an idea and belongs in
+  `ROADMAP.md`. Among tasks, **Now** is the handful actually next and **Planned**
+  is everything else. Promote from Planned into Now rather than working straight
+  out of Planned — if everything is Now, nothing is.
 - **Task or roadmap item?** If you can write "done when X" in one sentence, it
   is a task and belongs here. If you cannot, it is direction and belongs in
   `ROADMAP.md`. Nothing else distinguishes them — not size, not importance, not
@@ -48,17 +53,96 @@ A stale claim is not a lock. If a line looks abandoned, check `git log -3` on th
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
 
-## Open
+## Where things stand — 2026-09-11
 
-- Use the accept-vs-revise signal in git history as training data for the judge
-  gate. The gate itself shipped (PR #1) and decides on real test results; this
-  is the unbuilt half of that task, separated rather than quietly dropped.
-  The idea: `binned` records whether a generated script was accepted, revised,
-  or discarded, and that history says which scripts a human actually wanted.
-  Open questions before it is schedulable — where that signal is stored today,
-  whether there is enough of it to be worth anything yet, and what it would
-  change about the gate, since a gate that already defers to real test results
-  may have little left to learn.
+A handoff snapshot. Delete and rewrite it rather than appending; a log of
+snapshots is worse than none.
+
+**Nothing is mid-flight.** Working tree clean, main pushed, 433 tests passing,
+`skillet validate` clean. Both open branches merged (PR #1, #2, #3); no branch
+is waiting.
+
+**Landed today, and where the reasoning lives:**
+
+| What | Where |
+|---|---|
+| Agent permissions rebuilt — 105 allow / 23 ask / 21 deny | `docs/PERMISSIONS.md` |
+| Commit messages checked against diff size | `scripts/check_commit_proportionality.py` |
+| A changelog, fragments via scriv | `CHANGELOG.md`, `changelog.d/scriv.ini` |
+| Contribution standards, manual path included | `.github/CONTRIBUTING.md` |
+| External standards register | `docs/REFERENCES.md` |
+| Trust ladder — rungs and incident classes | `AGENTS.md` § Trust ladder |
+| Git hooks installed and proven to fail | `.pre-commit-config.yaml` |
+
+**Standing hazards, all machine-level rather than repo-level:**
+
+- **Do not `chezmoi apply`.** `.zshrc` and `bin/ask-research` have two-way drift
+  that needs a real merge. Agents are denied the command outright; a person
+  should resolve the drift first.
+- `docs/CONTRIBUTING.md` is deployed to `~/docs/` and is 171 lines diverged from
+  the live one — actively misleading, not merely stale. First item in **Now**.
+- Every new top-level file is chezmoi-managed by default. Four times today a new
+  artefact was one `.chezmoiignore` line from landing in `$HOME`.
+  `tests/chezmoi` catches the known ones; it cannot catch the next one.
+
+**Known weakness in what was written today:** `spec.md` and `PRD.md` contain
+claims derived from repo evidence rather than stated by the author, and nothing
+marks which. One of them — a no-changelog policy — was invented from a sentence
+about `TASKS.md` and then cited back as settled. `TASKS.md` § Conventions
+requires `[inferred]` marking; it was not used once. Treat unattributed claims
+in those two files as suspect until audited.
+
+## Now
+
+The handful actually next. Keep this short — if everything is Now,
+nothing is.
+
+- Install `ty` and typecheck the Python. Named in the house toolchain and
+  currently absent — not installed, zero references in the repo. 32 test files
+  and 36 PEP 723 scripts are unchecked. Note `ty` is pre-1.0; decide whether it
+  gates commits or just reports before wiring it into `prek`.
+- Wire `ruff` into `.pre-commit-config.yaml`. It is installed and the toolchain
+  names it, but the hook config runs shellcheck and bats only, so no Python file
+  in this repo is linted on commit. Settle the ruleset first — 36 scripts written
+  before any linter will not pass a default config cleanly.
+- Make test conftests skip rather than error on a missing optional dependency.
+  `tests/ollama_evals/conftest.py` loads the eval harness as a module, and the
+  harness imports Pillow at module level, so without `--with pillow` the whole
+  directory produces 53 collection errors instead of 52 passes — the suite
+  aborts instead of running what it can. Same class as the hypothesis guard
+  fixed today, one layer deeper: the import happens before pytest can skip
+  anything. `pytest.importorskip` in the conftest is the likely fix, but check
+  what else the harness pulls in at import time first.
+- Decide when `scriv collect` runs. The changelog exists and fragments
+  accumulate, but nothing says what a "release" is for a dotfiles repo that does
+  not release. Candidates: on a cadence, at each machine rebuild, or never —
+  leaving everything under Unreleased, which is legitimate and costs nothing.
+  Until this is settled the changelog grows one section and is still readable.
+- **Merge the three `CONTRIBUTING.md` files into one at the repository root.**
+  Not part of any open branch — PR #3 merged without it. Decided: root takes
+  contribution PROCESS, `dotfiles/docs/CONVENTIONS.md` keeps topic structure,
+  and the stale repo-root copy goes. Root is both vendor-neutral and one of
+  GitHub's three discovery locations, so it satisfies both goals; `.github/`
+  keeps only the pull request template, which has no neutral equivalent.
+  Note `docs/CONTRIBUTING.md` is **deployed to `~/docs/`** and is 171 lines
+  diverged from the live one, so it is actively misleading rather than merely
+  stale — and it now sits beside the conventions just moved into `docs/`.
+- Rename `dotfiles/docs/CONVENTIONS.md` to `TOPICS.md` and fold
+  `docs/TOPICS.md` into it. The file is titled "Topic conventions" but is named
+  for none of that, and there is now a `docs/TOPICS.md` index entry pointing at
+  it — two names for one subject is the ambiguity the rename removes.
+  Carry the two sections that are not topic conventions out at the same time:
+  § Commit granularity and § Messages belong in `docs/COMMITS.md`.
+  **53 files cite `CONVENTIONS.md`, 40 of them topic files using a
+  deployed-tree-relative path.** Rewrite every citation in the same change, and
+  remember the target must stay inside `dotfiles/docs/` — it deploys beside the
+  topics that link to it, which is why it was not moved to `docs/` with the rest.
+
+## Planned
+
+Has a done-condition and is queued, but is not next. Promote into **Now**
+when it becomes the thing to do, rather than working straight from here.
+
 - Evaluate frontier cloud alternatives to OpenAI/Grok as judge and generation
   candidates — Qwen, DeepSeek, Moonshot Kimi, Z.ai GLM, MiniMax, Mistral,
   ByteDance Seed, Cohere are all on the existing OpenRouter account. Rank them
@@ -110,14 +194,6 @@ delete the line and say so in your commit.
   other session's hunks too. For a co-edited file it has to be `git add -p`, then
   a bare `git commit` with nothing else staged, verified immediately with
   `git show --stat HEAD`.
-
-- Add refactoring principles to `spec.md` for the two failure modes we can
-  already see coming: a test suite that grows faster than the behaviour it
-  covers, and features that overlap until no one can say which one owns a
-  concern. The suite is 218+ tests and every new guard adds two (refuse and
-  relent), so growth is structural, not accidental. Wanted: a rule for when a
-  test earns its place, a rule for collapsing near-duplicate cases, and a
-  redundancy check that runs on demand rather than by vibes.
 - Evaluate whether contract testing earns its keep here. The candidate seams are
   real: `bin/policy`'s exit codes (0/1/2/3) consumed by several callers, the
   `ollama-evals` case schema shared by 25 YAML files, and the model-manifest
@@ -149,15 +225,6 @@ delete the line and say so in your commit.
   Changelog is at 1.1.0 and has no 2.0; `ai-prompt-library/CHANGELOG.md` cites
   1.0.0. Common Changelog is the other candidate. Confirm which before writing
   the rule.]**
-
-- Install `ty` and typecheck the Python. Named in the house toolchain and
-  currently absent — not installed, zero references in the repo. 32 test files
-  and 36 PEP 723 scripts are unchecked. Note `ty` is pre-1.0; decide whether it
-  gates commits or just reports before wiring it into `prek`.
-- Wire `ruff` into `.pre-commit-config.yaml`. It is installed and the toolchain
-  names it, but the hook config runs shellcheck and bats only, so no Python file
-  in this repo is linted on commit. Settle the ruleset first — 36 scripts written
-  before any linter will not pass a default config cleanly.
 - Reconcile `prek` and `pre-commit`. Both are installed and both read
   `.pre-commit-config.yaml`. Pick one as the documented runner so hooks cannot
   pass under one and fail under the other, and say which in AGENTS.md § Commands.
@@ -165,7 +232,6 @@ delete the line and say so in your commit.
   104s, which is too slow for every commit — the likely answer is the fast subset
   on pre-commit and the full run on pre-push, matching how the bats hook already
   declares `stages: [pre-commit, pre-push]`.
-
 - Use local models to generate a machine-local policy layer from on-device
   policy documents. The source documents cannot leave the device, which is
   exactly why a local model is the right tool: it reads them in place and emits
@@ -189,7 +255,6 @@ delete the line and say so in your commit.
   They must never be committed: a filter list names what it is filtering for, so
   a versioned one leaks the thing it exists to catch. Same shape as the
   generated policy layer above.
-
 - Generalise the work/AI policy so topics consume it rather than embedding it.
   Policy governs actions on data — remote inference, body logging, device
   suitability — and those questions do not change when the model runtime does.
@@ -208,7 +273,6 @@ not built", written 2026-09-09. **Do not redesign it.** MVP is two commands and
 the roadmap says to resist a third. These items implement it. Read the roadmap's
 § Constraints that are verified, not assumed before starting — they were checked
 against this machine and must not be re-litigated.
-
 - A1. Answer the roadmap's § Open questions for whoever picks this up, and decide
   § Where `topic` itself lives. Blocks everything below, because it fixes the
   install path and the language. Done when each open question has an answer
@@ -242,7 +306,6 @@ branch, and the architecture rule says provisioning may install and trigger a
 tool but never contain its logic or state. The Ansible role STAYS — installing a
 runtime and pulling weights is machine setup. What leaves is everything about the
 author rather than the machine.
-
 - B1. Decide the new home and its install method: separate repo, name, and how
   this repo pins it. Blocks everything below. Note the constraint that the result
   must be installable by the provisioning layer like any other dependency.
@@ -272,42 +335,6 @@ author rather than the machine.
 - B8. Delete the vacated code and update `spec.md`, `PRD.md` and `AGENTS.md` to
   point outward. Done when no AI tooling logic remains here and no doc describes
   it as if it were still local.
-
-- Use local models to generate a machine-local policy layer from on-device
-  policy documents. The source documents cannot leave the device, which is
-  exactly why a local model is the right tool: it reads them in place and emits
-  an abstracted set of principles that the resolver can consume. The generated
-  layer is machine-local and never versioned, same as `company.yaml` today.
-  Output must be principles, not quotations — a generated layer that reproduces
-  source text has moved the document, not abstracted it.
-- Design the state backup path, classified by machine ownership and data
-  sensitivity. Back up only what is expensive to regenerate — model weights,
-  eval results, benchmark history — and regenerate the rest. Rules that fall out
-  of the author interview, in priority order: PII never leaves the internal disk
-  under any circumstance; a machine the author does not own can use neither
-  cloud nor external disk, only its internal disk; everything else may use
-  external disk or encrypted cloud. No mechanism exists today, so expensive
-  state currently has no backup at all.
-- Review what may and may not leave a machine the author does not own, against
-  the governing policy for that machine. Feeds both the backup design above and
-  the generated policy layer. Existing work on this is scattered — collect it
-  first rather than restarting.
-- Add employer-specific data filters as a machine-local, generated artifact.
-  They must never be committed: a filter list names what it is filtering for, so
-  a versioned one leaks the thing it exists to catch. Same shape as the
-  generated policy layer above.
-
-- Generalise the work/AI policy so topics consume it rather than embedding it.
-  Policy governs actions on data — remote inference, body logging, device
-  suitability — and those questions do not change when the model runtime does.
-  Today `bin/policy`'s FIELDS are already product-neutral, which is the good
-  half; the gap is that no topic declares the capabilities it exercises, so
-  consumption is by hand at each call site and nothing stops a topic deciding
-  for itself. Wanted: a topic declares which capabilities it uses, the resolver
-  answers, and adding a second local runtime alongside or instead of ollama
-  requires no policy change. Pairs with `spec.md` § Shared code does not assume
-  a provider, which states the rule but has no mechanism behind it.
-
 - Build a CLI that manages provisioning config and state, including
   bootstrapping. Think mise or apt, but for topics and their files: scaffold a
   new topic from a template, add or remove a dependency, run the bootstrap, and
@@ -334,7 +361,6 @@ author rather than the machine.
   § Architecture). It must be topic-neutral — no topic gets special handling —
   and it consumes policy generally rather than embedding rules, per the policy
   generalisation item above.
-
 - Research best practices for multi-agent branch orchestration, then design the
   state file. Wanted: a file the orchestrating agent maintains that records which
   branch each work item is on, what it is based on, and what needs rebasing when
@@ -356,7 +382,6 @@ author rather than the machine.
   proven rather than assumed, and the rewrite stops being gated on a human
   re-reading every line. B5 needs this most — the eval harness is the largest
   surface being moved.
-
 - Build the LEDGER for the trust ladder. The ladder itself — rungs, promotion
   streaks, incident classes A-D, what is explicitly not an incident, and ageing
   — is defined in `AGENTS.md` § Trust ladder. What remains is the record. The ladder widens an agent's autonomy
@@ -485,17 +510,6 @@ author rather than the machine.
   template has to build on the general one; conditional prompts, for selecting a
   `docs/<LANGUAGE>.md`; language-neutrality; and dependency footprint.
   Do this BEFORE building either template, since the answer decides their shape.
-
-- Sandbox the agent, if containment is actually wanted. `docs/PERMISSIONS.md`
-  states plainly that the permission layer catches accidents and does not
-  contain a misaligned or prompt-injected agent, and that this is not fixable at
-  that layer: `uv run --with <anything>`, `pytest`, `bats`, `./run-role.sh` and
-  git hooks all execute arbitrary code and are all required. Containment means a
-  restricted filesystem view, a container, or egress control at the OS level.
-  Evaluate before building — this is a solved problem elsewhere (seatbelt/sandbox-exec
-  on macOS, Landlock and bubblewrap on Linux, devcontainers, firewall egress
-  rules) so use `review-best-practices`. Rank on: does it survive an interpreter,
-  does it break the documented test command, and what does it cost per session.
 - Rebuild the 64 allow rules in `~/.claude/settings.json`. One of four settings scopes on this machine (257 allow rules
   in total). Machine-local, applies to **every** project including work repositories, and deliberately left alone
   when the project config was rebuilt — changing it from inside this repo would
@@ -515,70 +529,12 @@ author rather than the machine.
   cannot re-open what a project DENY closes, **assuming deny wins across cascade
   layers**. That assumption is unverified; confirm it in a fresh session before
   relying on it, and if it is wrong this item becomes urgent rather than tidy.
-- **The second machine.** Not currently contributing, so no work is at risk — but
-  it must reset before its next commit or it will reintroduce the old SHAs.
-- **Any session idle-but-not-finished.** Reset before resuming; a commit against
-  the old HEAD undoes the unscramble.
-
-Pre-rewrite history is on `backup/pre-unscramble-272bdf7` if anything needs
-recovering. Rollback is `git reset --hard backup/pre-unscramble-272bdf7` plus a
-force-push, valid until someone pushes on top.
-
-Each of the three commits carries a `git notes` PROVENANCE entry explaining the
-split and pointing at the prevention. Read with `git notes show <sha>`.
-
-- Make test conftests skip rather than error on a missing optional dependency.
-  `tests/ollama_evals/conftest.py` loads the eval harness as a module, and the
-  harness imports Pillow at module level, so without `--with pillow` the whole
-  directory produces 53 collection errors instead of 52 passes — the suite
-  aborts instead of running what it can. Same class as the hypothesis guard
-  fixed today, one layer deeper: the import happens before pytest can skip
-  anything. `pytest.importorskip` in the conftest is the likely fix, but check
-  what else the harness pulls in at import time first.
-
-- **The second machine.** Not currently contributing, so no work is at risk — but
-  it must reset before its next commit or it will reintroduce the old SHAs.
-- **Any session idle-but-not-finished.** Reset before resuming; a commit against
-  the old HEAD undoes the unscramble.
-
-Pre-rewrite history is on `backup/pre-unscramble-272bdf7` if anything needs
-recovering. Rollback is `git reset --hard backup/pre-unscramble-272bdf7` plus a
-force-push, valid until someone pushes on top.
-
-Each of the three commits carries a `git notes` PROVENANCE entry explaining the
-split and pointing at the prevention. Read with `git notes show <sha>`.
-
 - Resolve the three CONTRIBUTING.md files. `dotfiles/docs/CONTRIBUTING.md` is the
   real one and `AGENTS.md` cites it. `docs/CONTRIBUTING.md` is a stale copy in the
   older repo-root `docs/` tree, differing by 171 lines, which GitHub would surface
   if `.github/CONTRIBUTING.md` did not now take precedence. Decide whether the
   whole repo-root `docs/` tree goes rather than patching one file — `AGENTS.md`
   already calls it an older copy kept but not maintained.
-
-- Decide when `scriv collect` runs. The changelog exists and fragments
-  accumulate, but nothing says what a "release" is for a dotfiles repo that does
-  not release. Candidates: on a cadence, at each machine rebuild, or never —
-  leaving everything under Unreleased, which is legitimate and costs nothing.
-  Until this is settled the changelog grows one section and is still readable.
-- **Merge the three `CONTRIBUTING.md` files into one at the repository root.**
-  Not part of any open branch — PR #3 merged without it. Decided: root takes
-  contribution PROCESS, `dotfiles/docs/CONVENTIONS.md` keeps topic structure,
-  and the stale repo-root copy goes. Root is both vendor-neutral and one of
-  GitHub's three discovery locations, so it satisfies both goals; `.github/`
-  keeps only the pull request template, which has no neutral equivalent.
-  Note `docs/CONTRIBUTING.md` is **deployed to `~/docs/`** and is 171 lines
-  diverged from the live one, so it is actively misleading rather than merely
-  stale — and it now sits beside the conventions just moved into `docs/`.
-- Rename `dotfiles/docs/CONVENTIONS.md` to `TOPICS.md` and fold
-  `docs/TOPICS.md` into it. The file is titled "Topic conventions" but is named
-  for none of that, and there is now a `docs/TOPICS.md` index entry pointing at
-  it — two names for one subject is the ambiguity the rename removes.
-  Carry the two sections that are not topic conventions out at the same time:
-  § Commit granularity and § Messages belong in `docs/COMMITS.md`.
-  **53 files cite `CONVENTIONS.md`, 40 of them topic files using a
-  deployed-tree-relative path.** Rewrite every citation in the same change, and
-  remember the target must stay inside `dotfiles/docs/` — it deploys beside the
-  topics that link to it, which is why it was not moved to `docs/` with the rest.
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 

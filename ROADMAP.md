@@ -14,7 +14,7 @@ document for one tool. This file is project-level.
 
 ## How to use this
 
-**When `TASKS.md` § Open is empty, the work is not finished.** Take an item from
+**When `TASKS.md` § Now is empty, the work is not finished.** Take an item from
 here and interview the author about it — relentlessly, one branch of the design
 tree at a time, resolving dependencies as they surface. That is the same pass
 that produced `PRD.md`, and it is what turns a roadmap line into work.
@@ -24,12 +24,12 @@ Then update `PRD.md` with whatever requirements the interview settles, and
 thing exists.
 
 **The test is the done-condition.** If you can write "done when X" in one
-sentence, it is a task and belongs in `TASKS.md` § Open. If you cannot, it
+sentence, it is a task and belongs in `TASKS.md` § Now. If you cannot, it
 belongs here. Size and urgency do not enter into it — a small vague thing is a
 roadmap item, and a large precise one is a task.
 
 Items here have no owner, no date and no done-condition. That is exactly what
-separates them from `TASKS.md` § Open, whose lines are deleted on completion.
+separates them from `TASKS.md` § Now, whose lines are deleted on completion.
 Anything here that acquires a done-condition should be promoted rather than left.
 
 ## Scheduled — pointers only
@@ -56,6 +56,18 @@ and the manifest schema.
 Deliberately deferred. The copier topic template can be built against the format
 as it stands today; the module boundary only has to be settled before anyone
 outside this machine relies on it.
+
+### Use the accept-vs-revise signal in git history as training data for the judge gate
+
+Use the accept-vs-revise signal in git history as training data for the judge gate. The gate itself shipped (PR #1) and decides on real test results; this is the unbuilt half of that task, separated rather than quietly dropped. The idea: `binned` records whether a generated script was accepted, revised, or discarded, and that history says which scripts a human actually wanted. Open questions before it is schedulable — where that signal is stored today, whether there is enough of it to be worth anything yet, and what it would change about the gate, since a gate that already defers to real test results may have little left to learn.
+
+### Add refactoring principles to `spec
+
+Add refactoring principles to `spec.md` for the two failure modes we can already see coming: a test suite that grows faster than the behaviour it covers, and features that overlap until no one can say which one owns a concern. The suite is 218+ tests and every new guard adds two (refuse and relent), so growth is structural, not accidental. Wanted: a rule for when a test earns its place, a rule for collapsing near-duplicate cases, and a redundancy check that runs on demand rather than by vibes.
+
+### Sandbox the agent, if containment is actually wanted
+
+Sandbox the agent, if containment is actually wanted. `docs/PERMISSIONS.md` states plainly that the permission layer catches accidents and does not contain a misaligned or prompt-injected agent, and that this is not fixable at that layer: `uv run --with <anything>`, `pytest`, `bats`, `./run-role.sh` and git hooks all execute arbitrary code and are all required. Containment means a restricted filesystem view, a container, or egress control at the OS level. Evaluate before building — this is a solved problem elsewhere (seatbelt/sandbox-exec on macOS, Landlock and bubblewrap on Linux, devcontainers, firewall egress rules) so use `review-best-practices`. Rank on: does it survive an interpreter, does it break the documented test command, and what does it cost per session.
 
 ### A local model that reacts to errors and proposes fixes
 

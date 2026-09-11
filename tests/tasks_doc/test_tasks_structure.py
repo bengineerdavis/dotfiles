@@ -26,7 +26,9 @@ TASKS = REPO / "TASKS.md"
 REQUIRED = [
     "## Conventions",
     "## Claimed",
-    "## Open",
+    "## Where things stand",
+    "## Now",
+    "## Planned",
     "## History was rewritten",
     "## Private tasks",
     "## Decisions waiting on the author",

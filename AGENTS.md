@@ -15,7 +15,7 @@ what must remain true, `TASKS.md` says what is in flight and who is touching
 which files. Read `PRD.md` too when the work is about scope — whether something
 belongs here at all.
 
-**When `TASKS.md` § Open is empty, the work is not finished** — read `ROADMAP.md`.
+**When `TASKS.md` § Now is empty, the work is not finished** — read `ROADMAP.md`.
 Open is a queue whose lines are deleted on completion, so it cannot hold anything
 long-horizon; an empty queue means "nothing scheduled", never "nothing to do".
 The roadmap says what to do next: take an item, interview the author about it,
