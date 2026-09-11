@@ -135,6 +135,28 @@ Adding a deny rule for a harmless command did not block it, and the cause was
 not distinguishable from inside: settings may not reload mid-session, the session
 may run in a mode that bypasses rules, or the pattern may not have matched.
 
+**A refusal and a failure look nothing alike, and confusing them costs a test.**
+When a rule denies a command, Claude Code refuses the tool call: a permission
+message, and no command output whatsoever. When a command merely fails, it ran —
+there is output, an exit status, an error from the program itself.
+
+The first attempt at testing this read `chezmoi apply --dry-run` erroring with
+`could not open a new TTY` as a successful denial. It was not. The command had
+been permitted, executed, and failed for its own unrelated reasons. This is
+`spec.md` § Verification — a mechanism that can decline is proven to relent,
+wearing a new disguise: a guard that never fired and a command that broke on
+its own produce the same feeling of "it didn't work".
+
+So always pair the check with the relenting direction, and prefer a relenting
+check that doubles as proof the settings loaded at all. `git checkout` is in
+allow here: if it prompts, the session is running some other configuration and
+the denial result means nothing.
+
+**Settings load at session start and do not reload.** Checking out a branch
+mid-session leaves the old rules in force, which is how the first attempt ended
+up testing the configuration it was meant to replace. Put the file in place
+first, then start the session.
+
 Be specific about where. "Open a fresh session" is not an instruction — the
 first attempt at this test was run in `~/dotfiles`, against a branch that was
 not checked out, and could not have passed either way. Name the directory, name
