@@ -355,6 +355,37 @@ Anything else: push the branch, open a PR, and report. Stakes and size decide,
 not preference. A new feature goes to PR; so does any change that takes more
 than a paragraph to explain.
 
+### Pull request descriptions
+
+**A pushed branch is not a pull request.** `git push` prints a
+`.../pull/new/<branch>` URL; that is an offer to create one, not one that
+exists. Reporting it as a PR link claims something that has not happened — open
+the PR with `gh pr create`, then report its number.
+
+**Never open one with an empty body.** Use `--body-file`, because a description
+worth reading does not survive being typed on a command line.
+
+A PR description is written for a **different reader than a commit message**,
+which is why `commit-hygiene` explicitly excludes them from its scope. A commit
+body serves someone reverting one change and asking what it was. A PR
+description serves someone deciding whether to merge several changes at once,
+who has not been in your session and cannot see what you ruled out.
+
+Carry these, and do not simply list the commits — the reviewer can read those:
+
+- **What changes, and the reasoning they would otherwise reconstruct.** If a
+  design decision took an hour to reach, it takes them an hour too unless you
+  write it down.
+- **What was verified**, including which mutations were tried and caught. "Tests
+  pass" is not verification; the suite passing before the change is also tests
+  passing.
+- **Why it needed review rather than self-merging** — name the § Merge gates
+  clause it failed. That is the reviewer's first question.
+- **What was deliberately left out**, and why. Scope someone else has to guess
+  at is scope they will relitigate.
+- **Prerequisites split into their own commits**, and what made them
+  prerequisites rather than cleanup.
+
 ### Review starts with the tests
 
 Read the tests first. They should read cleanly enough to serve as the spec, and

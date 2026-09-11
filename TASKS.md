@@ -70,7 +70,7 @@ delete the line and say so in your commit.
 - File the upstream issue on `simonw/llm-pdf-to-images`: it does `import fitz`,
   and PyMuPDF's shim prints a deprecation notice to **stdout**, corrupting any
   captured `llm` output. Draft is written; one-line fix is `import pymupdf`.
-  **[blocked: `gh auth login` — the device flow expired]**
+  **[unblocked: `gh auth status` reports a working keyring login as of 2026-09-11]**
 - Decide whether `docs/CONVENTIONS.md` needs the commit rules at all. They now
   live in `AGENTS.md` (`git commit -o`, then `git show --stat HEAD`), which is the
   right home for agent process; CONVENTIONS.md § Commit granularity still covers
