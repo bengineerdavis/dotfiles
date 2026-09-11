@@ -608,6 +608,8 @@ root holds only the five documents that govern the project:
 - **`conventions/PERMISSIONS.md`** — what the agent may run, the three tiers in
   `.claude/settings.json`, and the threat model they do and do not address.
   Read it before widening a rule.
+- **`conventions/CONTRIBUTING.md`** — how work gets in, by agent or by hand, and
+  what to do when an agent fails mid-task. The tool-free version of this file.
 
 This file stays general on purpose. How work runs here is reusable across
 projects; conventions are the part that swaps out. A repository that adds another
