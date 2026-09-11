@@ -23,16 +23,15 @@ import string
 
 import pytest
 
-try:
-    from hypothesis import given, settings, assume, HealthCheck
-    from hypothesis import strategies as st
-    HAS_HYPOTHESIS = True
-except ImportError:                                  # pragma: no cover
-    HAS_HYPOTHESIS = False
+# importorskip, NOT a try/except plus skipif: the @given decorators below are
+# evaluated at import time, so a skipif marker never gets the chance to fire and
+# the module raises NameError during collection instead of skipping. That is the
+# bug this line replaces — it made the documented fallback test command, which
+# omits --with hypothesis, fail rather than skip.
+pytest.importorskip("hypothesis", reason="hypothesis not installed")
 
-pytestmark = pytest.mark.skipif(
-    not HAS_HYPOTHESIS, reason="hypothesis not installed — pip install hypothesis"
-)
+from hypothesis import given, settings, assume, HealthCheck  # noqa: E402
+from hypothesis import strategies as st                      # noqa: E402
 
 # Small scalars keep generated dicts readable when a property fails; the shrunk
 # counterexample is meant to be pasted into a regression test by hand.

@@ -13,16 +13,13 @@ import tempfile
 
 import pytest
 
-try:
-    from hypothesis import given, settings, assume
-    from hypothesis import strategies as st
-    HAS_HYPOTHESIS = True
-except ImportError:
-    HAS_HYPOTHESIS = False
+# importorskip, NOT a try/except plus skipif: @given is evaluated at import
+# time, so the skipif marker never fires and the module raises NameError during
+# collection instead of skipping.
+pytest.importorskip("hypothesis", reason="hypothesis not installed")
 
-pytestmark = pytest.mark.skipif(
-    not HAS_HYPOTHESIS, reason="hypothesis not installed — pip install hypothesis"
-)
+from hypothesis import given, settings, assume   # noqa: E402
+from hypothesis import strategies as st          # noqa: E402
 
 # ── Regex under test (duplicated here so the tests document the contract) ────
 # These match the implementations in binned; if binned changes them the tests
