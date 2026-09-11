@@ -147,7 +147,7 @@ A chezmoi-managed dotfiles repo with an Ansible layer for system state.
 schema, tiers, lifecycle tags, dependency resolution, commit granularity and the
 CRUD-ownership invariant. It is the source of truth and the 39 topic files cite it.
 `dotfiles/docs/ARCHITECTURE.md` has the big picture,
-`dotfiles/docs/CONTRIBUTING.md` the workflow around it.
+`CONTRIBUTING.md` at the root carries the workflow around it.
 
 The repo-root `docs/` tree is an older copy of the same material, kept but not
 maintained. Edit the `dotfiles/docs/` copies.

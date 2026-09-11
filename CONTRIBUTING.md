@@ -6,7 +6,7 @@ when the agent route fails.
 **This file routes; it does not restate.** Three documents already cover pieces
 of this and duplicating them is how they drift apart:
 
-- **`dotfiles/docs/CONTRIBUTING.md`** — adding or changing a topic, the CRUD
+- **`CONTRIBUTING.md`** — adding or changing a topic, the CRUD
   teardown invariant, the `<scope>: <imperative>` commit convention, and the
   Ansible checks to run before committing. The detail lives there.
 - **`AGENTS.md`** — the agent path: branches, merge gates, decomposition, the
@@ -45,7 +45,7 @@ The commit template is wired via `git config --local commit.template .gitmessage
 and is **already set** in this clone. On a fresh clone, run that line — it is the
 one piece of setup that is not automatic.
 
-`dotfiles/docs/CONTRIBUTING.md` § Commits has the subject convention. The only
+`CONTRIBUTING.md` § Commits has the subject convention. The only
 addition is size: a subject alone for mechanical edits, a sentence or two for
 small ones, one or two short paragraphs for ordinary work. A message longer than
 its change warrants means the commit should have been two.
@@ -148,6 +148,15 @@ deciding on several commits at once, who was not in your session.
 Nothing an agent does here is unrecoverable by design. `chezmoi apply` is denied
 to agents for exactly this reason — it is the one action that reaches outside
 git.
+
+### Shell scripts and their tests
+
+A script at `<subdir>/foo.sh` is tested by `tests/foo.bats`; the runner flags
+scripts with no matching test. Run the suite before pushing:
+
+```bash
+bats tests/
+```
 
 ## What is enforced, and by what
 

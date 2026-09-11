@@ -282,6 +282,16 @@ in review.
 
 ## Adding a new topic
 
+Keep a topic self-contained: install and system state in `tasks/`, shell wiring
+in `files/zsh/*.zsh`, metadata in `topic.yml`.
+
+Verify without changing anything before you commit:
+
+```bash
+ansible-playbook apps/<topic>/playbook.yaml --syntax-check
+ansible-playbook apps/<topic>/playbook.yaml --check --tags provision
+```
+
 ```bash
 ./init-config.sh my-topic
 ```

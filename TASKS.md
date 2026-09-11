@@ -97,17 +97,6 @@ in those two files as suspect until audited.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
-- **[3, remaining] Make `commit-hygiene` reference rather than restate.** The
-  CONVENTIONS.md half is done: commit granularity and messages now live in the
-  root `CONTRIBUTING.md` and CONVENTIONS.md points at it.
-  The skill half has a tension to resolve first. `commit-hygiene` is a
-  **portable** skill meant for any repository, so it cannot reference a
-  `CONTRIBUTING.md` that may not exist — the derivation the author described
-  runs the other way from what a portable skill can do. Options: keep the skill
-  self-contained and have `CONTRIBUTING.md` cite it (which it already does), or
-  give the skill an optional "if this repo has a CONTRIBUTING.md, defer to it"
-  rule. Decide before editing; the skill lives in `ai-prompt-library`, a
-  different repository.
 - **[4] Fill `~/.local/state/ai-policy/company.yaml`'s 22 TODO fields.** Decided:
   proceed top-down as proposed — `device.approved` gates the rest. Machine-local
   and unversioned, so it cannot be tracked here beyond this pointer. Until it is
@@ -134,9 +123,8 @@ nothing is.
   not release. Candidates: on a cadence, at each machine rebuild, or never —
   leaving everything under Unreleased, which is legitimate and costs nothing.
   Until this is settled the changelog grows one section and is still readable.
-- Rename `dotfiles/docs/CONVENTIONS.md` to `TOPICS.md`, and fold
-  `dotfiles/docs/CONTRIBUTING.md` into it at the same time — decided 2026-09-11.
-  Its 51 lines are topic workflow, which is what the renamed file is for. Fold
+- Rename `dotfiles/docs/CONVENTIONS.md` to `TOPICS.md`. The CONTRIBUTING
+  fold-in is already done — only the rename and its citations remain. Fold
   `docs/TOPICS.md` into it. The file is titled "Topic conventions" but is named
   for none of that, and there is now a `docs/TOPICS.md` index entry pointing at
   it — two names for one subject is the ambiguity the rename removes.
@@ -551,7 +539,7 @@ author rather than the machine.
   cannot re-open what a project DENY closes, **assuming deny wins across cascade
   layers**. That assumption is unverified; confirm it in a fresh session before
   relying on it, and if it is wrong this item becomes urgent rather than tidy.
-- Resolve the three CONTRIBUTING.md files. `dotfiles/docs/CONTRIBUTING.md` is the
+- Resolve the three CONTRIBUTING.md files. `CONTRIBUTING.md` is the
   real one and `AGENTS.md` cites it. `CONTRIBUTING.md` is a stale copy in the
   older repo-root `docs/` tree, differing by 171 lines, which GitHub would surface
   if `CONTRIBUTING.md` did not now take precedence. Decide whether the
