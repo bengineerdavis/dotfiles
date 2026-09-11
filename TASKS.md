@@ -97,6 +97,17 @@ in those two files as suspect until audited.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
+- **[3] Refactor the overlap out of `dotfiles/docs/CONVENTIONS.md`.** Decided:
+  what overlaps with `commit-hygiene` and the root CONTRIBUTING.md comes out.
+  `commit-hygiene` is a skill *derived from* the contributing docs and should
+  reference them, written in the form an agent acts on rather than a second
+  statement of the same rules. Blocks the TOPICS.md rename below, which is why
+  it is first.
+- **[4] Fill `~/.local/state/ai-policy/company.yaml`'s 22 TODO fields.** Decided:
+  proceed top-down as proposed — `device.approved` gates the rest. Machine-local
+  and unversioned, so it cannot be tracked here beyond this pointer. Until it is
+  filled, `fail_closed` means the company layer denies everything it is asked,
+  which is safe and useless.
 - Install `ty` and typecheck the Python. Named in the house toolchain and
   currently absent — not installed, zero references in the repo. 32 test files
   and 36 PEP 723 scripts are unchecked. Note `ty` is pre-1.0; decide whether it
@@ -143,6 +154,19 @@ nothing is.
 Has a done-condition and is queued, but is not next. Promote into **Now**
 when it becomes the thing to do, rather than working straight from here.
 
+- **[1] Promote `gpt-oss:20b` and `ministral-3:8b` in `bin/binned`.** Decided:
+  use the cross-task evidence from judging. Record in the manifest that the
+  number came from judging rather than generation, so the basis is not
+  rediscovered as an error later.
+- **[2] Repopulate `bin/binned`'s SaaS tier from the frontier evaluation.**
+  Decided: repopulate rather than leave it thin. Depends on the frontier
+  evaluation task, which needs OpenRouter calls and therefore an answer on cost.
+- **[5] Give Ansible sole ownership of `_ollama_zsh_completion`.** Decided.
+  chezmoi was involved because the file is a symlink; removing chezmoi's claim
+  ends the dual ownership and the `chezmoi apply` reverts-a-re-download
+  consequence documented in `apps/ollama/tasks/install.yaml`. Note the
+  inversion while working: for this file the topic-root copy is live and the
+  `files/zsh/` copy is dead, backwards from every other `*.zsh`.
 - Evaluate frontier cloud alternatives to OpenAI/Grok as judge and generation
   candidates — Qwen, DeepSeek, Moonshot Kimi, Z.ai GLM, MiniMax, Mistral,
   ByteDance Seed, Cohere are all on the existing OpenRouter account. Rank them
@@ -590,31 +614,8 @@ and withdrawn — it reproduced the patterns, exactly as warned above.
 
 ## Decisions waiting on the author
 
-- `gpt-oss:20b` and `ministral-3:8b` sit at 2 stars in `bin/binned`'s
-  `_RECOMMENDED_MODELS`, marked provisional. `model-bench` measures *judging*, not
-  *generation*, which is what the stars document — so promoting them on bench
-  evidence would import a number measured on a different task. Leave provisional,
-  or build a generation-side test?
-- `bin/binned`'s SaaS tier is down to five entries after the gpt-* rows were
-  dropped. Repopulate from the frontier evaluation above, or leave it thin?
-- Commit-granularity guidance now exists twice: `docs/CONVENTIONS.md` § Commit
-  granularity (repo-specific — scope vocabulary, worked examples from this
-  history, the don't-over-split floor) and the portable `commit-hygiene` skill
-  with executable evals (message-size table, pathspec commits, verify-after).
-  They cross-reference and roughly half overlaps. Keep both split by audience —
-  humans in this repo vs agents in any repo — or consolidate? One commit message
-  called CONVENTIONS.md "the single home", so this needs a decision, not a merge.
-- `~/.local/state/ai-policy/company.yaml` has **22 TODO fields** awaiting the
-  author's language. It is machine-local and unversioned by design, so it cannot
-  be tracked here — only pointed at. Until it is filled, `fail_closed` means the
-  company layer denies everything it is asked about, which is safe but not useful.
-  Work top-down: `device.approved` gates the rest.
-- `apps/ollama` writes `_ollama_zsh_completion` from Ansible to a path chezmoi
-  also manages — dual ownership, deliberate, documented in `tasks/install.yaml`
-  with its consequence (`chezmoi apply` reverts a re-download). Marked UNDECIDED:
-  formalise by giving one tool sole ownership, or leave it? Note the inversion —
-  for that file the topic-root copy is the live one, the `files/zsh/` copy is dead,
-  which is backwards from every `*.zsh`.
+None open. The five that stood here were answered on 2026-09-11 and became
+tasks; see § Now and § Planned. Add new ones here rather than deciding them.
 
 ## Cross-session hazards
 
