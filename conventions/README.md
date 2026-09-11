@@ -24,6 +24,45 @@ wants its security practice written down adds `SECURITY.md`.
 
 Name language files for the language, in caps, matching the root document style.
 
+## When something earns its own file
+
+Conventions start cheap and get promoted only when they stop fitting. The ladder,
+in order — do not skip a rung because the next one looks tidier:
+
+| Rung | Where | Promote when |
+|---|---|---|
+| 1 | a paragraph in `AGENTS.md` | it is a sentence or two and applies everywhere |
+| 2 | `AGENTS.md` in a subdirectory | it applies to one subtree only. AGENTS.md is a Linux Foundation standard with **closest-wins precedence**, so a nested file overrides the root for files beneath it |
+| 3 | `conventions/<SUBJECT>.md` | it is long enough to drown the file above it, or it should be swappable per project |
+| 4 | a directory | it needs companions — references, evals, fixtures, a license |
+
+Rung 4 is what the ecosystem does. Skills in `anthropics/skills`,
+`cursor/plugins` and `obra/superpowers` are all directories: a `SKILL.md` plus
+whatever it needs beside it.
+
+**The test for rung 3 is not length, it is variance.** A long convention that
+would be identical in every project belongs in `AGENTS.md`, where it composes.
+A short one that changes per project belongs here, where it can be swapped
+without rewriting the file above it.
+
+## Vendor-neutral: content here, manifests elsewhere
+
+Three repositories that ship agent skills lay out the same way, and it is worth
+copying because it was arrived at independently:
+
+- **Content is vendor-neutral**, in plain directories — `skills/`, `agents/`,
+  `docs/`.
+- **Vendor directories are dot-prefixed and hold only manifests.**
+  `obra/superpowers` carries `.claude-plugin`, `.codex-plugin`,
+  `.cursor-plugin` and `.devin-plugin`; each contains a `plugin.json` and
+  nothing else.
+
+So the rule here: **use the neutral location whenever it also satisfies the
+vendor; use the vendor's path only when nothing neutral works.** `CONTRIBUTING.md`
+at the repository root is neutral *and* one of GitHub's three discovery
+locations, so it goes there. A pull request template has no neutral equivalent,
+so it stays in `.github/`.
+
 ## Two classes, and why one is only indexed here
 
 A convention either **ships with the artifact** or **governs the repository**.
