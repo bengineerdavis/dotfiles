@@ -60,12 +60,13 @@ delete the line and say so in your commit.
   ByteDance Seed, Cohere are all on the existing OpenRouter account. Rank them
   with `model-bench`, not by assertion: several post-date any model's training
   cutoff, so relative quality is genuinely unknown until measured.
-- Symlink the three skills into `~/.claude/skills` on each machine that wants
-  them: `ln -s ~/code/personal/ai-prompt-library/skills/<name> ~/.claude/skills/`.
-  Per-machine because `~/.claude` is chezmoi-ignored. Skills are `pii-redaction`,
-  `commit-hygiene` and `prior-art-first`. Note `prior-art-first` is committed in
-  ai-prompt-library but NOT pushed — another session had work in flight there, so
-  only that skill's own directory was staged and pushing was left to its owner.
+- Symlink skills into `~/.claude/skills` on each machine that wants them:
+  `ln -s ~/code/personal/ai-prompt-library/skills/<name> ~/.claude/skills/`.
+  Per-machine because `~/.claude` is chezmoi-ignored, so this recurs on every
+  new host rather than being done once. **This Mac: done 2026-09-11** for
+  `pii-redaction`, `commit-hygiene` and `review-best-practices`, each verified
+  to resolve to a real SKILL.md. `model-fitness` was deliberately skipped —
+  it is uncommitted in ai-prompt-library and belongs to another session.
 - File the upstream issue on `simonw/llm-pdf-to-images`: it does `import fitz`,
   and PyMuPDF's shim prints a deprecation notice to **stdout**, corrupting any
   captured `llm` output. Draft is written; one-line fix is `import pymupdf`.
