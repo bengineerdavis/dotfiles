@@ -91,7 +91,7 @@ LOCATION_NAMES = {
 def require(*cmds: str) -> None:
     """Fail once, naming every missing dependency, before doing any work.
 
-    Per docs/CONVENTIONS.md: a standalone script checks every tool it shells out
+    Per docs/TOPICS.md: a standalone script checks every tool it shells out
     to up front. Exits 127, the conventional "command not found" status.
     """
     missing = [c for c in cmds if shutil.which(c) is None]
