@@ -469,8 +469,8 @@ that a pattern across months stays visible.
 ## Commands
 
 ```bash
-# Tests — pytest is primary. Needs these four or parts of the suite silently skip.
-uv run --with pytest --with hypothesis --with typer --with questionary --with pyyaml pytest tests -q
+# Tests — pytest is primary. Needs all six, or parts of the suite skip or ERROR.
+uv run --with pytest --with hypothesis --with typer --with questionary --with pyyaml --with pillow pytest tests -q
 uv run --with pytest pytest tests -m "not llm_judge" -q   # skip real-model tests
 uv run --with pytest pytest tests -m llm_judge -q         # only real-model tests
 
@@ -485,6 +485,13 @@ almost nothing — the `binned_module` fixture skips without `typer`/`questionar
 Without `pyyaml`, `tests/policy` drops from 22 tests to 15 passed / 1 skipped, and
 the skipped module is the one asserting the policy layers grant no permissions —
 so the check that matters most is the one that disappears quietest.
+
+Without `pillow` it is louder but worse: `tests/ollama_evals` produces 53 collection
+ERRORS instead of 52 passes, because its `conftest.py` imports the eval harness,
+which imports Pillow at module level. An error is not a skip — the suite aborts
+rather than running what it can. That the documented command omitted `pillow` for
+as long as it did is the argument for running the command as written now and then,
+rather than the one in your shell history.
 
 ## Commits
 
