@@ -555,6 +555,26 @@ split and pointing at the prevention. Read with `git notes show <sha>`.
   whole repo-root `docs/` tree goes rather than patching one file — `AGENTS.md`
   already calls it an older copy kept but not maintained.
 
+- **Adopt a changelog: scriv + `changelog.d/` + `CHANGELOG.md`.** Decided by the
+  author 2026-09-11, and it REVERSES a written decision — `PRD.md` § Non-goals
+  says "no `CHANGELOG.md` will be kept" and `spec.md` § Change records says the
+  history IS the changelog. Both must be edited, and the commit should say what
+  changed the reasoning rather than quietly dropping it.
+  Raised and not yet answered: scriv's fragment model may **answer** the original
+  objection rather than reverse it. The objection was that duplicating `git log`
+  creates drift; a fragment is written once, at the time of the change, and
+  collected later, so there is no second copy to drift. Settle whether this is a
+  reversal or a discovery before editing the governance documents.
+  Research context: of five agent-heavy repositories sampled, `astral-sh/uv` and
+  `openai/codex` keep a CHANGELOG.md and use **zero** Conventional Commits;
+  `aider` and `cursor/plugins` use scoped commits and keep no changelog. Commit
+  format and changelog discipline are independent decisions. None used scriv.
+- Consolidate the three `CONTRIBUTING.md` files. Decided: root takes contribution
+  PROCESS, `dotfiles/docs/CONVENTIONS.md` keeps topic structure, the stale
+  repo-root `docs/` copy goes. Root is both vendor-neutral and one of GitHub's
+  three discovery locations, so it satisfies both goals; `.github/` keeps only
+  the pull request template, which has no neutral equivalent.
+
 ## History was rewritten on 2026-08-21 — reset before you resume
 
 `main` was force-pushed. Every SHA from `bc72f5c` onward is new. Two mixed
