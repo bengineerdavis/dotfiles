@@ -143,7 +143,7 @@ delete the line and say so in your commit.
   currently absent — not installed, zero references in the repo. 32 test files
   and 36 PEP 723 scripts are unchecked. Note `ty` is pre-1.0; decide whether it
   gates commits or just reports before wiring it into `prek`.
-- Wire `ruff` into `.pre-commit-config.yaml`. **[blocked: hooks are not installed — see the item above]** It is installed and the toolchain
+- Wire `ruff` into `.pre-commit-config.yaml`. It is installed and the toolchain
   names it, but the hook config runs shellcheck and bats only, so no Python file
   in this repo is linted on commit. Settle the ruleset first — 36 scripts written
   before any linter will not pass a default config cleanly.
@@ -524,32 +524,6 @@ split and pointing at the prevention. Read with `git notes show <sha>`.
   fixed today, one layer deeper: the import happens before pytest can skip
   anything. `pytest.importorskip` in the conftest is the likely fix, but check
   what else the harness pulls in at import time first.
-
-- **Install the git hooks — `.pre-commit-config.yaml` is inert.** `.git/hooks/`
-  contains only `.sample` files, so the configured shellcheck and bats hooks have
-  never run, on any commit. Every hook-related item below is blocked on this and
-  was written assuming a working system. Run `prek install` (or `pre-commit
-  install`), then prove it by committing something shellcheck rejects and
-  watching it fail. Until then, adding a hook is writing config nothing executes.
-
-## History was rewritten on 2026-08-21 — reset before you resume
-
-`main` was force-pushed. Every SHA from `bc72f5c` onward is new. Two mixed
-commits were unscrambled: `b3ad740` split into a clamav half and a pii-redactor
-half, and `5692a86` reworded to describe the 52 zsh deletions it actually
-contains. Verified lossless — the tree is byte-identical to before, and the suite
-is 218 passed / 7 deselected.
-
-**Anything holding the old history must hard-reset, not pull.** A pull merges old
-and new and resurrects the mixed commits.
-
-```bash
-git fetch origin
-git reset --hard origin/main
-git fetch origin 'refs/notes/*:refs/notes/*'   # notes are published now
-```
-
-Who needs this:
 
 - **The second machine.** Not currently contributing, so no work is at risk — but
   it must reset before its next commit or it will reintroduce the old SHAs.
