@@ -37,7 +37,7 @@ GOVERNANCE = ["AGENTS.md", "PRD.md", "ROADMAP.md", "spec.md", "TASKS.md"]
 # not deploy) with dotfiles documentation (which must). Named files only.
 GOVERNANCE_FILES_IN_DOCS = [
     "docs/PERMISSIONS.md", "docs/PYTHON.md", "docs/REFERENCES.md",
-    "docs/TOPICS.md", "docs/README.md",
+    "docs/README.md",
     # A changelog is a governance artefact, not a dotfile. Both of these were
     # managed when first added and would have landed in $HOME.
     "CHANGELOG.md",
