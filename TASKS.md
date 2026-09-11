@@ -39,7 +39,6 @@ Format: `- <UTC start> — <what> — <files or resource>`
 
 - 2026-08-27T18:20Z — adding the pre-egress review gate (as in bin/trace-public) — bin/executable_pii-redactor
 - 2026-09-10T21:25Z — adding a chrome browser topic (separate session, reported by the author) — dotfiles/apps/chrome, install/remove tasks
-- 2026-09-11T01:25Z — cheap test gate before the LLM judge panel [agent: claude session 5100b7bb] — bin/executable_binned, branch judge-gate
 
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
@@ -47,10 +46,15 @@ delete the line and say so in your commit.
 
 ## Open
 
-- Add a cheap gate in front of the LLM judge panel: generate and run the script's
-  tests, use real pass/fail as the signal, escalate to judges only when the result
-  is inconclusive. Treat formatting/lint as fix-as-you-go, not gate criteria. The
-  accept-vs-revise signal in git history is training data for it.
+- Use the accept-vs-revise signal in git history as training data for the judge
+  gate. The gate itself shipped (PR #1) and decides on real test results; this
+  is the unbuilt half of that task, separated rather than quietly dropped.
+  The idea: `binned` records whether a generated script was accepted, revised,
+  or discarded, and that history says which scripts a human actually wanted.
+  Open questions before it is schedulable — where that signal is stored today,
+  whether there is enough of it to be worth anything yet, and what it would
+  change about the gate, since a gate that already defers to real test results
+  may have little left to learn.
 - Evaluate frontier cloud alternatives to OpenAI/Grok as judge and generation
   candidates — Qwen, DeepSeek, Moonshot Kimi, Z.ai GLM, MiniMax, Mistral,
   ByteDance Seed, Cohere are all on the existing OpenRouter account. Rank them
