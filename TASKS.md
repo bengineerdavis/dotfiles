@@ -429,14 +429,14 @@ author rather than the machine.
   rather than diverge — decide which owns it before the second is built. The
   module boundary itself is deferred to `ROADMAP.md` and is not a blocker; build
   against the format as it stands.
-- Pin the version of every external standard this repo follows, and re-check
-  upstream on a stated cadence. Today only skillet is pinned — `spec.md`'s footer
-  says 1.7.0 and 1.8.0 is already available. The plain-language standard is
-  unchosen, the changelog convention is unnamed, and PEP 723, copier and ruff
-  versions are implicit. Wanted: one place recording standard, version, where it
-  is used, and when it was last checked. A convention with no version silently
-  means whatever its latest revision says, which is drift that produces no diff.
-
+- Keep `conventions/REFERENCES.md` current. The register exists and is verified
+  as of 2026-09-11; what is missing is the habit. Re-check on quarter boundaries
+  and whenever a listed tool is upgraded, updating `verified` even when nothing
+  moved — a stale date is the signal, not the version. Two rows need action now:
+  skillet 1.8.0 is out while `spec.md` pins 1.7.0, and ruff is installed but
+  wired to nothing. **[open question: worth automating? A check comparing
+  installed `--version` output against the register is easy; comparing against
+  upstream release feeds is not, and would add network calls to the test suite.]**
 - Decide the layout for installable skills and workflows, portable across agent
   tools. Research first, because the landscape is unsettled and half of what
   looks like a standard is one vendor's convention.

@@ -608,6 +608,10 @@ root holds only the five documents that govern the project:
 - **`conventions/PERMISSIONS.md`** — what the agent may run, the three tiers in
   `.claude/settings.json`, and the threat model they do and do not address.
   Read it before widening a rule.
+- **`conventions/REFERENCES.md`** — every external standard this repo follows,
+  the version it follows, and when that was last checked. Add a row before
+  adopting a standard; a convention with no version means whatever its latest
+  revision says.
 
 `.github/CONTRIBUTING.md` is the human entry point and lives there rather than
 here on purpose: GitHub only discovers `CONTRIBUTING.md` in `.github/`, the
