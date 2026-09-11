@@ -304,16 +304,38 @@ Scrubbing changes what is recognisable, not where a case came from.
 - **THEN** describe the class and write a new case from it. Do not import the
   transcript that revealed it
 
+### Behavior: Change records — a human-readable changelog is kept
+
+A changelog written for humans SHALL be maintained. `git log` does not satisfy
+this: it records why each change happened, for someone reverting one, and that
+is a different question from what changed since a reader last looked.
+
+#### Scenario: A change is worth telling a reader about
+
+- **WHEN** a change alters what someone using this repository would notice
+- **THEN** it earns a changelog entry, written at the time of the change rather
+  than reconstructed from commits later
+
+#### Scenario: The changelog would repeat the commit log
+
+- **WHEN** an entry would say only what the commit subject already says
+- **THEN** it is written for the reader instead, in their terms. A changelog
+  that reads like `git log --oneline` has been generated rather than written
+
 ### Behavior: Change records — one commit is one reviewable decision
 
 A commit SHALL contain one reviewable decision. The test is not file count; it
 is whether a reader can hold the *why* in their head, and whether the change can
 be reverted alone without taking unrelated work with it.
 
-The history IS the changelog. There is deliberately no `CHANGELOG.md` — `git
-log` already holds it, and duplicating it creates drift. That is why message
-quality is a property here and not a preference: nothing else records why a
-change happened. `dotfiles/docs/CONVENTIONS.md` § Commit granularity is the
+A changelog for humans is required, and `git log` is not one. They serve
+different readers: a commit body serves someone reverting one change and asking
+what it was; a changelog serves someone asking what changed since they last
+looked, who does not want to read commits at all.
+
+Message quality still matters, for the same reason it always did — a commit is
+the only record of *why* a change happened. It is simply not a substitute for
+the other document. `dotfiles/docs/CONVENTIONS.md` § Commit granularity is the
 source of truth; `AGENTS.md` § Commits carries the short version.
 
 #### Scenario: Several unrelated changes are ready together

@@ -210,7 +210,6 @@ resolved, the rules above are the working position and not a cleared one.
 - **Not clone-and-run for strangers.** Readability is promised; bootstrapping is
   not.
 - **Not a home for AI tooling long-term.** That is a branch on its way out.
-- **Not a changelog.** `git log` is the history; no `CHANGELOG.md` will be kept.
 
 ## What failure looks like
 

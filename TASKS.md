@@ -555,26 +555,26 @@ split and pointing at the prevention. Read with `git notes show <sha>`.
   whole repo-root `docs/` tree goes rather than patching one file — `AGENTS.md`
   already calls it an older copy kept but not maintained.
 
-- **Adopt a changelog: scriv + `changelog.d/` + `CHANGELOG.md`.** Decided by the
-  author 2026-09-11, and it REVERSES a written decision — `PRD.md` § Non-goals
-  says "no `CHANGELOG.md` will be kept" and `spec.md` § Change records says the
-  history IS the changelog. Both must be edited, and the commit should say what
-  changed the reasoning rather than quietly dropping it.
-  Raised and not yet answered: scriv's fragment model may **answer** the original
-  objection rather than reverse it. The objection was that duplicating `git log`
-  creates drift; a fragment is written once, at the time of the change, and
-  collected later, so there is no second copy to drift. Settle whether this is a
-  reversal or a discovery before editing the governance documents.
-  Research context: of five agent-heavy repositories sampled, `astral-sh/uv` and
-  `openai/codex` keep a CHANGELOG.md and use **zero** Conventional Commits;
-  `aider` and `cursor/plugins` use scoped commits and keep no changelog. Commit
-  format and changelog discipline are independent decisions. None used scriv.
-- Consolidate the three `CONTRIBUTING.md` files. Decided: root takes contribution
-  PROCESS, `dotfiles/docs/CONVENTIONS.md` keeps topic structure, the stale
-  repo-root `docs/` copy goes. Root is both vendor-neutral and one of GitHub's
-  three discovery locations, so it satisfies both goals; `.github/` keeps only
-  the pull request template, which has no neutral equivalent.
-
+- **Adopt a changelog: scriv + `changelog.d/` + `CHANGELOG.md`.** `spec.md` now
+  requires a human-readable changelog; this is the mechanism. scriv writes each
+  entry as a fragment at the time of the change and collects them later, so
+  there is no second copy of `git log` to drift.
+  Settle before building: which sections (Keep a Changelog's Added/Changed/Fixed,
+  or something plainer), whether entries are required per change or per merged
+  PR, and where `CHANGELOG.md` lives given `docs/` is a deployed tree.
+  Research context: `astral-sh/uv` and `openai/codex` both keep a CHANGELOG.md
+  and use zero Conventional Commits; commit format and changelog discipline are
+  independent. None of the five agent-heavy repos sampled used scriv, which is a
+  Python-ecosystem tool rather than an agent-workflow one.
+- **Merge the three `CONTRIBUTING.md` files into one at the repository root.**
+  Not part of any open branch — PR #3 merged without it. Decided: root takes
+  contribution PROCESS, `dotfiles/docs/CONVENTIONS.md` keeps topic structure,
+  and the stale repo-root copy goes. Root is both vendor-neutral and one of
+  GitHub's three discovery locations, so it satisfies both goals; `.github/`
+  keeps only the pull request template, which has no neutral equivalent.
+  Note `docs/CONTRIBUTING.md` is **deployed to `~/docs/`** and is 171 lines
+  diverged from the live one, so it is actively misleading rather than merely
+  stale — and it now sits beside the conventions just moved into `docs/`.
 - Rename `dotfiles/docs/CONVENTIONS.md` to `TOPICS.md` and fold
   `docs/TOPICS.md` into it. The file is titled "Topic conventions" but is named
   for none of that, and there is now a `docs/TOPICS.md` index entry pointing at
