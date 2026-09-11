@@ -39,7 +39,7 @@ Format: `- <UTC start> — <what> — <files or resource>`
 
 - 2026-08-27T18:20Z — adding the pre-egress review gate (as in bin/trace-public) — bin/executable_pii-redactor
 - 2026-09-10T21:25Z — adding a chrome browser topic (separate session, reported by the author) — dotfiles/apps/chrome, install/remove tasks
-- 2026-09-10T23:58Z — rebuilding agent permission defaults [agent: claude session 5100b7bb] — .claude/settings.json, branch agent-permissions
+- 2026-09-10T23:58Z — agent permission defaults: branch `agent-permissions` pushed, AWAITING REVIEW (touches policy, cannot self-merge) [agent: claude session 5100b7bb]
 
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
@@ -508,6 +508,36 @@ author rather than the machine.
   template has to build on the general one; conditional prompts, for selecting a
   `conventions/<LANGUAGE>.md`; language-neutrality; and dependency footprint.
   Do this BEFORE building either template, since the answer decides their shape.
+
+- Sandbox the agent, if containment is actually wanted. `conventions/PERMISSIONS.md`
+  states plainly that the permission layer catches accidents and does not
+  contain a misaligned or prompt-injected agent, and that this is not fixable at
+  that layer: `uv run --with <anything>`, `pytest`, `bats`, `./run-role.sh` and
+  git hooks all execute arbitrary code and are all required. Containment means a
+  restricted filesystem view, a container, or egress control at the OS level.
+  Evaluate before building — this is a solved problem elsewhere (seatbelt/sandbox-exec
+  on macOS, Landlock and bubblewrap on Linux, devcontainers, firewall egress
+  rules) so use `review-best-practices`. Rank on: does it survive an interpreter,
+  does it break the documented test command, and what does it cost per session.
+- Rebuild the 64 allow rules in `~/.claude/settings.json`. Machine-local, applies
+  to **every** project including work repositories, and deliberately left alone
+  when the project config was rebuilt — changing it from inside this repo would
+  have silently altered agent behaviour in `~/code/work/`. Same approach as
+  `conventions/PERMISSIONS.md`, but the allow set has to serve repos this one
+  knows nothing about, so start by finding out which projects depend on it.
+- Prune `.claude/settings.local.json` — 25 accreted personal allows that no
+  review has seen. Lower priority than the two above because a local ALLOW
+  cannot re-open what a project DENY closes, **assuming deny wins across cascade
+  layers**. That assumption is unverified; confirm it in a fresh session before
+  relying on it, and if it is wrong this item becomes urgent rather than tidy.
+- Verify permission enforcement in a fresh session, in both directions. A deny
+  rule added for a harmless command did not block it in-session and the cause
+  was not distinguishable from inside — settings may not reload mid-session, the
+  session may run in a mode that bypasses rules, or the pattern may not have
+  matched. Until this is done, `tests/permissions/` proves the config says what
+  it intends and proves nothing about what Claude Code does with it. Check that
+  `chezmoi apply` is refused AND that `git status` still runs without a prompt;
+  a config that denies everything and a config that is never read look identical.
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 
