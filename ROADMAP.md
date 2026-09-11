@@ -23,6 +23,11 @@ Then update `PRD.md` with whatever requirements the interview settles, and
 `TASKS.md` with the work items it produces. Delete the roadmap line only when the
 thing exists.
 
+**The test is the done-condition.** If you can write "done when X" in one
+sentence, it is a task and belongs in `TASKS.md` § Open. If you cannot, it
+belongs here. Size and urgency do not enter into it — a small vague thing is a
+roadmap item, and a large precise one is a task.
+
 Items here have no owner, no date and no done-condition. That is exactly what
 separates them from `TASKS.md` § Open, whose lines are deleted on completion.
 Anything here that acquires a done-condition should be promoted rather than left.
