@@ -471,8 +471,18 @@ def cmd_status(m: Manifest, args) -> int:
 
         # Unpacked extensions are reported as Chrome actually has them, not per
         # manifest entry: the interesting cases are precisely the ones the
-        # manifest does NOT name — a stale path, or a copy loaded from somewhere
-        # volatile that will fork a new ID the next time it moves.
+        # manifest does NOT name — a stale path, a copy loaded from somewhere
+        # volatile, or the repo root loaded in place of its build output.
+        #
+        # Matching is against the EXACT declared load directory. A prefix test
+        # against the managed root is not enough: a clone's own root sits under
+        # that root too, so loading it reads as healthy while actually running
+        # unbuilt source. For fintastic that swaps the bundled telemetry for a
+        # deliberate no-op stub — the extension still works, error reporting
+        # silently does not, and nothing in a prefix check would ever say so.
+        expected_load = {os.path.normpath(str(m.load_dir(e))): e for e in gits}
+        clone_roots = {os.path.normpath(str(m.clone_dir(e))): e for e in gits}
+
         for eid, v in sorted(inst.items()):
             if v.get("location") != LOCATION_UNPACKED:
                 continue
@@ -480,16 +490,27 @@ def cmd_status(m: Manifest, args) -> int:
             if not raw.startswith("/"):
                 continue
             src = Path(raw)
+            norm = os.path.normpath(raw)
+            name = display_name(eid, v, p["path"])
             if not (src / "manifest.json").exists():
                 print(f"  {tag('stale', bad)} {src.name} {dim(eid)}")
                 print(f"  {'':<12} {src} {dim('— source gone')}")
-                continue
-            if root and raw.startswith(root):
-                state, note = tag("loaded", ok), str(src)
+            elif norm in expected_load:
+                print(f"  {tag('loaded', ok)} {name} {dim(eid)}")
+                print(f"  {'':<12} {src}")
+            elif norm in clone_roots:
+                want = m.load_dir(clone_roots[norm])
+                print(f"  {tag('wrong-dir', bad)} {name} {dim(eid)}")
+                print(f"  {'':<12} {src}")
+                print(f"  {'':<12} {bad('this is the repo root, not the build output')}")
+                print(f"  {'':<12} {dim('expected: ' + str(want))}")
+            elif root and raw.startswith(root):
+                print(f"  {tag('unexpected', warn)} {name} {dim(eid)}")
+                print(f"  {'':<12} {src}")
+                print(f"  {'':<12} {dim('under the managed root but not a declared load dir')}")
             else:
-                state, note = tag("volatile", warn), f"{src} {dim('— not under ' + root)}"
-            print(f"  {state} {display_name(eid, v, p['path'])} {dim(eid)}")
-            print(f"  {'':<12} {note}")
+                print(f"  {tag('volatile', warn)} {name} {dim(eid)}")
+                print(f"  {'':<12} {src} {dim('— not under ' + root)}")
 
     # Git extensions are a fact about the machine, not about any one profile.
     if gits:
