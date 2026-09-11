@@ -517,6 +517,18 @@ Without `pyyaml`, `tests/policy` drops from 22 tests to 15 passed / 1 skipped, a
 the skipped module is the one asserting the policy layers grant no permissions —
 so the check that matters most is the one that disappears quietest.
 
+The `llm-ctx` half of `tests/policy/test_logging_guards.py` needs `--with llm
+--with files-to-prompt` on top, because it imports the script and the script
+declares those. Without them those five tests SKIP — quietly, and they are the
+ones proving a policy guard relents. They are left out of the command above
+because those two pull 34 transitive packages onto every run, which is a real
+cost against a suite already too slow to run per change. Run them deliberately
+when touching a policy caller:
+
+```bash
+uv run --with pytest --with pyyaml --with llm --with files-to-prompt pytest tests/policy -q
+```
+
 Without `pillow` it is louder but worse: `tests/ollama_evals` produces 53 collection
 ERRORS instead of 52 passes, because its `conftest.py` imports the eval harness,
 which imports Pillow at module level. An error is not a skip — the suite aborts
