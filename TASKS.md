@@ -9,6 +9,12 @@ Keep it short. This tracks *open* work and cross-session hazards, not history �
 
 ## Conventions
 
+- **Editing this file: bound deletions by section, not by item.** Removing a
+  task by slicing from its start to the next line beginning `- ` has destroyed a
+  whole section three times, because the task being removed was the last in its
+  section and the next such line was in the following one. Bound by the next
+  item **or** the next `## ` heading, whichever comes first, and check
+  `tests/tasks_doc` before committing — it caught the third one and was ignored.
 - **Three tiers, and the test between them.** If you can write "done when X" in
   one sentence it is a task; if you cannot, it is an idea and belongs in
   `ROADMAP.md`. Among tasks, **Now** is the handful actually next and **Planned**
@@ -123,6 +129,11 @@ nothing is.
   not release. Candidates: on a cadence, at each machine rebuild, or never —
   leaving everything under Unreleased, which is legitimate and costs nothing.
   Until this is settled the changelog grows one section and is still readable.
+## Planned
+
+Has a done-condition and is queued, but is not next. Promote into **Now**
+when it becomes the thing to do, rather than working straight from here.
+
 - **[1] Promote `gpt-oss:20b` and `ministral-3:8b` in `bin/binned`.** Decided:
   use the cross-task evidence from judging. Record in the manifest that the
   number came from judging rather than generation, so the basis is not
