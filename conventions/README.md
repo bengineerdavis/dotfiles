@@ -11,7 +11,10 @@ instead, so the root holds only the five documents that govern the project.
 
 | File | Covers |
 |---|---|
-| `PYTHON.md` | uv, PEP 723 dependency blocks, pytest, ruff, ty, prek, logging, error handling |
+| `PYTHON.md` | uv, inline script metadata, pytest, ruff, ty, prek, logging, error handling |
+| `PERMISSIONS.md` | what an agent may run, and the threat model it does not address |
+| `REFERENCES.md` | external standards followed, their versions, when last checked |
+| `TOPICS.md` | index entry for topic conventions, which live in the deployed tree |
 
 ## Adding one
 
@@ -20,6 +23,18 @@ Nothing else changes. A repository that picks up Go adds `GO.md`; one that
 wants its security practice written down adds `SECURITY.md`.
 
 Name language files for the language, in caps, matching the root document style.
+
+## Two classes, and why one is only indexed here
+
+A convention either **ships with the artifact** or **governs the repository**.
+
+Topic conventions ship: 40 topic files link to `docs/CONVENTIONS.md` relative to
+the deployed tree, and that file is deployed beside them. `conventions/` is
+chezmoi-ignored and reaches no machine, so content the deployed output must
+carry cannot live here. `TOPICS.md` is therefore an index entry pointing at
+`dotfiles/docs/CONVENTIONS.md`, not a copy of it.
+
+Everything else here governs the repository and is never deployed.
 
 ## Why a directory
 

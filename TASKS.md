@@ -78,11 +78,15 @@ delete the line and say so in your commit.
   and PyMuPDF's shim prints a deprecation notice to **stdout**, corrupting any
   captured `llm` output. Draft is written; one-line fix is `import pymupdf`.
   **[unblocked: `gh auth status` reports a working keyring login as of 2026-09-11]**
-- Decide whether `docs/CONVENTIONS.md` needs the commit rules at all. They now
-  live in `AGENTS.md` (`git commit -o`, then `git show --stat HEAD`), which is the
-  right home for agent process; CONVENTIONS.md § Commit granularity still covers
-  only granularity and messages. Leaving it split is defensible — just do not let
-  the two drift.
+- Move § Commit granularity and § Messages out of
+  `dotfiles/docs/CONVENTIONS.md` into `conventions/COMMITS.md`. That document is
+  titled "Topic conventions" and those two sections are not topic conventions —
+  they are repository conventions that do not ship with the artifact, which is
+  the split `conventions/TOPICS.md` now describes. `AGENTS.md` § Commits cites
+  them and would point at the new home.
+  **Do it with the citation rewrite, not before.** 53 files reference
+  `CONVENTIONS.md`, 40 of them topic files using a deployed-tree-relative path,
+  and those citations should be rewritten once rather than twice.
 - Scope and apply retention to the 8 rows of work content already in the `llm`
   log. `company.yaml`'s `open_questions.indefinite_local_log` defaults to
   `treat_as_non_compliant`, so the current state is the non-compliant one by our

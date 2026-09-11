@@ -608,6 +608,9 @@ root holds only the five documents that govern the project:
 - **`conventions/PERMISSIONS.md`** — what the agent may run, the three tiers in
   `.claude/settings.json`, and the threat model they do and do not address.
   Read it before widening a rule.
+- **`conventions/TOPICS.md`** — index entry for Ansible topic conventions. The
+  content lives in `dotfiles/docs/CONVENTIONS.md` because it deploys beside the
+  40 topic files that link to it; `conventions/` deploys nowhere.
 - **`conventions/REFERENCES.md`** — every external standard this repo follows,
   the version it follows, and when that was last checked. Add a row before
   adopting a standard; a convention with no version means whatever its latest
