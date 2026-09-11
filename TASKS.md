@@ -519,12 +519,20 @@ author rather than the machine.
   on macOS, Landlock and bubblewrap on Linux, devcontainers, firewall egress
   rules) so use `review-best-practices`. Rank on: does it survive an interpreter,
   does it break the documented test command, and what does it cost per session.
-- Rebuild the 64 allow rules in `~/.claude/settings.json`. Machine-local, applies
-  to **every** project including work repositories, and deliberately left alone
+- Rebuild the 64 allow rules in `~/.claude/settings.json`. One of four settings scopes on this machine (257 allow rules
+  in total). Machine-local, applies to **every** project including work repositories, and deliberately left alone
   when the project config was rebuilt — changing it from inside this repo would
   have silently altered agent behaviour in `~/code/work/`. Same approach as
   `conventions/PERMISSIONS.md`, but the allow set has to serve repos this one
   knows nothing about, so start by finding out which projects depend on it.
+- Deal with `~/dotfiles/.claude/settings.local.json` — **80 allow rules in no
+  repository at all.** `~/dotfiles` is the chezmoi deploy target and a separate
+  Claude project scope, so an agent started there gets these rules and none of
+  the project's. One of them is `Bash(chezmoi apply *)`, which is the rule
+  `AGENTS.md` § Applying is main-only exists to prevent. Not git-tracked and not
+  chezmoi-managed, so nothing versions it and no review has seen it. Decide
+  whether agents should ever run there at all — if the answer is no, the fix is
+  to stop, not to curate the file.
 - Prune `.claude/settings.local.json` — 25 accreted personal allows that no
   review has seen. Lower priority than the two above because a local ALLOW
   cannot re-open what a project DENY closes, **assuming deny wins across cascade
