@@ -101,7 +101,21 @@ accidents rather than as a boundary.
 
 ## Which file
 
-The cascade is `~/.claude/settings.json` (user, all projects) →
+Settings are **per project directory**, and this machine has two directories
+that both look like "the dotfiles project":
+
+- `~/.local/share/chezmoi` — the git repository and the chezmoi source. This is
+  the project these rules govern.
+- `~/dotfiles` — the chezmoi **deploy target**. Not a git repository. It is a
+  separate Claude project scope with its own `.claude/settings.local.json`,
+  holding 80 allow rules that are in no repository and that no review has seen.
+  One of them is `Bash(chezmoi apply *)` — so the rule denied here is permitted
+  there.
+
+Running an agent in `~/dotfiles` therefore gets none of this and all of that.
+Work happens in `~/.local/share/chezmoi`; `~/dotfiles` is output.
+
+Within a project the cascade is `~/.claude/settings.json` (user, all projects) →
 `.claude/settings.json` (project, committed, team-shared) →
 `.claude/settings.local.json` (project, personal, gitignored).
 
@@ -121,7 +135,13 @@ Adding a deny rule for a harmless command did not block it, and the cause was
 not distinguishable from inside: settings may not reload mid-session, the session
 may run in a mode that bypasses rules, or the pattern may not have matched.
 
-So: **verify in a fresh session**, and verify both directions — that the denied
+Be specific about where. "Open a fresh session" is not an instruction — the
+first attempt at this test was run in `~/dotfiles`, against a branch that was
+not checked out, and could not have passed either way. Name the directory, name
+the branch, name the expected outcome for both directions.
+
+So: **verify in a fresh session started in `~/.local/share/chezmoi`, with the
+branch carrying the change checked out**, and verify both directions — that the denied
 thing is refused, and that ordinary work still runs. A permission file that
 denies everything and a permission file that is never read both look like a
 quiet session.
