@@ -16,7 +16,8 @@ nothing changed — a stale date is the signal, not the version number.
 | Standard | Version followed | Where it binds | Verified |
 |---|---|---|---|
 | [AGENTS.md](https://agents.md/) | unversioned convention | `AGENTS.md` at root | 2026-09-11 |
-| [PEP 723](https://peps.python.org/pep-0723/) — inline script metadata | **Final**, PyPA-maintained | 36 scripts in `bin/` and topic `files/` | 2026-09-11 |
+| [Inline script metadata](https://packaging.python.org/en/latest/specifications/inline-script-metadata/) (PyPA) | living spec; post-Jan-2024 form | 36 scripts in `bin/` and topic `files/` | 2026-09-11 |
+| [PEP 723](https://peps.python.org/pep-0723/) | approval record only — **not** the current spec | historical; cite PyPA instead | 2026-09-11 |
 | [PEP 508](https://peps.python.org/pep-0508/) — dependency specifiers | Final | the `dependencies` list inside PEP 723 blocks | 2026-09-11 (via 723) |
 | [skillet](https://www.npmjs.com/package/@sentry/skillet) | **1.7.0** pinned in `spec.md` footer | `spec.md`, every skill spec | 2026-09-11 |
 | [copier](https://copier.readthedocs.io/) | 9.17.2 installed | planned templates; no inheritance, composition only | 2026-09-11 |
@@ -25,6 +26,22 @@ nothing changed — a stale date is the signal, not the version number.
 | [shellcheck-py](https://github.com/shellcheck-py/shellcheck-py) | `v0.10.0.1` in `.pre-commit-config.yaml` | pre-commit hook | 2026-09-11 |
 | [prek](https://github.com/j178/prek) | 0.5.0 | hook runner; writes `.git/hooks/` | 2026-09-11 |
 | [RFC 2606](https://www.rfc-editor.org/rfc/rfc2606) — reserved example names | Best Current Practice | synthetic PII fixtures use `example.com`/`.org` | 2026-09-11 |
+
+### Why PyPA and not the PEP
+
+A PEP records a decision at a moment; the PyPA specification is the living
+document and it moves. Inline script metadata changed **after** PEP 723 was
+accepted — in January 2024 the block type was renamed from `pyproject` to
+`script` and the `[run]` table was dropped, lifting `dependencies` and
+`requires-python` to the top level.
+
+Our scripts use the post-amendment form, so they are current. But a reader
+sent to the PEP could implement the superseded shape and be correct according
+to the document they were given. Cite the living spec; keep the PEP as the
+provenance of the decision.
+
+The same test applies to any standard here: if it has a living home and an
+approval record, the register points at the living home.
 
 ### Watch list
 
