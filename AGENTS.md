@@ -544,6 +544,9 @@ root holds only the five documents that govern the project:
 
 - **`conventions/PYTHON.md`** — uv, PEP 723 dependency blocks, pytest, ruff, ty,
   prek, logging and error handling.
+- **`conventions/PERMISSIONS.md`** — what the agent may run, the three tiers in
+  `.claude/settings.json`, and the threat model they do and do not address.
+  Read it before widening a rule.
 
 This file stays general on purpose. How work runs here is reusable across
 projects; conventions are the part that swaps out. A repository that adds another
