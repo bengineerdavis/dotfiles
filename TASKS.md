@@ -9,6 +9,10 @@ Keep it short. This tracks *open* work and cross-session hazards, not history �
 
 ## Conventions
 
+- **Task or roadmap item?** If you can write "done when X" in one sentence, it
+  is a task and belongs here. If you cannot, it is direction and belongs in
+  `ROADMAP.md`. Nothing else distinguishes them — not size, not importance, not
+  how soon. An item here is deleted when finished; a roadmap item is not.
 - One line per item, imperative, with enough context to pick it up cold.
 - Mark **[blocked: reason]** rather than deleting — a blocked item that vanishes
   gets rediscovered from scratch.
@@ -67,6 +71,9 @@ delete the line and say so in your commit.
   `pii-redaction`, `commit-hygiene` and `review-best-practices`, each verified
   to resolve to a real SKILL.md. `model-fitness` was deliberately skipped —
   it is uncommitted in ai-prompt-library and belongs to another session.
+  `no-ai-slop` is also installed on this Mac, vendored from a third party rather
+  than symlinked: `gh api repos/petergyang/no-ai-slop/contents/skills/no-ai-slop/SKILL.md
+  --jq .content | base64 -d`. See its `PROVENANCE.md` for the em-dash deviation.
 - File the upstream issue on `simonw/llm-pdf-to-images`: it does `import fitz`,
   and PyMuPDF's shim prints a deprecation notice to **stdout**, corrupting any
   captured `llm` output. Draft is written; one-line fix is `import pymupdf`.
