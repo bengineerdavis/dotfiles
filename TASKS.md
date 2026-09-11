@@ -39,45 +39,12 @@ Format: `- <UTC start> — <what> — <files or resource>`
 
 - 2026-08-27T18:20Z — adding the pre-egress review gate (as in bin/trace-public) — bin/executable_pii-redactor
 - 2026-09-10T21:25Z — adding a chrome browser topic (separate session, reported by the author) — dotfiles/apps/chrome, install/remove tasks
-- 2026-09-10T23:58Z — agent permission defaults: branch `agent-permissions` VERIFIED (deny + allow confirmed in a fresh session), awaiting merge decision [agent: claude session 5100b7bb]
 
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
 
 ## Open
-
-- **FIRST.** Set responsible agent permission defaults. The committed
-  `.claude/settings.json` has **88 allow rules, 0 deny, 0 ask** — an allow-list
-  grown one prompt at a time until it no longer restricts much. Concretely, it
-  already permits arbitrary code execution: `Bash(python3 -c ' *)` and
-  `Bash(python3 -)` between them allow any Python at all, and `Bash(pip
-  install *)` and `Bash(uv run *)` allow arbitrary packages and commands. It
-  also permits `Bash(chezmoi apply *)`, which directly contradicts `AGENTS.md`
-  § Applying is main-only, agreed today. `Bash(git add *)` and
-  `Bash(git commit -m ' *)` allow staging and committing anything, which sits
-  badly beside `spec.md` § Change records.
-  Review best practices before designing this — do not invent a scheme. Use the
-  `review-best-practices` skill for that pass; permission models are a solved problem
-  in adjacent spaces (sandboxing, capability systems, sudoers), which is exactly
-  the case it was written for. Then:
-  - **deny is the half that matters and is currently empty.** It should cover
-    the Class A incidents in `AGENTS.md` § Trust ladder, since those are the
-    ones that do not reverse: egress of work content, and anything that writes
-    outside the repo and its data stores.
-  - **ask** is the right tier for irreversible-but-legitimate actions — pushing,
-    history rewriting, applying, installing packages.
-  - Prefer narrow allows that name a command's purpose over wildcards that name
-    its prefix. `Bash(uv run *)` reads as "run the test suite" and means "run
-    anything".
-  - Settle what belongs in committed `settings.json` versus gitignored
-    `settings.local.json`, which currently holds 25 more allow rules nobody
-    reviews.
-  Done when the allow-list is rebuilt from intent rather than pruned, deny and
-  ask are populated, and no rule contradicts a convention in `AGENTS.md`.
-  Note this is the permission layer, not the policy layer — `bin/policy` governs
-  what may be done with data, this governs what the agent may run at all. They
-  should not be conflated, and neither substitutes for the other.
 
 - Add a cheap gate in front of the LLM judge panel: generate and run the script's
   tests, use real pass/fail as the signal, escalate to judges only when the result
