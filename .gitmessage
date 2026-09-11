@@ -1,0 +1,27 @@
+
+
+# ── Subject: <scope>: what changed, imperative, ~60 chars ────────────────────
+# 71% of this repo uses a "<scope>: " prefix. Not Conventional Commits — that
+# was considered and rejected (only 12% of history, and its payoff is automated
+# changelog and semver, neither of which this project wants).
+#
+# ── Body: why, not what. The diff shows what. ────────────────────────────────
+# Size the message to the change:
+#   mechanical edit ...... subject line alone
+#   small single change .. a sentence or two
+#   ordinary fix/feature . one or two short paragraphs
+#   large refactor ....... two or three
+#
+# A message longer than the change warrants is evidence the commit should have
+# been two. Reach for splitting before reaching for more prose.
+#
+# Durable reasoning belongs in a comment next to the code, where rebases cannot
+# lose it. The body carries what a reverter needs.
+#
+# ── Before committing ────────────────────────────────────────────────────────
+#   git diff --cached          # is this one reviewable decision?
+#   git show --stat HEAD       # afterwards: did it contain what you meant?
+#
+# Trailers (optional):
+#   Proportionality: <why this message needs unusual length>
+#   Co-Authored-By: Name <email>

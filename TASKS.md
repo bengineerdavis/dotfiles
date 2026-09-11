@@ -9,6 +9,10 @@ Keep it short. This tracks *open* work and cross-session hazards, not history �
 
 ## Conventions
 
+- **Task or roadmap item?** If you can write "done when X" in one sentence, it
+  is a task and belongs here. If you cannot, it is direction and belongs in
+  `ROADMAP.md`. Nothing else distinguishes them — not size, not importance, not
+  how soon. An item here is deleted when finished; a roadmap item is not.
 - One line per item, imperative, with enough context to pick it up cold.
 - Mark **[blocked: reason]** rather than deleting — a blocked item that vanishes
   gets rediscovered from scratch.
@@ -67,15 +71,22 @@ delete the line and say so in your commit.
   `pii-redaction`, `commit-hygiene` and `review-best-practices`, each verified
   to resolve to a real SKILL.md. `model-fitness` was deliberately skipped —
   it is uncommitted in ai-prompt-library and belongs to another session.
+  `no-ai-slop` is also installed on this Mac, vendored from a third party rather
+  than symlinked: `gh api repos/petergyang/no-ai-slop/contents/skills/no-ai-slop/SKILL.md
+  --jq .content | base64 -d`. See its `PROVENANCE.md` for the em-dash deviation.
 - File the upstream issue on `simonw/llm-pdf-to-images`: it does `import fitz`,
   and PyMuPDF's shim prints a deprecation notice to **stdout**, corrupting any
   captured `llm` output. Draft is written; one-line fix is `import pymupdf`.
   **[unblocked: `gh auth status` reports a working keyring login as of 2026-09-11]**
-- Decide whether `docs/CONVENTIONS.md` needs the commit rules at all. They now
-  live in `AGENTS.md` (`git commit -o`, then `git show --stat HEAD`), which is the
-  right home for agent process; CONVENTIONS.md § Commit granularity still covers
-  only granularity and messages. Leaving it split is defensible — just do not let
-  the two drift.
+- Move § Commit granularity and § Messages out of
+  `dotfiles/docs/CONVENTIONS.md` into `conventions/COMMITS.md`. That document is
+  titled "Topic conventions" and those two sections are not topic conventions —
+  they are repository conventions that do not ship with the artifact, which is
+  the split `conventions/TOPICS.md` now describes. `AGENTS.md` § Commits cites
+  them and would point at the new home.
+  **Do it with the citation rewrite, not before.** 53 files reference
+  `CONVENTIONS.md`, 40 of them topic files using a deployed-tree-relative path,
+  and those citations should be rewritten once rather than twice.
 - Scope and apply retention to the 8 rows of work content already in the `llm`
   log. `company.yaml`'s `open_questions.indefinite_local_log` defaults to
   `treat_as_non_compliant`, so the current state is the non-compliant one by our
@@ -422,14 +433,14 @@ author rather than the machine.
   rather than diverge — decide which owns it before the second is built. The
   module boundary itself is deferred to `ROADMAP.md` and is not a blocker; build
   against the format as it stands.
-- Pin the version of every external standard this repo follows, and re-check
-  upstream on a stated cadence. Today only skillet is pinned — `spec.md`'s footer
-  says 1.7.0 and 1.8.0 is already available. The plain-language standard is
-  unchosen, the changelog convention is unnamed, and PEP 723, copier and ruff
-  versions are implicit. Wanted: one place recording standard, version, where it
-  is used, and when it was last checked. A convention with no version silently
-  means whatever its latest revision says, which is drift that produces no diff.
-
+- Keep `conventions/REFERENCES.md` current. The register exists and is verified
+  as of 2026-09-11; what is missing is the habit. Re-check on quarter boundaries
+  and whenever a listed tool is upgraded, updating `verified` even when nothing
+  moved — a stale date is the signal, not the version. Two rows need action now:
+  skillet 1.8.0 is out while `spec.md` pins 1.7.0, and ruff is installed but
+  wired to nothing. **[open question: worth automating? A check comparing
+  installed `--version` output against the register is easy; comparing against
+  upstream release feeds is not, and would add network calls to the test suite.]**
 - Decide the layout for installable skills and workflows, portable across agent
   tools. Research first, because the landscape is unsettled and half of what
   looks like a standard is one vendor's convention.
@@ -524,6 +535,64 @@ split and pointing at the prevention. Read with `git notes show <sha>`.
   fixed today, one layer deeper: the import happens before pytest can skip
   anything. `pytest.importorskip` in the conftest is the likely fix, but check
   what else the harness pulls in at import time first.
+
+- **The second machine.** Not currently contributing, so no work is at risk — but
+  it must reset before its next commit or it will reintroduce the old SHAs.
+- **Any session idle-but-not-finished.** Reset before resuming; a commit against
+  the old HEAD undoes the unscramble.
+
+Pre-rewrite history is on `backup/pre-unscramble-272bdf7` if anything needs
+recovering. Rollback is `git reset --hard backup/pre-unscramble-272bdf7` plus a
+force-push, valid until someone pushes on top.
+
+Each of the three commits carries a `git notes` PROVENANCE entry explaining the
+split and pointing at the prevention. Read with `git notes show <sha>`.
+
+- Resolve the three CONTRIBUTING.md files. `dotfiles/docs/CONTRIBUTING.md` is the
+  real one and `AGENTS.md` cites it. `docs/CONTRIBUTING.md` is a stale copy in the
+  older repo-root `docs/` tree, differing by 171 lines, which GitHub would surface
+  if `.github/CONTRIBUTING.md` did not now take precedence. Decide whether the
+  whole repo-root `docs/` tree goes rather than patching one file — `AGENTS.md`
+  already calls it an older copy kept but not maintained.
+
+- **Adopt a changelog: scriv + `changelog.d/` + `CHANGELOG.md`.** Decided by the
+  author 2026-09-11, and it REVERSES a written decision — `PRD.md` § Non-goals
+  says "no `CHANGELOG.md` will be kept" and `spec.md` § Change records says the
+  history IS the changelog. Both must be edited, and the commit should say what
+  changed the reasoning rather than quietly dropping it.
+  Raised and not yet answered: scriv's fragment model may **answer** the original
+  objection rather than reverse it. The objection was that duplicating `git log`
+  creates drift; a fragment is written once, at the time of the change, and
+  collected later, so there is no second copy to drift. Settle whether this is a
+  reversal or a discovery before editing the governance documents.
+  Research context: of five agent-heavy repositories sampled, `astral-sh/uv` and
+  `openai/codex` keep a CHANGELOG.md and use **zero** Conventional Commits;
+  `aider` and `cursor/plugins` use scoped commits and keep no changelog. Commit
+  format and changelog discipline are independent decisions. None used scriv.
+- Consolidate the three `CONTRIBUTING.md` files. Decided: root takes contribution
+  PROCESS, `dotfiles/docs/CONVENTIONS.md` keeps topic structure, the stale
+  repo-root `docs/` copy goes. Root is both vendor-neutral and one of GitHub's
+  three discovery locations, so it satisfies both goals; `.github/` keeps only
+  the pull request template, which has no neutral equivalent.
+
+## History was rewritten on 2026-08-21 — reset before you resume
+
+`main` was force-pushed. Every SHA from `bc72f5c` onward is new. Two mixed
+commits were unscrambled: `b3ad740` split into a clamav half and a pii-redactor
+half, and `5692a86` reworded to describe the 52 zsh deletions it actually
+contains. Verified lossless — the tree is byte-identical to before, and the suite
+is 218 passed / 7 deselected.
+
+**Anything holding the old history must hard-reset, not pull.** A pull merges old
+and new and resurrects the mixed commits.
+
+```bash
+git fetch origin
+git reset --hard origin/main
+git fetch origin 'refs/notes/*:refs/notes/*'   # notes are published now
+```
+
+Who needs this:
 
 - **The second machine.** Not currently contributing, so no work is at risk — but
   it must reset before its next commit or it will reintroduce the old SHAs.
