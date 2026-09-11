@@ -20,10 +20,12 @@ import pytest
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 AGENTS = REPO / "AGENTS.md"
-CONVENTIONS = REPO / "conventions"
+CONVENTIONS = REPO / "docs"
 
 # README.md documents the directory itself rather than being a convention.
-EXEMPT = {"README.md"}
+# ARCHITECTURE/USAGE/CONTRIBUTING predate the conventions move and are
+# dotfiles documentation, not repository conventions.
+EXEMPT = {"README.md", "ARCHITECTURE.md", "USAGE.md", "CONTRIBUTING.md"}
 
 
 def convention_files() -> list[pathlib.Path]:
@@ -35,15 +37,15 @@ def convention_files() -> list[pathlib.Path]:
 def test_there_are_conventions_to_check():
     """Guards against the whole suite passing vacuously if the directory is
     emptied or renamed."""
-    assert CONVENTIONS.is_dir(), "conventions/ is missing"
-    assert convention_files(), "conventions/ holds no convention files"
+    assert CONVENTIONS.is_dir(), "docs/ is missing"
+    assert convention_files(), "docs/ holds no convention files"
 
 
 @pytest.mark.parametrize("path", convention_files(), ids=lambda p: p.name)
 def test_convention_is_referenced_from_agents_md(path):
     text = AGENTS.read_text(encoding="utf-8")
     assert text.strip(), "AGENTS.md is empty — the check would pass vacuously"
-    rel = f"conventions/{path.name}"
+    rel = f"docs/{path.name}"
     assert rel in text, (
         f"{rel} is not referenced from AGENTS.md, so an agent has no path to it. "
         f"Add a bullet under § Conventions."
@@ -55,9 +57,11 @@ def test_agents_md_does_not_reference_a_missing_convention():
     deleted sends an agent to read something that is not there."""
     import re
     text = AGENTS.read_text(encoding="utf-8")
-    referenced = set(re.findall(r"conventions/([A-Za-z0-9_.-]+\.md)", text))
+    # Anchored so it does not also match the tail of `dotfiles/docs/...`,
+    # which is a different tree and legitimately holds other documents.
+    referenced = set(re.findall(r"(?<![\w/])docs/([A-Za-z0-9_.-]+\.md)", text))
     assert referenced, "AGENTS.md references no conventions at all"
     for name in sorted(referenced):
         assert (CONVENTIONS / name).exists(), (
-            f"AGENTS.md points at conventions/{name}, which does not exist"
+            f"AGENTS.md points at docs/{name}, which does not exist"
         )

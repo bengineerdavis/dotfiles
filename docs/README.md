@@ -32,7 +32,7 @@ in order — do not skip a rung because the next one looks tidier:
 | Rung | Where | Promote when |
 |---|---|---|
 | 1 | a paragraph in `AGENTS.md` | it is a sentence or two and applies everywhere |
-| 2 | `AGENTS.md` in a subdirectory | it applies to one subtree only. AGENTS.md is a Linux Foundation standard with **closest-wins precedence**, so a nested file overrides the root for files beneath it |
+| 2 | ~~nested `AGENTS.md`~~ | **not used here.** The standard supports it — closest-wins precedence — but one project-level `AGENTS.md` is the current choice. Revisit when a subtree genuinely needs its own rules |
 | 3 | `conventions/<SUBJECT>.md` | it is long enough to drown the file above it, or it should be swappable per project |
 | 4 | a directory | it needs companions — references, evals, fixtures, a license |
 
@@ -68,7 +68,7 @@ so it stays in `.github/`.
 A convention either **ships with the artifact** or **governs the repository**.
 
 Topic conventions ship: 40 topic files link to `docs/CONVENTIONS.md` relative to
-the deployed tree, and that file is deployed beside them. `conventions/` is
+the deployed tree, and that file is deployed beside them. `docs/` is
 chezmoi-ignored and reaches no machine, so content the deployed output must
 carry cannot live here. `TOPICS.md` is therefore an index entry pointing at
 `dotfiles/docs/CONVENTIONS.md`, not a copy of it.

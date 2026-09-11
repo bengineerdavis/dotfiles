@@ -10,7 +10,7 @@ the rest into the home directory, where they are meaningless — and an apply th
 does it reports success. There is no error to notice.
 
 This asks chezmoi what it MANAGES rather than what it ignores. The first
-version of this test used `chezmoi ignored` and failed on conventions/PYTHON.md
+version of this test used `chezmoi ignored` and failed on docs/PYTHON.md
 — wrongly. An ignored directory is pruned whole, so `chezmoi ignored` reports
 `conventions` and never enumerates the files under it. Managed is the property
 that actually matters anyway: a path chezmoi does not manage is a path it cannot
@@ -33,7 +33,13 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 # The five documents that govern the project, plus the conventions directory.
 # RESOURCES.md is deliberately absent: it IS a deployed dotfile.
 GOVERNANCE = ["AGENTS.md", "PRD.md", "ROADMAP.md", "spec.md", "TASKS.md"]
-GOVERNANCE_DIRS = ["conventions"]
+# Not a whole directory any more: docs/ mixes repository conventions (which must
+# not deploy) with dotfiles documentation (which must). Named files only.
+GOVERNANCE_FILES_IN_DOCS = [
+    "docs/PERMISSIONS.md", "docs/PYTHON.md", "docs/REFERENCES.md",
+    "docs/TOPICS.md", "docs/README.md",
+]
+GOVERNANCE_DIRS = []
 
 pytestmark = pytest.mark.skipif(
     shutil.which("chezmoi") is None, reason="chezmoi not installed"
@@ -74,6 +80,23 @@ def test_governance_dir_contents_are_not_deployed(managed, d):
             f"{rel} would be written to $HOME. Note a bare '{d}/' in "
             f".chezmoiignore does not cover contents; '{d}/**' is also needed."
         )
+
+
+@pytest.mark.parametrize("path", GOVERNANCE_FILES_IN_DOCS)
+def test_convention_in_docs_is_not_deployed(managed, path):
+    """docs/ is a deployed tree, so moving conventions into it put them one
+    .chezmoiignore line away from landing in $HOME."""
+    assert (REPO / path).exists(), f"{path} is missing from the repo"
+    assert path not in managed, f"{path} would be written to $HOME"
+
+
+def test_dotfiles_documentation_still_deploys(managed):
+    """The relenting direction for the same directory: ignoring docs/ wholesale
+    would have been the easy fix and would have stopped shipping the docs that
+    are meant to ship."""
+    assert "docs/ARCHITECTURE.md" in managed, (
+        "docs/ARCHITECTURE.md stopped deploying — the ignore rules are too broad"
+    )
 
 
 def test_a_real_dotfile_is_still_deployed(managed):

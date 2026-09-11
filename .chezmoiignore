@@ -20,8 +20,11 @@ TASKS.md
 spec.md
 PRD.md
 ROADMAP.md
-conventions/
-conventions/**
+docs/PERMISSIONS.md
+docs/PYTHON.md
+docs/REFERENCES.md
+docs/TOPICS.md
+docs/README.md
 .gitignore
 .mailmap
 .hypothesis

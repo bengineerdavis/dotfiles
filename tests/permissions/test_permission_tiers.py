@@ -1,4 +1,4 @@
-"""The committed permission config must mean what conventions/PERMISSIONS.md says.
+"""The committed permission config must mean what docs/PERMISSIONS.md says.
 
 WHAT THIS TEST CANNOT DO, stated first so nobody trusts it further than it
 deserves: it uses its own model of Claude Code's pattern matcher, not Claude
@@ -23,7 +23,7 @@ import pytest
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 SETTINGS = REPO / ".claude" / "settings.json"
-DOC = REPO / "conventions" / "PERMISSIONS.md"
+DOC = REPO / "docs" / "PERMISSIONS.md"
 
 
 @pytest.fixture(scope="module")
@@ -100,7 +100,7 @@ def test_no_allow_rule_shadows_a_whole_command(perms):
 def test_the_doc_and_the_config_ship_together(perms):
     """settings.json is JSON and cannot hold its own reasoning, so the doc is
     the only place the reasoning lives. A config with no doc is unreviewable."""
-    assert DOC.exists(), "conventions/PERMISSIONS.md is missing"
+    assert DOC.exists(), "docs/PERMISSIONS.md is missing"
     text = DOC.read_text(encoding="utf-8")
     assert "does not contain a misaligned agent" in text, (
         "the doc must state the threat model — the config's whole justification "

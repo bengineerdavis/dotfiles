@@ -12,7 +12,7 @@ That split is deliberate and worth understanding before someone "tidies" it:
 
 - **40 topic files link to `docs/CONVENTIONS.md`** as a path relative to the
   deployed tree, and `~/dotfiles/docs/CONVENTIONS.md` exists there beside them.
-- **`conventions/` is chezmoi-ignored.** It deploys nowhere. Moving the content
+- **`docs/` is chezmoi-ignored.** It deploys nowhere. Moving the content
   here would leave those 40 files pointing at a document absent from the tree
   they live in.
 
@@ -22,7 +22,7 @@ interchangeable:
 | Class | Lives in | Deploys | Example |
 |---|---|---|---|
 | Ships with the artifact | `dotfiles/docs/` | yes, beside what cites it | topic conventions |
-| Governs the repository | `conventions/` | no | Python, permissions, references |
+| Governs the repository | `docs/` | no | Python, permissions, references |
 
 A convention that the deployed output must carry cannot live in a directory the
 deployed output never receives.

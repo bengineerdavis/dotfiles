@@ -79,10 +79,10 @@ delete the line and say so in your commit.
   captured `llm` output. Draft is written; one-line fix is `import pymupdf`.
   **[unblocked: `gh auth status` reports a working keyring login as of 2026-09-11]**
 - Move § Commit granularity and § Messages out of
-  `dotfiles/docs/CONVENTIONS.md` into `conventions/COMMITS.md`. That document is
+  `dotfiles/docs/CONVENTIONS.md` into `docs/COMMITS.md`. That document is
   titled "Topic conventions" and those two sections are not topic conventions —
   they are repository conventions that do not ship with the artifact, which is
-  the split `conventions/TOPICS.md` now describes. `AGENTS.md` § Commits cites
+  the split `docs/TOPICS.md` now describes. `AGENTS.md` § Commits cites
   them and would point at the new home.
   **Do it with the citation rewrite, not before.** 53 files reference
   `CONVENTIONS.md`, 40 of them topic files using a deployed-tree-relative path,
@@ -387,8 +387,8 @@ author rather than the machine.
   the branching and merge-gate conventions, and the Python toolchain section.
   Excluded: anything chezmoi, Ansible or model-specific, and anything
   language-specific — language conventions are a pluggable `<LANGUAGE>.md`
-  chosen by copier prompt, so the template ships `conventions/PYTHON.md` as one
-  option rather than baking Python into AGENTS.md. `conventions/` is the unit
+  chosen by copier prompt, so the template ships `docs/PYTHON.md` as one
+  option rather than baking Python into AGENTS.md. `docs/` is the unit
   the template plugs into — adding a language means dropping one file there. That is what lets the template grow to
   cover other languages without a rewrite. This template IS the
   reusable AGENTS.md baseline, so the baseline-versus-overlay split happens here
@@ -433,7 +433,7 @@ author rather than the machine.
   rather than diverge — decide which owns it before the second is built. The
   module boundary itself is deferred to `ROADMAP.md` and is not a blocker; build
   against the format as it stands.
-- Keep `conventions/REFERENCES.md` current. The register exists and is verified
+- Keep `docs/REFERENCES.md` current. The register exists and is verified
   as of 2026-09-11; what is missing is the habit. Re-check on quarter boundaries
   and whenever a listed tool is upgraded, updating `verified` even when nothing
   moved — a stale date is the signal, not the version. Two rows need action now:
@@ -463,7 +463,7 @@ author rather than the machine.
   claude, cursor, code, aider. Not installed: goose, windsurf, copilot CLI.
   **Name collision to resolve first:** aider conventionally reads a root
   `CONVENTIONS.md`; this repo has `dotfiles/docs/CONVENTIONS.md` and now a
-  `conventions/` directory. Three things one word apart is a bug waiting to be
+  `docs/` directory. Three things one word apart is a bug waiting to be
   filed. Rename or namespace before adding the adapter.
   Note skills currently live outside this repo — `~/.claude/skills` (2) and
   `ai-prompt-library/skills` (3) — so this decides whether they move in, stay
@@ -483,10 +483,10 @@ author rather than the machine.
   into projects already built from it, which is the whole stated goal and the
   thing most of these tools simply do not do; composition, since the topic
   template has to build on the general one; conditional prompts, for selecting a
-  `conventions/<LANGUAGE>.md`; language-neutrality; and dependency footprint.
+  `docs/<LANGUAGE>.md`; language-neutrality; and dependency footprint.
   Do this BEFORE building either template, since the answer decides their shape.
 
-- Sandbox the agent, if containment is actually wanted. `conventions/PERMISSIONS.md`
+- Sandbox the agent, if containment is actually wanted. `docs/PERMISSIONS.md`
   states plainly that the permission layer catches accidents and does not
   contain a misaligned or prompt-injected agent, and that this is not fixable at
   that layer: `uv run --with <anything>`, `pytest`, `bats`, `./run-role.sh` and
@@ -500,7 +500,7 @@ author rather than the machine.
   in total). Machine-local, applies to **every** project including work repositories, and deliberately left alone
   when the project config was rebuilt — changing it from inside this repo would
   have silently altered agent behaviour in `~/code/work/`. Same approach as
-  `conventions/PERMISSIONS.md`, but the allow set has to serve repos this one
+  `docs/PERMISSIONS.md`, but the allow set has to serve repos this one
   knows nothing about, so start by finding out which projects depend on it.
 - Deal with `~/dotfiles/.claude/settings.local.json` — **80 allow rules in no
   repository at all.** `~/dotfiles` is the chezmoi deploy target and a separate
@@ -574,6 +574,17 @@ split and pointing at the prevention. Read with `git notes show <sha>`.
   repo-root `docs/` copy goes. Root is both vendor-neutral and one of GitHub's
   three discovery locations, so it satisfies both goals; `.github/` keeps only
   the pull request template, which has no neutral equivalent.
+
+- Rename `dotfiles/docs/CONVENTIONS.md` to `TOPICS.md` and fold
+  `docs/TOPICS.md` into it. The file is titled "Topic conventions" but is named
+  for none of that, and there is now a `docs/TOPICS.md` index entry pointing at
+  it — two names for one subject is the ambiguity the rename removes.
+  Carry the two sections that are not topic conventions out at the same time:
+  § Commit granularity and § Messages belong in `docs/COMMITS.md`.
+  **53 files cite `CONVENTIONS.md`, 40 of them topic files using a
+  deployed-tree-relative path.** Rewrite every citation in the same change, and
+  remember the target must stay inside `dotfiles/docs/` — it deploys beside the
+  topics that link to it, which is why it was not moved to `docs/` with the rest.
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 

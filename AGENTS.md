@@ -600,18 +600,18 @@ lines, recommends Python above 100, and asks a model in the 80–100 band.
 
 ### Conventions
 
-Conventions live in **`conventions/`**, one file per subject, so the repository
+Conventions live in **`docs/`**, one file per subject, so the repository
 root holds only the five documents that govern the project:
 
-- **`conventions/PYTHON.md`** — uv, PEP 723 dependency blocks, pytest, ruff, ty,
+- **`docs/PYTHON.md`** — uv, PEP 723 dependency blocks, pytest, ruff, ty,
   prek, logging and error handling.
-- **`conventions/PERMISSIONS.md`** — what the agent may run, the three tiers in
+- **`docs/PERMISSIONS.md`** — what the agent may run, the three tiers in
   `.claude/settings.json`, and the threat model they do and do not address.
   Read it before widening a rule.
-- **`conventions/TOPICS.md`** — index entry for Ansible topic conventions. The
+- **`docs/TOPICS.md`** — index entry for Ansible topic conventions. The
   content lives in `dotfiles/docs/CONVENTIONS.md` because it deploys beside the
-  40 topic files that link to it; `conventions/` deploys nowhere.
-- **`conventions/REFERENCES.md`** — every external standard this repo follows,
+  40 topic files that link to it; `docs/` deploys nowhere.
+- **`docs/REFERENCES.md`** — every external standard this repo follows,
   the version it follows, and when that was last checked. Add a row before
   adopting a standard; a convention with no version means whatever its latest
   revision says.
@@ -624,8 +624,8 @@ is the one moment it exists to be read.
 
 This file stays general on purpose. How work runs here is reusable across
 projects; conventions are the part that swaps out. A repository that adds another
-language adds `conventions/<LANGUAGE>.md` and one bullet above, and changes
-nothing else here. See `conventions/README.md` for what belongs there and what
+language adds `docs/<LANGUAGE>.md` and one bullet above, and changes
+nothing else here. See `docs/README.md` for what belongs there and what
 does not.
 
 ## Tests

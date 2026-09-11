@@ -11,7 +11,7 @@ of this and duplicating them is how they drift apart:
   Ansible checks to run before committing. The detail lives there.
 - **`AGENTS.md`** — the agent path: branches, merge gates, decomposition, the
   trust ladder.
-- **`conventions/`** — per-subject standards (Python, permissions).
+- **`docs/`** — per-subject standards (Python, permissions).
 
 What is only here: the **manual path**, what to do when an **agent fails
 mid-task**, and pull request mechanics. It is deliberately readable by someone

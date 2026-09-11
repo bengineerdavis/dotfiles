@@ -3,9 +3,9 @@
 Python conventions for this repository.
 
 `AGENTS.md` stays general so it can be reused across projects. Conventions are
-pluggable and live in `conventions/`, one file per subject. This is the Python
+pluggable and live in `docs/`, one file per subject. This is the Python
 one. A repo that adds Go gets `conventions/GO.md` and changes nothing in
-`AGENTS.md` except the pointer. See `conventions/README.md`.
+`AGENTS.md` except the pointer. See `docs/README.md`.
 
 Everything here assumes `AGENTS.md` § Tests and § Prove the test fails, which are
 language-neutral and stay there.
