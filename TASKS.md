@@ -76,13 +76,6 @@ delete the line and say so in your commit.
   right home for agent process; CONVENTIONS.md § Commit granularity still covers
   only granularity and messages. Leaving it split is defensible — just do not let
   the two drift.
-- Wire `--no-log` for work-tagged prompts, gated on `bin/policy`. The resolver
-  exists now and already answers correctly:
-  `policy check boundaries.llm_processing.log_bodies_allowed` exits 2 (unknown ->
-  denied), because the field is still TODO in company.yaml. What is missing is a
-  caller — nothing consults it yet, so work content still reaches the `llm` log.
-  Callers must treat exit 1 and 2 identically; `check` cannot return 0 while the
-  layers stay restrictions-only.
 - Scope and apply retention to the 8 rows of work content already in the `llm`
   log. `company.yaml`'s `open_questions.indefinite_local_log` defaults to
   `treat_as_non_compliant`, so the current state is the non-compliant one by our
