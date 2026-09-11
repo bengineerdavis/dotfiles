@@ -616,7 +616,7 @@ root holds only the five documents that govern the project:
   adopting a standard; a convention with no version means whatever its latest
   revision says.
 
-`.github/CONTRIBUTING.md` is the human entry point and lives there rather than
+`CONTRIBUTING.md` is the human entry point and lives there rather than
 here on purpose: GitHub only discovers `CONTRIBUTING.md` in `.github/`, the
 repository root, or `docs/`. In any other directory it never reaches the
 Contributing tab or the sidebar shown when someone opens a pull request — which
@@ -807,7 +807,7 @@ Name the fix in the error, not just the failure: `~/bin` scripts come from
 ## Cross-platform
 
 macOS and Debian/Ubuntu are both targets. Guard the package manager in-task rather
-than abstracting it — `docs/CONTRIBUTING.md` rule 2 has the pattern. A topic
+than abstracting it — `CONTRIBUTING.md` rule 2 has the pattern. A topic
 supporting both should not declare `homebrew` in `topic_requires`, or it becomes
 unschedulable on Linux; see `apps/ollama/topic.yml`.
 

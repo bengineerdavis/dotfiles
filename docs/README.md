@@ -95,7 +95,7 @@ while the directory has exactly one job.
 
 ## Not conventions
 
-`.github/CONTRIBUTING.md` is not here either, though it reads like it belongs.
+`CONTRIBUTING.md` is not here either, though it reads like it belongs.
 GitHub discovers `CONTRIBUTING.md` only in `.github/`, the root, or `docs/`, so
 placing it by tidiness would have cost it the Contributing tab and the sidebar
 that appears when someone opens a pull request.

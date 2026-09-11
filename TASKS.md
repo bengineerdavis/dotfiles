@@ -69,7 +69,7 @@ is waiting.
 | Agent permissions rebuilt — 105 allow / 23 ask / 21 deny | `docs/PERMISSIONS.md` |
 | Commit messages checked against diff size | `scripts/check_commit_proportionality.py` |
 | A changelog, fragments via scriv | `CHANGELOG.md`, `changelog.d/scriv.ini` |
-| Contribution standards, manual path included | `.github/CONTRIBUTING.md` |
+| Contribution standards, manual path included | `CONTRIBUTING.md` |
 | External standards register | `docs/REFERENCES.md` |
 | Trust ladder — rungs and incident classes | `AGENTS.md` § Trust ladder |
 | Git hooks installed and proven to fail | `.pre-commit-config.yaml` |
@@ -79,7 +79,7 @@ is waiting.
 - **Do not `chezmoi apply`.** `.zshrc` and `bin/ask-research` have two-way drift
   that needs a real merge. Agents are denied the command outright; a person
   should resolve the drift first.
-- `docs/CONTRIBUTING.md` is deployed to `~/docs/` and is 171 lines diverged from
+- `CONTRIBUTING.md` is deployed to `~/docs/` and is 171 lines diverged from
   the live one — actively misleading, not merely stale. First item in **Now**.
 - Every new top-level file is chezmoi-managed by default. Four times today a new
   artefact was one `.chezmoiignore` line from landing in `$HOME`.
@@ -97,12 +97,17 @@ in those two files as suspect until audited.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
-- **[3] Refactor the overlap out of `dotfiles/docs/CONVENTIONS.md`.** Decided:
-  what overlaps with `commit-hygiene` and the root CONTRIBUTING.md comes out.
-  `commit-hygiene` is a skill *derived from* the contributing docs and should
-  reference them, written in the form an agent acts on rather than a second
-  statement of the same rules. Blocks the TOPICS.md rename below, which is why
-  it is first.
+- **[3, remaining] Make `commit-hygiene` reference rather than restate.** The
+  CONVENTIONS.md half is done: commit granularity and messages now live in the
+  root `CONTRIBUTING.md` and CONVENTIONS.md points at it.
+  The skill half has a tension to resolve first. `commit-hygiene` is a
+  **portable** skill meant for any repository, so it cannot reference a
+  `CONTRIBUTING.md` that may not exist — the derivation the author described
+  runs the other way from what a portable skill can do. Options: keep the skill
+  self-contained and have `CONTRIBUTING.md` cite it (which it already does), or
+  give the skill an optional "if this repo has a CONTRIBUTING.md, defer to it"
+  rule. Decide before editing; the skill lives in `ai-prompt-library`, a
+  different repository.
 - **[4] Fill `~/.local/state/ai-policy/company.yaml`'s 22 TODO fields.** Decided:
   proceed top-down as proposed — `device.approved` gates the rest. Machine-local
   and unversioned, so it cannot be tracked here beyond this pointer. Until it is
@@ -129,16 +134,9 @@ nothing is.
   not release. Candidates: on a cadence, at each machine rebuild, or never —
   leaving everything under Unreleased, which is legitimate and costs nothing.
   Until this is settled the changelog grows one section and is still readable.
-- **Merge the three `CONTRIBUTING.md` files into one at the repository root.**
-  Not part of any open branch — PR #3 merged without it. Decided: root takes
-  contribution PROCESS, `dotfiles/docs/CONVENTIONS.md` keeps topic structure,
-  and the stale repo-root copy goes. Root is both vendor-neutral and one of
-  GitHub's three discovery locations, so it satisfies both goals; `.github/`
-  keeps only the pull request template, which has no neutral equivalent.
-  Note `docs/CONTRIBUTING.md` is **deployed to `~/docs/`** and is 171 lines
-  diverged from the live one, so it is actively misleading rather than merely
-  stale — and it now sits beside the conventions just moved into `docs/`.
-- Rename `dotfiles/docs/CONVENTIONS.md` to `TOPICS.md` and fold
+- Rename `dotfiles/docs/CONVENTIONS.md` to `TOPICS.md`, and fold
+  `dotfiles/docs/CONTRIBUTING.md` into it at the same time — decided 2026-09-11.
+  Its 51 lines are topic workflow, which is what the renamed file is for. Fold
   `docs/TOPICS.md` into it. The file is titled "Topic conventions" but is named
   for none of that, and there is now a `docs/TOPICS.md` index entry pointing at
   it — two names for one subject is the ambiguity the rename removes.
@@ -554,9 +552,9 @@ author rather than the machine.
   layers**. That assumption is unverified; confirm it in a fresh session before
   relying on it, and if it is wrong this item becomes urgent rather than tidy.
 - Resolve the three CONTRIBUTING.md files. `dotfiles/docs/CONTRIBUTING.md` is the
-  real one and `AGENTS.md` cites it. `docs/CONTRIBUTING.md` is a stale copy in the
+  real one and `AGENTS.md` cites it. `CONTRIBUTING.md` is a stale copy in the
   older repo-root `docs/` tree, differing by 171 lines, which GitHub would surface
-  if `.github/CONTRIBUTING.md` did not now take precedence. Decide whether the
+  if `CONTRIBUTING.md` did not now take precedence. Decide whether the
   whole repo-root `docs/` tree goes rather than patching one file — `AGENTS.md`
   already calls it an older copy kept but not maintained.
 

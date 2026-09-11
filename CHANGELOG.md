@@ -26,7 +26,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - A changelog. Entries are written as fragments in `changelog.d/` when the
   change is made and collected here on release, so nothing is reconstructed
   from commit messages later.
-- Contribution standards for agents and people in `.github/CONTRIBUTING.md`,
+- Contribution standards for agents and people in `CONTRIBUTING.md`,
   including what to do when an agent fails part-way through a task.
 - A register of every external standard this repo follows, in
   `docs/REFERENCES.md`, with the version followed and when it was last checked.
