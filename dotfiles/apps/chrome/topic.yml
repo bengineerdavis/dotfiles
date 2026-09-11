@@ -1,6 +1,6 @@
 # apps/chrome/topic.yml
 #
-# Topic metadata read by the parent playbook. See docs/CONVENTIONS.md.
+# Topic metadata read by the parent playbook. See docs/TOPICS.md.
 #
 # Lives at the role root (not under meta/) because Ansible reserves
 # meta/main.yml for galaxy_info / role dependencies and rejects unknown

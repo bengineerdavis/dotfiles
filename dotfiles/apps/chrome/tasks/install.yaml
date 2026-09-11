@@ -5,7 +5,7 @@
 # Do NOT put config/symlink tasks here — those are owned by chezmoi.
 #
 # Every piece of state created here has a matching teardown in remove.yaml,
-# per the CRUD ownership invariant in docs/CONVENTIONS.md.
+# per the CRUD ownership invariant in docs/TOPICS.md.
 
 # ── macOS: the browser itself ───────────────────────────────────────────────
 # Chrome is installed here by Google's own installer and kept current by

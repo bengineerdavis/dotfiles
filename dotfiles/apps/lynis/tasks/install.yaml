@@ -3,7 +3,7 @@
 #
 # Previously this ran from inside apps/clamav's daily_scan.sh, gated on
 # `[ "$(date +%d)" = "01" ]`. Splitting it out follows the CRUD ownership rule in
-# docs/CONVENTIONS.md: an unrelated lifecycle should not ride another topic's schedule.
+# docs/TOPICS.md: an unrelated lifecycle should not ride another topic's schedule.
 #
 # Every artefact created here has a matching teardown in remove.yaml.
 ---

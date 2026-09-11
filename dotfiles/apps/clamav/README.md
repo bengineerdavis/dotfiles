@@ -72,11 +72,11 @@ default location is the same class of bug as the socket mismatch described below
 it works until something else writes a config to that path.
 
 All of it is torn down by `--tags remove`, per the CRUD invariant in
-`docs/CONVENTIONS.md`.
+`docs/TOPICS.md`.
 
 ### Deliberate convention exception
 
-`docs/CONVENTIONS.md` says config belongs to chezmoi. This topic renders its own config
+`docs/TOPICS.md` says config belongs to chezmoi. This topic renders its own config
 anyway, for two reasons:
 
 1. `clamd.conf` and `freshclam.conf` live under `<brew_prefix>/etc`, outside `$HOME`,
@@ -85,7 +85,7 @@ anyway, for two reasons:
    both from one Ansible variable makes disagreement impossible — and disagreement is
    precisely what broke the unmanaged setup (below).
 
-If that exception should instead be written into `CONVENTIONS.md`, move it there and
+If that exception should instead be written into `TOPICS.md`, move it there and
 delete this section.
 
 ### Not owned here

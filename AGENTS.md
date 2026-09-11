@@ -143,7 +143,7 @@ goes to `ROADMAP.md` rather than growing the item.
 
 A chezmoi-managed dotfiles repo with an Ansible layer for system state.
 
-**Read `dotfiles/docs/CONVENTIONS.md` first** — topic structure, the `topic.yml`
+**Read `dotfiles/docs/TOPICS.md` first** — topic structure, the `topic.yml`
 schema, tiers, lifecycle tags, dependency resolution, commit granularity and the
 CRUD-ownership invariant. It is the source of truth and the 39 topic files cite it.
 `dotfiles/docs/ARCHITECTURE.md` has the big picture,
@@ -538,10 +538,11 @@ rather than the one in your shell history.
 
 ## Commits
 
-**`dotfiles/docs/CONVENTIONS.md` § Commit granularity is the source of truth.** Read
-it before committing. `spec.md` § Change records states the invariants — including
-that staging is verified rather than assumed, and that the history is the
-changelog, there being no `CHANGELOG.md` by design. The short version, so this file is usable on its own:
+**`CONTRIBUTING.md` § Commit granularity is the source of truth.** Read it
+before committing. `spec.md` § Change records states the invariants — including
+that staging is verified rather than assumed, and that a human-readable
+changelog is kept alongside the commit history rather than instead of it. The
+short version, so this file is usable on its own:
 
 One commit is one reviewable decision. The test is not file count — it is whether a
 reader can hold the *why* in their head, and whether the change can be reverted on
@@ -608,9 +609,6 @@ root holds only the five documents that govern the project:
 - **`docs/PERMISSIONS.md`** — what the agent may run, the three tiers in
   `.claude/settings.json`, and the threat model they do and do not address.
   Read it before widening a rule.
-- **`docs/TOPICS.md`** — index entry for Ansible topic conventions. The
-  content lives in `dotfiles/docs/CONVENTIONS.md` because it deploys beside the
-  40 topic files that link to it; `docs/` deploys nowhere.
 - **`docs/REFERENCES.md`** — every external standard this repo follows,
   the version it follows, and when that was last checked. Add a row before
   adopting a standard; a convention with no version means whatever its latest

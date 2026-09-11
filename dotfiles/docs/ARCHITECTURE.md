@@ -2,7 +2,7 @@
 
 Stack overview, topic structure, and the tag hierarchy. For the exact
 per-topic contract (file layout, `topic.yml` schema, dependency resolution,
-the CRUD-ownership invariant) see [CONVENTIONS.md](CONVENTIONS.md).
+the CRUD-ownership invariant) see [TOPICS.md](TOPICS.md).
 
 ## Three tools, three concerns
 
@@ -58,7 +58,7 @@ have different providers per OS — e.g. `docker` is provided by `apps/docker`
 
 Dependencies between topics are expressed with `topic_provides` /
 `topic_requires` and resolved by the parent playbook before install; see
-[CONVENTIONS.md](CONVENTIONS.md#dependency-resolution).
+[TOPICS.md](TOPICS.md#dependency-resolution).
 
 ## Lifecycle tags
 
@@ -88,5 +88,5 @@ lives in `tasks/`.
 
 ## See also
 
-- [CONVENTIONS.md](CONVENTIONS.md) — the full per-topic contract
+- [TOPICS.md](TOPICS.md) — the full per-topic contract
 - [USAGE.md](USAGE.md) — day-to-day commands

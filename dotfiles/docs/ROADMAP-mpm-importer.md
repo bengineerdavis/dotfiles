@@ -285,7 +285,7 @@ one-time tool.
 
 ## Pointers to relevant code
 
-- Topic conventions: [docs/CONVENTIONS.md](CONVENTIONS.md)
+- Topic conventions: [docs/TOPICS.md](TOPICS.md)
 - Template a new topic: `template_dir/` (copy with `init-config.sh <name>`)
 - Topic metadata: `apps/<topic>/topic.yml`
 - Parent playbook discovery: `playbook.yaml` lines 41–95

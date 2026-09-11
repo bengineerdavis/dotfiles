@@ -1,7 +1,7 @@
 # CRUD invariant audit (2026-06)
 
 Findings from auditing every topic in `apps/` against the CRUD ownership
-invariant defined in [docs/CONVENTIONS.md](CONVENTIONS.md):
+invariant defined in [docs/TOPICS.md](TOPICS.md):
 
 > Any state a topic creates in `bootstrap.yaml`, `prerequisites.yaml`,
 > `install.yaml`, or `upgrade.yaml` must have a matching teardown in

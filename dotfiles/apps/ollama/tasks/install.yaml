@@ -160,7 +160,7 @@
 # DUAL OWNERSHIP, DELIBERATE — do not "fix" without deciding the question below.
 #
 # This dest is also chezmoi-managed, so two tools write the same path. That
-# normally violates the CRUD ownership invariant in docs/CONVENTIONS.md, and it
+# normally violates the CRUD ownership invariant in docs/TOPICS.md, and it
 # is allowed here on purpose: ansible performs the *initial* setup (fetching the
 # completion, which is not in the repo until it exists), and chezmoi owns it
 # afterwards so pulled changes apply without re-running the play.

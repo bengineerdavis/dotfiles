@@ -67,11 +67,14 @@ so it stays in `.github/`.
 
 A convention either **ships with the artifact** or **governs the repository**.
 
-Topic conventions ship: 40 topic files link to `docs/CONVENTIONS.md` relative to
-the deployed tree, and that file is deployed beside them. `docs/` is
-chezmoi-ignored and reaches no machine, so content the deployed output must
-carry cannot live here. `TOPICS.md` is therefore an index entry pointing at
-`dotfiles/docs/CONVENTIONS.md`, not a copy of it.
+Topic conventions ship: 53 files reference `docs/TOPICS.md` relative to the
+deployed tree, and that file is deployed beside them. The conventions in *this*
+directory are chezmoi-ignored and reach no machine, so content the deployed
+output must carry cannot live here.
+
+That is why **`dotfiles/docs/TOPICS.md`** holds the topic conventions and there
+is no copy here. An index entry pointing at it used to exist and was removed —
+two files named `TOPICS.md` was the ambiguity the rename set out to end.
 
 Everything else here governs the repository and is never deployed.
 

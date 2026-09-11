@@ -4,7 +4,7 @@
 #
 # Topics are discovered dynamically. Each topic owns its lifecycle via
 # tasks/main.yaml. Run order is determined by meta/main.yml topic_tier.
-# See docs/CONVENTIONS.md for the full contract.
+# See docs/TOPICS.md for the full contract.
 #
 # Tag hierarchy:
 #   provision      = bootstrap + prerequisites + upgrade + install
@@ -45,7 +45,7 @@
     # Each topic declares its identity in apps/<topic>/topic.yml at the role
     # root. Ansible's role loader reserves meta/main.yml for galaxy/role
     # metadata, so we deliberately sit alongside meta/ rather than inside it.
-    # See docs/CONVENTIONS.md.
+    # See docs/TOPICS.md.
 
     - name: "Find all topic.{yml,yaml} files"
       ansible.builtin.find:
@@ -168,7 +168,7 @@
     #   OK            — provided by a topic in run, or present on PATH
     #   TOPIC_NOT_RUN — a topic provides it, but is not in this run (OS mismatch)
     #   NO_TOPIC      — nothing provides it and it's not on PATH
-    # See docs/CONVENTIONS.md.
+    # See docs/TOPICS.md.
 
     - name: "Collect (topic, required-dep) pairs"
       ansible.builtin.set_fact:

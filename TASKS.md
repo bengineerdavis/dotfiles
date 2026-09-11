@@ -123,14 +123,14 @@ nothing is.
   not release. Candidates: on a cadence, at each machine rebuild, or never —
   leaving everything under Unreleased, which is legitimate and costs nothing.
   Until this is settled the changelog grows one section and is still readable.
-- Rename `dotfiles/docs/CONVENTIONS.md` to `TOPICS.md`. The CONTRIBUTING
+- Rename `dotfiles/docs/TOPICS.md` to `TOPICS.md`. The CONTRIBUTING
   fold-in is already done — only the rename and its citations remain. Fold
   `docs/TOPICS.md` into it. The file is titled "Topic conventions" but is named
   for none of that, and there is now a `docs/TOPICS.md` index entry pointing at
   it — two names for one subject is the ambiguity the rename removes.
   Carry the two sections that are not topic conventions out at the same time:
   § Commit granularity and § Messages belong in `docs/COMMITS.md`.
-  **53 files cite `CONVENTIONS.md`, 40 of them topic files using a
+  **53 files cite `TOPICS.md`, 40 of them topic files using a
   deployed-tree-relative path.** Rewrite every citation in the same change, and
   remember the target must stay inside `dotfiles/docs/` — it deploys beside the
   topics that link to it, which is why it was not moved to `docs/` with the rest.
@@ -173,13 +173,13 @@ when it becomes the thing to do, rather than working straight from here.
   captured `llm` output. Draft is written; one-line fix is `import pymupdf`.
   **[unblocked: `gh auth status` reports a working keyring login as of 2026-09-11]**
 - Move § Commit granularity and § Messages out of
-  `dotfiles/docs/CONVENTIONS.md` into `docs/COMMITS.md`. That document is
+  `dotfiles/docs/TOPICS.md` into `docs/COMMITS.md`. That document is
   titled "Topic conventions" and those two sections are not topic conventions —
   they are repository conventions that do not ship with the artifact, which is
   the split `docs/TOPICS.md` now describes. `AGENTS.md` § Commits cites
   them and would point at the new home.
   **Do it with the citation rewrite, not before.** 53 files reference
-  `CONVENTIONS.md`, 40 of them topic files using a deployed-tree-relative path,
+  `TOPICS.md`, 40 of them topic files using a deployed-tree-relative path,
   and those citations should be rewritten once rather than twice.
 - Scope and apply retention to the 8 rows of work content already in the `llm`
   log. `company.yaml`'s `open_questions.indefinite_local_log` defaults to
@@ -227,7 +227,7 @@ when it becomes the thing to do, rather than working straight from here.
   Federal Plain Language Guidelines and ISO 24495-1:2023 are the two candidates.
   Marked rather than guessed, per `spec.md` § Ambiguity is marked, not resolved.]**
 - Reconcile changelog style: plain language, the house commit style in
-  `docs/CONVENTIONS.md` § Commit granularity, and the changelog standard have to
+  `docs/TOPICS.md` § Commit granularity, and the changelog standard have to
   intersect without contradicting. Note this repo deliberately has no
   `CHANGELOG.md` — `git log` is the changelog — so this governs release notes and
   any user-facing summary, not a file we keep.
@@ -497,7 +497,7 @@ author rather than the machine.
   Build adapters only for tools actually in use. Installed on this machine:
   claude, cursor, code, aider. Not installed: goose, windsurf, copilot CLI.
   **Name collision to resolve first:** aider conventionally reads a root
-  `CONVENTIONS.md`; this repo has `dotfiles/docs/CONVENTIONS.md` and now a
+  `TOPICS.md`; this repo has `dotfiles/docs/TOPICS.md` and now a
   `docs/` directory. Three things one word apart is a bug waiting to be
   filed. Rename or namespace before adding the adapter.
   Note skills currently live outside this repo — `~/.claude/skills` (2) and

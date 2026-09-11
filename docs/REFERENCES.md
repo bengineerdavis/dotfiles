@@ -59,7 +59,7 @@ Recorded so the decision is not re-litigated. Each was measured, not assumed.
 
 | Standard | Why not |
 |---|---|
-| [Conventional Commits](https://www.conventionalcommits.org/) | 12% of history uses it; 71% uses a plain `<scope>: ` prefix. Its payoff is automated changelog and semver, and this repo keeps no `CHANGELOG.md` by design and does not release. |
+| [Conventional Commits](https://www.conventionalcommits.org/) | 12% of history uses it; 71% uses a plain `<scope>: ` prefix. Its payoff is automated changelog generation and semver; this repo writes changelog entries by hand with scriv and does not release. |
 
 | [Semantic Versioning](https://semver.org/) | Nothing here is released or consumed as a version. |
 | [Contributor Covenant](https://www.contributor-covenant.org/) | `PRD.md` § Non-goals: not expecting contributors. |

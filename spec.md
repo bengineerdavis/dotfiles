@@ -15,7 +15,7 @@ where scope questions are settled. `ROADMAP.md` says what is likely next and is
 where an empty task queue is refilled from. `AGENTS.md` says how to work here and is
 procedural. `dotfiles/docs/` explains and is descriptive. This file constrains.
 Where a subject needs instructions of its own the invariant stays here and the
-detail is referenced: `dotfiles/docs/CONVENTIONS.md` for topic structure,
+detail is referenced: `dotfiles/docs/TOPICS.md` for topic structure,
 `MODEL-LIFECYCLE.md` for how models are judged, `GOALS.md` for why the policy
 layers exist. Where this file and a doc disagree, the doc is describing and this
 is constraining — fix the doc.
@@ -40,7 +40,7 @@ is constraining — fix the doc.
 
 chezmoi SHALL own dotfiles and symlinks, Ansible SHALL own package installs and
 system state, and zsh SHALL own shell runtime config. See
-`dotfiles/docs/CONVENTIONS.md`, which is the source of truth and which the topic
+`dotfiles/docs/TOPICS.md`, which is the source of truth and which the topic
 files cite.
 
 #### Scenario: A task would work in either layer
@@ -335,7 +335,7 @@ looked, who does not want to read commits at all.
 
 Message quality still matters, for the same reason it always did — a commit is
 the only record of *why* a change happened. It is simply not a substitute for
-the other document. `dotfiles/docs/CONVENTIONS.md` § Commit granularity is the
+the other document. `dotfiles/docs/TOPICS.md` § Commit granularity is the
 source of truth; `AGENTS.md` § Commits carries the short version.
 
 #### Scenario: Several unrelated changes are ready together

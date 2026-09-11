@@ -125,7 +125,7 @@ and then `exec`s that script with the remaining argv, plus `--topic <name>`.
 Why this shape:
 
 - **Topic tools stay self-contained**, which is the doctrine the whole repo runs
-  on (`docs/CONVENTIONS.md`). Adding a topic never means editing a central file.
+  on (`docs/TOPICS.md`). Adding a topic never means editing a central file.
 - **Every tool keeps working standalone.** `browser-ext status` still runs. That
   matters enormously for migration — see the compatibility section.
 - **`topic.yml` is already the metadata file** the parent playbook slurps on

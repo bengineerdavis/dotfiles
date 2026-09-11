@@ -4,4 +4,4 @@
 # that tasks/main.yaml routes to — tasks/install.yaml owns the browser check,
 # the External Extensions seeding, and the audit CLI symlink; tasks/remove.yaml
 # owns their teardown. Adding tasks here would run them outside the lifecycle
-# tags and outside the CRUD ownership invariant in docs/CONVENTIONS.md.
+# tags and outside the CRUD ownership invariant in docs/TOPICS.md.

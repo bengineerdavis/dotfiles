@@ -48,7 +48,7 @@ CLI, not the tasks:
 
 1. Does the shared piece live as a schema convention that each topic implements,
    or as an actual shared role? The repo has no precedent for shared roles, and
-   `docs/CONVENTIONS.md` leans hard on self-contained topics.
+   `docs/TOPICS.md` leans hard on self-contained topics.
 2. Should `browser-ext` grow an `--topic vscode` mode, or should there be a
    sibling `ide-ext` with its own verbs? The audit half generalises cleanly; the
    install half does not.

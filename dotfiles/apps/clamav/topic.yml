@@ -1,6 +1,6 @@
 # apps/clamav/topic.yml
 #
-# Topic metadata read by the parent playbook. See docs/CONVENTIONS.md.
+# Topic metadata read by the parent playbook. See docs/TOPICS.md.
 
 # Canonical name for the topic. Must match the directory under apps/.
 topic_name: clamav
