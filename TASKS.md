@@ -123,23 +123,6 @@ nothing is.
   not release. Candidates: on a cadence, at each machine rebuild, or never —
   leaving everything under Unreleased, which is legitimate and costs nothing.
   Until this is settled the changelog grows one section and is still readable.
-- Rename `dotfiles/docs/TOPICS.md` to `TOPICS.md`. The CONTRIBUTING
-  fold-in is already done — only the rename and its citations remain. Fold
-  `docs/TOPICS.md` into it. The file is titled "Topic conventions" but is named
-  for none of that, and there is now a `docs/TOPICS.md` index entry pointing at
-  it — two names for one subject is the ambiguity the rename removes.
-  Carry the two sections that are not topic conventions out at the same time:
-  § Commit granularity and § Messages belong in `docs/COMMITS.md`.
-  **53 files cite `TOPICS.md`, 40 of them topic files using a
-  deployed-tree-relative path.** Rewrite every citation in the same change, and
-  remember the target must stay inside `dotfiles/docs/` — it deploys beside the
-  topics that link to it, which is why it was not moved to `docs/` with the rest.
-
-## Planned
-
-Has a done-condition and is queued, but is not next. Promote into **Now**
-when it becomes the thing to do, rather than working straight from here.
-
 - **[1] Promote `gpt-oss:20b` and `ministral-3:8b` in `bin/binned`.** Decided:
   use the cross-task evidence from judging. Record in the manifest that the
   number came from judging rather than generation, so the basis is not
