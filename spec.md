@@ -460,7 +460,13 @@ unreadable resolver is itself a denial.
 Technical documentation SHALL be written to a plain-language standard: short
 sentences, active voice, common words, the conclusion first, and one idea per
 paragraph. This covers `AGENTS.md`, `dotfiles/docs/`, READMEs, changelog and
-release prose, and anything a tool prints to a user.
+release prose, anything a tool prints to a user, and — the three most often
+written and least often counted — **commit messages, pull request descriptions
+and code comments**.
+
+Length is part of the standard, not separate from it. Prose SHALL be
+proportional to what it describes, and a passage longer than its subject
+warrants is evidence the subject should have been split.
 
 This file and any skillet spec are exempt and SHALL keep normative language —
 SHALL, MUST, MUST NOT — with BDD scenarios. Plain language optimises for a

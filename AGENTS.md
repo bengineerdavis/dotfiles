@@ -547,6 +547,17 @@ One commit is one reviewable decision. The test is not file count — it is whet
 reader can hold the *why* in their head, and whether the change can be reverted on
 its own without taking unrelated work with it.
 
+**Size the message to the change.** A subject line alone for mechanical edits, a
+sentence or two for small single-purpose changes, one or two short paragraphs for
+ordinary features and fixes. The `commit-hygiene` skill is the source of truth and
+says why: a message longer than the change warrants is not thoroughness, it is
+evidence the commit should have been two. Reach for splitting before you reach for
+more prose.
+
+This was measured, not asserted. Across one session the median body ran 232 words
+against a repository median of 114, topping out at 521 — roughly double the house
+norm, while a skill stating the rule sat installed and unread.
+
 Sequence commits so every intermediate state works. Land the inert parts first and
 the switch that activates them last — for an Ansible topic that is usually
 `topic_os`, which gates whether any of the preceding commits run at all.
@@ -729,7 +740,11 @@ and watch the property go red, the same as any other test.
 Technical docs in this repo use plain language: short sentences, active voice,
 common words, the conclusion first, one idea per paragraph. Write for someone
 deciding what to do. This covers this file, `dotfiles/docs/`, READMEs, changelog
-and release prose, and anything a tool prints to a user.
+and release prose, anything a tool prints to a user, and **commit messages, pull
+request descriptions and code comments** — the three written most often and
+counted least.
+
+Length is part of it. Prose should be proportional to what it describes.
 
 `spec.md` and any skillet spec are the exception. They keep normative language —
 SHALL, MUST, MUST NOT — with BDD scenarios, because they are read to decide
