@@ -608,8 +608,12 @@ root holds only the five documents that govern the project:
 - **`conventions/PERMISSIONS.md`** — what the agent may run, the three tiers in
   `.claude/settings.json`, and the threat model they do and do not address.
   Read it before widening a rule.
-- **`conventions/CONTRIBUTING.md`** — how work gets in, by agent or by hand, and
-  what to do when an agent fails mid-task. The tool-free version of this file.
+
+`.github/CONTRIBUTING.md` is the human entry point and lives there rather than
+here on purpose: GitHub only discovers `CONTRIBUTING.md` in `.github/`, the
+repository root, or `docs/`. In any other directory it never reaches the
+Contributing tab or the sidebar shown when someone opens a pull request — which
+is the one moment it exists to be read.
 
 This file stays general on purpose. How work runs here is reusable across
 projects; conventions are the part that swaps out. A repository that adds another

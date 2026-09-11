@@ -3,9 +3,23 @@
 How work gets into this repository, by an agent or by a person, and what to do
 when the agent route fails.
 
-`AGENTS.md` covers the agent path in detail — branches, merge gates, trust
-ladder. This file is the shorter, tool-free version, and it is deliberately
-readable by someone who has no agent running and no context from a session.
+**This file routes; it does not restate.** Three documents already cover pieces
+of this and duplicating them is how they drift apart:
+
+- **`dotfiles/docs/CONTRIBUTING.md`** — adding or changing a topic, the CRUD
+  teardown invariant, the `<scope>: <imperative>` commit convention, and the
+  Ansible checks to run before committing. The detail lives there.
+- **`AGENTS.md`** — the agent path: branches, merge gates, decomposition, the
+  trust ladder.
+- **`conventions/`** — per-subject standards (Python, permissions).
+
+What is only here: the **manual path**, what to do when an **agent fails
+mid-task**, and pull request mechanics. It is deliberately readable by someone
+with no agent running and no context from a session.
+
+It lives in `.github/` because GitHub discovers `CONTRIBUTING.md` only there, at
+the repository root, or in `docs/`. There is a stale copy at `docs/CONTRIBUTING.md`
+that GitHub would otherwise surface; `.github/` takes precedence over it.
 
 ## The manual path always works
 
@@ -31,9 +45,10 @@ The commit template is wired via `git config --local commit.template .gitmessage
 and is **already set** in this clone. On a fresh clone, run that line — it is the
 one piece of setup that is not automatic.
 
-Size the message to the change. A subject alone for mechanical edits; a sentence
-or two for small ones; one or two short paragraphs for ordinary work. A message
-longer than its change warrants means the commit should have been two.
+`dotfiles/docs/CONTRIBUTING.md` § Commits has the subject convention. The only
+addition is size: a subject alone for mechanical edits, a sentence or two for
+small ones, one or two short paragraphs for ordinary work. A message longer than
+its change warrants means the commit should have been two.
 
 ### Opening a pull request, by hand
 
