@@ -517,6 +517,46 @@ force-push, valid until someone pushes on top.
 Each of the three commits carries a `git notes` PROVENANCE entry explaining the
 split and pointing at the prevention. Read with `git notes show <sha>`.
 
+- Make test conftests skip rather than error on a missing optional dependency.
+  `tests/ollama_evals/conftest.py` loads the eval harness as a module, and the
+  harness imports Pillow at module level, so without `--with pillow` the whole
+  directory produces 53 collection errors instead of 52 passes — the suite
+  aborts instead of running what it can. Same class as the hypothesis guard
+  fixed today, one layer deeper: the import happens before pytest can skip
+  anything. `pytest.importorskip` in the conftest is the likely fix, but check
+  what else the harness pulls in at import time first.
+
+## History was rewritten on 2026-08-21 — reset before you resume
+
+`main` was force-pushed. Every SHA from `bc72f5c` onward is new. Two mixed
+commits were unscrambled: `b3ad740` split into a clamav half and a pii-redactor
+half, and `5692a86` reworded to describe the 52 zsh deletions it actually
+contains. Verified lossless — the tree is byte-identical to before, and the suite
+is 218 passed / 7 deselected.
+
+**Anything holding the old history must hard-reset, not pull.** A pull merges old
+and new and resurrects the mixed commits.
+
+```bash
+git fetch origin
+git reset --hard origin/main
+git fetch origin 'refs/notes/*:refs/notes/*'   # notes are published now
+```
+
+Who needs this:
+
+- **The second machine.** Not currently contributing, so no work is at risk — but
+  it must reset before its next commit or it will reintroduce the old SHAs.
+- **Any session idle-but-not-finished.** Reset before resuming; a commit against
+  the old HEAD undoes the unscramble.
+
+Pre-rewrite history is on `backup/pre-unscramble-272bdf7` if anything needs
+recovering. Rollback is `git reset --hard backup/pre-unscramble-272bdf7` plus a
+force-push, valid until someone pushes on top.
+
+Each of the three commits carries a `git notes` PROVENANCE entry explaining the
+split and pointing at the prevention. Read with `git notes show <sha>`.
+
 ## Private tasks
 
 Some work cannot be described here without reproducing the thing it is trying to
