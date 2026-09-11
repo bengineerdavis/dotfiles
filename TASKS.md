@@ -39,7 +39,7 @@ Format: `- <UTC start> — <what> — <files or resource>`
 
 - 2026-08-27T18:20Z — adding the pre-egress review gate (as in bin/trace-public) — bin/executable_pii-redactor
 - 2026-09-10T21:25Z — adding a chrome browser topic (separate session, reported by the author) — dotfiles/apps/chrome, install/remove tasks
-- 2026-09-10T23:58Z — agent permission defaults: branch `agent-permissions` pushed, AWAITING REVIEW (touches policy, cannot self-merge) [agent: claude session 5100b7bb]
+- 2026-09-10T23:58Z — agent permission defaults: branch `agent-permissions` VERIFIED (deny + allow confirmed in a fresh session), awaiting merge decision [agent: claude session 5100b7bb]
 
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
@@ -538,34 +538,6 @@ author rather than the machine.
   cannot re-open what a project DENY closes, **assuming deny wins across cascade
   layers**. That assumption is unverified; confirm it in a fresh session before
   relying on it, and if it is wrong this item becomes urgent rather than tidy.
-- Verify permission enforcement in a fresh session, in both directions. A deny
-  rule added for a harmless command did not block it in-session and the cause
-  was not distinguishable from inside — settings may not reload mid-session, the
-  session may run in a mode that bypasses rules, or the pattern may not have
-  matched. Until this is done, `tests/permissions/` proves the config says what
-  it intends and proves nothing about what Claude Code does with it. Check that
-  `chezmoi apply` is refused AND that `git status` still runs without a prompt;
-  a config that denies everything and a config that is never read look identical.
-
-## History was rewritten on 2026-08-21 — reset before you resume
-
-`main` was force-pushed. Every SHA from `bc72f5c` onward is new. Two mixed
-commits were unscrambled: `b3ad740` split into a clamav half and a pii-redactor
-half, and `5692a86` reworded to describe the 52 zsh deletions it actually
-contains. Verified lossless — the tree is byte-identical to before, and the suite
-is 218 passed / 7 deselected.
-
-**Anything holding the old history must hard-reset, not pull.** A pull merges old
-and new and resurrects the mixed commits.
-
-```bash
-git fetch origin
-git reset --hard origin/main
-git fetch origin 'refs/notes/*:refs/notes/*'   # notes are published now
-```
-
-Who needs this:
-
 - **The second machine.** Not currently contributing, so no work is at risk — but
   it must reset before its next commit or it will reintroduce the old SHAs.
 - **Any session idle-but-not-finished.** Reset before resuming; a commit against
