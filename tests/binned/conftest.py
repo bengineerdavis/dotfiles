@@ -17,7 +17,15 @@ import sys
 
 import pytest
 
-BINNED_PATH = pathlib.Path.home() / "bin" / "binned"
+# The chezmoi SOURCE, not the deployed ~/bin/binned. They are the same file only
+# until someone edits one — and an edit to the source is exactly when these tests
+# matter most. Loading the deployed copy meant a source change could be tested
+# against the previous version and pass, which is the vacuous-pass failure
+# spec.md § Layering — source and deployed are checked before editing describes.
+# tests/ollama_evals/conftest.py already loads its subject from source; this
+# brings binned into line.
+REPO = pathlib.Path(__file__).resolve().parents[2]
+BINNED_PATH = REPO / "bin" / "executable_binned"
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -49,7 +57,7 @@ def binned_module():
     environment (install with: pip install typer questionary).
     """
     if not BINNED_PATH.exists():
-        pytest.skip(f"binned not found at {BINNED_PATH} — run: chezmoi apply ~/bin/binned")
+        pytest.skip(f"binned source not found at {BINNED_PATH}")
     try:
         # binned has no .py extension so spec_from_file_location returns None;
         # SourceFileLoader tells Python to treat it as Python source regardless.
