@@ -20,6 +20,9 @@ TASKS.md
 spec.md
 PRD.md
 ROADMAP.md
+CHANGELOG.md
+changelog.d/
+changelog.d/**
 docs/PERMISSIONS.md
 docs/PYTHON.md
 docs/REFERENCES.md

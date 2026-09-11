@@ -555,17 +555,11 @@ split and pointing at the prevention. Read with `git notes show <sha>`.
   whole repo-root `docs/` tree goes rather than patching one file — `AGENTS.md`
   already calls it an older copy kept but not maintained.
 
-- **Adopt a changelog: scriv + `changelog.d/` + `CHANGELOG.md`.** `spec.md` now
-  requires a human-readable changelog; this is the mechanism. scriv writes each
-  entry as a fragment at the time of the change and collects them later, so
-  there is no second copy of `git log` to drift.
-  Settle before building: which sections (Keep a Changelog's Added/Changed/Fixed,
-  or something plainer), whether entries are required per change or per merged
-  PR, and where `CHANGELOG.md` lives given `docs/` is a deployed tree.
-  Research context: `astral-sh/uv` and `openai/codex` both keep a CHANGELOG.md
-  and use zero Conventional Commits; commit format and changelog discipline are
-  independent. None of the five agent-heavy repos sampled used scriv, which is a
-  Python-ecosystem tool rather than an agent-workflow one.
+- Decide when `scriv collect` runs. The changelog exists and fragments
+  accumulate, but nothing says what a "release" is for a dotfiles repo that does
+  not release. Candidates: on a cadence, at each machine rebuild, or never —
+  leaving everything under Unreleased, which is legitimate and costs nothing.
+  Until this is settled the changelog grows one section and is still readable.
 - **Merge the three `CONTRIBUTING.md` files into one at the repository root.**
   Not part of any open branch — PR #3 merged without it. Decided: root takes
   contribution PROCESS, `dotfiles/docs/CONVENTIONS.md` keeps topic structure,

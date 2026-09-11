@@ -50,6 +50,29 @@ addition is size: a subject alone for mechanical edits, a sentence or two for
 small ones, one or two short paragraphs for ordinary work. A message longer than
 its change warrants means the commit should have been two.
 
+### Writing a changelog entry
+
+`CHANGELOG.md` is for someone asking what changed since they last looked. That
+is a different question from the one a commit answers, which is why both exist.
+
+Write the entry when you make the change, not afterwards:
+
+```bash
+uv run --with scriv scriv create      # opens a fragment in changelog.d/
+```
+
+Uncomment the category that fits, write the entry **in the reader's terms**, and
+commit the fragment with the work. Fragments are separate files, so two branches
+never conflict over them. On release, `scriv collect` folds them into
+`CHANGELOG.md` and deletes them.
+
+Not every change earns an entry. If it alters nothing a reader would notice,
+the commit is the whole record. An entry that only repeats its commit subject
+has been generated rather than written.
+
+Config lives in `changelog.d/scriv.ini` — **not** the repository root, which is
+where scriv does not look.
+
 ### Opening a pull request, by hand
 
 A pushed branch is **not** a pull request. `git push` prints a

@@ -25,6 +25,8 @@ nothing changed — a stale date is the signal, not the version number.
 | [no-ai-slop](https://github.com/petergyang/no-ai-slop) | vendored MIT @ 2026-09-02 | `~/.claude/skills/no-ai-slop/` | 2026-09-11 |
 | [shellcheck-py](https://github.com/shellcheck-py/shellcheck-py) | `v0.10.0.1` in `.pre-commit-config.yaml` | pre-commit hook | 2026-09-11 |
 | [prek](https://github.com/j178/prek) | 0.5.0 | hook runner; writes `.git/hooks/` | 2026-09-11 |
+| [scriv](https://scriv.readthedocs.io/) | run via `uv run --with scriv` | `changelog.d/` fragments → `CHANGELOG.md` | 2026-09-11 |
+| [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) | **1.1.0** | category names in `changelog.d/scriv.ini` | 2026-09-11 |
 | [RFC 2606](https://www.rfc-editor.org/rfc/rfc2606) — reserved example names | Best Current Practice | synthetic PII fixtures use `example.com`/`.org` | 2026-09-11 |
 
 ### Why PyPA and not the PEP
@@ -58,7 +60,7 @@ Recorded so the decision is not re-litigated. Each was measured, not assumed.
 | Standard | Why not |
 |---|---|
 | [Conventional Commits](https://www.conventionalcommits.org/) | 12% of history uses it; 71% uses a plain `<scope>: ` prefix. Its payoff is automated changelog and semver, and this repo keeps no `CHANGELOG.md` by design and does not release. |
-| [Keep a Changelog](https://keepachangelog.com/) | No `CHANGELOG.md` here on purpose — `git log` is the changelog, and duplicating it creates drift. Cited by `ai-prompt-library`, which does keep one. |
+
 | [Semantic Versioning](https://semver.org/) | Nothing here is released or consumed as a version. |
 | [Contributor Covenant](https://www.contributor-covenant.org/) | `PRD.md` § Non-goals: not expecting contributors. |
 | cursor's `unslop` | Its "avoid em dashes entirely" conflicts with measured house style (12 per 1000 words in documents predating any agent). `no-ai-slop` reaches the same goal with a calibrated rule. |
@@ -71,8 +73,7 @@ Recorded so the decision is not re-litigated. Each was measured, not assumed.
   [plainlanguage.gov](https://www.plainlanguage.gov/guidelines/) and
   [ISO 24495-1:2023](https://www.iso.org/standard/78907.html) are the candidates.
   Open in `TASKS.md`.
-- **Changelog convention version**, if release prose is ever written. Keep a
-  Changelog is at 1.1.0; `ai-prompt-library` cites 1.0.0.
+
 
 ## How to re-check
 
