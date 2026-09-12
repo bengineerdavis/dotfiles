@@ -577,6 +577,14 @@ as six commits surfaced a bug the single commit had hidden: a new
 registered vars outrank role vars — so the rendered script would have received a
 task-result dict instead of a path.
 
+**Rewriting hooks leave residue.** Formatter-type hooks (trailing-whitespace,
+end-of-file-fixer, ruff-format) modify the working tree and fail the commit, so
+re-committing without looking can land a mix nobody reviewed as a unit. After any
+commit in a repo whose hooks rewrite files, `git status` must be clean or the
+residue is staged and committed deliberately. This repo's hooks only check, so
+`git show --stat HEAD` covers it here — the rule bites in other repos, like
+ai-prompt-library, where formatters run.
+
 ## Languages
 
 **Bash while a script is small; Python once it is not.** Short bash needs nothing
