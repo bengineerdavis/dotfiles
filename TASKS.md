@@ -108,6 +108,16 @@ nothing is.
   and unversioned, so it cannot be tracked here beyond this pointer. Until it is
   filled, `fail_closed` means the company layer denies everything it is asked,
   which is safe and useless.
+- **Drop the `npm:@sentry/skillet` pin in `apps/mise/files/config.toml`.**
+  Pinned to 1.7.0 on 2026-09-11 because mise's npm resolver (aube) cannot fetch
+  vite's 39 MB packument through `sfw.security.sentry.io` — `curl` and `npm`
+  both can, so it is a mise-side limit, not registry or auth. Done when
+  `mise install npm:@sentry/skillet@1.8.0` succeeds and the pin is back to
+  `latest`; re-test after each mise upgrade. The topic prints the pin on every
+  run, so this cannot rot silently. Decide at the same time whether the four
+  `npx @sentry/skillet@latest` task aliases in that file should follow the pin —
+  they float today, so `mise run skillet-validate` uses a different version from
+  the installed binary, and `spec.md` pins 1.7.0.
 - Install `ty` and typecheck the Python. Named in the house toolchain and
   currently absent — not installed, zero references in the repo. 32 test files
   and 36 PEP 723 scripts are unchecked. Note `ty` is pre-1.0; decide whether it
