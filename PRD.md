@@ -111,9 +111,21 @@ the repository as a whole; a topic is the level at which lifting something is
 supposed to actually work.
 
 The boundary is deliberately unsettled — what a topic may depend on, how it
-declares that, and what happens to shared state like the zsh lifecycle files and
-the manifest schema. `ROADMAP.md` holds it. It has to be settled before anyone
+declares that, and what happens to shared state like the zsh lifecycle files
+and the manifest schema. `ROADMAP.md` holds it. It has to be settled before anyone
 outside this machine depends on it, and not before.
+
+### Bundles compose topics
+
+Grouping is data-first, decided with the author on 2026-09-12: a bundle config
+object names its member topics, their run order, shared configuration, and
+machine targeting, and lives outside the topics it composes. Relationships
+belong to the bundle, not to each topic — that is what keeps topics
+standalone-installable and keeps grouping obvious without opening every topic.
+Bundles complement `topic_requires` rather than replace it, and win on
+conflict. The parent playbook runs bundle-limited install, update, and
+teardown today; the `topic` CLI consumes the same bundle files after its MVP.
+First use case: an AI-strategy bundle, composed per machine.
 
 ### Policy is general; topics consume it
 

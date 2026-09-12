@@ -38,6 +38,9 @@ These are already broken into work items in `TASKS.md`. Listed so this file
 reads as a complete picture, not to duplicate them.
 
 - **The `topic` CLI** (A1–A7). Designed in `dotfiles/docs/ROADMAP-topic-cli.md`.
+- **Topic bundles** — data-first grouping with bundle-aware playbook runs;
+  three items in `TASKS.md` under § Topic bundles. First use case: an
+  AI-strategy bundle per machine.
 - **Factoring the AI/LLM tooling out** (B1–B8). Required by `PRD.md`.
 - **The trust ladder and its ledger.**
 - **Two copier templates** — a general repository template, and one for the
