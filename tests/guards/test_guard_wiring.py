@@ -28,7 +28,7 @@ import re
 
 import pytest
 
-from conftest import DOTFILES, GUARDS
+from guard_harness import DOTFILES, GUARDS
 
 APPS = DOTFILES / "apps"
 GUARD_DEFAULTS = GUARDS / "defaults" / "main.yaml"

@@ -36,7 +36,7 @@ import re
 
 import pytest
 
-from conftest import DOTFILES, GUARDS, said
+from guard_harness import DOTFILES, GUARDS, said
 
 APPS = DOTFILES / "apps"
 CONFLICT_MARKER = "exist on both sides"

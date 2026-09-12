@@ -25,7 +25,7 @@ import json
 
 import pytest
 
-from conftest import said
+from guard_harness import said
 
 APPROVED = ["owner/approved-lib"]
 GUARD = "dotagents-approved-sources.yaml"
