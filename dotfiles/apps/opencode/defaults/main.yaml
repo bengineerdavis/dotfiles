@@ -1,50 +1,40 @@
 # apps/opencode/defaults/main.yaml
 #
-# ── Skill manifest — single source of truth ──────────────────────────────────
-# Consumed by tasks/install.yaml. Every entry is one `dotagents add` for the
-# user-global skill set (~/.agents/skills), which opencode, claude, cursor and
-# the other supported agents all read. That means these skills are shared
-# infrastructure, not opencode-private state — see the teardown guard below.
+# ── Approved skill sources — single source of truth ──────────────────────────
+# Consumed by tasks/install.yaml. This lists SOURCES, not skills: dotagents owns
+# which skills exist, and duplicating its list here only creates a second copy to
+# drift. Each entry becomes a `dotagents trust add` (so an unapproved source is
+# refused by dotagents itself, not merely undeclared) and a `dotagents add
+# <source> --all` wildcard declaration.
 #
-#   name:    the skill's name as dotagents discovers it (its directory name)
-#   source:  owner/repo shorthand dotagents clones from
-#   why:     why this machine carries it
+#   source: owner/repo shorthand, a GitHub org, or a git domain
+#   why:    why THIS SOURCE is approved to put skills on this machine
 #
-# Re-running `dotagents add` with an identical declaration refreshes the
-# installation, so install is idempotent; --tags upgrade re-runs it to pick up
-# upstream changes. Bumping a source from one repo to another is an edit here,
-# never a side effect of upgrading.
-opencode_skills:
-  - name: commit-hygiene
-    source: bengineerdavis/ai-prompt-library
+# `why` answers a question the skills cannot answer for themselves. What each
+# skill is for already lives in its own `description`, and a second copy here
+# would drift from it — which is why the old per-skill manifest is gone.
+opencode_skill_sources:
+  - source: bengineerdavis/ai-prompt-library
     why: >-
-      Commit message and granularity discipline; applies to every repo this
-      machine's agents work in.
+      The author's own library. Skills here are written in this repo's voice and
+      reviewed by the same person who runs them, so the trust question is
+      self-answering.
 
-  - name: pii-redaction
-    source: bengineerdavis/ai-prompt-library
+  - source: getsentry/skillet
     why: >-
-      Three-layer redaction (patterns, model, verification) for anything
-      user-content-bearing sent to a model.
+      Public and MIT (verified 2026-09-12 via `gh api repos/getsentry/skillet`),
+      and the toolchain the library's own skills are authored with — so its
+      authoring skill and the specs it validates stay on the same version.
 
-  - name: review-best-practices
-    source: bengineerdavis/ai-prompt-library
+# On-disk skill directories allowed to exist without being declared. Each needs a
+# reason a human can check, which in practice means a LICENSE and a PROVENANCE
+# note in the directory itself. Vendoring is a deliberate act; forgetting to
+# declare something is not, and the guard cannot tell them apart without this.
+opencode_skill_vendored:
+  - name: no-ai-slop
     why: >-
-      Research-before-building discipline; pairs with interaction-questioning.
-
-  - name: interaction-questioning
-    source: bengineerdavis/ai-prompt-library
-    why: >-
-      Requirements discovery — minimal, stakes-sensitive questions. Lives at
-      skills/interaction-questioning in the library as of 2026-09-12
-      (commit 94a3156); the source repo must be pushed that far before this
-      entry resolves on any machine, including this one.
-
-  - name: skillet-authoring
-    source: getsentry/skillet
-    why: >-
-      Skill authoring workflow for the skillet toolchain this repo uses
-      (spec.md -> SKILL.md -> evals).
+      Third-party, vendored rather than sourced — carries LICENSE and
+      PROVENANCE.md recording the upstream commit and a deliberate deviation.
 
 # ── Behaviour flags ──────────────────────────────────────────────────────────
 
@@ -65,8 +55,15 @@ opencode_remove_tap: false
 # See roles/guards/tasks/dotagents-skills-migration.yaml for the three fixes.
 opencode_allow_skill_dir_conflicts: false
 
-# Run `dotagents remove` for each manifest skill on remove. Off by default:
-# skills install user-global and serve every agent on the machine, so removing
-# opencode must not silently strip the shared library. Set true only when the
-# whole skill set is going away.
+# Run `dotagents remove <source>` for each approved source on remove. Off by
+# default: skills install user-global and serve every agent on the machine, so
+# removing opencode must not silently strip the shared library. Set true only
+# when the whole skill set is going away.
 opencode_remove_skills: false
+
+# Accept unapproved or undeclared skills in the user-global path for one run.
+# Off by default, and deliberately loud: an undeclared skill directory is how
+# unlicensed material ends up loaded into every agent session on the machine,
+# which is exactly what this topic exists to prevent. See
+# roles/guards/tasks/dotagents-approved-sources.yaml.
+opencode_allow_unapproved_skills: false

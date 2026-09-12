@@ -62,33 +62,71 @@
     guard_allow_skill_dir_conflicts: "{{ opencode_allow_skill_dir_conflicts }}"
   tags: [opencode_skills, upgrade]
 
-- name: "Sync each manifest skill via dotagents"
+- name: "Declare the approved sources to dotagents"
+  # dotagents enforces this itself: validateTrustedSource throws on any source
+  # outside the table, at both `add` and `install`. Done via the CLI rather than
+  # templating agents.toml, because that file is dotagents' to write. Adding an
+  # entry that is already present is a no-op, which is what keeps this idempotent.
   ansible.builtin.command:
     cmd: >-
       npx -y @sentry/dotagents@latest --user
-      add {{ item.source }} {{ item.name }}
+      trust add {{ item.source }}
   environment:
     PATH: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
-  loop: "{{ opencode_skills }}"
+  loop: "{{ opencode_skill_sources }}"
   loop_control:
-    label: "{{ item.name }}"
+    label: "{{ item.source }}"
+  register: opencode_trust_add
+  failed_when: false
+  changed_when: "'Added' in opencode_trust_add.stdout"
+  tags: [opencode_skills, upgrade]
+
+- name: "Fail with every source dotagents would not trust"
+  # `trust add` exits non-zero for an entry that is already present, so a bare
+  # rc check makes the second run of an idempotent task fail. Re-declaring an
+  # existing trust entry is the desired end state, not an error.
+  vars:
+    opencode_trust_failures: >-
+      {{ opencode_trust_add.results | rejectattr('rc', 'eq', 0)
+         | rejectattr('stderr', 'search', 'already in') | list }}
+  ansible.builtin.fail:
+    msg: >-
+      dotagents rejected
+      {{ opencode_trust_failures | map(attribute='item.source') | join(', ') }}.
+      What it actually said:
+      {{ opencode_trust_failures | map(attribute='stderr') | map('trim') | select | join(' | ')
+         | default('nothing on stderr; re-run the failing `npx` command by hand', true) }}
+  when: opencode_trust_failures | length > 0
+  tags: [opencode_skills, upgrade]
+
+- name: "Sync every skill from each approved source"
+  # `--all` declares the source as a wildcard dependency rather than naming
+  # skills, so adding a skill upstream needs no edit here. Re-adding an identical
+  # declaration refreshes the installation, which is why this doubles as upgrade.
+  ansible.builtin.command:
+    cmd: >-
+      npx -y @sentry/dotagents@latest --user
+      add {{ item.source }} --all
+  environment:
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
+  loop: "{{ opencode_skill_sources }}"
+  loop_control:
+    label: "{{ item.source }}"
   register: opencode_skill_add
-  # Never fail per item. dotagents reports its errors on stderr and leaves
-  # stdout empty, so a task that dies here surfaces as a bare "non-zero return
-  # code" with the message thrown away — see the reporting task below, which is
-  # the whole reason this is deferred rather than left to the module.
+  # dotagents reports its errors on stderr and leaves stdout empty, so failing
+  # here would discard the only diagnosis. See the reporting task below.
   failed_when: false
   changed_when: >-
     'Added skills' in opencode_skill_add.stdout
     or 'Added skill' in opencode_skill_add.stdout
   tags: [opencode_skills, upgrade]
 
-- name: "Fail with every skill dotagents could not sync"
+- name: "Fail with every source dotagents could not sync"
   ansible.builtin.fail:
     msg: >-
       dotagents could not sync
       {{ opencode_skill_add.results | rejectattr('rc', 'eq', 0)
-         | map(attribute='item.name') | join(', ') }}.
+         | map(attribute='item.source') | join(', ') }}.
       What it actually said:
       {{ opencode_skill_add.results | rejectattr('rc', 'eq', 0)
          | map(attribute='stderr') | map('trim') | select | join(' | ')
@@ -96,9 +134,23 @@
   when: opencode_skill_add.results | rejectattr('rc', 'eq', 0) | list | length > 0
   tags: [opencode_skills, upgrade]
 
+- name: "Guard that every installed skill came from an approved source"
+  # After the sync, not before: the question is what is on the machine now, and
+  # an undeclared directory is only visible once the declared ones are in place.
+  ansible.builtin.import_role:
+    name: "roles/guards"
+    tasks_from: dotagents-approved-sources.yaml
+  vars:
+    guard_caller: "apps/opencode"
+    guard_approved_sources: "{{ opencode_skill_sources | map(attribute='source') | list }}"
+    guard_vendored_skills: "{{ opencode_skill_vendored | map(attribute='name') | list }}"
+    guard_allow_unapproved_skills: "{{ opencode_allow_unapproved_skills }}"
+  tags: [opencode_skills, upgrade]
+
 - name: "Report skill sync results"
   ansible.builtin.debug:
     msg: >-
-      {{ opencode_skills | map(attribute='name') | join(', ') }} declared in
-      ~/.agents/agents.toml; `dotagents list` reports state per skill.
+      Approved sources {{ opencode_skill_sources | map(attribute='source') | join(', ') }}
+      are trusted and declared as wildcards in ~/.agents/agents.toml;
+      `dotagents list` reports which skills that resolved to.
   tags: [opencode_skills, upgrade]
