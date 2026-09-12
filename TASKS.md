@@ -702,8 +702,14 @@ author rather than the machine.
   refs and committed lock; agentskills.io is the tracked format standard;
   skills.sh is discovery only.** The topic owns: the dotagents declaration
   (currently mise-managed via config.toml — decide which topic owns it), the
-  user-global skill manifest now in `apps/opencode/defaults/main.yaml`, and
-  the install/sync trigger. opencode stays fully usable without it — the
+  user-global skill declaration in `apps/opencode/defaults/main.yaml`, and
+  the install/sync trigger. **That is no longer a per-skill manifest** (changed
+  2026-09-12, another session): it is a list of approved *sources* plus a
+  `[trust]` allowlist dotagents enforces itself, per-source `exclude` vetoes, and
+  a `roles/guards/` check that shells out to `tools/skill-trust`. Three pieces
+  move, not one — and they argue for this task rather than against it, since
+  source trust and a provenance guard belong to a dotagents topic far more
+  clearly than to opencode. opencode stays fully usable without it — the
   binary and config remain its own — and gets skills only through the
   dependency. Done when the skill manifest lives in the dotagents topic,
   skills install from it alone, and apps/opencode carries no skill manifest
