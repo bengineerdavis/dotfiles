@@ -25,6 +25,10 @@ Keep it short. This tracks *open* work and cross-session hazards, not history �
   `ROADMAP.md`. Nothing else distinguishes them — not size, not importance, not
   how soon. An item here is deleted when finished; a roadmap item is not.
 - One line per item, imperative, with enough context to pick it up cold.
+- **Captures commit immediately.** Anything an agent queues here or captures
+  for later gets its own commit, straight to main, the moment it is written —
+  so it exits the conversation and cannot be lost to session context, even
+  when nothing else will be done with it. Kept separate from in-flight work.
 - Mark **[blocked: reason]** rather than deleting — a blocked item that vanishes
   gets rediscovered from scratch.
 - Mark **[inferred]** for anything reconstructed from repo evidence rather than
@@ -314,6 +318,19 @@ nothing is.
   names it, but the hook config runs shellcheck and bats only, so no Python file
   in this repo is linted on commit. Settle the ruleset first — 36 scripts written
   before any linter will not pass a default config cleanly.
+- Integrate `xdoctest` and make illustrative examples a tested part of the
+  docs. Docstring examples in the 36 PEP 723 scripts and any Python modules
+  run under pytest via the xdoctest plugin; docs (`dotfiles/docs/`, READMEs)
+  carry code examples where they clarify, verified rather than trusted —
+  written for humans first, machines as the proof they still work. Survey the
+  ecosystem before building anything: xdoctest for docstrings, and for fenced
+  blocks in markdown weigh sybil / pytest-examples / a pytest-markdown runner
+  before hand-rolling one. Done when: xdoctest is in the documented pytest
+  command (AGENTS.md § Commands), docstring examples in `bin/` are collected
+  and green, `docs/PYTHON.md` records the convention (what must carry
+  examples, how to write and run them), and a markdown-example mechanism is
+  either adopted or consciously rejected with the reason recorded. Pairs
+  with the plain-language standard item — examples are prose too.
 - Make test conftests skip rather than error on a missing optional dependency.
   `tests/ollama_evals/conftest.py` loads the eval harness as a module, and the
   harness imports Pillow at module level, so without `--with pillow` the whole
@@ -534,6 +551,15 @@ author's modularity requirement). Topics keep minimal `topic_requires` so they
 stay standalone-installable; bundles complement and win on conflict. If
 nesting ever comes, it happens together with the queued TOPICS-citation
 rewrite — never as two rewrites of 40 files.
+
+**Open verdict, captured 2026-09-12 before it left the discussion:** a
+practitioner review of the machine→groups binding recommends a native Ansible
+YAML inventory (`inventory/machines.yml`, machine→groups, native `--limit`)
+over the `machines.yml` map described below, with `-e group=<name>` layered
+as the topic selector and unmapped machines keeping all-topics+warn. Vocabulary
+adopted in the same discussion: the config object is a **group** and the flag
+is `-e group=`. The items below still describe the machines.yml map and
+"bundle" wording — rewritten once the author confirms the inventory direction.
 
 - Define the bundle schema and document it in `dotfiles/docs/TOPICS.md`. A
   bundle config object (e.g. `apps/bundles/ai-strategy.yml`) names member
