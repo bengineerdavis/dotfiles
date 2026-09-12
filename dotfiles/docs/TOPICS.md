@@ -190,53 +190,80 @@ Conditional dependencies are checked at the point the feature is used, not up
 front — `bin/llm-ctx` checks `ffmpeg` only once a video has actually matched, so
 an ffmpeg-less machine stays perfectly usable for text and images.
 
+## Fully qualified module names
+
+Use fully qualified collection names (FQCNs) for every module. A bare `apt` or
+`homebrew` resolves through Ansible's search path, which means the module a task
+runs can change with the installed collections rather than with the task.
+
+```yaml
+# ✅
+ansible.builtin.apt
+community.general.homebrew
+community.general.homebrew_cask
+community.docker.docker_image
+
+# ❌
+apt
+homebrew
+```
+
+## Where upgrade logic lives
+
+Upgrade logic belongs in system roles (`homebrew`, `apt`, `docker`), not in topics.  
+If you find an upgrade task in a topic's `install.yaml`, move it to the system role.
+
+```yaml
+# ❌ wrong — upgrade logic in a topic
+- name: "Update Homebrew"
+  community.general.homebrew:
+    update_homebrew: true
+
+# ✅ correct — topic only installs
+- name: "Install my-app via Homebrew"
+  community.general.homebrew:
+    name: my-app
+    state: present
+  when: ansible_facts['os_family'] == 'Darwin'
+```
+
+## Adding a System Role
+
+System roles (`homebrew`, `apt`, `docker`) follow the same topic structure  
+but include additional subtasks. When adding a new package manager:
+
+1. Create `apps/<pm>/` using `init-config.sh <pm>`
+2. Add `tasks/bootstrap.yaml` — existence check + confirmed install
+3. Add `tasks/prerequisites.yaml` — core tools, idempotent
+4. Add `tasks/upgrade.yaml` — system-wide upgrade
+5. Update `tasks/main.yaml` to import all five subtasks with correct tags
+6. Add the new system role to the parent `playbook.yaml` bootstrap/prerequisites/upgrade sequence
+7. Add it to `SYSTEM_ROLES` in `migrate-to-roles.sh`
+
+Bootstrap tasks must:
+- Use an explicit `stat` check — never rely on module idempotency alone
+- Prompt for confirmation before installing
+- Verify success after installing
+- Fail loudly if something goes wrong
+
+## Template Conformance
+
+`template_dir/` is the canonical structure. `init-config.sh` copies it verbatim.  
+`migrate-to-roles.sh` uses it as the reference for LLM conformance checks.
+
+If you change the canonical structure, update `template_dir/` first,  
+then run `migrate-to-roles.sh` to propagate changes to existing topics.
+
+Do not add `tasks/bootstrap.yaml` or `tasks/prerequisites.yaml` to `template_dir/` —  
+those are system-role-only files.
+
 ## Commit granularity
 
-One commit should be one reviewable decision. The test is not file count or diff size —
-it is whether a reader can hold the *why* in their head, and whether the change can be
-reverted on its own without taking unrelated work with it.
+Moved. Commit conventions live in the root **`CONTRIBUTING.md`** — they are not
+topic conventions, and this document is about topics.
 
-Two failure modes, and the repo has an example of each.
-
-**Too coarse.** `491c9ca "fetchurl: download what it finds by default, with live parallel
-progress"` touched one file, so it looked atomic, but it bundled four independent
-decisions: a stray-character fix in the shebang, a change to what a positional argument
-means, a new progress display, and two new pipeline flags. Reverting the progress bars
-there means reverting the CLI contract too. The message had to spend five paragraphs
-because it was narrating four stories.
-
-**Right-sized.** The Debian port of `apps/clamav` landed as six commits —
-`--config-file` plumbing, per-platform path resolution, the netcat dependency, apt
-install, the systemd timer, then flipping `topic_os`. Each is independently revertible and
-each subject line is a complete thought. That is the shape to aim for.
-
-### Where to draw the line
-
-| Split when | Keep together when |
-|---|---|
-| A reader would ask "why is this here?" about part of the diff | The parts are meaningless alone — a flag and the code reading it |
-| One part could be reverted while keeping the rest | Splitting would leave a commit that does not run or test green |
-| The subject line needs "and" | The change is one decision expressed in several files |
-| A drive-by fix rode along with a feature | A rename or signature change touching many call sites |
-
-Do **not** split to the point where commits cannot stand alone. A commit that leaves the
-tree broken so the next one can fix it is worse than a slightly coarse one: it breaks
-`git bisect`, and it makes every intermediate state a lie. Atomic means *self-contained*,
-not *small*.
-
-### Messages
-
-Subject: `scope: imperative statement`, lower case after the colon, no trailing period,
-under ~72 characters. Scope is the topic or script the change belongs to (`clamav:`,
-`fetchurl:`, `docs:`, `tests:`).
-
-The body explains **why**, not what — the diff already says what. Worth the words:
-measurements that justify a choice, the failure the change prevents, an option considered
-and rejected, and any blind spot knowingly accepted. Those are the things a reader cannot
-reconstruct from the code, and they are the reason the body exists at all.
-
-If the body is enumerating unrelated changes rather than explaining one, that is the
-signal to go back and split.
+The `commit-hygiene` skill is the agent-facing form of the same rules and
+references that file rather than restating it.
 
 ## CRUD ownership invariant
 
@@ -254,6 +281,16 @@ The parent playbook cannot enforce this. It is a contributor rule, caught
 in review.
 
 ## Adding a new topic
+
+Keep a topic self-contained: install and system state in `tasks/`, shell wiring
+in `files/zsh/*.zsh`, metadata in `topic.yml`.
+
+Verify without changing anything before you commit:
+
+```bash
+ansible-playbook apps/<topic>/playbook.yaml --syntax-check
+ansible-playbook apps/<topic>/playbook.yaml --check --tags provision
+```
 
 ```bash
 ./init-config.sh my-topic

@@ -1,0 +1,115 @@
+role: vision
+property: correctness
+# MULTIMODAL REASONING, not multimodal perception. The earlier vision cases ask
+# the model to count shapes — real, but it only tests whether the model looked.
+# This asks it to READ A DIAGRAM AND THEN REASON OVER IT: follow reachability
+# from the gateway, treat red DOWN links as severed, and report what is cut off.
+# The answer cannot be obtained from the prompt text alone, so the image is
+# load-bearing rather than decorative.
+#
+# It is also the multimodal form of support-elimination, which makes it the
+# closest thing here to reading an architecture diagram during an incident.
+#
+# Difficulty axis:
+#   one-hop   a leaf is cut off directly
+#   chain     the cut is upstream, so a node BEHIND the failed node also dies
+#   redundant a second path rescues one node — the trap is reporting it as down
+num_ctx: 16384
+vars:
+  expected: "db"
+sweep:
+  ordered: true
+  levels:
+    - label: "one-hop"
+      vars: {expected: "db"}
+    - label: "chain"
+      vars: {expected: "cache, search"}
+      image:
+        size: [560, 250]
+        background: white
+        shapes:
+          - {kind: rect, at: [15, 100], size: [90, 40], fill: none, outline: black, width: 2}
+          - {kind: text, at: [28, 113], text: "gateway", size: 14}
+          - {kind: rect, at: [165, 35], size: [90, 40], fill: none, outline: black, width: 2}
+          - {kind: text, at: [188, 48], text: "auth", size: 14}
+          - {kind: rect, at: [165, 165], size: [90, 40], fill: none, outline: black, width: 2}
+          - {kind: text, at: [192, 178], text: "api", size: 14}
+          - {kind: rect, at: [315, 35], size: [90, 40], fill: none, outline: black, width: 2}
+          - {kind: text, at: [346, 48], text: "db", size: 14}
+          - {kind: rect, at: [315, 165], size: [90, 40], fill: none, outline: black, width: 2}
+          - {kind: text, at: [338, 178], text: "cache", size: 14}
+          - {kind: rect, at: [455, 165], size: [90, 40], fill: none, outline: black, width: 2}
+          - {kind: text, at: [478, 178], text: "search", size: 14}
+          - {kind: line, from: [105, 120], to: [165, 60], width: 3}
+          - {kind: line, from: [105, 120], to: [165, 185], width: 3}
+          - {kind: line, from: [255, 55], to: [315, 55], width: 3}
+          - {kind: line, from: [255, 185], to: [315, 185], width: 3, color: red}
+          - {kind: text, at: [262, 195], text: "DOWN", size: 12, color: red}
+          - {kind: line, from: [405, 185], to: [455, 185], width: 3}
+    - label: "redundant"
+      vars: {expected: "queue, worker"}
+      image:
+        size: [560, 290]
+        background: white
+        shapes:
+          - {kind: rect, at: [15, 120], size: [90, 40], fill: none, outline: black, width: 2}
+          - {kind: text, at: [28, 133], text: "gateway", size: 14}
+          - {kind: rect, at: [165, 35], size: [90, 40], fill: none, outline: black, width: 2}
+          - {kind: text, at: [188, 48], text: "auth", size: 14}
+          - {kind: rect, at: [165, 200], size: [90, 40], fill: none, outline: black, width: 2}
+          - {kind: text, at: [192, 213], text: "api", size: 14}
+          - {kind: rect, at: [325, 105], size: [90, 40], fill: none, outline: black, width: 2}
+          - {kind: text, at: [348, 118], text: "cache", size: 14}
+          - {kind: rect, at: [325, 220], size: [90, 40], fill: none, outline: black, width: 2}
+          - {kind: text, at: [350, 233], text: "queue", size: 14}
+          - {kind: rect, at: [460, 105], size: [90, 40], fill: none, outline: black, width: 2}
+          - {kind: text, at: [483, 118], text: "search", size: 14}
+          - {kind: rect, at: [460, 220], size: [90, 40], fill: none, outline: black, width: 2}
+          - {kind: text, at: [481, 233], text: "worker", size: 14}
+          - {kind: line, from: [105, 140], to: [165, 60], width: 3}
+          - {kind: line, from: [105, 140], to: [165, 215], width: 3}
+          - {kind: line, from: [255, 60], to: [325, 120], width: 3}
+          - {kind: line, from: [255, 215], to: [325, 130], width: 3, color: red}
+          - {kind: text, at: [262, 160], text: "DOWN", size: 12, color: red}
+          - {kind: line, from: [255, 225], to: [325, 238], width: 3, color: red}
+          - {kind: text, at: [262, 248], text: "DOWN", size: 12, color: red}
+          - {kind: line, from: [415, 125], to: [460, 125], width: 3}
+          - {kind: line, from: [415, 240], to: [460, 240], width: 3}
+image:
+  size: [430, 240]
+  background: white
+  shapes:
+    - {kind: rect, at: [15, 100], size: [90, 40], fill: none, outline: black, width: 2}
+    - {kind: text, at: [28, 113], text: "gateway", size: 14}
+    - {kind: rect, at: [165, 35], size: [90, 40], fill: none, outline: black, width: 2}
+    - {kind: text, at: [188, 48], text: "auth", size: 14}
+    - {kind: rect, at: [165, 165], size: [90, 40], fill: none, outline: black, width: 2}
+    - {kind: text, at: [192, 178], text: "api", size: 14}
+    - {kind: rect, at: [315, 35], size: [90, 40], fill: none, outline: black, width: 2}
+    - {kind: text, at: [346, 48], text: "db", size: 14}
+    - {kind: rect, at: [315, 165], size: [90, 40], fill: none, outline: black, width: 2}
+    - {kind: text, at: [338, 178], text: "cache", size: 14}
+    - {kind: line, from: [105, 120], to: [165, 60], width: 3}
+    - {kind: line, from: [105, 120], to: [165, 185], width: 3}
+    - {kind: line, from: [255, 55], to: [315, 55], width: 3, color: red}
+    - {kind: text, at: [262, 25], text: "DOWN", size: 12, color: red}
+    - {kind: line, from: [255, 185], to: [315, 185], width: 3}
+prompt: |
+  The diagram shows services and the links between them. A link drawn in red and
+  marked DOWN is broken and cannot carry traffic. All other links work. Traffic
+  enters at the gateway.
+
+  Which services can no longer be reached from the gateway? Reply with only:
+  ANSWER: <names, comma-separated, alphabetical>
+check: |
+  import re
+  NAMES = ("gateway", "auth", "api", "db", "cache", "search", "queue", "worker")
+  seg = response
+  m = re.search(r'ANSWER:\s*(.+)', response, re.I)
+  if m:
+      seg = m.group(1)
+  got = sorted(set(n.lower() for n in re.findall(
+      r'\b(' + "|".join(NAMES) + r')\b', seg, re.I)))
+  want = sorted(n.strip() for n in expected.split(","))
+  assert got, f"named no services: {' '.join(response.split())[:120]!r}"
+  assert got == want, f"answered {got}, unreachable set is {want}"

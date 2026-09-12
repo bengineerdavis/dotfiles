@@ -78,5 +78,8 @@ EOF
 )
 
 # MAIN #
-llm-ctx -v -m "$MODEL" "${FILES[@]}" -- "$PROMPT" > \
+# --work: this script exists to process a customer's email reply, so every run
+# is work-tagged by construction. It does not suppress logging by itself — it
+# asks the policy layers, via bin/policy, and they currently deny.
+llm-ctx --work -v -m "$MODEL" "${FILES[@]}" -- "$PROMPT" > \
 "$MODEL-summarized.md"

@@ -1,7 +1,7 @@
 # apps/clamav/tasks/remove.yaml
 # Explicit uninstall. Never runs as part of provision or install — only --tags remove.
 #
-# CRUD invariant (docs/CONVENTIONS.md): every artefact install.yaml or upgrade.yaml
+# CRUD invariant (docs/TOPICS.md): every artefact install.yaml or upgrade.yaml
 # creates is taken back here. That is the launchd agent, the automation directory, the
 # two configs under etc/clamav, the signature database, and the formula itself.
 ---

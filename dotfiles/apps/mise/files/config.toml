@@ -4,6 +4,18 @@ pipx.uvx = true
 
 [tools]
 "cargo:https://github.com/sondr3/git-ignore" = { version = "branch:main", crate = "git-ignore-generator" }
+# Encryption for bin/quarantine. aqua: resolves upstream's own release binaries
+# rather than a third-party plugin. age is a single static binary with no
+# network behaviour, and its file format is documented and stable — which is
+# what makes an archive written today still openable by hand years from now,
+# with nothing but the binary and the key.
+age = "latest"
+# Password-manager CLIs, so bin/quarantine can stream a decryption key straight
+# from the vault to age's stdin instead of leaving it in a file. Neither is
+# required: the keychain and file backends need no extra tool. The 1Password app
+# ships only op-ssh-sign, not the `op` CLI, which is why this is declared.
+"1password-cli" = "latest"
+"bitwarden" = "latest"
 fd = "latest"
 fzf = "latest"
 
@@ -25,6 +37,14 @@ node = "lts"
 # npm:@sentry/skillet@1.7.0             run `npm fund` for details
 "npm:@sentry/skillet" = { version = "latest", postinstall = "skillet init", depends = ["node"] }
 "npm:@sentry/dotagents" = "latest"
+# Second eval harness for skillet. skillet 1.7.0 runs a case's judge on the same
+# harness AND model as the trial itself (worker.js: runHarness(cfg.harness, …)
+# with only a fresh temp dir), so a single-harness run always self-grades. Two
+# independently-installed harnesses let the same suite run twice and be diffed,
+# which is the only judge/subject separation available until skillet gains a
+# judge-harness key. Declared here rather than left to `mise use -g`, which would
+# write to the chezmoi copy of this file and silently drift the two trees apart.
+"npm:@openai/codex" = { version = "latest", depends = ["node"] }
 
 # python tooling
 # uv/uvx is installed at the SYSTEM level via the astral installer (see

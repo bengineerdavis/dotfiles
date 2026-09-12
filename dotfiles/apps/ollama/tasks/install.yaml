@@ -160,7 +160,7 @@
 # DUAL OWNERSHIP, DELIBERATE — do not "fix" without deciding the question below.
 #
 # This dest is also chezmoi-managed, so two tools write the same path. That
-# normally violates the CRUD ownership invariant in docs/CONVENTIONS.md, and it
+# normally violates the CRUD ownership invariant in docs/TOPICS.md, and it
 # is allowed here on purpose: ansible performs the *initial* setup (fetching the
 # completion, which is not in the repo until it exists), and chezmoi owns it
 # afterwards so pulled changes apply without re-running the play.
@@ -185,7 +185,13 @@
     dest: "{{ ansible_facts['env']['HOME'] }}/dotfiles/apps/ollama/_ollama_zsh_completion"
     mode: "0644"
     remote_src: true
-  when: ansible_facts['os_family'] == "Darwin"
+  when:
+    - ansible_facts['os_family'] == "Darwin"
+    # get_url reports "changed" under --check but writes nothing, so /tmp/_ollama.zsh
+    # does not exist there and this copy fails on a missing source — aborting the
+    # parent playbook before the app tier ever runs. The dry run declined to create
+    # the file, so the dry run has no business copying it.
+    - not ansible_check_mode
   tags: ollama_zsh
 
 # TODO: verify placement
@@ -704,20 +710,26 @@
 
 # ── Analysis tooling: installed and scheduled, never run or interpreted ───────
 # Boundary (see README.md "Who decides what"): ansible reconciles the SYSTEM to
-# the manifest. It does not decide what belongs in the manifest. These two tools
+# the manifest. It does not decide what belongs in the manifest. These tools
 # inform that decision and are deliberately kept out of the reconcile path:
 #   ollama-usage  rolls up real usage from the `llm` log + OpenRouter spend
 #   ollama-bench  head-to-head speed/footprint for candidate models
+#   ollama-evals  scores the evals/cases matrix — the quality half of `bench`,
+#                 and the only one of these that also reaches openrouter models
+#   ollama-profile collects the local usage figures on demand. They are NOT
+#                 committed: this topic lives in a public repo and the task-type
+#                 split describes real work. The eval cases point here instead
 # Only `ollama-usage snapshot` is automated (a timer, below) because a time
-# series has to be sampled to exist. `bench` is never scheduled — it evicts
-# resident models and takes minutes, so it stays a thing you invoke.
+# series has to be sampled to exist. `bench` and `evals` are never scheduled —
+# they evict resident models and take minutes, and `evals` can spend money on
+# remote candidates, so both stay things you invoke.
 - name: "Symlink the analysis CLIs onto PATH"
   ansible.builtin.file:
     src: "{{ role_path }}/files/{{ item }}"
     dest: "{{ ansible_facts['env']['HOME'] }}/bin/{{ item }}"
     state: link
     force: true
-  loop: [ollama-usage, ollama-bench, ollama-role]
+  loop: [ollama-usage, ollama-bench, ollama-role, ollama-evals, ollama-profile]
   tags: [ollama_models, ollama_usage, upgrade]
 
 - name: "macOS: install the usage-snapshot launchd agent"

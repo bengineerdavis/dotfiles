@@ -3,22 +3,151 @@
 Instructions for coding agents working in this repository. Human-facing detail lives
 in `docs/` — this file links there rather than restating it, so the two cannot drift.
 
+`spec.md`, beside this file, is the third layer: the properties that must remain
+TRUE regardless of who is working. This file is practice, `docs/` is explanation,
+`spec.md` is constraint. Read it before changing a guard, a teardown path, a
+policy layer, or anything that reports a measured number.
+
 ## Start here
 
-Read `TASKS.md` before starting work and update it before you finish. Sessions
+**Read `spec.md` and `TASKS.md` before starting work.** They pair: `spec.md` says
+what must remain true, `TASKS.md` says what is in flight and who is touching
+which files. Read `PRD.md` too when the work is about scope — whether something
+belongs here at all.
+
+**When `TASKS.md` § Now is empty, the work is not finished** — read `ROADMAP.md`.
+Open is a queue whose lines are deleted on completion, so it cannot hold anything
+long-horizon; an empty queue means "nothing scheduled", never "nothing to do".
+The roadmap says what to do next: take an item, interview the author about it,
+then update `PRD.md` with the requirements that settles and `TASKS.md` with the
+work items it produces. Any agent or model working here is expected to have read both — a
+change that satisfies the task and violates the spec is not done.
+
+**Prime directive: do not work if something is unclear. Ask.** A guess and a
+decision look identical once they are written down, and the guess costs the whole
+build while the question costs one exchange. If part of the request is clear and
+part is not, do the clear part and ask about the rest at the point it matters.
+See `spec.md` § Work — unclear requirements stop the work.
+
+**Write the task before you start.** Any work done by an agent or subagent gets a
+line in `TASKS.md` first, saying what it is doing and what done means. Work split
+across several agents is several tasks, one per unit of work. See `spec.md`
+§ Work — agent work is defined and assigned before it starts.
+
+Update `TASKS.md` before you finish. Sessions
 keep their own in-memory task lists, which fragment as soon as two are running;
 that file is the shared one. It also lists which files another session is
 actively touching.
+
+## How work runs here
+
+Treat this as a loop, not a single prompt. The shape is RECL, by analogy with a
+REPL:
+
+- **Requirements** — write down what the work is before doing it.
+- **Execute** — do it.
+- **Check** — prove it. Not "it looks right": a test seen to fail, a validator
+  exiting 0, a mutation caught.
+- **Loop** — feed what the check found back into the requirements.
+
+The step that gets skipped is the first one, and skipping it is what produces
+work nobody asked for. Three files carry the requirements between them:
+
+- **`PRD.md`** — what the project is for, who it serves, and what it must never
+  become. Read it when a decision is about scope rather than mechanism. Its
+  north star is "a machine that is ready to use", and its architecture rule —
+  provisioning may install and trigger a tool, never contain its logic or state
+  — settles most questions about where something belongs.
+- **`AGENTS.md`** — this file. How to work here, and the expertise that is not
+  obvious from reading the code.
+- **`TASKS.md`** — what is in flight, who has it, and what is blocked.
+
+`spec.md` sits across all four steps: it is what must stay true whichever step
+you are in, and it is what Check checks against.
+
+### Decomposing work into items
+
+Turning a roadmap item into work an agent can be handed is the step with the
+least written down, and it is where planning actually happens. `TASKS.md`
+already says what a task line must contain; this says how to arrive at the
+lines. The rules below are the ones A1–A7 and B1–B8 were cut by — recorded
+after the fact, because they were applied on instinct the first time and that
+does not survive a new session. One of them was learned by being broken: B4 had
+to be re-cut, and the rule about outcomes is what came out of it.
+
+**One item is one thing with one done-condition.** If you cannot write "done
+when X" in a sentence, you have a theme rather than an item. The done-condition
+is what the agent gets checked against; without one it picks its own, and
+nothing can say whether the work finished.
+
+**Lead with the deciding items.** A1 answers the roadmap's open questions and
+B1 picks the new home for the factored-out tooling. Neither builds anything,
+and both unblock everything after them. Deciding is cheap; building on an
+undecided foundation is expensive, and the cost lands as rework rather than as
+a failure you can see. The first item in a group is usually a decision.
+
+Keep them small enough to merge on their own, in one commit. A decision item is
+only an unlock while it is landing fast; one that grows an implementation
+alongside it stops unblocking anything and starts blocking everything.
+
+**Sequence by what blocks what, not by what matters most.** Importance decides
+whether a group is scheduled at all. Inside a group, only dependency decides
+order. B3 defines the state contract before the backup work, not because it
+matters more but because you cannot choose what to back up without knowing who
+owns the data.
+
+**Cut along outcomes, not along components.** This is the rule that prevents
+most bad splits, and it was learned by breaking it. The factor-out was first cut
+as "extract the resolver" and "add the capability interface" — two components,
+neither an outcome — and those two could not be landed separately. Re-stated as
+the outcome, "topics consume policy through a declared capability, from its new
+home", it is obviously one item. Components tempt you to split because they have
+names; outcomes do not split unless the value does.
+
+**Test every cut before you make it, not after.** For each proposed split, ask
+whether you would ship the first half on its own. If the answer is no, do not
+make the cut. The dangerous case is not a half that is obviously incomplete —
+it is one that *looks* finished while leaving the problem in place, which is
+exactly what extracting the resolver alone would have done.
+
+**Say what each item hands to the next.** A dependency is information, code,
+verification, or nothing at all — and which one decides how the work is branched.
+Write it into the task while the reasoning is fresh; § What kind of dependency is
+it explains what each implies. Left unstated, it gets rediscovered as a merge
+conflict.
+
+**Do not decompose past self-containment.** Same rule as commits: atomic means
+self-contained, not small. An item that leaves the repo broken so the next one
+can fix it is a bad split however tidy the boundary looks.
+
+**Find the collision surfaces before assigning anything.** Before handing items
+out, ask which of them touch the same files. Doing that for A1–A7 and the factor-out items
+turned up four: dependent items needing stacked branches, items that cannot be
+split, shared `conftest.py` fixtures, and the governance documents that
+unrelated groups all end up editing. Every one of those would have surfaced as
+a merge conflict discovered mid-task instead.
+
+**A rewrite gets a characterization-test item before it starts.** Pin the
+existing behaviour, then let the reimplementation run against the same tests.
+Parity becomes proven rather than assumed, and review stops meaning "read every
+line". This is its own item because it has its own done-condition and because
+skipping it is invisible until the rewrite is already finished.
+
+**The plan is a hypothesis.** Items merge and split as the work teaches you
+something. When that happens, change `TASKS.md` and say why in the commit —
+a plan quietly diverging from the work is how the queue stops describing
+reality. Anything that turns out to be bigger than expected and unscheduled
+goes to `ROADMAP.md` rather than growing the item.
 
 ## What this repo is
 
 A chezmoi-managed dotfiles repo with an Ansible layer for system state.
 
-**Read `dotfiles/docs/CONVENTIONS.md` first** — topic structure, the `topic.yml`
+**Read `dotfiles/docs/TOPICS.md` first** — topic structure, the `topic.yml`
 schema, tiers, lifecycle tags, dependency resolution, commit granularity and the
 CRUD-ownership invariant. It is the source of truth and the 39 topic files cite it.
 `dotfiles/docs/ARCHITECTURE.md` has the big picture,
-`dotfiles/docs/CONTRIBUTING.md` the workflow around it.
+`CONTRIBUTING.md` at the root carries the workflow around it.
 
 The repo-root `docs/` tree is an older copy of the same material, kept but not
 maintained. Edit the `dotfiles/docs/` copies.
@@ -55,12 +184,18 @@ These are the cases that do need care.
 share one `.git/index`. `git add <paths> && git commit` stages your paths and then
 commits *the entire index* — including whatever another session staged and had not
 yet committed. This is not hypothetical: it has already happened in both
-directions. `b3ad740` is titled as a clamav systemd change and also contains
-another session's pii-redactor rewrite; `5692a86` is titled as a pii-redactor
-change and also contains 52 zsh deletions belonging to a third session. Both are
-pushed and left alone — rewriting shared history costs more than the mislabelling
-— but neither can now be reverted without taking unrelated work with it, which is
-the whole property commits are supposed to have.
+directions. The now-rewritten `b3ad740` was titled as a clamav systemd change and
+also contained another session's pii-redactor rewrite; `5692a86` was titled as a
+pii-redactor change and also contained 52 zsh deletions belonging to a third
+session. Neither could be reverted without taking unrelated work with it, which
+is the whole property commits are supposed to have.
+
+Both were unscrambled on 2026-08-21 into `bc72f5c` (clamav), `0bf73dc`
+(pii-redactor) and `118c22e` (the zsh deletions), each carrying a `git notes`
+PROVENANCE entry. That was judged worth a force-push *once*, while the branch had
+one real consumer; it is not the standing answer. Prevention below is cheaper
+than a rewrite every time, and a rewrite stops being available as soon as anyone
+else has built on the history.
 
     git commit -o <paths> -F -    # --only: commit exactly these, ignore the rest
     git show --stat HEAD          # verify before pushing
@@ -108,11 +243,265 @@ Cross-session hazards, and delete the line when you stop.
 (the judge pool and generation model), `~/bin` and `~/dotfiles` (deployed copies),
 and long-running background jobs holding the GPU.
 
+## Branches and integration
+
+**One branch per work item**, named `<group>-<item>` — `topic-cli-a2`,
+`ai-factor-out-b4`. Work items are the lettered entries in `TASKS.md`.
+
+Two exceptions, and both must be stated in the task itself:
+
+- **Items that must land together share a branch.** Rare, and usually a sign
+  the decomposition was wrong — see § Decomposing work into items, which exists
+  to stop producing these. B4 was originally cut as two such items and is now
+  one.
+- **Dependent items stack.** Branch off the parent item's branch, not main, and
+  rebase when the parent merges. A3 builds on A2's CLI, so it cannot start from
+  main and still compile.
+
+### What kind of dependency is it
+
+"Depends on" is four different relationships, and they do not get the same
+answer. The discriminator is **whether the earlier item can merge on its own**.
+If it can, the items stay on separate branches. If it cannot, they share one.
+
+**Information dependency — separate branches, strict order.** The earlier item
+produces a decision or a document, not code. A1 answers the roadmap's open
+questions; B1 picks the new home; B2 writes the move manifest; B3 defines the
+state contract. Each merges alone in one small commit, and unblocks the rest by
+being on main. Nothing needs stacking because there is no code to build on.
+
+These are the cheapest items in any plan and they should be landed first and
+fast, because **a decision item is a parallelism unlock**. B1, B2 and B3 on main
+turn B4 through B6 from a serial chain into work several agents can take at
+once. Sitting on an unmerged decision serialises everything behind it.
+
+**Code dependency — stack, or wait for main.** The later item builds on the
+earlier one's code. A3, A4 and A5 all need `topic new` from A2; B5 and B6 need
+the moved resolver from B4. The parent is independently mergeable, so branch the
+child off the parent and rebase when the parent lands — or simply wait, if
+nothing is gained by starting early.
+
+Stacking buys parallelism and charges rebases for it, and the charge compounds:
+every stacked branch rebases when its parent merges, and conflicts multiply with
+depth. Stack two deep freely. Three deep with a reason. Deeper than that, either
+collapse the stack into one branch or admit the decomposition was wrong.
+
+**Atomic dependency — one branch, always.** Neither half stands alone. This is
+not really a dependency; it is a decomposition that split something indivisible.
+Sharing a branch is the repair, and re-cutting the items is the fix. The case
+that produced this rule was the factor-out, first cut as "extract the resolver"
+plus "add the capability interface" — it is now the single item B4, because
+either half alone leaves the duplication in place while looking done.
+
+**Verification dependency — the parent must be on main first.** Characterization
+tests have to land before the rewrite starts, so the rewrite branch inherits
+them. Starting the rewrite from a branch that predates its own safety net
+defeats the point of writing it.
+
+**And one thing that looks like a dependency and is not: a collision.** Two items
+touching `conftest.py` or the governance documents are not ordered by logic, they
+just cannot be merged carelessly. The remedy is different — sequence them, or
+land the shared change first as its own item. Treating a collision as a
+dependency builds a stack nothing required.
+
+### What multi-item branches cost
+
+Share a branch only for atomic pairs. The temptation is to group a whole refactor
+onto one long-lived branch, and it should be resisted, because that reproduces
+exactly the problem branches were adopted to fix: a big-bang merge whose diff
+nobody can review and whose conflicts arrive all at once.
+
+There is a useful self-regulating property here. A branch carrying several items
+has a larger blast radius and is likelier to touch a policy path or a deployed
+file, so it fails § Merge gates and drops to review by a human. Multi-item
+branches get more scrutiny automatically — which is right, and which is also a
+signal: if a branch keeps failing the gates, it is probably carrying more than
+one decision.
+
+### Never branched
+
+- **`TASKS.md`** — the shared queue. Commit it straight to main with nothing else
+  staged: `git add -p`, then a bare `git commit`, then `git show --stat HEAD`.
+  It has to stay current for sessions that cannot see your branch. Deleting your
+  own task line is a main-side commit even when the work was done on a branch.
+- **Governance docs** (`spec.md`, `PRD.md`, `AGENTS.md`) — land these as their own
+  commit, and prefer main whenever the change does not depend on branch code.
+  They are the surface where unrelated branches collide.
+
+### Applying is main-only
+
+**Agents never run `chezmoi apply`.** Read-only `chezmoi status` and `chezmoi
+diff` are expected and encouraged — an agent that never checks drift is how
+twenty days of uncaptured work accumulated in `aliases.zsh`.
+
+The reason is structural: there is one deployed tree and it cannot be branched.
+`~/dotfiles` is a single set of files no matter how many branches hold versions
+of them, so two agents applying from two branches overwrite each other. Applying
+happens from main, by the author or by a session holding the apply claim in
+`TASKS.md` § Claimed.
+
+### Merge gates
+
+An agent may merge its own branch to main when **all** of these hold:
+
+- the full suite is green
+- `skillet validate .` exits 0 with no errors
+- the new or changed test has been seen to fail, with the mutation recorded in
+  the commit message
+- nothing under § Cross-session hazards was touched without a claim
+- the change touches no policy path, no egress path, and no deployed-tree file
+
+Anything else: push the branch, open a PR, and report. Stakes and size decide,
+not preference. A new feature goes to PR; so does any change that takes more
+than a paragraph to explain.
+
+### Pull request descriptions
+
+**A pushed branch is not a pull request.** `git push` prints a
+`.../pull/new/<branch>` URL; that is an offer to create one, not one that
+exists. Reporting it as a PR link claims something that has not happened — open
+the PR with `gh pr create`, then report its number.
+
+**Never open one with an empty body.** Use `--body-file`, because a description
+worth reading does not survive being typed on a command line.
+
+A PR description is written for a **different reader than a commit message**,
+which is why `commit-hygiene` explicitly excludes them from its scope. A commit
+body serves someone reverting one change and asking what it was. A PR
+description serves someone deciding whether to merge several changes at once,
+who has not been in your session and cannot see what you ruled out.
+
+Carry these, and do not simply list the commits — the reviewer can read those:
+
+- **What changes, and the reasoning they would otherwise reconstruct.** If a
+  design decision took an hour to reach, it takes them an hour too unless you
+  write it down.
+- **What was verified**, including which mutations were tried and caught. "Tests
+  pass" is not verification; the suite passing before the change is also tests
+  passing.
+- **Why it needed review rather than self-merging** — name the § Merge gates
+  clause it failed. That is the reviewer's first question.
+- **What was deliberately left out**, and why. Scope someone else has to guess
+  at is scope they will relitigate.
+- **Prerequisites split into their own commits**, and what made them
+  prerequisites rather than cleanup.
+
+### Review starts with the tests
+
+Read the tests first. They should read cleanly enough to serve as the spec, and
+they are where an agent's work is most likely to be wrong in a way the code
+hides — an agent will happily write code and then write tests that ratify
+whatever it just wrote. That is what § Prove the test fails exists to catch.
+
+### Quiz before merge
+
+When a PR is opened, or when a change is too large to explain in a paragraph,
+the agent quizzes the author on what the change contributes before it merges.
+The point is not to test the agent's work; it is to check that the author
+actually understands what was built. A change that passes review while nobody
+internalised the design is a change nobody can maintain.
+
+## Trust ladder
+
+An agent earns wider autonomy by track record, **per task class and blast
+radius**, never globally. Task classes: docs, tests, code, policy, deployed.
+An agent may sit at rung 3 for docs and rung 1 for policy at the same time.
+
+### Rungs
+
+| Rung | What the agent may do |
+|---|---|
+| 0 | Propose only. Every diff is reviewed before it is committed. |
+| 1 | Commit to a branch and open a PR. Nothing reaches main unreviewed. |
+| 2 | Self-merge docs and tests when § Merge gates pass. |
+| 3 | Self-merge code inside a named blast radius when § Merge gates pass. |
+| 4 | Work unattended on a task class and report async. |
+
+**Promotion** is a streak of clean items at the current rung: 5 to reach rung 2,
+10 to reach rung 3, 20 to reach rung 4. Clean means merged with no author
+correction of any class below. The counts rise because the cost of a mistake
+rises with what the rung permits.
+
+**Demotion** is by incident class. Rung 0 has no floor below it.
+
+### Incident classes
+
+Defined here, in advance, because a class invented to explain a particular
+failure is not a class — it is an excuse with a name.
+
+**Class A — disclosure or policy bypass. Drops to rung 0, every task class.**
+
+- Work or customer data, employer-identifying strings, or machine-local usage
+  figures committed, sent off-device, or written to a shared store.
+- Egress without consulting the resolver, or treating unknown (2) as permitted.
+
+One occurrence ends autonomy everywhere, not just in the class where it
+happened. The reason is that the harm does not reverse: `spec.md` § Change
+records already records that a history rewrite does not un-publish, so anything
+fetched, forked or indexed is beyond recall. A ladder that let an agent climb
+back after this would be pricing an irreversible harm as a recoverable one.
+Reinstatement is an explicit author decision, not a streak.
+
+**Class B — corrupted evidence. Drops two rungs.**
+
+- A test that passes without exercising what it claims to: a grep over empty
+  output, an `assume()` that filters away every generated input, a fixture too
+  simple to reach the bug.
+- A gate reported as passing that was not actually run — a mutation check
+  claimed in a commit message but never performed.
+- Work reported as done that is not, or a claim that something works without
+  naming what was not checked.
+
+This is worse than a plain bug and is deliberately punished harder. The ladder
+runs on the evidence in the ledger; an agent that can misreport a gate makes the
+whole instrument fiction. Every one of these has already happened here at least
+once, which is why `spec.md` § Verification carries them.
+
+**Class C — process violation. Drops one rung.**
+
+- Editing a file under § Cross-session hazards without a claim, or running
+  `chezmoi apply` at all.
+- A commit whose contents do not match its message, staging not verified, or an
+  intermediate state that leaves the tree broken.
+- Shipping against a stated behavior in `spec.md` — a teardown not updated with
+  the thing it creates, a measured number moved without its conditions.
+
+**Class D — judgment. Drops one rung above rung 2; a recorded warning at or
+below it.**
+
+- Resolving a material ambiguity silently instead of asking.
+- Doing work the task did not define, or quietly narrowing work it did.
+
+Judgment errors are treated more gently at low rungs on purpose. An agent
+learning the repository will misjudge scope, and demoting for it teaches
+caution about *asking*, which is the opposite of what § Start here requires.
+
+### What is not an incident
+
+Stated explicitly, because a ladder that punishes these produces an agent that
+hides things.
+
+- A bug that review caught and the tests could not have caught. That is a
+  coverage gap, and it becomes a test.
+- A refusal that turned out to be unnecessary. Failing closed is the designed
+  behaviour; being wrong about it costs nothing.
+- Asking a question whose answer already existed. **Asking is never an
+  incident.** If questions cost trust, the agent stops asking, and the prime
+  directive dies quietly.
+- An approach tried, reported honestly, and abandoned.
+
+### Ageing
+
+A Class C or D incident stops counting against promotion after five clean items,
+but stays in the ledger permanently. Class B ages out after twenty. Class A does
+not age out. The ledger is a record, not a scoreboard to be reset — its value is
+that a pattern across months stays visible.
+
 ## Commands
 
 ```bash
-# Tests — pytest is primary. Needs these three or most of the suite silently skips.
-uv run --with pytest --with hypothesis --with typer --with questionary pytest tests -q
+# Tests — pytest is primary. Needs all six, or parts of the suite skip or ERROR.
+uv run --with pytest --with hypothesis --with typer --with questionary --with pyyaml --with pillow pytest tests -q
 uv run --with pytest pytest tests -m "not llm_judge" -q   # skip real-model tests
 uv run --with pytest pytest tests -m llm_judge -q         # only real-model tests
 
@@ -124,14 +513,51 @@ bats tests/<name>.bats         # bash scripts only — see Languages below
 A bare `pytest tests` reports "24 passed, 89 skipped" and looks green while testing
 almost nothing — the `binned_module` fixture skips without `typer`/`questionary`.
 
+Without `pyyaml`, `tests/policy` drops from 22 tests to 15 passed / 1 skipped, and
+the skipped module is the one asserting the policy layers grant no permissions —
+so the check that matters most is the one that disappears quietest.
+
+The `llm-ctx` half of `tests/policy/test_logging_guards.py` needs `--with llm
+--with files-to-prompt` on top, because it imports the script and the script
+declares those. Without them those five tests SKIP — quietly, and they are the
+ones proving a policy guard relents. They are left out of the command above
+because those two pull 34 transitive packages onto every run, which is a real
+cost against a suite already too slow to run per change. Run them deliberately
+when touching a policy caller:
+
+```bash
+uv run --with pytest --with pyyaml --with llm --with files-to-prompt pytest tests/policy -q
+```
+
+Without `pillow` it is louder but worse: `tests/ollama_evals` produces 53 collection
+ERRORS instead of 52 passes, because its `conftest.py` imports the eval harness,
+which imports Pillow at module level. An error is not a skip — the suite aborts
+rather than running what it can. That the documented command omitted `pillow` for
+as long as it did is the argument for running the command as written now and then,
+rather than the one in your shell history.
+
 ## Commits
 
-**`dotfiles/docs/CONVENTIONS.md` § Commit granularity is the source of truth.** Read
-it before committing. The short version, so this file is usable on its own:
+**`CONTRIBUTING.md` § Commit granularity is the source of truth.** Read it
+before committing. `spec.md` § Change records states the invariants — including
+that staging is verified rather than assumed, and that a human-readable
+changelog is kept alongside the commit history rather than instead of it. The
+short version, so this file is usable on its own:
 
 One commit is one reviewable decision. The test is not file count — it is whether a
 reader can hold the *why* in their head, and whether the change can be reverted on
 its own without taking unrelated work with it.
+
+**Size the message to the change.** A subject line alone for mechanical edits, a
+sentence or two for small single-purpose changes, one or two short paragraphs for
+ordinary features and fixes. The `commit-hygiene` skill is the source of truth and
+says why: a message longer than the change warrants is not thoroughness, it is
+evidence the commit should have been two. Reach for splitting before you reach for
+more prose.
+
+This was measured, not asserted. Across one session the median body ran 232 words
+against a repository median of 114, topping out at 521 — roughly double the house
+norm, while a skill stating the rule sat installed and unread.
 
 Sequence commits so every intermediate state works. Land the inert parts first and
 the switch that activates them last — for an Ansible topic that is usually
@@ -173,7 +599,39 @@ deps only when third-party packages are genuinely needed, as `bin/llm-ctx` does.
 `bin/binned` applies this rule to the scripts it generates: it counts effective
 lines, recommends Python above 100, and asks a model in the 80–100 band.
 
+### Conventions
+
+Conventions live in **`docs/`**, one file per subject, so the repository
+root holds only the five documents that govern the project:
+
+- **`docs/PYTHON.md`** — uv, PEP 723 dependency blocks, pytest, ruff, ty,
+  prek, logging and error handling.
+- **`docs/PERMISSIONS.md`** — what the agent may run, the three tiers in
+  `.claude/settings.json`, and the threat model they do and do not address.
+  Read it before widening a rule.
+- **`docs/REFERENCES.md`** — every external standard this repo follows,
+  the version it follows, and when that was last checked. Add a row before
+  adopting a standard; a convention with no version means whatever its latest
+  revision says.
+
+`CONTRIBUTING.md` is the human entry point and lives there rather than
+here on purpose: GitHub only discovers `CONTRIBUTING.md` in `.github/`, the
+repository root, or `docs/`. In any other directory it never reaches the
+Contributing tab or the sidebar shown when someone opens a pull request — which
+is the one moment it exists to be read.
+
+This file stays general on purpose. How work runs here is reusable across
+projects; conventions are the part that swaps out. A repository that adds another
+language adds `docs/<LANGUAGE>.md` and one bullet above, and changes
+nothing else here. See `docs/README.md` for what belongs there and what
+does not.
+
 ## Tests
+
+See `spec.md` § Verification for the properties a suite must have — chiefly that
+a mechanism which can decline is proven to RELENT, and that a test is not
+finished until it has been seen to fail against a deliberately broken copy. Both
+were bought by suites here that passed while testing nothing.
 
 **pytest is primary.** Any Python script gets pytest tests. bats remains correct
 only for scripts that are still bash (`bin/cleanup`).
@@ -191,6 +649,44 @@ which file appeared; called directly, the path edge cases became explicit. Platf
 dispatch in `bin/clipped` could only be exercised by mocking `uname` on `PATH`, so
 in practice only the host platform was ever tested.
 
+### Prove the test fails
+
+`spec.md` § Verification says a test is not finished until it has been seen to
+fail. This is how: break the code on purpose and watch the suite go red. It is
+mutation testing done by hand, and it is cheap.
+
+```bash
+cp bin/executable_thing /tmp/thing.good          # keep the original
+# edit the target: invert a guard, neuter a mechanism, make an error
+# path return a positive value instead of "unknown"
+uv run --with pytest pytest tests/thing -q       # MUST fail, and on the right test
+cp /tmp/thing.good bin/executable_thing          # restore
+uv run --with pytest pytest tests/thing -q       # green again
+```
+
+Mutations worth trying, in rough order of what has actually bitten here:
+
+- **make the guard unconditional** — `if ordered and not cleared:` -> `if True:`
+- **make it never fire** — the same line -> `if False:`
+- **turn "unknown" into a claim** — `return None` -> `return set()` on an error
+  path. This one skipped every case that declared a requirement and reported a
+  clean run
+- **move a definition below its first use** — bash resolves at call time, so the
+  helper becomes "command not found", returns 127, and a fail-closed guard passes
+  for the wrong reason
+
+Read WHICH tests fail, not just how many. Of four regressions injected across the
+eval harness, three were caught and the fourth was not — and that fourth revealed
+the TEST was wrong: its fixture had no blank line inside the prompt, so
+`rfind("\n\n")` landed on the seam by accident and the assertion passed either
+way. A mutation that survives is either a coverage gap or a broken test, and both
+are worth the two minutes.
+
+Where a mechanism can decline, the mutation that matters is the one that makes it
+decline ALWAYS — because refusing looks identical to not running. Same reason
+`tests/policy/test_policy_callers.py` flips the policy to permit and asserts the
+behaviour changes.
+
 Two harness traps found here, worth checking for in any suite you touch:
 
 - A test path pointing at a file that does not exist. `tests/clipped.bats` used
@@ -200,6 +696,77 @@ Two harness traps found here, worth checking for in any suite you touch:
 - GNU-only syntax in a portability test. `script -qec` is GNU; BSD `script` has no
   `-c`, so two TTY tests could never pass on macOS whatever the code did. Use
   `pty.openpty()`.
+
+### Properties and fuzzing
+
+Most tests here are examples: a specific input, a specific expected result. Two
+other kinds earn their place in specific situations.
+
+**Write a property test when a rule holds for every input, not just the one you
+thought of.** Pure functions with algebraic structure are the candidates — merge,
+path-set, set-difference, normalisation, formatting. `spec.md` § Verification —
+invariants are tested as properties says when this is required.
+
+The rule is the test. State it without reference to how the code works: if your
+property recomputes the function under test, it only proves the code equals
+itself. Good properties look like "content survives", "the result is a subset of
+what was asked for", "running it twice gives the same answer", "it never
+mutates its input".
+
+House examples: `tests/ollama_evals/test_harness_property.py` and
+`tests/binned/test_binned_property.py`. Add `--with hypothesis` to the run
+command; it is already in the one under § Commands.
+
+Two things to watch:
+
+- **A property that passes immediately may be testing nothing.** An `assume()`
+  that is too tight filters away every generated input and hypothesis still
+  reports a pass. This is the generated-input version of grepping an empty
+  string. Check that the property is seeing real data before you trust it.
+- **When a property fails, keep the counterexample.** Hypothesis shrinks the
+  failure to its smallest form. Commit that as its own example test alongside
+  the fix. It is the cheapest regression test you will ever get for that bug,
+  and the generator is under no obligation to produce it again.
+  `test_set_path_names_the_path_when_a_segment_is_not_a_mapping` is one: the
+  property found that a mis-typed sweep path died with a bare `'int' object does
+  not support item assignment`, naming neither the case nor the field.
+
+**Fuzz where input arrives that you did not produce.** In this repo that means
+model output, hand-edited YAML cases, and policy layer files. Model output is the
+sharpest of the three, because the producer is a sampling process rather than a
+program — empty responses, truncation mid-token, echoed prompts and control
+characters are all normal. A harness that raises on those reports its own defect
+as a model failure, which is the worst thing a discriminator can do.
+
+Fuzz the data, not the code path that executes it. `run_check` runs `exec()` on
+the check source, so the tests generate hostile *responses* and draw broken
+*sources* from a fixed list. Generating source text to `exec()` would be running
+arbitrary generated code.
+
+Properties and fuzzing do not replace the mutation check above. Break the code
+and watch the property go red, the same as any other test.
+
+## Writing
+
+Technical docs in this repo use plain language: short sentences, active voice,
+common words, the conclusion first, one idea per paragraph. Write for someone
+deciding what to do. This covers this file, `dotfiles/docs/`, READMEs, changelog
+and release prose, anything a tool prints to a user, and **commit messages, pull
+request descriptions and code comments** — the three written most often and
+counted least.
+
+Length is part of it. Prose should be proportional to what it describes.
+
+`spec.md` and any skillet spec are the exception. They keep normative language —
+SHALL, MUST, MUST NOT — with BDD scenarios, because they are read to decide
+whether a rule was met, not what to do next. Softening a SHALL to "should try
+to" changes the meaning, so the exemption is about accuracy rather than taste.
+
+Where a doc explains a rule that `spec.md` states, explain it plainly and link to
+the spec for the binding wording. Two normative statements of one rule drift
+apart; an explanation plus a link does not.
+
+See `spec.md` § Writing — technical docs are plain, specs are normative.
 
 ## Models
 
@@ -238,7 +805,7 @@ Name the fix in the error, not just the failure: `~/bin` scripts come from
 ## Cross-platform
 
 macOS and Debian/Ubuntu are both targets. Guard the package manager in-task rather
-than abstracting it — `docs/CONTRIBUTING.md` rule 2 has the pattern. A topic
+than abstracting it — `CONTRIBUTING.md` rule 2 has the pattern. A topic
 supporting both should not declare `homebrew` in `topic_requires`, or it becomes
 unschedulable on Linux; see `apps/ollama/topic.yml`.
 

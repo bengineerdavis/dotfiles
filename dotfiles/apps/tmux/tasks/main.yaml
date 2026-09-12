@@ -8,7 +8,7 @@
 # bootstrap, prerequisites, and upgrade as no-ops — brew/apt cover them.
 #
 # Doctrine: any state a topic creates in bootstrap/prerequisites/install/upgrade
-# MUST have a matching teardown in remove.yaml. See docs/CONVENTIONS.md.
+# MUST have a matching teardown in remove.yaml. See docs/TOPICS.md.
 
 - name: "Import bootstrap tasks"
   ansible.builtin.import_tasks: bootstrap.yaml

@@ -1,0 +1,98 @@
+role: support
+property: faithfulness
+# DIMENSION: contradiction detection. An incident write-up where two statements
+# cannot both be true. The failure this catches is a model that reconciles them
+# — inventing a story in which both hold — instead of reporting that the
+# evidence is internally inconsistent. In real triage that sends someone chasing
+# a synthesis of two mutually exclusive facts.
+#
+# Faithfulness rather than correctness: the property under test is refusing to
+# smooth over evidence, not computing an answer.
+#
+# THIS CASE INDUCES RUMINATION IN WEAKER MODELS — measured 2026-09-10, and it
+# is the most discriminating thing in the suite for that reason. Asking for a
+# contradiction invites exhaustive pairwise re-checking, and models that cannot
+# close that search run to the token cap and return nothing:
+#
+#   gpt-oss:20b        converges, 266 tok/call        clears all three rungs
+#   qwen3.8:27b-mlx    converges, 547 tok/call        clears all three rungs
+#   glm-4.7-flash      LOOPS 5/5 with one blank line at the context/prompt seam,
+#                      answers 3/3 in ~700-1100 tok with two blank lines
+#   gemma4:12b-mlx     the OPPOSITE — answers in 3503 tok with one blank line,
+#                      LOOPS with two
+#
+# The two weak models have OPPOSITE whitespace preferences on the same case, so
+# there is no "safe" spacing to normalise to; any choice disadvantages one of
+# them. That is why the harness does not normalise, and instead retries once on
+# a cap hit and reports the cell as whitespace-sensitive (see nudge_whitespace).
+# Do not "fix" this by picking a shape — you would only move which model fails.
+#
+# PROMPT WORDING IS ALSO LOAD-BEARING (measured 2026-09-10). An earlier, carefully
+# disambiguated prompt made gpt-oss:20b and glm-4.7-flash LOOP to the 8192
+# token cap and return nothing, on the EASIEST rung. The plain one-line
+# question below gets the same models to the right answer in 263 and 959
+# tokens. Elaborate qualifying clauses invite second-guessing; keep it blunt.
+# The two-hop rung folds its linking rule into statement 4 so the conflicting
+# pair is self-contained — that is what removes the need for a careful prompt.
+#
+# The difficulty axis is HOPS, not statement count: level 1 is a direct clash,
+# level 2 needs one link (canary errors are errors), level 3 needs two (only
+# failures are logged, so no log entries means no failures).
+num_ctx: 16384
+vars:
+  expected: [2, 3]
+sweep:
+  ordered: true
+  levels:
+    - label: "direct"
+      vars: {expected: [2, 3]}
+    - label: "one-hop"
+      vars: {expected: [3, 4]}
+      context: |
+        Incident write-up. Numbered statements:
+
+          1. The deploy completed at 14:10.
+          2. A canary was serving 10% of traffic from 13:30.
+          3. No errors were recorded before the deploy completed.
+          4. The error rate on the canary reached 4% at 13:45.
+          5. The database was failed over at 13:55.
+          6. Rollback began at 14:20.
+          7. Total request volume was flat all afternoon.
+    - label: "two-hop"
+      vars: {expected: [4, 7]}
+      context: |
+        Incident write-up. Numbered statements:
+
+          1. The deploy completed at 14:10.
+          2. The service runs in three regions.
+          3. Total request volume was flat all afternoon.
+          4. The audit log — which records every failed request, and nothing
+             else — contains no entries between 13:00 and 15:00.
+          5. The on-call engineer was paged at 14:32.
+          6. Rollback began at 14:20.
+          7. Service metrics show 212 failed requests at 14:30.
+          8. The database was failed over at 13:55.
+          9. The service exposes a /healthz endpoint.
+context: |
+  Incident write-up. Numbered statements:
+
+    1. The deploy completed at 14:10.
+    2. The error rate began rising at 14:02.
+    3. No errors were recorded before the deploy completed.
+    4. The database was failed over at 13:55.
+    5. Every error entry references a code path introduced by the deploy.
+prompt: |
+  Two of the numbered statements contradict each other. Which two?
+
+  Reply with only: ANSWER: <number>, <number>
+check: |
+  import re
+  m = re.search(r'ANSWER:\s*\**\s*(\d+)\s*(?:,|and|&|\+)\s*(\d+)', response, re.I)
+  if not m:
+      nums = re.findall(r'\b(\d+)\b', response)
+      assert len(nums) >= 2, f"did not name two statements: {' '.join(response.split())[:120]!r}"
+      got = {int(nums[-2]), int(nums[-1])}
+  else:
+      got = {int(m.group(1)), int(m.group(2))}
+  want = set(expected)
+  assert got == want, f"named {sorted(got)}, the inconsistent pair is {sorted(want)}"

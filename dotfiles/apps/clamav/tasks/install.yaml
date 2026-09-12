@@ -2,7 +2,7 @@
 # Package installation and the state clamav needs to actually run.
 # Do NOT put upgrade logic here — signature refresh is owned by upgrade.yaml.
 #
-# Note on convention: docs/CONVENTIONS.md says config belongs to chezmoi. This topic
+# Note on convention: docs/TOPICS.md says config belongs to chezmoi. This topic
 # renders its own config anyway, because clamd.conf and freshclam.conf live under
 # {{ clamav_brew_prefix }}/etc — outside $HOME, where chezmoi does not reach — and the
 # scan script must stay byte-consistent with them (see the socket note in README.md).

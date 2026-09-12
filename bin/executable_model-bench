@@ -897,6 +897,11 @@ def _run_once(model: str, case: JudgeCase, timeout: int) -> BenchRun:
     try:
         result = subprocess.run(
             ["llm", "-m", model, "--system", _JUDGE_SYSTEM, case.prompt],
+            # Detach stdin. llm appends a non-tty stdin to the prompt, so an
+            # inherited pipe that never reaches EOF blocks until the timeout —
+            # which reads as "every model timed out" rather than as a plumbing
+            # bug. Same fix as bin/llm-ctx.
+            stdin=subprocess.DEVNULL,
             capture_output=True, text=True, timeout=timeout,
         )
         latency = time.perf_counter() - t0

@@ -3,7 +3,7 @@
 # (main.yaml tags it [remove, never], so a normal provision run skips it).
 #
 # Doctrine: anything created in bootstrap/prerequisites/install/upgrade needs a
-# matching teardown here. See docs/CONVENTIONS.md.
+# matching teardown here. See docs/TOPICS.md.
 
 # ── ffmpeg (created by prerequisites.yaml) ────────────────────────────────────
 # Two independent conditions must BOTH hold before ffmpeg is uninstalled:

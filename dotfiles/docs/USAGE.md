@@ -3,7 +3,7 @@
 Day-to-day commands for provisioning, running individual topics, adding
 topics, and maintenance. For how the pieces fit together see
 [ARCHITECTURE.md](ARCHITECTURE.md); for the per-topic contract see
-[CONVENTIONS.md](CONVENTIONS.md).
+[TOPICS.md](TOPICS.md).
 
 Ansible is a mise-managed tool, so commands below assume it is on `PATH`
 (via `mise exec` or an activated mise shell). The playbooks run from
@@ -61,7 +61,7 @@ ansible-playbook apps/<topic>/playbook.yaml --tags remove     # uninstall just t
 
 The scaffold ships all five lifecycle files plus a router that already tags
 `remove` as `[remove, never]`, so a new topic is safe to run standalone
-immediately. See [CONVENTIONS.md](CONVENTIONS.md) for the file/`topic.yml`
+immediately. See [TOPICS.md](TOPICS.md) for the file/`topic.yml`
 contract and the CRUD-ownership invariant (anything you create must have a
 matching teardown in `remove.yaml`).
 

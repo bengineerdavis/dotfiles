@@ -18,6 +18,13 @@
 # admin networking prompt) is interactive and not driven here — open the app
 # once after install. The apps/docker topic owns the Linux engine instead.
 
+# ── PATH ownership ───────────────────────────────────────────────────────────
+# Take pathManagementStrategy off Rancher's rc-file default and clean up any
+# block it already injected. Shared with upgrade.yaml, because an app update
+# re-applies the injection. See tasks/path-management.yaml.
+- name: "Rancher: own the PATH entry instead of Rancher's rc-file injection"
+  ansible.builtin.import_tasks: path-management.yaml
+
 # ── Linux (apt, OPTIONAL playground) ──────────────────────────────────────────
 # Only reachable via the standalone runner — the main playbook keeps this topic
 # Darwin-only (topic.yml), where apps/docker is the `docker` provider. Running

@@ -3,6 +3,29 @@
 # Only invoked via --tags remove.
 # Mirror the install.yaml structure — one block per package manager.
 
+# ── PATH ownership teardown ──────────────────────────────────────────────────
+# Runs BEFORE the cask is removed, while rdctl and the app still exist.
+#
+# We remove the injected blocks but deliberately do NOT restore
+# pathManagementStrategy to Rancher's `rcfiles` default. The CRUD invariant in
+# docs/TOPICS.md says teardown reverses what install created, and this is the
+# reasoned exception: setting `rcfiles` on the way out would invite Rancher to
+# re-inject PATH blocks into six shell rc files for an app that is being
+# uninstalled — actively worse than leaving the setting alone. The setting also
+# lives in Rancher's own config, which goes away with the app.
+- name: "Rancher: strip any injected PATH block from shell rc files"
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_facts['env']['HOME'] }}/{{ item }}"
+    marker: "### MANAGED BY RANCHER DESKTOP {mark} (DO NOT EDIT)"
+    marker_begin: "START"
+    marker_end: "END"
+    state: absent
+  loop: "{{ rancher_rc_files }}"
+  loop_control:
+    label: "~/{{ item }}"
+  failed_when: false
+  when: ansible_facts['os_family'] == 'Darwin'
+
 # ── macOS (Homebrew Cask) ─────────────────────────────────────────────────────
 - name: "Remove Rancher Desktop via Homebrew Cask (macOS)"
   community.general.homebrew_cask:

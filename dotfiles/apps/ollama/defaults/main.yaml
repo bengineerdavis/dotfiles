@@ -243,6 +243,12 @@ ollama_server_env:
   OLLAMA_MAX_LOADED_MODELS: "3"
   # 36GB with ~16GB of resident apps — release memory promptly, not after 5m.
   OLLAMA_KEEP_ALIVE: "60s"
+  # `~/.ollama/history` (the interactive REPL history) is plaintext and readable
+  # by any process running as this user. Empty today because `ollama run` is
+  # rarely used interactively, but "approved device" is not "approved retention"
+  # — work prompts must not accumulate in an unbounded plaintext file. Costs
+  # nothing to close.
+  OLLAMA_KEEP_HISTORY: "false"
 
 # ── Linux: one server per GPU ────────────────────────────────────────────────
 # Ollama selects a single backend per server process — it will NOT pool a CUDA
@@ -309,12 +315,22 @@ ollama_linux_models_root: /usr/share/ollama/.ollama/models
 ollama_model_perf:
   "granite4:3b":                  { gen_tok_s: 103.0, prompt_tok_s: 640,  load_ms: 8413,  gb: 2.6 }
   "gemma4:e4b-it-qat":            { gen_tok_s: 67.7,  prompt_tok_s: 159,  load_ms: 4559,  gb: 5.4 }
-  "glm-4.7-flash:q4_K_M":         { gen_tok_s: 58.1,  prompt_tok_s: 205,  load_ms: 5427,  gb: 19.0 }
+  # RE-MEASURED 2026-08-29 head to head against qwen3.6:27b-mlx in one run, on
+  # an idle machine. The 2026-08-28 figures (44.3 / 111 / 5122) were taken while
+  # other work was running; the deltas were small (~1-5%) and the 2.26x ratio
+  # over qwen3.6 held, so the promotion below stands on clean data.
+  # Needs an ollama server >= 0.32.12; 0.32.6 refuses the pull with a 412.
+  "qwen3.8:27b-mlx":              { gen_tok_s: 45.0,  prompt_tok_s: 116,  load_ms: 5324,  gb: 18.0 }
+  "glm-4.7-flash:q4_k_m":         { gen_tok_s: 58.1,  prompt_tok_s: 205,  load_ms: 5427,  gb: 19.0 }
   "gemma4:12b-mlx":               { gen_tok_s: 47.8,  prompt_tok_s: 199,  load_ms: 2747,  gb: 7.9 }
   "qwen3-vl:8b-instruct-q8_0":    { gen_tok_s: 40.5,  prompt_tok_s: 300,  load_ms: 3556,  gb: 9.2 }
   "granite4:32b-a9b-h":           { gen_tok_s: 38.1,  prompt_tok_s: 136,  load_ms: 5206,  gb: 19.0 }
   "devstral-small-2:24b":         { gen_tok_s: 23.0,  prompt_tok_s: 1596, load_ms: 5019,  gb: 14.0 }
-  "qwen3.6:27b-mlx":              { gen_tok_s: 19.2,  prompt_tok_s: 85,   load_ms: 13089, gb: 20.0 }
+  # Same 2026-08-29 run as qwen3.8 above, so the two are directly comparable.
+  # load_ms fell from the old 13089 because that figure was a genuine cold read
+  # from disk; here the weights were already in the page cache. Treat load_ms as
+  # comparable WITHIN a run, not across runs.
+  "qwen3.6:27b-mlx":              { gen_tok_s: 19.9,  prompt_tok_s: 107,  load_ms: 4848,  gb: 20.0 }
   "qwen3.6:27b-coding-nvfp4":     { gen_tok_s: 18.8,  prompt_tok_s: 89,   load_ms: 6287,  gb: 20.0 }
   # From the `llm` usage log (real prompts, not the bench suite) — deepseek-r1
   # emits long reasoning traces, so its effective rate is far below the others.
@@ -394,8 +410,17 @@ ollama_roles:
     ctx: 32768
     tiers:
       fast:     ["gemma4:12b-mlx"]           # 47.8 t/s
-      balanced: ["glm-4.7-flash:q4_K_M"]     # 58.1 t/s — faster AND same size as best
-      best:     ["qwen3.6:27b-mlx"]          # 19.2 t/s, but adds vision
+      balanced: ["glm-4.7-flash:q4_k_m"]     # 58.1 t/s — faster AND same size as best
+      # PROVISIONAL (2026-08-28, reviewed 2026-08-29). It dominates the model it
+      # replaces on every axis that is measured — 2.26x the generation rate, 2GB
+      # smaller, 262144 context (re-measured on an idle machine).
+      # On quality: `ollama-evals` now exists and both models score 4/4 on the
+      # chat+code x faithfulness+instruction-adherence matrix. That is a FLOOR
+      # cleared, not a ranking — the cases do not discriminate at this tier, so
+      # this is still NOT a claim that qwen3.8 answers better. It is now a claim
+      # that the swap introduces no measured regression, which is more than the
+      # incumbent ever had. A discriminating case would be needed to say more.
+      best:     ["qwen3.8:27b-mlx"]          # 45.0 t/s, 18GB, +tools +thinking
   code:
     ctx: 32768
     tiers:
@@ -403,11 +428,68 @@ ollama_roles:
       balanced: ["devstral-small-2:24b"]     # 23.0 t/s, 393K ctx, coding specialist
       best:     ["qwen3.6:27b-coding-nvfp4"] # 18.8 t/s
   think:
+    # ── Two tiers, and why glm-4.7-flash is not one of them (2026-09-10) ─────
+    # `fast` and `best` measure IDENTICALLY on every think case:
+    #   think-correctness 18/18 each (6 rungs to 16 dependent steps, x3 repeats)
+    #   think-counterfactual 3/3 · think-state 3/3 · both think floors
+    #
+    # So the ordering is not a quality gradient. It is speed, then capability:
+    #   fast  gpt-oss:20b      66.2 tok/s, 12GB — fastest, smallest, the DEFAULT
+    #   best  qwen3.8:27b-mlx  45.0 tok/s, 18GB — same answers, but the only one
+    #         with vision and a 262K window. Read `best` as headroom, NOT as a
+    #         better answer; `fast` gets there in a third of the time.
+    #
+    # glm-4.7-flash:q4_k_m was REMOVED from this role. It held `balanced`, which
+    # ollama_role_policy makes the default, so the default was the weakest
+    # reasoner in the set. Across the nine reasoning-shaped cases it fails three:
+    #   support-contradiction  0/1  never terminates on the EASIEST rung
+    #   support-determinable   1/2  never terminates at `subtle`
+    #   code-debug             2/3  never terminates on the mutation bug
+    # and it is whitespace-brittle enough that one blank line at the
+    # context/prompt seam flips it between answering and looping (5/5 vs 3/3,
+    # deterministic both ways — see evals/README.md).
+    #
+    # An earlier version of this note kept it on the grounds that those failures
+    # are filed under the `support` and `code` roles, and the model-fitness spec
+    # forbids cross-role transfer. That was too legalistic: those role labels are
+    # ours, and detecting a logical inconsistency or identifying underdetermined
+    # evidence IS reasoning. support-determinable is the same capability as
+    # think-faithfulness, graded harder — glm passes the easy form and fails the
+    # hard one. Independently, a default that can fail to terminate is wrong
+    # regardless of taxonomy.
+    #
+    # glm-4.7-flash stays in `chat` (untested there; no evidence either way) and
+    # in ollama_models. Removed from a role, not from the manifest.
+    #
+    # With `balanced` absent, tier_order falls outward and `fast` wins the tie —
+    # verified, the default resolves to gpt-oss:20b.
     ctx: 32768
     tiers:
-      fast:     ["gpt-oss:20b"]              # 66.2 t/s, still a reasoning model
-      balanced: ["glm-4.7-flash:q4_K_M"]     # 58.1 t/s, thinking + tools
-      best:     ["deepseek-r1:32b"]          # 5.2 t/s — 10x slower; earn it
+      fast:     ["gpt-oss:20b"]              # 66.2 t/s — DEFAULT, 25/25 everywhere
+      # DEMOTED 2026-08-31, REASON CORRECTED 2026-09-09.
+      #
+      # The original demotion said deepseek-r1:32b failed on correctness —
+      # "answered 52 where 32 was correct at 12 steps". THAT WAS WRONG. The
+      # think-correctness case was ambiguous at the time ("gives 5 items to each
+      # of 3 friends" never said which items); rewritten unambiguously,
+      # deepseek-r1:32b scores 18/18 across all six rungs to 16 dependent steps,
+      # same as qwen3.8:27b-mlx and gpt-oss:20b. It is not less accurate.
+      #
+      # The demotion stands on LATENCY. At 5.2 tok/s and ~1,150 output tokens on
+      # the hardest rung it takes ~221 seconds to answer, against 13s for
+      # qwen3.8:27b-mlx and 6s for gpt-oss:20b — 37x the wait for answers that
+      # measure identical. `best` is a tier you reach for interactively; a
+      # near-four-minute round trip is a batch job. The manifest's own note on
+      # the tier read "10x slower; earn it", and on every axis measured here it
+      # does not.
+      #
+      # What that does NOT license: claiming it is worse. Nothing tested has
+      # separated the three on quality, so this is a latency decision made under
+      # a measured tie, and a harder problem could still favour it.
+      #
+      # deepseek-r1:32b stays in ollama_models — demoted, not deleted; its 19GB
+      # is now unused by any role, so it is a candidate for `prune`.
+      best:     ["qwen3.8:27b-mlx"]          # 45.0 t/s, 18GB — cleared 16-step
   long:
     # granite4 hybrid-Mamba measured ~19 KB/token — 3-5x cheaper context than
     # any transformer here, and 38.1 t/s despite being the largest model.
@@ -419,7 +501,7 @@ ollama_roles:
     ctx: 16384
     tiers:
       fast:     ["qwen3-vl:8b-instruct-q8_0"]  # 40.5 t/s, 9.2GB
-      best:     ["qwen3.6:27b-mlx"]            # 19.2 t/s, 20GB
+      best:     ["qwen3.8:27b-mlx"]            # 45.0 t/s, 18GB — see chat/best
   audio:
     # No MLX build can do this at any size; a GGUF -it- build is required.
     requires: [audio]
@@ -442,6 +524,18 @@ ollama_models:
 
   # ═══════════════ general / chat ═══════════════
   # ── arch-split family: MLX on mac, NVFP4 on NVIDIA, GGUF on AMD/CPU ──
+  qwen3.8:                  # current flagship general (27B dense)
+    # 27B dense. Promoted to chat/vision `best` 2026-08-28 — see the PROVISIONAL
+    # note on ollama_roles.chat. Listed here so `sync` can actually pull what
+    # those roles point at on a fresh host, and so `prune` stops seeing 18GB of
+    # in-use weights as an orphan. darwin size_gb is measured (see the benchmark
+    # table above); the linux figures track qwen3.6's 27B dense split until
+    # someone benches them. No kv_kb_per_token yet — unmeasured.
+    - darwin:        "qwen3.8:27b-mlx"
+      linux_nvidia:  "qwen3.8:27b-nvfp4"
+      linux:         "qwen3.8:27b-q4_K_M"
+      size_gb:       { darwin: 18, linux_nvidia: 18, linux: 17 }
+
   qwen3.6:                  # flagship general + coding (27B dense · 35B-A3B MoE)
     # 27B dense
     - darwin:        "qwen3.6:27b-mlx"
@@ -510,8 +604,8 @@ ollama_models:
       basis:   ram
 
   glm-4.7-flash:            # strong 30B-class (GGUF only)
-    - darwin:  "glm-4.7-flash:q4_K_M"
-      linux:   "glm-4.7-flash:q4_K_M"
+    - darwin:  "glm-4.7-flash:q4_k_m"
+      linux:   "glm-4.7-flash:q4_k_m"
       size_gb: 19
       kv_kb_per_token: 50        # measured, M4 Max
 

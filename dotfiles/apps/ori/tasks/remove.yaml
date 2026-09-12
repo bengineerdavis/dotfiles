@@ -1,7 +1,7 @@
 # apps/ori/tasks/remove.yaml
 # Teardown for everything install.yaml creates.
 #
-# Doctrine (docs/CONVENTIONS.md): any state a topic creates must have a matching
+# Doctrine (docs/TOPICS.md): any state a topic creates must have a matching
 # teardown. This topic creates exactly one file — the binary — so removal is
 # precise. `ori login` state is cleaned on a best-effort basis; see the caveat.
 

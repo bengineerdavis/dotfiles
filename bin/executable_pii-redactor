@@ -88,6 +88,9 @@ Options:
   -h, --help      Show this help and exit
   -v, --verbose   Print debug info to stderr
       --dry-run   Show what would happen without doing it
+      --assume-reviewed
+                  Skip the approval prompt when writing a file or piping.
+                  Announced on stderr, so a bypass stays visible.
   -i, --input     Input file to process (default: stdin)
   -o, --output    Output file. The argument is optional — a bare -o writes to
                   the input name with "{OUTPUT_SUFFIX}" inserted before the
@@ -374,6 +377,7 @@ class Options:
         self.model = MODEL_DEFAULT
         self.verbose = False
         self.dry_run = False
+        self.assume_reviewed = False
 
     def log_v(self, msg: str) -> None:
         if self.verbose:
@@ -418,6 +422,8 @@ def parse_args(argv: list[str]) -> Options:
             opts.verbose = True
         elif arg == "--dry-run":
             opts.dry_run = True
+        elif arg == "--assume-reviewed":
+            opts.assume_reviewed = True
         elif arg in ("-i", "--input"):
             if i + 1 >= len(argv):
                 die("--input requires an argument")
@@ -554,6 +560,68 @@ def describe(hits: Counter) -> str:
     return ", ".join(f"{count}x {label}" for label, count in sorted(hits.items()))
 
 
+def confirm_egress(text: str, destination: str, tty=None) -> bool:
+    """Show the redacted result and ask before it leaves. True if approved.
+
+    Layer 3 proves no *detectable* PII survives, which is a different claim from
+    "safe to send": the deterministic patterns only know the classes they encode,
+    and the model pass is a model. Verification is what makes the output worth
+    reading; a person is what makes it worth sending.
+
+    `tty` is injectable so the gate can be tested — driving the real /dev/tty
+    from a test needs a controlling terminal, which is enough friction that the
+    gate would otherwise go untested, and an untested gate is advisory.
+    """
+    opened_here = tty is None
+    try:
+        if tty is None:
+            tty = open("/dev/tty", "r+")
+    except OSError:
+        print(
+            "[ERROR] output is not going to a terminal and there is no terminal "
+            "to ask at.\n"
+            "        Refusing to release un-reviewed output. Run interactively, "
+            "or pass\n"
+            "        --assume-reviewed if you have already read it.",
+            file=sys.stderr,
+        )
+        return False
+    try:
+        print("── redacted output, for review ──", file=tty)
+        print(text, file=tty)
+        print(f"── destination: {destination} ──", file=tty)
+        print(
+            "Layer 3 found no detectable PII. That is not the same as safe to\n"
+            "send: read it before you release it.",
+            file=tty,
+        )
+        tty.write("Approve for release? [y/N] ")
+        tty.flush()
+        answer = tty.readline().strip().lower()
+    finally:
+        if opened_here:
+            tty.close()
+    if answer in ("y", "yes"):
+        return True
+    print("[ERROR] not approved — nothing was written", file=sys.stderr)
+    return False
+
+
+def release(opts: Options, text: str, destination: str) -> bool:
+    """Gate between a verified result and it actually going anywhere.
+
+    Printing to a terminal is review: it is going to your eyes. Writing a file
+    or piping is not — that output exists to be used later, by which time nobody
+    remembers whether it was read.
+    """
+    to_terminal = not opts.output and sys.stdout.isatty()
+    if to_terminal or opts.assume_reviewed:
+        if opts.assume_reviewed and not to_terminal:
+            print("[warn] review gate skipped via --assume-reviewed", file=sys.stderr)
+        return True
+    return confirm_egress(text, destination, tty=None)
+
+
 def process(opts: Options) -> None:
     source = opts.input or "stdin"
 
@@ -588,6 +656,11 @@ def process(opts: Options) -> None:
         die(f"Refusing to write unverified output for {source}")
 
     opts.log_v("Verification passed: no detectable PII in the output")
+
+    # Layer 4, in effect: a human. Verification is fail-closed against what the
+    # detectors know; this is fail-closed against what they do not.
+    if not release(opts, candidate, opts.output or "stdout"):
+        sys.exit(1)
 
     if not opts.output:
         sys.stdout.buffer.write(candidate.encode("utf-8", "surrogateescape"))

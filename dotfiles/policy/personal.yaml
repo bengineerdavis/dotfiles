@@ -22,15 +22,27 @@ meta:
 # Defaults for material the higher layers have not classified. Anything the
 # company layer marks work-tagged is governed there, not here.
 retention:
-  # 90 days of operating history is enough to see drift in prompts and models
-  # without accumulating a corpus worth breaching.
-  local_logs_days: 90
-  traces_days: 90
+  # 180 days of operating history: long enough to see model and prompt drift
+  # across a couple of quarters, short enough that the corpus is not worth
+  # breaching. Raised from 90 once expiry stopped meaning immediate deletion.
+  local_logs_days: 180
+  traces_days: 180
   # Eval cases are graduated deliberately, so they do not expire on a timer.
   eval_cases_days: null
   # Deletion is scheduled, not remembered. An unenforced window is not a window.
   enforcement: automatic
-  on_expiry: delete
+  # Expiry moves an item into the encrypted holding area rather than unlinking
+  # it, so a window set slightly too short is recoverable instead of fatal.
+  # bin/quarantine owns that store; it expires on its own clock below.
+  on_expiry: quarantine
+  quarantine_days: 30
+
+  # IMPORTANT: quarantine is additive to the window above, so it must never be
+  # used for content whose total retention is capped. Work-tagged material is
+  # capped by the company layer, so it expires straight to deletion — putting it
+  # in quarantine would turn a 30-day limit into 30 + quarantine_days and breach
+  # the rule while looking like extra safety.
+  work_tagged_on_expiry: delete
 
 # Where things are allowed to sit by default.
 storage:

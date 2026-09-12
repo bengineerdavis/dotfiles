@@ -40,6 +40,10 @@ ollama-models prune               # list installed models NOT in the manifest (o
 ollama-models prune --remove      # delete those orphans (confirmed)
 ```
 
+`status` and `check` also report **role drift** — any tag named in `ollama_roles`
+that no family declares. Such a pick is unpullable by `sync` on a fresh host and
+looks like an orphan to `prune`, so it is called out at both surfaces.
+
 These map onto the lifecycle: `install`/`provision` runs `sync` (pull missing),
 `upgrade` runs `sync --refresh` (update changed to latest).
 
@@ -49,9 +53,26 @@ These map onto the lifecycle: `install`/`provision` runs `sync` (pull missing),
 (`update.sh full` / `update.sh minimal`) and gated in `playbook.yaml` via
 `ansible_run_tags`.
 
-> **Open TODO:** dropping a model from the manifest does not yet auto-uninstall
-> its weights on upgrade. `prune --remove` is the manual path; auto-reconcile on
-> upgrade is a deliberate future decision (risk of deleting large weights).
+### Teardown is manual, on purpose (settled 2026-08-28)
+
+Dropping a model from the manifest does **not** auto-uninstall its weights, and
+will not. `prune --remove` is the teardown path, and it is deliberately a human
+call rather than a step in the `upgrade` tag.
+
+The doctrine elsewhere in this repo — every piece of state a topic creates has a
+matching teardown — is satisfied by `prune --remove` existing, not by it running
+unattended. Auto-reconcile-on-upgrade was rejected on evidence: on 2026-08-28
+`qwen3.8:27b-mlx` was benchmarked, promoted to chat/vision `best`, and pulled,
+but never added to `ollama_models`. It was therefore an orphan by the manifest's
+own definition, and an auto-reconciling upgrade would have silently deleted 18GB
+that the role config was actively pointing at. Weights are expensive to recreate
+and a wrong deletion is unrecoverable; a wrong *retention* costs disk. The
+asymmetry decides it.
+
+What closes the loop instead is **drift reporting**: `status` and `check` both
+end by naming any `ollama_roles` pick that no family declares — the precise
+condition that made the qwen3.8 weights look disposable. Remote `openrouter/…`
+and hosted `:cloud` picks are exempt, since neither is ever installed locally.
 
 ## Per-OS / per-hardware tags
 
@@ -209,7 +230,7 @@ without touching provisioning, and re-provision without re-litigating models.
 |---|---|---|
 | Which models are declared | **you**, editing `defaults/main.yaml` | whenever |
 | Which models exist on a host | ansible → `ollama-models sync` | every provision/upgrade |
-| Evidence for the decision | `ollama-usage`, `ollama-bench`, `ollama-models check` | on demand |
+| Evidence for the decision | `ollama-usage`, `ollama-bench`, `ollama-evals`, `ollama-models check` | on demand |
 
 Ansible **installs** the analysis tools and schedules exactly one of them; it
 never runs a benchmark, never reads a result, and never edits the manifest.
@@ -247,14 +268,79 @@ ollama-bench show --diff a.json b.json
 
 Never scheduled: it evicts resident models and takes minutes.
 
+### ⚠️ A long-lived server drifts upward in memory
+
+Measured 2026-09-10, after it cost four killed eval runs. The `com.ollama.server`
+agent had been up **12 days** across dozens of model loads, and
+`qwen3.8:27b-mlx` was reporting **30-31 GB** resident where it should be 18 GB.
+On a 36 GB machine with 18-19 GB models, that drift is the difference between
+working and OOM — the server log shows peak memory climbing 27.98 -> 29.98 GiB
+and then `Request terminated`.
+
+A fresh load after restarting the agent is **18 GB at every `num_ctx`** (4096,
+8192, 16384 alike), so the excess was accumulated server state, not
+configuration.
+
+```sh
+ollama ps                                        # is a model reporting more than its size_gb?
+launchctl kickstart -k gui/$(id -u)/com.ollama.server   # restart; models reload on demand
+```
+
+The trap is that it looks like anything but what it is. It was diagnosed only
+after three wrong theories — a generation cap driving KV growth, then
+cap-invariance, then `num_ctx` — each plausible and each disproved. The cheap
+check that settles it is one minute: stop everything, load the model fresh at
+two or three context sizes, and compare `ollama ps` against the manifest's
+`size_gb`. Do that FIRST when a run dies unexpectedly.
+
+### `ollama-evals` — the quality half of `bench`
+
+`bench` measures speed and refuses to score quality. `ollama-evals` scores the
+part that *can* be judged mechanically: it runs [`evals/cases`](evals/) — a 5x2
+of {chat, code, think, long, vision} x {faithfulness, instruction-adherence} —
+and each case's `check` is plain python over `response`, so a verdict is a fact
+about the output rather than an opinion about it.
+
+Cases may declare their own `num_ctx`, a synthesised long-context `filler`
+(needle-in-haystack, generated from a fixed seed), or a declarative `image`
+spec rendered to a PNG at run time. Nothing binary is checked into the repo.
+
+It is the only one of these tools that also reaches **remote** models, because
+"is this model fit for this role?" is the same question for an `openrouter/…`
+candidate, and `ollama_remote_cost` prices nine of them under a standing
+"Unevaluated on quality" note. Remote runs cost money, so they prompt first.
+
+```sh
+ollama-evals cases                          # what exists, and uncovered cells
+ollama-evals run qwen3.8:27b-mlx            # all cases, one local model
+ollama-evals run a b --role chat            # one row of the matrix
+ollama-evals run openrouter/z-ai/glm-5.2    # a remote candidate (billed)
+ollama-evals run a --repeat 5               # expose flaky passes
+ollama-evals run a b --sweep                # climb difficulty; report break-points
+```
+
+**Use `--sweep` for comparisons.** Every local model clears every floor, so
+pass/fail ties them all. A sweep runs each case at rising difficulty (haystack
+size, circle count, reasoning depth) and reports where each model breaks, which
+orders models a floor cannot. It is opt-in because it costs one call per level.
+
+The cases are **floors, not a ranking** — they establish "no measured
+regression", which is what a swap decision needs, not "answers better". See
+[evals/README.md](evals/README.md).
+
 ### Swapping a model
 
 1. `ollama-models check --next-gen` — is there a newer generation, and does it
    have local weights? (cloud-only ones are flagged)
 2. `ollama pull` the candidate, then `ollama-bench run <incumbent> <candidate>`
 3. Read the saved responses; check `peak_gb` against [SIZING.md](SIZING.md)
-4. Edit `defaults/main.yaml` — **this is the only step that changes the set**
-5. `ollama-models sync`, then `prune` to reclaim the old weights
+4. `ollama-evals run <incumbent> <candidate>` — does the candidate clear the
+   same floors? A regression here outweighs a speed win
+5. Edit `defaults/main.yaml` — **this is the only step that changes the set**.
+   Add the tag to its family, not just to a role: a role pick no family declares
+   is unpullable by `sync` and looks like an orphan to `prune` (`status` and
+   `check` report this as role drift)
+6. `ollama-models sync`, then `prune` to reclaim the old weights
 
 ### Dependency contract
 
@@ -290,6 +376,27 @@ bootstrap is out of scope for this topic.
 
 ## TODO
 
-- Auto-uninstall models dropped from the manifest (reconcile-on-upgrade vs. manual `prune --remove`).
+- **Factor the AI/LLM concerns out of this topic into their own utility and data
+  store.** This topic now carries far more than "install ollama and keep a model
+  set in sync": role routing and escalation policy (`ollama-role`), usage
+  telemetry (`ollama-usage`), speed benchmarking (`ollama-bench`), a mechanical
+  quality suite with 25 cases (`ollama-evals`), task-type coverage against a
+  taxonomy, and the local-only usage profile (`ollama-profile`). Several of those
+  are not ollama-specific at all — the eval harness already talks to openrouter,
+  and the policy questions (which model for which task, when to escalate, what
+  may leave the machine) apply to every provider.
+
+  Two things want separating: the TOOLS, which belong in a provider-agnostic
+  utility rather than inside a runtime's install topic; and the DATA, which is
+  currently scattered across `~/.local/share/ollama-{usage,bench,evals}` and the
+  `llm` CLI's sqlite log, with no single owner and no retention policy. The data
+  side matters most — it is the part that must stay on an approved device, and
+  the reason usage figures are deliberately not committed here (see
+  `ollama-profile`).
+
+  Not urgent. Recorded so the growth is a decision rather than an accident.
+  What such a move must preserve is specified in
+  [`spec.md`](../../../spec.md) — chiefly that egress keeps consulting the policy
+  resolver, that usage figures stay off the repo, and that every guard moved
+  keeps the test proving it relents.
 - RedHat family support.
-- Resolve dual ansible ownership (brew + mise) — see the mise self-upgrade hazard.

@@ -1,0 +1,34 @@
+role: support
+property: instruction-adherence
+# Triage discipline. A support answer is consumed by someone mid-incident, so
+# the shape that matters is "one thing to check, one thing already excluded" —
+# not an essay containing that somewhere. Models trained to be helpful pad this
+# relentlessly, which is exactly the failure worth catching.
+#
+# Correctness of the two lines is NOT asserted here; this cell measures shape,
+# matching the precedent set by the chat and code instruction cases.
+num_ctx: 8192
+context: |
+  Incident note.
+
+  Users report that file uploads over roughly 8 MB fail after about 30 seconds
+  with a generic network error. Uploads under 8 MB succeed. The failure appeared
+  after a change to the ingress proxy configuration on Tuesday. The application
+  servers show no corresponding error entries. Small uploads from the same
+  clients on the same network succeed consistently.
+prompt: |
+  Reply with EXACTLY two lines, in this form and nothing else:
+  CHECK: <the single most useful thing to check next>
+  RULE_OUT: <one thing the evidence already excludes>
+
+  No preamble, no explanation, no third line, no markdown.
+check: |
+  import re
+  lines = [ln for ln in response.strip().splitlines() if ln.strip()]
+  assert len(lines) == 2, f"expected exactly 2 lines, got {len(lines)}: {lines[:4]}"
+  assert re.match(r'^\s*CHECK:\s*\S', lines[0]), f"line 1 malformed: {lines[0][:90]!r}"
+  assert re.match(r'^\s*RULE_OUT:\s*\S', lines[1]), f"line 2 malformed: {lines[1][:90]!r}"
+  # a bare label with nothing after it satisfies the regex but answers nothing
+  for ln in lines:
+      body = ln.split(":", 1)[1].strip()
+      assert len(body.split()) >= 2, f"no substantive content after label: {ln[:90]!r}"

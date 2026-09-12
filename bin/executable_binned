@@ -2382,12 +2382,45 @@ def _setup_python_project(name: str, script: str, gen_model: str | None, bin_dir
     typer.echo(f"  # or: pipx install {dest}")
 
 
-def _run_tests_in_tmpdir(script: str, name: str, test_files: TestFiles) -> None:
+class TestOutcome(NamedTuple):
+    """What the generated tests actually established.
+
+    `outcome` is "passed", "failed" or "inconclusive". Inconclusive means no
+    test ran — none were generated, or no runner is installed — and is kept
+    distinct from "passed" because the two are opposite facts that a boolean
+    would merge.
+    """
+    outcome: str
+    detail: str
+
+
+def judges_needed(result: "TestOutcome | None", should_judge: bool) -> bool:
+    """Whether to convene the LLM judge panel.
+
+    The panel is several model calls and exists to answer "is this any good?"
+    when nothing cheaper can. Generated tests answer it directly and for free,
+    so the panel is for the case where they could not: no tests, or no runner.
+
+    A failure is as decisive as a pass. Tests that fail have already said what
+    is wrong, in more detail than a panel would, so escalating there spends
+    tokens to be told something known. Extracted from the call sites so both
+    directions are testable without running a script or calling a model.
+    """
+    if not should_judge:
+        return False
+    if result is None:
+        return True
+    return result.outcome == "inconclusive"
+
+
+def _run_tests_in_tmpdir(script: str, name: str, test_files: TestFiles) -> TestOutcome:
     """Run bats + pytest for a script inside a temporary directory."""
     bats_key   = next((k for k in test_files if k.endswith(".bats")), None)
     pytest_key = next((k for k in test_files if k.endswith(".py")), None)
     if not test_files:
-        return
+        return TestOutcome("inconclusive", "no tests were generated")
+    # None entries are runs that did not happen; they must not be counted as passes
+    results: list[bool | None] = []
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
         ts = tmp / name
@@ -2397,7 +2430,9 @@ def _run_tests_in_tmpdir(script: str, name: str, test_files: TestFiles) -> None:
         if bats_key:
             tt = tmp / f"{name}.bats"
             tt.write_text(test_files[bats_key])
-            if not run_bats(tt, extra_path=str(tmp)):
+            bats_result = run_bats(tt, extra_path=str(tmp))
+            results.append(bats_result)
+            if bats_result is False:
                 warn("Some bats tests failed.")
 
         if pytest_key:
@@ -2409,20 +2444,36 @@ def _run_tests_in_tmpdir(script: str, name: str, test_files: TestFiles) -> None:
                     env={**os.environ, "PATH": str(tmp) + ":" + os.environ.get("PATH", "")},
                     timeout=120,
                 )
+                results.append(result.returncode == 0)
                 if result.returncode != 0:
                     warn("Some pytest tests failed.")
             else:
-                warn("'pytest' not found — skipping Python tests. pip install pytest")
+                results.append(None)
+                warn("'pytest' not found — cannot run Python tests. pip install pytest")
+
+    ran = [r for r in results if r is not None]
+    if not ran:
+        return TestOutcome("inconclusive", "tests exist but no runner is installed")
+    if all(ran):
+        return TestOutcome("passed", f"{len(ran)} test run(s) passed")
+    return TestOutcome("failed", f"{sum(1 for r in ran if not r)} of {len(ran)} test run(s) failed")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Test runner
 # ──────────────────────────────────────────────────────────────────────────────
 
-def run_bats(tests_path: Path, extra_path: str = "") -> bool:
+def run_bats(tests_path: Path, extra_path: str = "") -> bool | None:
+    """True if the tests passed, False if they failed, None if they could not run.
+
+    None is not a detail. This used to return True when bats was absent, which
+    reads as "the tests passed" and is a claim nobody made. Harmless while the
+    result was only printed; the moment it gates the judge panel, a machine
+    without bats skips the panel on every script.
+    """
     if not shutil.which("bats"):
-        warn("'bats' not found — skipping. https://github.com/bats-core/bats-core")
-        return True
+        warn("'bats' not found — cannot run shell tests. https://github.com/bats-core/bats-core")
+        return None
     env = os.environ.copy()
     if extra_path:
         env["PATH"] = extra_path + ":" + env.get("PATH", "")
@@ -2615,8 +2666,9 @@ def _review_and_finalize(
     preview_content(script, filename=name)
 
     # ── Run tests in temp dir ─────────────────────────────────────────────────
+    test_outcome: TestOutcome | None = None
     if test_files and prompt_confirm("Run tests now?", default=True):
-        _run_tests_in_tmpdir(script, name, test_files)
+        test_outcome = _run_tests_in_tmpdir(script, name, test_files)
 
     # ── User testing steps ────────────────────────────────────────────────────
     header("User Testing")
@@ -2666,7 +2718,7 @@ def _review_and_finalize(
                 new_test_files = generate_test_files(revised, name, fix_lang, gen_model)
 
             if new_test_files and prompt_confirm("Run tests on revised version?", default=True):
-                _run_tests_in_tmpdir(revised, name, new_test_files)
+                test_outcome = _run_tests_in_tmpdir(revised, name, new_test_files)
 
             action = prompt_choice(
                 "What next?",
@@ -2696,7 +2748,12 @@ def _review_and_finalize(
     # ── Judge panel ───────────────────────────────────────────────────────────
     should_judge, local_judges, saas_judges = _ensure_judge_prefs(cfg or load_config())
 
-    if should_judge:
+    escalate = judges_needed(test_outcome, should_judge)
+    if should_judge and not escalate and test_outcome is not None:
+        ok(f"Tests {test_outcome.outcome} ({test_outcome.detail}) — skipping the judge panel.")
+        info("Real results are the signal; the panel is for when there is none.")
+
+    if escalate:
         judge_timeout = int((cfg or load_config()).get("judge_timeout_seconds", 180))
         # Local judges run first (free, fast) so the user gets early signal
         local_scores: list[JudgeScore] = []
@@ -2918,8 +2975,9 @@ def cmd_refactor(
     # Capture conv_id right after the initial refactor so judge feedback lands in context
     refactor_conv_id: str | None = get_last_llm_conversation_id()
 
+    test_outcome: TestOutcome | None = None
     if existing_test_files and prompt_confirm("Run existing tests against refactored version?", default=True):
-        _run_tests_in_tmpdir(current_script, name, existing_test_files)
+        test_outcome = _run_tests_in_tmpdir(current_script, name, existing_test_files)
 
     # Iterative feedback loop
     while True:
@@ -2937,7 +2995,7 @@ def cmd_refactor(
             preview_diff(current_script, revised, name)
 
             if existing_test_files and prompt_confirm("Run tests?", default=True):
-                _run_tests_in_tmpdir(revised, name, existing_test_files)
+                test_outcome = _run_tests_in_tmpdir(revised, name, existing_test_files)
 
             action = prompt_choice(
                 "What next?",
@@ -2960,7 +3018,12 @@ def cmd_refactor(
     # ── Judge panel ───────────────────────────────────────────────────────────
     should_judge, local_judges, saas_judges = _ensure_judge_prefs(cfg)
 
-    if should_judge:
+    escalate = judges_needed(test_outcome, should_judge)
+    if should_judge and not escalate and test_outcome is not None:
+        ok(f"Tests {test_outcome.outcome} ({test_outcome.detail}) — skipping the judge panel.")
+        info("Real results are the signal; the panel is for when there is none.")
+
+    if escalate:
         judge_timeout_r = int(cfg.get("judge_timeout_seconds", 180))
         local_scores_r: list[JudgeScore] = []
         if local_judges:
@@ -3078,8 +3141,9 @@ def cmd_self_improve(
 
     self_conv_id: str | None = get_last_llm_conversation_id()
 
+    test_outcome: TestOutcome | None = None
     if existing_test_files and prompt_confirm("Run existing tests against refactored binned?", default=True):
-        _run_tests_in_tmpdir(current_script, "binned", existing_test_files)
+        test_outcome = _run_tests_in_tmpdir(current_script, "binned", existing_test_files)
 
     while True:
         _suggest_feedback_hints(current_script, "binned", current_lang, self_improve_scores or None)
@@ -3093,7 +3157,7 @@ def cmd_self_improve(
             revised = refactor_script(current_script, "binned", current_lang, gen_model, feedback=feedback)
             preview_diff(current_script, revised, "binned")
             if existing_test_files and prompt_confirm("Run tests?", default=True):
-                _run_tests_in_tmpdir(revised, "binned", existing_test_files)
+                test_outcome = _run_tests_in_tmpdir(revised, "binned", existing_test_files)
             action = prompt_choice(
                 "What next?",
                 ["Accept this revision", "Request more changes", "Discard — revert to previous"],
@@ -3114,7 +3178,12 @@ def cmd_self_improve(
 
     # Judge panel
     should_judge, local_judges, saas_judges = _ensure_judge_prefs(cfg)
-    if should_judge:
+    escalate = judges_needed(test_outcome, should_judge)
+    if should_judge and not escalate and test_outcome is not None:
+        ok(f"Tests {test_outcome.outcome} ({test_outcome.detail}) — skipping the judge panel.")
+        info("Real results are the signal; the panel is for when there is none.")
+
+    if escalate:
         judge_timeout_s = int(cfg.get("judge_timeout_seconds", 180))
         local_scores_s: list[JudgeScore] = []
         if local_judges:

@@ -25,7 +25,7 @@ lynis audit system            # ad-hoc, interactive
 
 The audit used to run from inside `apps/clamav`'s `daily_scan.sh`, gated on
 `[ "$(date +%d)" = "01" ]`. That violated the CRUD ownership rule in
-`docs/CONVENTIONS.md` — an unrelated lifecycle riding another topic's schedule — and it
+`docs/TOPICS.md` — an unrelated lifecycle riding another topic's schedule — and it
 inherited that script's `/dev/null` output, so failures were invisible.
 
 It now has its own scheduler — a launchd agent using launchd's native monthly `Day`

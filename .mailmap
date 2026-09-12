@@ -1,0 +1,19 @@
+# Canonical identity for this repo's history.
+#
+# One 2020 commit (ed0b315) was authored and committed as
+# "Ben's laptop <ruubixo@gmail.com>" from a personal alt address. Everything
+# else already uses the canonical address.
+#
+# This maps it for `git log`, `git shortlog`, `git blame` and forge UIs with no
+# rewrite. Rewriting the object instead would touch ed0b315 and all 285 commits
+# after it — invalidating every SHA in the repo, including the ones the
+# PROVENANCE notes reference. Not worth it for a tidiness issue.
+#
+# The stored commit object still holds the old address, so
+# `git log --format=%ae` continues to show it. Escalate to
+# `git filter-repo --mailmap` only if the stored value itself has to change,
+# e.g. before making the repo public.
+#
+# Format: Canonical Name <canonical@email> Commit Name <commit@email>
+
+Ben Davis <bengineerdavis@gmail.com> Ben's laptop <ruubixo@gmail.com>

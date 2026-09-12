@@ -1,0 +1,115 @@
+role: think
+property: correctness
+# A THIRD property, added because a specific decision is blocked without it and
+# not for symmetry (see the model-fitness spec, "grow coverage from blocked
+# decisions"): the think tier ordering rests on no evidence otherwise.
+#
+# ── REWRITTEN 2026-09-09, and why ────────────────────────────────────────────
+# The first version used a mixed pens/pencils/erasers chain and was AMBIGUOUS:
+# "she gives 5 items to each of 3 friends" never said which items, and "breaks 2
+# pencils" never said whether a broken pencil still counts. I asserted answers
+# to both without stating them.
+#
+# glm-4.7-flash:q4_k_m failed it — and a probe then showed the failure was the
+# PHRASING, not the depth: given a structurally different 12-step chain it
+# answered correctly in 790 tokens. Its transcript on the original shows it
+# looping on exactly the ambiguity I introduced ("Could it be 'She gives 5 pens
+# to...'"). The case was measuring tolerance for underspecification and
+# penalising the model that noticed the problem.
+#
+# This version fixes that:
+#   * ONE item type throughout (crates) — no "items" pool to disambiguate
+#   * every fraction says "of the crates in the depot at that point"
+#   * every division is exact; no rounding judgement is ever required
+#   * removals are removals; nothing is "broken" or "damaged" ambiguously
+#   * all six levels are PREFIXES OF ONE CHAIN, so depth is the only variable
+#     between rungs, and every checkpoint total is distinct (48/52/45/44/30/32)
+#     so a coincidental match cannot pass a level
+num_ctx: 32768
+vars:
+  expected: 48
+sweep:
+  ordered: true
+  levels:
+    - label: "2-step"
+      vars: {expected: 48}
+      prompt: |
+        A depot receives 4 pallets, each holding 15 crates. All are placed in the
+        depot. Then 12 crates are removed.
+
+        How many crates are in the depot? Reply with only: ANSWER: <integer>
+    - label: "4-step"
+      vars: {expected: 52}
+      prompt: |
+        A depot receives 4 pallets, each holding 15 crates. All are placed in the
+        depot. Then 12 crates are removed. Then 2 more pallets, each holding 15
+        crates, are added. Then a third of the crates in the depot at that point
+        are removed.
+
+        How many crates are in the depot? Reply with only: ANSWER: <integer>
+    - label: "6-step"
+      vars: {expected: 45}
+      prompt: |
+        A depot receives 4 pallets, each holding 15 crates. All are placed in the
+        depot. Then 12 crates are removed. Then 2 more pallets, each holding 15
+        crates, are added. Then a third of the crates in the depot at that point
+        are removed. Then 8 crates are added. Then a quarter of the crates in the
+        depot at that point are removed.
+
+        How many crates are in the depot? Reply with only: ANSWER: <integer>
+    - label: "8-step"
+      vars: {expected: 44}
+      prompt: |
+        A depot receives 4 pallets, each holding 15 crates. All are placed in the
+        depot. Then 12 crates are removed. Then 2 more pallets, each holding 15
+        crates, are added. Then a third of the crates in the depot at that point
+        are removed. Then 8 crates are added. Then a quarter of the crates in the
+        depot at that point are removed. Then 3 pallets, each holding 4 crates,
+        are added. Then 13 crates are removed.
+
+        How many crates are in the depot? Reply with only: ANSWER: <integer>
+    - label: "12-step"
+      vars: {expected: 30}
+      prompt: |
+        A depot receives 4 pallets, each holding 15 crates. All are placed in the
+        depot. Then 12 crates are removed. Then 2 more pallets, each holding 15
+        crates, are added. Then a third of the crates in the depot at that point
+        are removed. Then 8 crates are added. Then a quarter of the crates in the
+        depot at that point are removed. Then 3 pallets, each holding 4 crates,
+        are added. Then 13 crates are removed. Then 6 crates are added. Then half
+        of the crates in the depot at that point are removed. Then 7 crates are
+        added. Then 2 crates are removed.
+
+        How many crates are in the depot? Reply with only: ANSWER: <integer>
+    - label: "16-step"
+      vars: {expected: 32}
+      prompt: |
+        A depot receives 4 pallets, each holding 15 crates. All are placed in the
+        depot. Then 12 crates are removed. Then 2 more pallets, each holding 15
+        crates, are added. Then a third of the crates in the depot at that point
+        are removed. Then 8 crates are added. Then a quarter of the crates in the
+        depot at that point are removed. Then 3 pallets, each holding 4 crates,
+        are added. Then 13 crates are removed. Then 6 crates are added. Then half
+        of the crates in the depot at that point are removed. Then 7 crates are
+        added. Then 2 crates are removed. Then 2 pallets, each holding 6 crates,
+        are added. Then a third of the crates in the depot at that point are
+        removed. Then 9 crates are added. Then 5 crates are removed.
+
+        How many crates are in the depot? Reply with only: ANSWER: <integer>
+prompt: |
+  A depot receives 4 pallets, each holding 15 crates. All are placed in the
+  depot. Then 12 crates are removed.
+
+  How many crates are in the depot? Reply with only: ANSWER: <integer>
+check: |
+  import re
+  # Lenient extraction, strict arithmetic: shape is instruction-adherence's job,
+  # so a model that wraps the right number in prose still passes here.
+  m = re.search(r'ANSWER:\s*(-?\d+)', response, re.I)
+  if m:
+      got = int(m.group(1))
+  else:
+      nums = re.findall(r'-?\d+', response)
+      assert nums, f"no number in the answer: {' '.join(response.split())[:120]!r}"
+      got = int(nums[-1])
+  assert got == expected, f"answered {got}, expected {expected}"

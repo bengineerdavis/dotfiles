@@ -1,0 +1,66 @@
+role: extract
+property: faithfulness
+# REFUSAL-shaped half of extraction. Two of the requested fields are genuinely
+# absent from the source, and the correct behaviour is to emit null rather than
+# a plausible guess. An invented assignee or a confidently-stated root cause is
+# the failure that silently corrupts whatever consumes the JSON — worse than an
+# error, because nothing downstream can tell.
+#
+# The trap is deliberate: the text SAYS "root cause not yet identified", so a
+# model that pattern-matches on the phrase "root cause" has something to latch
+# onto, and the ticket names several people who are not the assignee.
+num_ctx: 16384
+vars:
+  expected: '{"ticket_id":"TCK-4471","component":"ingest-worker","assignee":null,"root_cause":null}'
+sweep:
+  ordered: true
+  levels:
+    - label: "absent-2"
+      vars:
+        expected: '{"ticket_id":"TCK-4471","component":"ingest-worker","assignee":null,"root_cause":null}'
+    - label: "absent-3"
+      vars:
+        expected: '{"ticket_id":"TCK-4471","component":"ingest-worker","assignee":null,"root_cause":null,"customer_id":null}'
+      prompt: |
+        Extract these fields as a single JSON object, and output nothing else:
+
+          ticket_id    (string)
+          component    (string)
+          assignee     (string, or null if the text does not say)
+          root_cause   (string, or null if the text does not say)
+          customer_id  (string, or null if the text does not say)
+
+        Do not guess. If a field is not stated, its value must be null.
+        No prose, no code fence.
+context: |
+  ---- ticket ----
+  Ticket TCK-4471 opened 2026-03-14 09:22 UTC by the on-call rotation.
+  Reporter: platform-team. Escalation contact: dana-ops. Reviewed by: sam-sre.
+  Severity was initially set to S3 and raised to S2 at 10:05.
+  Affected component: ingest-worker.
+  Region: eu-west-1.
+  Customer impact: three tenants reported delayed ingestion.
+  Resolution: restarted the worker pool at 10:41. Root cause not yet identified.
+prompt: |
+  Extract these fields as a single JSON object, and output nothing else:
+
+    ticket_id   (string)
+    component   (string)
+    assignee    (string, or null if the text does not say)
+    root_cause  (string, or null if the text does not say)
+
+  Do not guess. If a field is not stated, its value must be null.
+  No prose, no code fence.
+check: |
+  import json, re
+  raw = re.sub(r'^```(?:json)?|```$', '', response.strip(), flags=re.M).strip()
+  m = re.search(r'\{.*\}', raw, re.S)
+  assert m, f"no JSON object in the reply: {' '.join(response.split())[:120]!r}"
+  got = json.loads(m.group(0))
+  want = json.loads(expected)
+  missing = [k for k in want if k not in got]
+  assert not missing, f"missing fields: {missing}"
+  invented = {k: got[k] for k in want if want[k] is None and got[k] not in (None, "", "null")}
+  assert not invented, f"invented values for fields the text does not state: {invented}"
+  wrong = {k: (got[k], want[k]) for k in want if want[k] is not None and got[k] != want[k]}
+  assert not wrong, f"wrong values (got, want): {wrong}"

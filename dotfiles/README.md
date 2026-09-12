@@ -46,7 +46,7 @@ ansible-playbook playbook.yaml --tags provision
 # then edit apps/my-app/tasks/install.yaml
 ```
 
-→ **[Contributing guide](docs/CONTRIBUTING.md)**
+→ **[Contributing guide](CONTRIBUTING.md)**
 
 ---
 
@@ -177,4 +177,4 @@ original project is the right starting point.
 
 - [Architecture](docs/ARCHITECTURE.md) — stack overview, topic structure, tag hierarchy
 - [Usage](docs/USAGE.md) — commands for provisioning, adding topics, day-to-day use
-- [Contributing](docs/CONTRIBUTING.md) — rules, patterns, and what goes where
+- [Contributing](CONTRIBUTING.md) — rules, patterns, and what goes where

@@ -1,0 +1,6 @@
+# vars/main.yaml
+#
+# Empty by design. Everything this topic exposes is overridable, so it lives in
+# defaults/main.yaml — the extension manifest, the seed directory, and the
+# behaviour flags. Values here would outrank playbook vars and command-line
+# -e overrides, which is the opposite of what a manifest wants.
