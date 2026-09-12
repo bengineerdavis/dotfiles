@@ -182,6 +182,10 @@ nothing is.
   dotagents discovers all five skills, the deployed jsonc passes `opencode debug config`,
   and the changelog fragment is written — each verified, with the questioning
   skill's discovery tested before touching ai-prompt-library.
+  State: built on branch `apps-opencode`, dry-runs green (provision and remove).
+  Remaining: author reviews and pushes the ai-prompt-library commit `94a3156`
+  (unblocks interaction-questioning discovery), approves the `apps-opencode`
+  push, and runs `chezmoi apply` for the config.
 ## Planned
 
 Has a done-condition and is queued, but is not next. Promote into **Now**
@@ -554,6 +558,25 @@ author rather than the machine.
   Any new root directory needs a `.chezmoiignore` entry;
   `tests/chezmoi/test_governance_not_deployed.py` will catch it if forgotten,
   provided the directory is added to its GOVERNANCE_DIRS list.
+  **Extended 2026-09-12 by the author:** frame the goal as a package-manager
+  layer for agent artifacts — skills, agents, prompts, eval cases. The system
+  that installs and wires them should be stable and open-standards-leaning
+  while agent runtimes (opencode, claude, cursor), skill formats and dev stacks
+  churn around it. dotagents is the proven incumbent on this machine (git
+  sources, agents.toml, installs to ~/.agents/skills which opencode, claude and
+  cursor all auto-load — verified 2026-09-12) and is the baseline to beat, not
+  the default to accept. Done when a written comparison-and-decision lands as
+  its own commit with rejected candidates and reasons; the dotagents topic
+  below consumes that decision.
+- Build a dotagents topic and make opencode's skill set an optional dependency
+  of it. The dotagents topic owns: the dotagents declaration (currently
+  mise-managed via config.toml — decide which topic owns it), the user-global
+  skill manifest now in `apps/opencode/defaults/main.yaml`, and the
+  install/sync trigger. opencode stays fully usable without it — the binary
+  and config remain its own — and gets skills only through the dependency.
+  Done when the skill manifest lives in the dotagents topic, skills install
+  from it alone, and apps/opencode carries no skill manifest of its own.
+  Sequenced after the research item above settles the manager question.
 - Choose a project templating tool, and benchmark rather than assume. `copier`
   9.17.2 is installed and is the incumbent, so it is the baseline to beat, not
   the default to accept. Candidates worth measuring: copier, cookiecutter,
