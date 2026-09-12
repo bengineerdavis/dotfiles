@@ -525,6 +525,33 @@ against this machine and must not be re-litigated.
 - A7. Work the roadmap's § Migration inventory. Explicitly out of MVP — do not
   start before A2 and A3 are working.
 
+### Topic bundles — data-first grouping
+
+Design settled with the author 2026-09-12: bundles are data, not directories —
+apps/ stays flat, a bundle config object names its members and relationships,
+and relationships live in the bundle rather than inside each topic (the
+author's modularity requirement). Topics keep minimal `topic_requires` so they
+stay standalone-installable; bundles complement and win on conflict. If
+nesting ever comes, it happens together with the queued TOPICS-citation
+rewrite — never as two rewrites of 40 files.
+
+- Define the bundle schema and document it in `dotfiles/docs/TOPICS.md`. A
+  bundle config object (e.g. `apps/bundles/ai-strategy.yml`) names member
+  topics, run order, shared configuration, machine targeting (os/arch
+  filters), and teardown semantics. Done when the schema is documented with a
+  worked example and validated against the parent playbook's discovery
+  (find recurse depth 2 already tolerates future nesting; layout stays flat).
+- Add bundle-aware limiting to the parent playbook: `-e bundle=<name>` with
+  `--tags install|upgrade|remove` runs only that bundle's members for this
+  machine (os-filtered). Done when a limited install touches exactly the
+  bundle's members here, and a limited remove still consults `requires_map`
+  before tearing any shared dep.
+- Create the first bundle, `ai-strategy`: ollama, mise, opencode (+ the
+  dotagents topic when it exists), ordered so mise precedes opencode (node).
+  Done when the bundle exists, a limited run selects exactly those topics on
+  this machine, and the Mac case is documented (topic_os filtering does the
+  per-machine part).
+
 ### Refactor B — factor the AI/LLM tooling out of this repo
 
 Required by `PRD.md`: dotfiles and provisioning are the trunk, this tooling is a
