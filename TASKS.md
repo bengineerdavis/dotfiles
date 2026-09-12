@@ -126,6 +126,112 @@ nothing is.
   pinned ref that moved (`apps/chrome`), a source edited but never applied. Done
   when a deliberately broken topic run yields a named cause and a next action
   without a human opening task YAML. [me]
+- **Extend `dotfiles-triage` from naming a cause to proposing the fix, as a
+  guarded PR.** Build on the public, vendor-neutral prior art, not on Sentry's
+  Seer: `getsentry/seer` is `visibility: internal` (confirmed 2026-09-12 via
+  `gh api repos/getsentry/seer`), so it is not a source this repo may read from,
+  and nothing about the pattern requires it. The documented loop is older and
+  plainer than any product — fail, halt, investigate, produce an RCA, open a PR
+  carrying the RCA as its description, let a human merge. Target CARM L3
+  (diagnose + propose) and stop there: **never self-apply**, which is the same
+  never-auto-repair rule `roles/guards/` already follows and for the same reason.
+  Every guard in `roles/guards/` is a detector that already knows its own fix
+  text, so they are the natural first inputs. Done when a deliberately broken
+  topic run produces a branch and a PR whose description is the RCA, and no run
+  can mutate the machine without a human merging.
+  **Three controls make this safe enough to run on a work machine, and they are
+  cheap.** (1) A source-provenance note per design decision, naming the public
+  page it came from — the tractable half of clean-room, minus the pretence that
+  one person can staff two teams. (2) An explicit read-exclusion list, not one
+  path: `~/code/work/sentry/` (a Seer clone sits at
+  `~/code/work/sentry/what-would-kobby-do/seer`) **and** the unlicensed internal
+  skills now sitting in the user-global skill path. "Do not consult it" has to be
+  a rule the tool enforces, not an intention. (3) The existing fail-closed
+  resolver (`bin/policy`, ethics > company > personal) gates anything that
+  matters off this machine: remote model calls, log bodies, reading outside an
+  allowlist. Nothing new is invented for safety; it is provenance plus the gate
+  already built and tested. [me]
+- **Replace the per-skill manifest in `apps/opencode` with an approved-source
+  allowlist, and guard it.** Today `opencode_skills` enumerates five skills with
+  name, source and rationale; the config should hold *approved sources* instead
+  and let dotagents own which skills exist. Three native mechanisms do the work:
+  `[trust]` in `agents.toml` (`github_orgs`/`github_repos`/`git_domains`) is an
+  allowlist dotagents enforces itself, throwing `TrustError` on `add` and
+  `install`; wildcard deps (`name = "*"` plus `exclude`, via `add <source>
+  --all`) declare a source once; and `remove <source>` tears down every
+  dependency from it, so the CRUD invariant survives without naming skills.
+  **Two gaps decide the design.** `validateTrustedSource` returns early when no
+  `[trust]` table exists — absent means allow-everything, which is the state
+  `~/.agents/agents.toml` is in right now, so writing the table is what switches
+  enforcement on. And `list --json` reports only *declared* skills: it answers
+  "is what I declared installed?" but not "is anything installed that I never
+  declared?" — the provenance question, and the one that caught
+  `what-would-kobby-do`. So the guard must compare the on-disk skill directories
+  against the declared set, not just read the tool's own list. Add it as
+  `roles/guards/tasks/dotagents-approved-sources.yaml`, the second member of the
+  guards role, failing on both an unapproved declared source and an undeclared
+  on-disk skill, with an exception list for vendored copies that carry a LICENCE
+  and a PROVENANCE note (`no-ai-slop` is the existing case). The per-skill
+  rationale moves into each skill's own description in `ai-prompt-library`, which
+  is where it belonged. Done when the topic names only sources, an unapproved
+  source fails the run, and a hand-placed skill directory is reported rather than
+  ignored. [me]
+- **Add the two remaining trust dimensions: a source denylist, and licence as
+  implicit trust.** Approve-by-source plus per-skill `exclude` ship as of
+  2026-09-12; these are the other two levers. **Precedence, highest first, and it
+  must fail closed at the bottom like `bin/policy` already does:** (1) a denied
+  source — a ban is a judgement about the publisher and outranks any paperwork,
+  including a permissive licence; (2) an `exclude`d skill name; (3) an approved
+  source; (4) an approved licence; (5) deny. **Licence detection, most specific
+  first:** a LICENSE or SPDX identifier in the skill's own directory (this is how
+  `no-ai-slop` already earns its exception, and it covers a permissive skill
+  inside a differently-licensed repo); then the wildcard's `path:` subdirectory
+  if one is set; then the repository licence via `gh api repos/<owner>/<repo>
+  --jq .license.spdx_id`; then deny.
+  **The rule that carries the whole design: absent is not permissive.** No
+  LICENSE, or the `NOASSERTION` the GitHub API returns, means all rights
+  reserved — deny, never "unknown so allow". That is what would have caught
+  `what-would-kobby-do` without anyone having to notice it.
+  **Three tiers, not a binary.** Permissive auto-trusts (MIT, Apache-2.0,
+  BSD-2/3-Clause, ISC, 0BSD, Unlicense, CC0-1.0). Copyleft needs explicit opt-in
+  (GPL/AGPL/LGPL/MPL-2.0): open, but vendoring into a shared library is
+  redistribution and carries obligations. Source-available is **denied** and is
+  the tier most likely to be mistaken for open — BSL-1.1, FSL, SSPL, Elastic-2.0,
+  which is not academic here since Sentry ships some of its own products that way.
+  **Where it belongs:** `bin/policy` already resolves layered, fail-closed
+  boundaries (ethics > company > personal) and is tested for exactly the property
+  this needs, so these are boundary keys there rather than a second list living
+  in one Ansible topic — the same answer should govern any tool that installs
+  someone else's code, not just dotagents. The topic then asks policy instead of
+  holding an opinion. Done when a banned source is refused even with a permissive
+  licence, an MIT skill from an unlisted source installs without being named, and
+  an unlicensed one is refused with the reason given. [me]
+- **Get unlicensed internal material out of `~/.agents/skills`.**
+  `what-would-kobby-do` is an internal team tool with no licence, and
+  `support-escalation` is undeclared with no licence or `PROVENANCE.md` and was
+  installed the same day — classify it. That directory is user-global: claude,
+  cursor, codex, opencode and copilot all auto-load it, so both are being read
+  into context on personal projects. It already happened on 2026-09-12, in a
+  session working on this repo. dotagents supports project scope (`--project`,
+  writing `.agents/skills` in the repo), which is where work-only material
+  belongs. Audit the rest while there: of the eight installed, five are declared
+  in `apps/opencode`, `skillet-authoring` is public MIT (`getsentry/skillet`) and
+  `no-ai-slop` carries LICENCE and PROVENANCE — only these two are unaccounted
+  for. Done when nothing in the user-global path lacks a licence or a provenance
+  note, and the work-only skills load only inside the work repo. [me]
+- **Define an `agentic-context-engineer` role and add it to the ai library.**
+  A role, not a skill: it is invoked deliberately for open design questions,
+  wants its own context, and returns a considered answer — where a skill changes
+  how the current work is done. Distribute it as a `[[subagents]]` entry rather
+  than hand-placing a file in `~/.claude/agents`, so it installs the same way the
+  skills do and survives a rebuild (dotagents projects subagents to
+  `~/.claude/agents/*.md` at user scope; confirmed 2026-09-12). The role must
+  **compose** the existing method skills — `review-best-practices`,
+  `interaction-questioning`, `no-ai-slop` — and add only framing and judgement on
+  top; a persona that restates method it could have loaded is the failure mode
+  here. Done when `/agentic-context-engineer` answers an open question with a
+  recommendation and its rejected alternatives, and the definition installs from
+  `ai-prompt-library` on a fresh machine. [me]
 - **[4] Fill `~/.local/state/ai-policy/company.yaml`'s 22 TODO fields.** Decided:
   proceed top-down as proposed — `device.approved` gates the rest. Machine-local
   and unversioned, so it cannot be tracked here beyond this pointer. Until it is
@@ -187,9 +293,20 @@ nothing is.
 
 ## Planned
 
-Has a done-condition and is queued, but is not next. Promote into **Now**
-when it becomes the thing to do, rather than working straight from here.
-
+- **Write a `ground-truth-a-dependency` skill from scratch.** The recurring need
+  is what the 2026-09-12 dotagents failure took: reading a dependency's shipped
+  source to find behaviour its docs never mention — an uncaught `SymlinkError`
+  reaching stderr while stdout stayed empty. The method used that day is the
+  whole content and owes nothing to any employer artifact: read the installed
+  package rather than trusting docs, reproduce in an isolated `HOME` before
+  believing a diagnosis, and mutation-test the resulting guard so a test that
+  cannot fail is caught. **`what-would-kobby-do` is not a source** — it is an
+  unlicensed internal tool, so it may not be read, quoted, paraphrased or
+  "generalised". Name the skill for the work, not "reverse engineering", which
+  drags in binary analysis and a legal frame that does not apply. Done when it
+  takes an undocumented dependency failure to a cause with every claim tied to a
+  file and line, authored in a session where the exclusion list below was in
+  force.
 - **[1] Promote `gpt-oss:20b` and `ministral-3:8b` in `bin/binned`.** Decided:
   use the cross-task evidence from judging. Record in the manifest that the
   number came from judging rather than generation, so the basis is not
