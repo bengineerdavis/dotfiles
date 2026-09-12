@@ -398,13 +398,21 @@ nothing is.
   reporting bug reached the deployed script and was caught by a manual smoke test
   rather than the 218-test suite. The env/flag/fallback resolution is the obvious
   first case.
-- Run the eval suites for the three skills in `~/code/personal/ai-prompt-library`
-  (`pii-redaction`, 6 cases; `commit-hygiene`, 5; `prior-art-first`, 4). Both pass `skillet validate`,
-  which checks grammar, frontmatter and coverage only — no case has ever been
-  executed, so the skills are unproven against a real agent. `skillet eval` spawns
-  agents per case and costs real time; `--baseline` compares pass rates without
-  the skill installed, which is the number that says whether either earns its
-  keep. Expect to fix cases, not just read results.
+- Define how this repo's policy reaches builders, and the save-back contract
+  for tool-built policy. The author's requirement (2026-09-12): this repo may
+  carry a policy that agents read or are fed; when a policy tool exists
+  (impromptu), its output must have a known way to be saved into this
+  machine-management repo where retention is wanted — or, if policy lives
+  here, the tool takes over managing it. Done when the contract is written
+  down: what a builder reads, from where, in what format, and what a tool
+  must produce for this repo to retain it. The larger question this sits
+  inside — whether over-arching policy is independent of this repo — is in
+  `ROADMAP.md` § Over-arching policy and is the author's to settle.
+- Run the eval suites for the library skills. **Re-homed 2026-09-12** to
+  `ai-prompt-library` (its TASKS.md), per the author's scoping decision: AI
+  work — skills, evals, policy, tooling — stops landing in this repository.
+  This repo's provisioning (the dotagents topic, the opencode manifest)
+  consumes the eval gate's verdicts but does not execute them.
 - Document that `git add -p` and `git commit -o` do not compose, in AGENTS.md
   § Working alongside other sessions. It currently recommends both, but `--only`
   commits the **working-tree** content of the named paths and discards partial
@@ -524,9 +532,13 @@ branch, and the architecture rule says provisioning may install and trigger a
 tool but never contain its logic or state. The Ansible role STAYS — installing a
 runtime and pulling weights is machine setup. What leaves is everything about the
 author rather than the machine.
-- B1. Decide the new home and its install method: separate repo, name, and how
-  this repo pins it. Blocks everything below. Note the constraint that the result
-  must be installable by the provisioning layer like any other dependency.
+- B1. Decide the new home and its install method. **Home decided by the author
+  2026-09-12:** `ai-prompt-library` now (skills, evals, policy, tooling work
+  lands there), `impromptu` eventually once the tool is built up. Still open,
+  and deliberately so: the install method this repo pins (B1's other half),
+  and whether policy management has full scope in either home — the author
+  marked this unresolved; see `ROADMAP.md` § Over-arching policy. Blocks B2
+  below only on the install-method half.
 - B2. Write the move manifest — every affected file classified as leaves, stays,
   or is deleted. Done when the list exists and later items cite it instead of
   re-deciding per file.
@@ -684,56 +696,20 @@ author rather than the machine.
   wired to nothing. **[open question: worth automating? A check comparing
   installed `--version` output against the register is easy; comparing against
   upstream release feeds is not, and would add network calls to the test suite.]**
-- Decide the layout for installable skills and workflows, portable across agent
-  tools. Research first, because the landscape is unsettled and half of what
-  looks like a standard is one vendor's convention.
-  What is actually known:
-  - **`AGENTS.md` is the closest thing to a cross-tool open convention** and this
-    repo already has it. Keep it canonical.
-  - **MCP is a genuine open standard**, but for tools and servers, not for
-    skills or instructions. `.mcp.json` is read by several clients.
-  - **There is no open standard for SKILLS.** The `SKILL.md` format used here is
-    Anthropic's, and `skillet` already validates it — which is an argument for
-    keeping it canonical and adapting outward, not for pretending it is neutral.
-  Approach: one canonical source, tool-specific files generated or symlinked from
-  it. Never hand-maintain two copies — that is the drift the conventions test was
-  just written to prevent.
-  Verify what each tool reads BEFORE writing an adapter; these paths change
-  release to release. Candidates to confirm: `CLAUDE.md`, `.cursor/rules/*.mdc`,
-  `.github/copilot-instructions.md`, `.windsurf/rules/`, `.goosehints`, and
-  aider's convention file plus `.aider.conf.yml`.
-  Build adapters only for tools actually in use. Installed on this machine:
-  claude, cursor, code, aider. Not installed: goose, windsurf, copilot CLI.
-  **Name collision to resolve first:** aider conventionally reads a root
-  `TOPICS.md`; this repo has `dotfiles/docs/TOPICS.md` and now a
-  `docs/` directory. Three things one word apart is a bug waiting to be
-  filed. Rename or namespace before adding the adapter.
-  Note skills currently live outside this repo — `~/.claude/skills` (2) and
-  `ai-prompt-library/skills` (3) — so this decides whether they move in, stay
-  out and get installed, or split. `PRD.md` § Topics are installable modules is
-  the precedent to follow.
-  Any new root directory needs a `.chezmoiignore` entry;
-  `tests/chezmoi/test_governance_not_deployed.py` will catch it if forgotten,
-  provided the directory is added to its GOVERNANCE_DIRS list.
-  **Extended 2026-09-12 by the author:** frame the goal as a package-manager
-  layer for agent artifacts — skills, agents, prompts, eval cases. The system
-  that installs and wires them should be stable and open-standards-leaning
-  while agent runtimes (opencode, claude, cursor), skill formats and dev stacks
-  churn around it. dotagents is the proven incumbent on this machine (git
-  sources, agents.toml, installs to ~/.agents/skills which opencode, claude and
-  cursor all auto-load — verified 2026-09-12) and is the baseline to beat, not
-  the default to accept. Done when a written comparison-and-decision lands as
-  its own commit with rejected candidates and reasons; the dotagents topic
-  below consumes that decision.
 - Build a dotagents topic and make opencode's skill set an optional dependency
-  of it. The dotagents topic owns: the dotagents declaration (currently
-  mise-managed via config.toml — decide which topic owns it), the user-global
-  skill manifest now in `apps/opencode/defaults/main.yaml`, and the
-  install/sync trigger. opencode stays fully usable without it — the binary
-  and config remain its own — and gets skills only through the dependency.
-  Done when the skill manifest lives in the dotagents topic, skills install
-  from it alone, and apps/opencode carries no skill manifest of its own.
-  Sequenced after the research item above settles the manager question.
+  of it. **The manager decision is made — see
+  `dotfiles/docs/AGENT-ARTIFACTS.md` (2026-09-12): dotagents installs, pinned
+  refs and committed lock; agentskills.io is the tracked format standard;
+  skills.sh is discovery only.** The topic owns: the dotagents declaration
+  (currently mise-managed via config.toml — decide which topic owns it), the
+  user-global skill manifest now in `apps/opencode/defaults/main.yaml`, and
+  the install/sync trigger. opencode stays fully usable without it — the
+  binary and config remain its own — and gets skills only through the
+  dependency. Done when the skill manifest lives in the dotagents topic,
+  skills install from it alone, and apps/opencode carries no skill manifest
+  of its own. Open before building: run the skillet evals, since the eval
+  gate is now policy. (The agents.lock verification resolved 2026-09-12: the
+  lock records resolved commit SHAs — see the record's exit-path section.)
 - Choose a project templating tool, and benchmark rather than assume. `copier`
   9.17.2 is installed and is the incumbent, so it is the baseline to beat, not
   the default to accept. Candidates worth measuring: copier, cookiecutter,

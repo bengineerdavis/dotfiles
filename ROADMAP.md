@@ -45,6 +45,52 @@ reads as a complete picture, not to duplicate them.
 
 ## Not yet scheduled
 
+### Over-arching policy and where it lives
+
+The author's open internal debate, recorded 2026-09-12 rather than resolved.
+Some policy is independent of this repository — this repo may be an
+*implementation* of a policy whose home is elsewhere (its own repository, a
+future impromptu-the-tool, or a machine-local store). The questions nested
+inside it:
+
+- If an over-arching policy exists as its own artifact, this repo and other
+  sources and tooling would *reference* it rather than contain it.
+- This repo can legitimately carry a policy that it feeds to builders (agents)
+  or that builders read — the near-term contract for that is a TASKS.md item.
+- When a policy tool is built, there must be a known path for saving its
+  output and configuration into this machine-management repo where retention
+  is wanted — or, if policy lives here, the tool takes over managing it.
+- The AI-home decision (2026-09-12) lands skill, eval and tooling work in
+  `ai-prompt-library` now and `impromptu` eventually — but the author marked
+  that neither home clearly has full scope for *policy management*.
+
+**Safe default until the author settles it:** policy stays where it is today —
+repo docs and spec for repository-level rules, `~/.local/state/ai-policy/`
+layers for machine-local rules, `bin/policy` as the resolver — and no new
+policy home is created. This line is deleted only when the over-arching
+question is answered and the answer is recorded in `PRD.md`.
+
+### A policy-aware CLI agent, or the topic CLI growing one more job
+
+`AGENTS.md` § What agents do here makes build-versus-configure routing agent
+policy, with per-machine granularity. The author named it a candidate for
+enforcement by the `topic` CLI (A1–A7, scheduled) or by a separate CLI agent
+that abstracts configuration management and updates — a tool that knows what
+each machine should have can tell an agent what is configuration work versus
+a build. Unscoped; worth settling alongside the topic CLI's `bootstrap`
+command (A5), which already owns "run a topic's install" — the same state
+knowledge this would read.
+
+**Determinant detection functions are a required capability**, not a nice-to-
+have. The boundary is not always visible on the surface: an action can be
+valid as configuration (a well-formed task, a plausible config file) and still
+be substantively a build — a template writing real code, an install task
+compiling a bespoke project, a "config" embedding logic. The functions classify
+actions deterministically, and their minimum contract is to **surface the
+finding to the author with override** — never a silent pass, never a silent
+block. Refusing is the agent ladder's job; the tool's job is to make the
+boundary visible so a human decides.
+
 ### Topics as portable, installable modules
 
 `PRD.md` states the requirement: a topic should be installable on its own, so a
