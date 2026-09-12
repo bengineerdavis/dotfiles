@@ -206,6 +206,17 @@ nothing is.
   holding an opinion. Done when a banned source is refused even with a permissive
   licence, an MIT skill from an unlisted source installs without being named, and
   an unlicensed one is refused with the reason given. [me]
+- **Install `tools/skill-trust` from a topic instead of by hand.** The guard in
+  `roles/guards/` now shells out to it, so a machine without it provisions no
+  further — correct, but the fix is currently a human running
+  `uv tool install <chezmoi source>/tools/skill-trust`. That is the bootstrapping
+  shape `apps/opencode`'s brew check already has: a topic should own it, and
+  `tools/` will grow more inhabitants with the same need. Decide whether that is
+  a `tools` topic installing everything under `tools/`, or each consumer
+  declaring what it needs. Note the tree split that makes this awkward: `tools/`
+  sits at the chezmoi repo root and is NOT deployed to `~/dotfiles`, so the
+  install path has to reach back into the chezmoi source. Done when a fresh
+  machine gets skill-trust without anyone typing a uv command. [me]
 - **Get unlicensed internal material out of `~/.agents/skills`.**
   `what-would-kobby-do` is an internal team tool with no licence, and
   `support-escalation` is undeclared with no licence or `PROVENANCE.md` and was
