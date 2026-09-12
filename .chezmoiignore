@@ -35,6 +35,11 @@ docs/README.md
 pytest.ini
 smartparts/
 
+# Tool virtualenvs. Each tools/<name>/ grows one the first time anyone runs
+# `uv run --project`, and without this a later apply copies an entire
+# virtualenv into the deployed tree.
+**/.venv
+
 # Python bytecode artifacts (mirror .gitignore — never deploy these)
 **/__pycache__
 **/*.pyc
