@@ -134,6 +134,42 @@
   when: opencode_skill_add.results | rejectattr('rc', 'eq', 0) | list | length > 0
   tags: [opencode_skills, upgrade]
 
+- name: "Veto each excluded skill from its approved source"
+  # `remove <name>` on a wildcard-covered skill adds it to that wildcard's
+  # exclude list and deletes the directory, so the veto survives the next sync
+  # rather than being re-installed and re-removed forever. -y answers the
+  # confirmation prompt, which has no terminal under Ansible.
+  ansible.builtin.command:
+    cmd: >-
+      npx -y @sentry/dotagents@latest --user
+      remove {{ item.1 }} -y
+  environment:
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
+  loop: "{{ opencode_skill_sources | subelements('exclude', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.1 }} ← {{ item.0.source }}"
+  register: opencode_skill_veto
+  failed_when: false
+  changed_when: "'exclude list' in opencode_skill_veto.stdout"
+  tags: [opencode_skills, upgrade]
+
+- name: "Fail with every skill dotagents could not veto"
+  # An already-excluded skill is not installed, so `remove` reports it missing.
+  # That is the desired end state on every run after the first, not an error.
+  vars:
+    opencode_veto_failures: >-
+      {{ opencode_skill_veto.results | default([]) | rejectattr('rc', 'eq', 0)
+         | rejectattr('stderr', 'search', 'not found|No skill|not declared') | list }}
+  ansible.builtin.fail:
+    msg: >-
+      dotagents could not veto
+      {{ opencode_veto_failures | map(attribute='item.1') | join(', ') }}.
+      What it actually said:
+      {{ opencode_veto_failures | map(attribute='stderr') | map('trim') | select | join(' | ')
+         | default('nothing on stderr; re-run the failing `npx` command by hand', true) }}
+  when: opencode_veto_failures | length > 0
+  tags: [opencode_skills, upgrade]
+
 - name: "Guard that every installed skill came from an approved source"
   # After the sync, not before: the question is what is on the machine now, and
   # an undeclared directory is only visible once the declared ones are in place.

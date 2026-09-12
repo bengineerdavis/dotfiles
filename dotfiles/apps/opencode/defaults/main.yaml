@@ -7,8 +7,15 @@
 # refused by dotagents itself, not merely undeclared) and a `dotagents add
 # <source> --all` wildcard declaration.
 #
-#   source: owner/repo shorthand, a GitHub org, or a git domain
-#   why:    why THIS SOURCE is approved to put skills on this machine
+#   source:  owner/repo shorthand, a GitHub org, or a git domain
+#   why:     why THIS SOURCE is approved to put skills on this machine
+#   exclude: optional skill names to veto from an otherwise approved source
+#
+# Approving a source accepts everything in it, now and in future — a skill added
+# upstream lands here on the next run with no edit and no review. `exclude` is
+# the veto that makes that trade survivable: source-level trust, per-skill refusal.
+# dotagents stores it on the wildcard entry, so an excluded skill is not merely
+# uninstalled, it is refused on every subsequent sync.
 #
 # `why` answers a question the skills cannot answer for themselves. What each
 # skill is for already lives in its own `description`, and a second copy here
@@ -19,12 +26,18 @@ opencode_skill_sources:
       The author's own library. Skills here are written in this repo's voice and
       reviewed by the same person who runs them, so the trust question is
       self-answering.
+    exclude: []
 
   - source: getsentry/skillet
     why: >-
       Public and MIT (verified 2026-09-12 via `gh api repos/getsentry/skillet`),
       and the toolchain the library's own skills are authored with — so its
       authoring skill and the specs it validates stay on the same version.
+    # Empty deliberately. The source brought four openspec-* skills with it, and
+    # they stay: skillet is MIT, so they arrive under a permissive licence rather
+    # than merely from a tolerated source. Vetoing them would be a taste
+    # judgement dressed up as a trust one.
+    exclude: []
 
 # On-disk skill directories allowed to exist without being declared. Each needs a
 # reason a human can check, which in practice means a LICENSE and a PROVENANCE
