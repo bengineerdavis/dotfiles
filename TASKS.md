@@ -512,56 +512,20 @@ author rather than the machine.
   wired to nothing. **[open question: worth automating? A check comparing
   installed `--version` output against the register is easy; comparing against
   upstream release feeds is not, and would add network calls to the test suite.]**
-- Decide the layout for installable skills and workflows, portable across agent
-  tools. Research first, because the landscape is unsettled and half of what
-  looks like a standard is one vendor's convention.
-  What is actually known:
-  - **`AGENTS.md` is the closest thing to a cross-tool open convention** and this
-    repo already has it. Keep it canonical.
-  - **MCP is a genuine open standard**, but for tools and servers, not for
-    skills or instructions. `.mcp.json` is read by several clients.
-  - **There is no open standard for SKILLS.** The `SKILL.md` format used here is
-    Anthropic's, and `skillet` already validates it — which is an argument for
-    keeping it canonical and adapting outward, not for pretending it is neutral.
-  Approach: one canonical source, tool-specific files generated or symlinked from
-  it. Never hand-maintain two copies — that is the drift the conventions test was
-  just written to prevent.
-  Verify what each tool reads BEFORE writing an adapter; these paths change
-  release to release. Candidates to confirm: `CLAUDE.md`, `.cursor/rules/*.mdc`,
-  `.github/copilot-instructions.md`, `.windsurf/rules/`, `.goosehints`, and
-  aider's convention file plus `.aider.conf.yml`.
-  Build adapters only for tools actually in use. Installed on this machine:
-  claude, cursor, code, aider. Not installed: goose, windsurf, copilot CLI.
-  **Name collision to resolve first:** aider conventionally reads a root
-  `TOPICS.md`; this repo has `dotfiles/docs/TOPICS.md` and now a
-  `docs/` directory. Three things one word apart is a bug waiting to be
-  filed. Rename or namespace before adding the adapter.
-  Note skills currently live outside this repo — `~/.claude/skills` (2) and
-  `ai-prompt-library/skills` (3) — so this decides whether they move in, stay
-  out and get installed, or split. `PRD.md` § Topics are installable modules is
-  the precedent to follow.
-  Any new root directory needs a `.chezmoiignore` entry;
-  `tests/chezmoi/test_governance_not_deployed.py` will catch it if forgotten,
-  provided the directory is added to its GOVERNANCE_DIRS list.
-  **Extended 2026-09-12 by the author:** frame the goal as a package-manager
-  layer for agent artifacts — skills, agents, prompts, eval cases. The system
-  that installs and wires them should be stable and open-standards-leaning
-  while agent runtimes (opencode, claude, cursor), skill formats and dev stacks
-  churn around it. dotagents is the proven incumbent on this machine (git
-  sources, agents.toml, installs to ~/.agents/skills which opencode, claude and
-  cursor all auto-load — verified 2026-09-12) and is the baseline to beat, not
-  the default to accept. Done when a written comparison-and-decision lands as
-  its own commit with rejected candidates and reasons; the dotagents topic
-  below consumes that decision.
 - Build a dotagents topic and make opencode's skill set an optional dependency
-  of it. The dotagents topic owns: the dotagents declaration (currently
-  mise-managed via config.toml — decide which topic owns it), the user-global
-  skill manifest now in `apps/opencode/defaults/main.yaml`, and the
-  install/sync trigger. opencode stays fully usable without it — the binary
-  and config remain its own — and gets skills only through the dependency.
-  Done when the skill manifest lives in the dotagents topic, skills install
-  from it alone, and apps/opencode carries no skill manifest of its own.
-  Sequenced after the research item above settles the manager question.
+  of it. **The manager decision is made — see
+  `dotfiles/docs/AGENT-ARTIFACTS.md` (2026-09-12): dotagents installs, pinned
+  refs and committed lock; agentskills.io is the tracked format standard;
+  skills.sh is discovery only.** The topic owns: the dotagents declaration
+  (currently mise-managed via config.toml — decide which topic owns it), the
+  user-global skill manifest now in `apps/opencode/defaults/main.yaml`, and
+  the install/sync trigger. opencode stays fully usable without it — the
+  binary and config remain its own — and gets skills only through the
+  dependency. Done when the skill manifest lives in the dotagents topic,
+  skills install from it alone, and apps/opencode carries no skill manifest
+  of its own. Open before building: run `cat ~/.agents/agents.lock` (the
+  decision record's one open verification) and run the skillet evals, since
+  the eval gate is now policy.
 - Choose a project templating tool, and benchmark rather than assume. `copier`
   9.17.2 is installed and is the incumbent, so it is the baseline to beat, not
   the default to accept. Candidates worth measuring: copier, cookiecutter,
