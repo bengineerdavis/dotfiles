@@ -1,0 +1,34 @@
+# roles/guards/defaults/main.yaml
+#
+# Defaults for every guard in this role. A caller overrides them with `vars:`
+# on the import — see roles/guards/README.md.
+
+# ── dotagents-skills-migration ───────────────────────────────────────────────
+
+# Where dotagents installs skills at user scope. Everything below is about
+# other directories colliding with the names in here.
+guard_agents_skills_dir: "{{ ansible_facts['env']['HOME'] }}/.agents/skills"
+
+# The agent homes dotagents will try to relocate at user scope. This is not a
+# guess: it is `userSkillsParentDirs` in the dotagents target registry
+# (dist/targets/definitions/*.js), which as of @sentry/dotagents 3.1.0 is set
+# only for claude (~/.claude), cursor (which reuses ~/.claude) and copilot
+# ($COPILOT_HOME, default ~/.copilot). codex, opencode and vscode declare
+# `userSkillsParentDirs: undefined` and are never relocated — which is why
+# ~/.codex/skills can sit there as a real directory forever without tripping
+# this guard.
+#
+# Re-read that registry when dotagents is upgraded. A new agent gaining a
+# userSkillsParentDir is a new way for this to fire.
+guard_agent_homes:
+  - "{{ ansible_facts['env']['HOME'] }}/.claude"
+  - "{{ ansible_facts['env']['COPILOT_HOME'] | default(ansible_facts['env']['HOME'] ~ '/.copilot', true) }}"
+
+# Accept the conflict for one run. Off by default: the resolution is a judgement
+# about which copy of a skill is the real one, and that is not a decision a
+# provisioning run gets to make silently. See the failure message for the three
+# ways out.
+guard_allow_skill_dir_conflicts: false
+
+# Named in the failure message so the operator knows which topic asked.
+guard_caller: "a topic"

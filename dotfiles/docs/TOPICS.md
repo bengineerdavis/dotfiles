@@ -190,6 +190,54 @@ Conditional dependencies are checked at the point the feature is used, not up
 front — `bin/llm-ctx` checks `ffmpeg` only once a video has actually matched, so
 an ffmpeg-less machine stays perfectly usable for text and images.
 
+## Shared guards (`roles/guards`)
+
+A guard is a check that runs **before** a topic changes anything and fails with
+the fix named when the machine is not in a state the topic can act on. Two live
+inside the topic that needs them — `apps/chrome/tasks/git-refs-guard.yaml`,
+`apps/rancher-desktop/tasks/path-management.yaml` — because only that topic
+needs them. A check more than one topic needs goes in `roles/guards` rather than
+being copied into each.
+
+Call one with a static `import_role` and `tasks_from`:
+
+```yaml
+- name: "Guard against an unmigratable agent skills directory"
+  ansible.builtin.import_role:
+    name: "roles/guards"
+    tasks_from: dotagents-skills-migration.yaml
+  vars:
+    guard_caller: "apps/<topic>"
+    guard_allow_skill_dir_conflicts: "{{ <topic>_allow_skill_dir_conflicts }}"
+```
+
+`import_role`, not `include_role`: the import is static, so the guard's own tasks
+are visible at parse time and the lifecycle tags in `tasks/main.yaml` keep
+selecting them without an `apply:` block. `tasks_from` is Ansible's built-in way
+to call one file from a role, and `roles/guards/defaults/main.yaml` gives every
+parameter a default so a caller overrides only what it cares about.
+
+The role name is the path `roles/guards`, matching how the parent playbook
+already names topics (`include_role: name: "apps/{{ item.topic_name }}"`). Both
+resolve relative to the working directory — the same constraint `ansible.cfg`
+itself is under, and one `run-role.sh` and `update.sh` already satisfy.
+
+Guards live in `roles/`, not `apps/`. `apps/` means topics: the parent playbook
+discovers them by `topic.yml`, `topic_tier` orders them, and the CRUD ownership
+invariant applies to them. A guard has no lifecycle and creates no state.
+
+Rules for writing one — the longer version is in `roles/guards/README.md`:
+
+- **Collect every problem, then fail once**, exactly as § Script dependency
+  guards requires of `~/bin`. One run reports all of it, not one item per
+  invocation.
+- **Never repair automatically.** A guard exists because the right answer needs a
+  human. Offer a per-run `_allow_` override defaulted to `false` instead.
+- **Say what has not happened yet.** "Nothing has been installed or moved" tells
+  the operator the run stopped clean rather than part-way through.
+- **Prefix parameters `guard_`** so a caller's `vars:` cannot collide with the
+  topic's own variables.
+
 ## Fully qualified module names
 
 Use fully qualified collection names (FQCNs) for every module. A bare `apt` or
