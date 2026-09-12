@@ -552,14 +552,18 @@ stay standalone-installable; bundles complement and win on conflict. If
 nesting ever comes, it happens together with the queued TOPICS-citation
 rewrite — never as two rewrites of 40 files.
 
-**Open verdict, captured 2026-09-12 before it left the discussion:** a
-practitioner review of the machine→groups binding recommends a native Ansible
-YAML inventory (`inventory/machines.yml`, machine→groups, native `--limit`)
-over the `machines.yml` map described below, with `-e group=<name>` layered
-as the topic selector and unmapped machines keeping all-topics+warn. Vocabulary
-adopted in the same discussion: the config object is a **group** and the flag
-is `-e group=`. The items below still describe the machines.yml map and
-"bundle" wording — rewritten once the author confirms the inventory direction.
+**Binding resolved 2026-09-12, after the author's expert challenge:** the
+machine→groups map is `machines.yml` kept as **plain data** (hostname →
+groups), slurped by the parent playbook exactly like `topic.yml` files are
+today — no Ansible inventory semantics. Disambiguation is
+`ansible_facts['hostname']` (gathered every run) intersected with the map;
+an inventory of named hosts would fight the self-applying `hosts: localhost`
+design and buys nothing for a one-machine-at-a-time fleet. Inventory
+`children:` remains the upgrade path if this ever becomes a true multi-host
+fleet — the map's shape ports 1:1. Vocabulary: the config object is a
+**group**, the selector is `-e group=<name>`, unmapped machines keep
+all-topics+warn. The items below still say "bundle" and `-e bundle=` —
+rewritten when the schema item lands.
 
 - Define the bundle schema and document it in `dotfiles/docs/TOPICS.md`. A
   bundle config object (e.g. `apps/bundles/ai-strategy.yml`) names member
