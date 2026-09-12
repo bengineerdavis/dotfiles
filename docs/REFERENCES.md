@@ -15,7 +15,9 @@ nothing changed — a stale date is the signal, not the version number.
 
 | Standard | Version followed | Where it binds | Verified |
 |---|---|---|---|
-| [AGENTS.md](https://agents.md/) | unversioned convention | `AGENTS.md` at root | 2026-09-11 |
+| [AGENTS.md](https://agents.md/) | unversioned convention; stewarded by the Agentic AI Foundation (Linux Foundation) since 2026 | `AGENTS.md` at root | 2026-09-12 |
+| [Agent Skills specification](https://agentskills.io) | current spec; format only — no distribution | every `SKILL.md`; see `dotfiles/docs/AGENT-ARTIFACTS.md` | 2026-09-12 |
+| [dotagents](https://github.com/getsentry/dotagents) (@sentry/dotagents) | 3.1.0 installed; MIT | skill distribution; `agents.toml` + `agents.lock` under `~/.agents/` | 2026-09-12 |
 | [Inline script metadata](https://packaging.python.org/en/latest/specifications/inline-script-metadata/) (PyPA) | living spec; post-Jan-2024 form | 36 scripts in `bin/` and topic `files/` | 2026-09-11 |
 | [PEP 723](https://peps.python.org/pep-0723/) | approval record only — **not** the current spec | historical; cite PyPA instead | 2026-09-11 |
 | [PEP 508](https://peps.python.org/pep-0508/) — dependency specifiers | Final | the `dependencies` list inside PEP 723 blocks | 2026-09-11 (via 723) |
@@ -47,6 +49,17 @@ approval record, the register points at the living home.
 
 ### Watch list
 
+- **MCP** ([modelcontextprotocol.io](https://modelcontextprotocol.io)) and
+  **ACP** ([agentclientprotocol.com](https://agentclientprotocol.com)) are
+  tracked, not followed — runtime and editor-interop protocols, out of the
+  skills-only v1 scope. Re-check if an MCP or plugin decision lands.
+- **Agent Plugins v1** ([agent-plugins.org](https://agent-plugins.org)) — the
+  bundle format dotagents implements for plugins; relevant when plugin scope
+  opens.
+- **skills.sh** ([vercel-labs/skills](https://github.com/vercel-labs/skills)) —
+  used for discovery only. Its CLI telemetry is on by default
+  (`DISABLE_TELEMETRY=1` or `DO_NOT_TRACK=1` to disable); it cannot pin or
+  lock, which is why it is not the installer.
 - **skillet 1.8.0 is available** and `spec.md` pins 1.7.0. Upgrading changes what
   `skillet validate` accepts, so read its changes before moving the pin.
 - **ruff 0.16.5 is installed but wired to nothing.** When it is wired, pin the
