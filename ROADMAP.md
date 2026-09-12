@@ -94,6 +94,11 @@ finding to the author with override** — never a silent pass, never a silent
 block. Refusing is the agent ladder's job; the tool's job is to make the
 boundary visible so a human decides.
 
+The threshold for when agent-work graduates into a function at all is a
+separate, researched policy: `ai-prompt-library`'s TASKS.md owns the research
+and the panel-of-judges council decision (queued 2026-09-12), and this item
+consumes its verdict.
+
 ### Topics as portable, installable modules
 
 `PRD.md` states the requirement: a topic should be installable on its own, so a
