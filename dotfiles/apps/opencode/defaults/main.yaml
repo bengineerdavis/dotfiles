@@ -1,0 +1,65 @@
+# apps/opencode/defaults/main.yaml
+#
+# ── Skill manifest — single source of truth ──────────────────────────────────
+# Consumed by tasks/install.yaml. Every entry is one `dotagents add` for the
+# user-global skill set (~/.agents/skills), which opencode, claude, cursor and
+# the other supported agents all read. That means these skills are shared
+# infrastructure, not opencode-private state — see the teardown guard below.
+#
+#   name:    the skill's name as dotagents discovers it (its directory name)
+#   source:  owner/repo shorthand dotagents clones from
+#   why:     why this machine carries it
+#
+# Re-running `dotagents add` with an identical declaration refreshes the
+# installation, so install is idempotent; --tags upgrade re-runs it to pick up
+# upstream changes. Bumping a source from one repo to another is an edit here,
+# never a side effect of upgrading.
+opencode_skills:
+  - name: commit-hygiene
+    source: bengineerdavis/ai-prompt-library
+    why: >-
+      Commit message and granularity discipline; applies to every repo this
+      machine's agents work in.
+
+  - name: pii-redaction
+    source: bengineerdavis/ai-prompt-library
+    why: >-
+      Three-layer redaction (patterns, model, verification) for anything
+      user-content-bearing sent to a model.
+
+  - name: review-best-practices
+    source: bengineerdavis/ai-prompt-library
+    why: >-
+      Research-before-building discipline; pairs with interaction-questioning.
+
+  - name: interaction-questioning
+    source: bengineerdavis/ai-prompt-library
+    why: >-
+      Requirements discovery — minimal, stakes-sensitive questions. Lives at
+      skills/interaction-questioning in the library as of 2026-09-12
+      (commit 94a3156); the source repo must be pushed that far before this
+      entry resolves on any machine, including this one.
+
+  - name: skillet-authoring
+    source: getsentry/skillet
+    why: >-
+      Skill authoring workflow for the skillet toolchain this repo uses
+      (spec.md -> SKILL.md -> evals).
+
+# ── Behaviour flags ──────────────────────────────────────────────────────────
+
+# The tap the binary installs from. Pinned (see tasks/install.yaml): naming the
+# tap explicitly keeps both OSes on the same build instead of letting Darwin
+# fall to the same-named homebrew/core formula.
+opencode_tap: anomalyco/tap
+
+# Untap anomalyco/tap on remove. Off by default: the tap was added by this
+# topic, but a tap is shared infrastructure — any other formula could come from
+# it later. Flipping this to true is a deliberate act.
+opencode_remove_tap: false
+
+# Run `dotagents remove` for each manifest skill on remove. Off by default:
+# skills install user-global and serve every agent on the machine, so removing
+# opencode must not silently strip the shared library. Set true only when the
+# whole skill set is going away.
+opencode_remove_skills: false

@@ -1,0 +1,25 @@
+# apps/opencode/topic.yml
+#
+# Topic metadata read by the parent playbook. See docs/TOPICS.md.
+#
+# Lives at the role root (not under meta/) because Ansible reserves
+# meta/main.yml for galaxy_info / role dependencies and rejects unknown
+# top-level keys there.
+
+topic_name: opencode
+
+# App-tier: provides nothing to other topics.
+topic_provides: []
+
+# homebrew installs the binary on both OSes. On Darwin it is the homebrew
+# topic; on Debian it resolves via the PATH check because the box runs
+# linuxbrew (as documented in the README — a fresh Debian box needs linuxbrew
+# before this topic can run).
+#
+# node runs `npx @sentry/dotagents`, which installs the skill set. Provided by
+# apps/mise (config.toml -> node = "lts") on both OSes.
+topic_requires: [homebrew, node]
+
+topic_os: [Darwin, Debian]
+
+topic_tier: app

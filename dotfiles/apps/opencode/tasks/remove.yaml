@@ -1,0 +1,53 @@
+# apps/opencode/tasks/remove.yaml
+# Teardown for everything install.yaml creates, per the CRUD ownership
+# invariant in docs/TOPICS.md. Two states are deliberately guarded behind
+# flags (see defaults/main.yaml) because they are shared beyond this topic.
+
+# ── The binary ───────────────────────────────────────────────────────────────
+- name: "Uninstall opencode from the pinned tap"
+  community.general.homebrew:
+    name: "{{ opencode_tap }}/opencode"
+    state: absent
+
+- name: "Untap {{ opencode_tap }}"
+  community.general.homebrew_tap:
+    name: "{{ opencode_tap }}"
+    state: absent
+  # Off by default. The tap is shared infrastructure: any other formula could
+  # come from it later, and removing a tap someone else relies on is not a
+  # surprise a `remove` should spring. Flip opencode_remove_tap deliberately.
+  when: opencode_remove_tap | bool
+
+# ── The shared skill set ─────────────────────────────────────────────────────
+- name: "Remove each manifest skill via dotagents"
+  ansible.builtin.command:
+    cmd: >-
+      npx -y @sentry/dotagents@latest --user
+      remove {{ item.name }}
+  environment:
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
+  loop: "{{ opencode_skills }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: opencode_skill_remove
+  changed_when: "'Removed' in opencode_skill_remove.stdout"
+  # Off by default. Skills install user-global and serve every agent on the
+  # machine — claude and cursor load the same ~/.agents/skills — so removing
+  # opencode must not silently strip the shared library. Flip
+  # opencode_remove_skills only when the whole skill set is going away.
+  when: opencode_remove_skills | bool
+
+# ── What is intentionally NOT removed here ───────────────────────────────────
+# ~/.config/opencode is chezmoi-managed: opencode.jsonc deploys from
+# dot_config/opencode/ in the chezmoi source, and removing it is a chezmoi
+# source edit + `chezmoi apply`, not an Ansible task.
+#
+# auth.json (provider tokens) and opencode.db (session history) are
+# machine-local state. They are never versioned and never touched by this
+# topic, on install or on remove.
+- name: "Note what remove leaves in place"
+  ansible.builtin.debug:
+    msg: >-
+      Binary removed. ~/.config/opencode config is chezmoi-owned; auth.json and
+      opencode.db are machine-local and left untouched. Skills were
+      {{ 'removed' if opencode_remove_skills | bool else 'kept (opencode_remove_skills is false)' }}.
