@@ -86,7 +86,6 @@ Recorded so the decision is not re-litigated. Each was measured, not assumed.
 | Standard | Why not |
 |---|---|
 | [Conventional Commits](https://www.conventionalcommits.org/) | 12% of history uses it; 71% uses a plain `<scope>: ` prefix. Its payoff is automated changelog generation and semver; this repo writes changelog entries by hand with scriv and does not release. |
-
 | [Semantic Versioning](https://semver.org/) | Nothing here is released or consumed as a version. |
 | [Contributor Covenant](https://www.contributor-covenant.org/) | `PRD.md` § Non-goals: not expecting contributors. |
 | cursor's `unslop` | Its "avoid em dashes entirely" conflicts with measured house style (12 per 1000 words in documents predating any agent). `no-ai-slop` reaches the same goal with a calibrated rule. |

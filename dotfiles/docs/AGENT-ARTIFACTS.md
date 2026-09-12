@@ -56,7 +56,7 @@ All verified 2026-09-12 against the artifacts, not from recall:
 - **skills.sh / vercel-labs/skills CLI** (31.5k stars, 75+ agents) — discovery,
   packs, audits, symlink-canonical install; but `skills update` means "to
   latest versions" with no pin and no lock. Telemetry on by default
-  (`DISABLE_TELEMETY=1` — see the note in REFERENCES.md).
+  (`DISABLE_TELEMETRY=1` — see the note in REFERENCES.md).
 - **AGENTS.md** — stewarded by the Agentic AI Foundation under the Linux
   Foundation; the cross-tool instruction standard, already canonical here.
 - **MCP** and **ACP** — runtime and editor-interop protocols, adjacent to
