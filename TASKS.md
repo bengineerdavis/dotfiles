@@ -64,9 +64,13 @@ delete the line and say so in your commit.
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
 snapshots is worse than none.
 
-**Nothing is mid-flight.** Working tree clean, main pushed, 433 tests passing,
-`skillet validate` clean. Both open branches merged (PR #1, #2, #3); no branch
-is waiting.
+**Nothing is mid-flight.** Working tree clean, main pushed. Both open branches
+merged (PR #1, #2, #3); no branch is waiting.
+
+**The suite is not green.** 441 passed, **1 failed**, 12 skipped (9m06s, full
+dependency set). `tests/ollama_evals/test_harness_property.py::test_cosine_is_bounded`
+fails on a hypothesis counterexample — first item in **Now**. It is unrelated
+to anything landed today and was found by running the suite, not caused by it.
 
 **Landed today, and where the reasoning lives:**
 
@@ -79,12 +83,17 @@ is waiting.
 | External standards register | `docs/REFERENCES.md` |
 | Trust ladder — rungs and incident classes | `AGENTS.md` § Trust ladder |
 | Git hooks installed and proven to fail | `.pre-commit-config.yaml` |
+| One failed tool no longer aborts a provisioning run | `apps/mise/tasks/upgrade.yaml` |
 
 **Standing hazards, all machine-level rather than repo-level:**
 
-- **Do not `chezmoi apply`.** `.zshrc` and `bin/ask-research` have two-way drift
-  that needs a real merge. Agents are denied the command outright; a person
-  should resolve the drift first.
+- **Agents are still denied `chezmoi apply`** — the deny rule fired as designed
+  on 2026-09-11 and an agent stopped rather than working around it. But the
+  reason recorded here, two-way drift in `.zshrc` and `bin/ask-research`, is no
+  longer true: `chezmoi status` was empty on 2026-09-11 apart from the file
+  being worked on, and a scoped `chezmoi apply ~/dotfiles/apps/mise` by the
+  author applied cleanly. The rule stands on its own merits — one deployed tree
+  that cannot be branched — rather than on that drift.
 - `CONTRIBUTING.md` is deployed to `~/docs/` and is 171 lines diverged from
   the live one — actively misleading, not merely stale. First item in **Now**.
 - Every new top-level file is chezmoi-managed by default. Four times today a new
@@ -108,6 +117,16 @@ nothing is.
   and unversioned, so it cannot be tracked here beyond this pointer. Until it is
   filled, `fail_closed` means the company layer denies everything it is asked,
   which is safe and useless.
+- **Fix `cosine()` in `apps/ollama/files/executable_ollama-evals` — it can
+  return a value above 1.0.** Hypothesis found it on 2026-09-11: `a=[1.0]`,
+  `b=[1.2794807103967847e-160]` gives `1.000070683603874`, over the test's own
+  `1.0000001` tolerance. A denormal magnitude underflows the norm, so the
+  division is no longer bounded by Cauchy-Schwarz in floating point. Done when
+  the counterexample is committed as its own example test next to the property
+  (`AGENTS.md` § Properties and fuzzing requires this — the generator is under
+  no obligation to produce it again) and cosine is clamped or the tiny-norm case
+  is handled explicitly. Decide which: clamping hides genuine bugs, returning
+  0.0 for a zero-ish norm is the more honest answer.
 - **Drop the `npm:@sentry/skillet` pin in `apps/mise/files/config.toml`.**
   Pinned to 1.7.0 on 2026-09-11 because mise's npm resolver (aube) cannot fetch
   vite's 39 MB packument through `sfw.security.sentry.io` — `curl` and `npm`
@@ -621,6 +640,13 @@ and `chezmoi status` before editing.
   defect the layers exist to prevent. Ask for `mock_llm("cat")` explicitly.
 - `bin/executable_model-bench` — multi-case judge suite; the reference scorecards
   in `CASES` must be re-derived if a case script changes.
+- `dotfiles/apps/mise/files/config.toml` — two sessions edited it within an hour
+  on 2026-09-11 (`b038cbe` removed two broken pipx tools, `907f3d0` pinned
+  skillet). It rebased cleanly because the edits were in different regions, but
+  it is a long flat list of tools that everything installs through, so the next
+  pair of edits may not be so lucky. `~/.config/mise/config.toml` is a symlink
+  to this file, so editing the source changes what mise reads immediately —
+  before any `chezmoi apply`.
 
 ## Standing reminders
 
