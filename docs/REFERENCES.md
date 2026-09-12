@@ -56,9 +56,16 @@ approval record, the register points at the living home.
   installs) and the Skills Over MCP working group.
 - **LiteLLM** ([github.com/BerriAI/litellm](https://github.com/BerriAI/litellm))
   — verified 2026-09-12. Deferred with a named trigger: revisit when model
-  access becomes multi-developer. The incumbent (`llm` + provider plugins)
-  holds until then because the egress policy resolver wraps it and no gateway
-  does.
+  access becomes multi-developer, gated on employer permission and on what
+  the MIT core covers versus the enterprise tier. The incumbent (`llm` +
+  provider plugins) holds until then because the egress policy resolver wraps
+  it and no gateway does.
+- **A2A** ([a2a-protocol.org](https://a2a-protocol.org/), Linux Foundation,
+  contributed by Google) and **ACP**
+  ([agentclientprotocol.com](https://agentclientprotocol.com)) —
+  agent-to-agent and editor-to-agent interop protocols. Tracked, not
+  followed; adjacent to model access and artifact management, no current use
+  on this machine.
 - **Agent Plugins v1** ([agent-plugins.org](https://agent-plugins.org)) — the
   bundle format dotagents implements for plugins; relevant when plugin scope
   opens.

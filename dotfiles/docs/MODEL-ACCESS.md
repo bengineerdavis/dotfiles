@@ -6,6 +6,11 @@ Decided 2026-09-12, from the author's anti-lock-in handoff brief. Companion to
 
 **The decision, first.**
 
+**Nothing here adopts a gateway.** Today's model layer is exactly what it was
+before this research: the `llm` CLI with provider plugins. The decision is
+which candidates to reject, which to defer, and what would make that change —
+not a switch.
+
 1. **Keep the incumbent thin gateway.** The `llm` CLI with provider plugins
    (`llm-openrouter`, `llm-ollama`) is the model-access layer. It already
    satisfies the repo's binding constraint — `spec.md` § Shared code does not
@@ -21,6 +26,12 @@ Decided 2026-09-12, from the author's anti-lock-in handoff brief. Companion to
    routes every request through a third-party control plane. Our policy layers
    exist to answer "may this content leave?" at the point of egress — a hosted
    gateway answers that question for us, badly.
+
+**The employer boundary.** None of this binds a machine the author does not
+own. Any gateway, hosted or self-hosted, on a work-governed machine is gated
+by the governing policy for that machine — which `PRD.md` § Work environments
+records as unresolved. A personal-machine decision here licenses nothing on a
+work machine, and a work-machine restriction does not reopen this one.
 
 ## The requirement
 
@@ -69,7 +80,17 @@ model-access layer must not do.
 (Sentry-scale), LiteLLM self-hosted is the named candidate — it is the only
 surveyed option that keeps egress on-device while centralizing keys and spend.
 The trigger is a second person depending on this machine's workflows, not a
-new model release.
+new model release. Two checks gate that revisit, both the author's:
+
+- **Employer permission.** Whether a self-hosted gateway may serve work
+  flows at all is a question for the governing policy on the machines
+  involved — the same unresolved dependency `PRD.md` records. Self-hosted
+  keeps the data path on-device, which is the right *shape* of answer, but
+  shape is not permission.
+- **License split.** LiteLLM's core is MIT, but SSO, admin features and parts
+  of the guardrail set sit in the enterprise tier. The feature set available
+  under the OSS license is part of what "revisit" evaluates — the deferred
+  candidate is the MIT core, not the product page.
 
 ## Vector 2 — the tool-execution boundary
 
