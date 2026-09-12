@@ -84,13 +84,19 @@ packages source resolution and trust validation as a reusable library.
 The swap cost is therefore one manifest rewrite and one resync — bounded, and
 recorded here so the bound is a claim we can test rather than a hope.
 
+The lock makes the current state reproducible: verified 2026-09-12, it records
+a resolved commit SHA per skill (format v1), so reinstalling from it reproduces
+the exact installed state even if an upstream tag force-moves — the failure
+mode this repo's chrome pinning rule was bought by. One nuance to keep honest:
+today's manifest carries no `@ref` pins, so those SHAs are install-time
+resolutions of each source's tip. Manifest pins (`source@ref`) remain the
+mechanism for deliberate version bumps; the lock pins whichever state is
+current.
+
 ## Scope and open items
 
 - **v1 is skills only.** MCP, hooks, subagents, and plugins stay out until a
   decision asks for them; dotagents supports all four when that day comes.
-- **Open verification (author-run, gated by the deployed permission
-  baseline):** `cat ~/.agents/agents.lock` — whether the lock records resolved
-  SHAs or refs decides how strong the rollback-determinism claim above is.
 - **Eval gate:** a skill version enters the manifest only after its skillet
   evals run green. The library skills' evals have never been executed — see
   the queued eval item in `TASKS.md`; until it runs, the gate is policy, not

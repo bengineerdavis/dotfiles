@@ -140,8 +140,6 @@ working setup).
 
 ## Open items
 
-- `~/.agents/agents.lock` semantics (SHA vs ref) — carried from
-  `AGENT-ARTIFACTS.md`; author-run for the same permission reason.
 - The upstream `llm-pdf-to-images` issue (its `import fitz` shim prints a
   deprecation notice to stdout — observed live on this machine 2026-09-12)
   remains queued in `TASKS.md`.
