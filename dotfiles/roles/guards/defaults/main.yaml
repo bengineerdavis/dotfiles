@@ -32,3 +32,25 @@ guard_allow_skill_dir_conflicts: false
 
 # Named in the failure message so the operator knows which topic asked.
 guard_caller: "a topic"
+
+# ── dotagents-approved-sources ───────────────────────────────────────────────
+
+# Sources permitted to put skills in the user-global path. Empty by default and
+# deliberately so: a guard that approves everything when its caller forgets to
+# pass a list is a guard that never fires. An empty list makes every declared
+# skill unapproved, which is loud and obviously wrong — the failure mode you want.
+guard_approved_sources: []
+
+# On-disk skill directories allowed to exist undeclared, by name. Vendored
+# third-party copies live here, and each should carry a LICENSE and a PROVENANCE
+# note so the exception is checkable rather than remembered.
+guard_vendored_skills: []
+
+# How to ask dotagents for its declared inventory. A parameter rather than a
+# literal so the guard can be exercised against a scripted inventory offline —
+# the alternative is a test that reaches the network and can only ever assert
+# against whatever this machine happens to have installed.
+guard_dotagents_list_cmd: "npx -y @sentry/dotagents@latest --user list --json"
+
+# Accept unapproved or undeclared skills for one run.
+guard_allow_unapproved_skills: false

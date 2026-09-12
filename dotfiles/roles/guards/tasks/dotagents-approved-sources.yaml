@@ -1,0 +1,100 @@
+# roles/guards/tasks/dotagents-approved-sources.yaml
+#
+# Guard: every skill on this machine came from a source someone approved.
+#
+# ~/.agents/skills is user-global. claude, cursor, codex, opencode and copilot
+# all auto-load it, so a directory dropped in there is read into context on every
+# session on the machine — including sessions working on unrelated, personal
+# repositories. That is how unlicensed material spreads without anyone deciding
+# to spread it, and it is not hypothetical: it happened here on 2026-09-12.
+#
+# Two different questions, and dotagents can only answer the first:
+#
+#   1. "Is everything I declared installed, from where I said?"
+#      `dotagents list --json` answers this.
+#   2. "Is anything installed that I never declared?"
+#      It cannot answer this — `list` reports declared dependencies only. The
+#      undeclared directory is invisible to it, which is precisely the case that
+#      matters. So this guard reads the filesystem too.
+#
+# dotagents' own `[trust]` table enforces (1) at add/install time and is set from
+# the same approved list by tasks/install.yaml. Note that `validateTrustedSource`
+# returns early when no [trust] table exists — absent means allow-everything, so
+# declaring it is what switches enforcement on. This guard is the check that the
+# declaration actually took, plus the half trust cannot see.
+#
+# Parameters (see roles/guards/defaults/main.yaml):
+#   guard_approved_sources, guard_vendored_skills, guard_agents_skills_dir,
+#   guard_allow_unapproved_skills, guard_caller, guard_dotagents_list_cmd
+
+- name: "Guard: ask dotagents what it has declared"
+  ansible.builtin.command:
+    cmd: "{{ guard_dotagents_list_cmd }}"
+  environment:
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
+  register: guard_dotagents_declared
+  changed_when: false
+  failed_when: false
+
+- name: "Guard: fail if dotagents could not be asked"
+  ansible.builtin.fail:
+    msg: >-
+      [dotagents-approved-sources] could not read the declared skill list
+      ({{ (guard_dotagents_declared.stderr | default('') | trim)
+          or 'no output on stderr' }}). Refusing to continue: an unreadable
+      inventory is not an empty one, and treating it as empty would approve
+      whatever is actually installed.
+  when: guard_dotagents_declared.rc != 0
+
+- name: "Guard: list the skill directories actually on disk"
+  ansible.builtin.find:
+    paths: "{{ guard_agents_skills_dir }}"
+    file_type: any
+    recurse: false
+    hidden: true
+  register: guard_skills_on_disk
+  changed_when: false
+  failed_when: false
+
+- name: "Guard: work out what is unapproved and what is undeclared"
+  ansible.builtin.set_fact:
+    # Declared but from a source nobody approved. dotagents' [trust] should have
+    # refused these at add time; reaching here means trust was never declared, or
+    # the entry predates it.
+    guard_unapproved: >-
+      {{ (guard_dotagents_declared.stdout | from_json).skills | default([])
+         | rejectattr('source', 'in', guard_approved_sources)
+         | list }}
+    # On disk but not declared at all — the case `dotagents list` cannot see.
+    guard_undeclared: >-
+      {{ guard_skills_on_disk.files | default([]) | map(attribute='path') | map('basename') | list
+         | difference((guard_dotagents_declared.stdout | from_json).skills | default([]) | map(attribute='name') | list)
+         | difference(guard_vendored_skills) }}
+
+- name: "Guard: fail with the fix when a skill is unapproved or undeclared"
+  ansible.builtin.fail:
+    msg: >-
+      [dotagents-approved-sources] {{ guard_caller }} found skills in
+      {{ guard_agents_skills_dir }} that no approved source accounts for.
+      {% if guard_unapproved | length %}
+      Declared from an unapproved source:
+      {{ guard_unapproved | map(attribute='name') | zip(guard_unapproved | map(attribute='source'))
+         | map('join', ' ← ') | join('; ') }}.
+      Either approve the source or remove the skill — and note that reaching this
+      line means dotagents' own [trust] table is not enforcing, since it would
+      have refused the add.
+      {% endif %}
+      {% if guard_undeclared | length %}
+      Present on disk but declared by nothing: {{ guard_undeclared | join(', ') }}.
+      Every agent on this machine loads these. If a directory is yours, declare
+      it from an approved source; if it belongs to an employer or a client, it
+      does not belong in the user-global path at all — move it to project scope
+      (`dotagents --project add ...` inside that repo) so it loads only there; if
+      it is a deliberate third-party copy, give it a LICENSE and a PROVENANCE
+      note and add it to the vendored list.
+      {% endif %}
+      Nothing has been installed, moved or deleted. Accept for one run with
+      `-e guard_allow_unapproved_skills=true`.
+  when:
+    - not (guard_allow_unapproved_skills | bool)
+    - (guard_unapproved | length) > 0 or (guard_undeclared | length) > 0
