@@ -117,6 +117,17 @@ nothing is.
   and unversioned, so it cannot be tracked here beyond this pointer. Until it is
   filled, `fail_closed` means the company layer denies everything it is asked,
   which is safe and useless.
+- **Stop mise re-"upgrading" fabric to the version it already has.** Every run
+  prints `Upgraded 1 tool: github:danielmiessler/fabric v1.4.478 → 1.4.478`, so
+  the mise topic reports `changed` forever and a real change would be invisible
+  in the noise. Confirmed on three consecutive runs 2026-09-11. Cause is a `v`
+  prefix mismatch: `config.toml:178` asks for `v1.4.478` while mise records the
+  install as `1.4.478`, so the request never reads as satisfied — `mise ls`
+  prints both spellings side by side and two copies are on disk (1.4.459 and
+  1.4.478). Arrived with `b038cbe`, and its previous `v1.4.459` had the same
+  shape, so this predates today. Done when two consecutive `mise upgrade` runs
+  report no change. Check whether any other `github:`/`ubi:` entry carries the
+  same prefix before fixing just this one.
 - **Fix `cosine()` in `apps/ollama/files/executable_ollama-evals` — it can
   return a value above 1.0.** Hypothesis found it on 2026-09-11: `a=[1.0]`,
   `b=[1.2794807103967847e-160]` gives `1.000070683603874`, over the test's own
