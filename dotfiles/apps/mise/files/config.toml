@@ -35,7 +35,22 @@ node = "lts"
 #   npx -y @sentry/dotagents@latest add getsentry/skillet skillet-authoring
 #   (project scope; add --user for global) — or install skills/skillet-authoring
 # npm:@sentry/skillet@1.7.0             run `npm fund` for details
-"npm:@sentry/skillet" = { version = "latest", postinstall = "skillet init", depends = ["node"] }
+#
+# PINNED, not "latest". 1.8.0's dependency tree pulls in vite, and mise's npm
+# resolver (aube) cannot fetch vite's packument through sfw.security.sentry.io:
+# it fails with "error decoding response body" after ~78s, every time. This is a
+# mise-side limit rather than a registry, auth or network problem — `curl` reads
+# the same URL fine and `npm view vite` works, because npm asks for the 400 KB
+# abbreviated packument while aube pulls the full 39 MB one. The hint mise
+# prints ("verify the registry URL, check auth, network connectivity") is
+# misleading; nothing in .npmrc needs changing.
+# spec.md pins skillet 1.7.0 for `skillet validate` independently, so the two
+# now agree rather than drifting.
+# Re-test with `mise install npm:@sentry/skillet@1.8.0` after a mise upgrade and
+# drop the pin once it resolves. Checked 2026-09-11 against mise 2026.9.5.
+# tasks/upgrade.yaml prints this pin at runtime so it is visible without
+# reading this file.
+"npm:@sentry/skillet" = { version = "1.7.0", postinstall = "skillet init", depends = ["node"] }
 "npm:@sentry/dotagents" = "latest"
 # Second eval harness for skillet. skillet 1.7.0 runs a case's judge on the same
 # harness AND model as the trial itself (worker.js: runHarness(cfg.harness, …)

@@ -5,6 +5,34 @@
 #
 # Idempotent. Safe to re-run.
 
+# Runs before the upgrade so the pin is visible in context rather than as a
+# footnote. A tool deliberately held back looks identical to one nobody has
+# bumped yet, and the difference otherwise lives only in a comment nobody reads
+# mid-run. Reads the version out of config.toml instead of restating it, so the
+# notice cannot drift from the pin and disappears by itself if the pin is lifted.
+- name: "Upgrade: note the tools deliberately held at a pinned version"
+  vars:
+    # Two things here are load-bearing and both were got wrong first time:
+    #   - Single backslashes, not double. Inside a YAML block scalar the doubled
+    #     form never reaches the regex engine as an escape and the match fails.
+    #   - `regex_findall`, not `regex_search`. With a capture group and no match
+    #     regex_search RAISES rather than returning none, so `| default(...)`
+    #     never runs and this notice would abort the topic the moment the line
+    #     were reformatted. A task that exists to report must not be able to
+    #     fail the run it is reporting on.
+    mise_skillet_pin: >-
+      {{ ((lookup('ansible.builtin.file', mise_config_file)
+           | regex_findall('"npm:@sentry/skillet".*?version\s*=\s*"([^"]+)"'))
+          + ['unset']) | first }}
+  ansible.builtin.debug:
+    msg: >-
+      npm:@sentry/skillet is pinned at {{ mise_skillet_pin }} — `mise upgrade`
+      will not move it, and that is deliberate. 1.8.0 depends on vite, whose
+      packument mise's npm resolver cannot fetch through the Sentry registry
+      proxy; spec.md pins skillet 1.7.0 for `skillet validate` as well.
+      Reasoning and the re-test command are in apps/mise/files/config.toml.
+  when: mise_skillet_pin not in ['latest', 'unset']
+
 - name: "Upgrade: bump all mise-managed tools (except ansible — see below)"
   ansible.builtin.command:
     # pipx:ansible is the controller RUNNING this very playbook. Upgrading it
