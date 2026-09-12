@@ -54,6 +54,7 @@ Format: `- <UTC start> — <what> — <files or resource>`
 
 - 2026-08-27T18:20Z — adding the pre-egress review gate (as in bin/trace-public) — bin/executable_pii-redactor
 - 2026-09-10T21:25Z — adding a chrome browser topic (separate session, reported by the author) — dotfiles/apps/chrome, install/remove tasks
+- 2026-09-12T06:35Z — building the opencode topic — dotfiles/apps/opencode, dot_config/opencode/opencode.jsonc, changelog.d/, TASKS.md
 
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
@@ -129,6 +130,18 @@ nothing is.
   not release. Candidates: on a cadence, at each machine rebuild, or never —
   leaving everything under Unreleased, which is legitimate and costs nothing.
   Until this is settled the changelog grows one section and is still readable.
+- Build the opencode topic [me, agent session 2026-09-12]. Scope agreed with the
+  author: `apps/opencode` installs the binary on Darwin (anomalyco/tap, which
+  shadows homebrew/core's same-named formula) and Debian (linuxbrew, proven on
+  this box), declares the cross-machine skill set in a topic manifest and runs
+  `dotagents add` per skill, and chezmoi manages `~/.config/opencode/opencode.jsonc`
+  (privacy baseline, model defaults, permission baseline; auth.json and
+  opencode.db stay machine-local). Initial skill set: interaction-questioning
+  (ai-prompt-library), the three library skills, skillet-authoring. Done when
+  the topic passes `ansible-playbook --syntax-check` and `--check --tags provision`,
+  dotagents discovers all five skills, the deployed jsonc passes `opencode debug config`,
+  and the changelog fragment is written — each verified, with the questioning
+  skill's discovery tested before touching ai-prompt-library.
 ## Planned
 
 Has a done-condition and is queued, but is not next. Promote into **Now**
