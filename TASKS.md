@@ -54,6 +54,7 @@ Format: `- <UTC start> — <what> — <files or resource>`
 
 - 2026-08-27T18:20Z — adding the pre-egress review gate (as in bin/trace-public) — bin/executable_pii-redactor
 - 2026-09-10T21:25Z — adding a chrome browser topic (separate session, reported by the author) — dotfiles/apps/chrome, install/remove tasks
+- 2026-09-12T10:30Z — running the skillet eval suites (real agent sessions, model account spend) — ~/code/projects/personal/ai-prompt-library/skills/, TASKS.md
 
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
@@ -226,13 +227,14 @@ when it becomes the thing to do, rather than working straight from here.
   reporting bug reached the deployed script and was caught by a manual smoke test
   rather than the 218-test suite. The env/flag/fallback resolution is the obvious
   first case.
-- Run the eval suites for the three skills in `~/code/personal/ai-prompt-library`
-  (`pii-redaction`, 6 cases; `commit-hygiene`, 5; `prior-art-first`, 4). Both pass `skillet validate`,
-  which checks grammar, frontmatter and coverage only — no case has ever been
-  executed, so the skills are unproven against a real agent. `skillet eval` spawns
-  agents per case and costs real time; `--baseline` compares pass rates without
-  the skill installed, which is the number that says whether either earns its
-  keep. Expect to fix cases, not just read results.
+- Run the eval suites for the library skills, prioritizing the five in the
+  opencode manifest (`commit-hygiene`, 5 cases; `pii-redaction`, 6;
+  `review-best-practices`, 5; `interaction-questioning`, 14; skillet's
+  `skillet-authoring`, upstream's own). No case has ever been executed — both
+  decision records gate skill promotion on this, so it is policy to make
+  practice. `skillet eval <dir> --baseline` compares pass rates without the
+  skill installed, which is the number that says whether each earns its keep.
+  Expect to fix cases, not just read results. [me, claimed 2026-09-12]
 - Document that `git add -p` and `git commit -o` do not compose, in AGENTS.md
   § Working alongside other sessions. It currently recommends both, but `--only`
   commits the **working-tree** content of the named paths and discards partial
