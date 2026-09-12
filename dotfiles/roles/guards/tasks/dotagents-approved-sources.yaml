@@ -2,99 +2,110 @@
 #
 # Guard: every skill on this machine came from a source someone approved.
 #
-# ~/.agents/skills is user-global. claude, cursor, codex, opencode and copilot
-# all auto-load it, so a directory dropped in there is read into context on every
-# session on the machine — including sessions working on unrelated, personal
+# ~/.agents/skills is user-global — claude, cursor, codex, opencode and copilot
+# all auto-load it — so a directory dropped there is read into context on every
+# session on the machine, including ones working on unrelated personal
 # repositories. That is how unlicensed material spreads without anyone deciding
-# to spread it, and it is not hypothetical: it happened here on 2026-09-12.
+# to spread it, and on 2026-09-12 it had already happened here.
 #
-# Two different questions, and dotagents can only answer the first:
+# The decision itself lives in `skill-trust`, not in this file. Precedence
+# (ban > exclude > approved source > permissive licence > deny), the licence
+# tiers, and the rule that an absent licence denies rather than passes are all
+# things a human wants to run by hand and an agent wants to ask — so they belong
+# in a program, with its own tests, not in Ansible YAML that only a play can
+# reach. This task's whole job is to supply the machine's rules and turn a
+# non-zero exit into a message naming the fix.
 #
-#   1. "Is everything I declared installed, from where I said?"
-#      `dotagents list --json` answers this.
-#   2. "Is anything installed that I never declared?"
-#      It cannot answer this — `list` reports declared dependencies only. The
-#      undeclared directory is invisible to it, which is precisely the case that
-#      matters. So this guard reads the filesystem too.
-#
-# dotagents' own `[trust]` table enforces (1) at add/install time and is set from
-# the same approved list by tasks/install.yaml. Note that `validateTrustedSource`
-# returns early when no [trust] table exists — absent means allow-everything, so
-# declaring it is what switches enforcement on. This guard is the check that the
-# declaration actually took, plus the half trust cannot see.
+# Note what is piped in: dotagents can say whether what it declared is
+# installed, but never whether something is installed that it never declared.
+# The second question is the provenance one, and it is why the audit reads the
+# filesystem as well as the manager's inventory.
 #
 # Parameters (see roles/guards/defaults/main.yaml):
-#   guard_approved_sources, guard_vendored_skills, guard_agents_skills_dir,
-#   guard_allow_unapproved_skills, guard_caller, guard_dotagents_list_cmd
+#   guard_approved_sources, guard_denied_sources, guard_vendored_skills,
+#   guard_skill_excludes, guard_allow_copyleft, guard_agents_skills_dir,
+#   guard_allow_unapproved_skills, guard_caller,
+#   guard_skill_trust_cmd, guard_dotagents_list_cmd
 
-- name: "Guard: ask dotagents what it has declared"
-  ansible.builtin.command:
-    cmd: "{{ guard_dotagents_list_cmd }}"
+- name: "Guard: check skill-trust is installed"
+  ansible.builtin.command: "{{ guard_skill_trust_cmd }} --help"
   environment:
-    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
-  register: guard_dotagents_declared
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ ansible_facts['env']['PATH'] }}"
+  register: guard_skill_trust_present
   changed_when: false
   failed_when: false
 
-- name: "Guard: fail if dotagents could not be asked"
+- name: "Guard: fail with the fix if skill-trust is absent"
+  # The dependency guard docs/TOPICS.md requires of every script: name the
+  # missing thing and how to get it, rather than failing somewhere downstream
+  # with a confusing error.
   ansible.builtin.fail:
     msg: >-
-      [dotagents-approved-sources] could not read the declared skill list
-      ({{ (guard_dotagents_declared.stderr | default('') | trim)
-          or 'no output on stderr' }}). Refusing to continue: an unreadable
-      inventory is not an empty one, and treating it as empty would approve
-      whatever is actually installed.
-  when: guard_dotagents_declared.rc != 0
+      [dotagents-approved-sources] {{ guard_caller }} needs `skill-trust`, which
+      is not on PATH. It lives in this repo and installs from it:
+      `uv tool install <chezmoi source>/tools/skill-trust`. Nothing has been
+      checked, so this run proves nothing about what is installed.
+  when: guard_skill_trust_present.rc != 0
 
-- name: "Guard: list the skill directories actually on disk"
-  ansible.builtin.find:
-    paths: "{{ guard_agents_skills_dir }}"
-    file_type: any
-    recurse: false
-    hidden: true
-  register: guard_skills_on_disk
+- name: "Guard: write this machine's trust rules"
+  ansible.builtin.tempfile:
+    state: file
+    suffix: .yaml
+  register: guard_trust_config
+  changed_when: false
+
+- name: "Guard: populate the trust rules"
+  ansible.builtin.copy:
+    dest: "{{ guard_trust_config.path }}"
+    mode: "0600"
+    content: |
+      {{ {
+        'approved_sources': guard_approved_sources,
+        'deny_sources': guard_denied_sources,
+        'vendored': guard_vendored_skills,
+        'exclude': guard_skill_excludes,
+        'licences': {'allow_copyleft': guard_allow_copyleft | bool},
+      } | to_nice_yaml }}
+  changed_when: false
+
+- name: "Guard: audit every installed skill against the approved sources"
+  # Piped, so the manager's inventory and the filesystem are judged together.
+  # --offline keeps provisioning independent of GitHub being reachable; an
+  # unknown licence then denies, which is the direction to fail in.
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      {{ guard_dotagents_list_cmd }} |
+      {{ guard_skill_trust_cmd }} --offline --config {{ guard_trust_config.path | quote }}
+      audit --skills-dir {{ guard_agents_skills_dir | quote }} --declared-json -
+  args:
+    executable: /bin/bash
+  environment:
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
+  register: guard_skill_audit
   changed_when: false
   failed_when: false
 
-- name: "Guard: work out what is unapproved and what is undeclared"
-  ansible.builtin.set_fact:
-    # Declared but from a source nobody approved. dotagents' [trust] should have
-    # refused these at add time; reaching here means trust was never declared, or
-    # the entry predates it.
-    guard_unapproved: >-
-      {{ (guard_dotagents_declared.stdout | from_json).skills | default([])
-         | rejectattr('source', 'in', guard_approved_sources)
-         | list }}
-    # On disk but not declared at all — the case `dotagents list` cannot see.
-    guard_undeclared: >-
-      {{ guard_skills_on_disk.files | default([]) | map(attribute='path') | map('basename') | list
-         | difference((guard_dotagents_declared.stdout | from_json).skills | default([]) | map(attribute='name') | list)
-         | difference(guard_vendored_skills) }}
+- name: "Guard: discard the trust rules"
+  ansible.builtin.file:
+    path: "{{ guard_trust_config.path }}"
+    state: absent
+  changed_when: false
 
-- name: "Guard: fail with the fix when a skill is unapproved or undeclared"
+- name: "Guard: fail with what skill-trust reported"
+  # rc 1 is a denial, 2 means nothing was examined, 3 means the rules were
+  # unreadable. None of them is a pass: "I could not tell you" must not read as
+  # "nothing is wrong", which is how an audit silently stops auditing.
   ansible.builtin.fail:
     msg: >-
-      [dotagents-approved-sources] {{ guard_caller }} found skills in
-      {{ guard_agents_skills_dir }} that no approved source accounts for.
-      {% if guard_unapproved | length %}
-      Declared from an unapproved source:
-      {{ guard_unapproved | map(attribute='name') | zip(guard_unapproved | map(attribute='source'))
-         | map('join', ' ← ') | join('; ') }}.
-      Either approve the source or remove the skill — and note that reaching this
-      line means dotagents' own [trust] table is not enforcing, since it would
-      have refused the add.
-      {% endif %}
-      {% if guard_undeclared | length %}
-      Present on disk but declared by nothing: {{ guard_undeclared | join(', ') }}.
-      Every agent on this machine loads these. If a directory is yours, declare
-      it from an approved source; if it belongs to an employer or a client, it
-      does not belong in the user-global path at all — move it to project scope
-      (`dotagents --project add ...` inside that repo) so it loads only there; if
-      it is a deliberate third-party copy, give it a LICENSE and a PROVENANCE
-      note and add it to the vendored list.
-      {% endif %}
+      [dotagents-approved-sources] {{ guard_caller }}: skill-trust refused the
+      skill set in {{ guard_agents_skills_dir }} (exit
+      {{ guard_skill_audit.rc }}).
+      {{ (guard_skill_audit.stdout | default('') | trim)
+         or (guard_skill_audit.stderr | default('') | trim)
+         or 'no output' }}
       Nothing has been installed, moved or deleted. Accept for one run with
       `-e guard_allow_unapproved_skills=true`.
   when:
     - not (guard_allow_unapproved_skills | bool)
-    - (guard_unapproved | length) > 0 or (guard_undeclared | length) > 0
+    - guard_skill_audit.rc != 0

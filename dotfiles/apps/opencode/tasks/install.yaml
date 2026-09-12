@@ -180,6 +180,9 @@
     guard_caller: "apps/opencode"
     guard_approved_sources: "{{ opencode_skill_sources | map(attribute='source') | list }}"
     guard_vendored_skills: "{{ opencode_skill_vendored | map(attribute='name') | list }}"
+    guard_skill_excludes: >-
+      {{ dict(opencode_skill_sources | map(attribute='source')
+              | zip(opencode_skill_sources | map(attribute='exclude', default=[]))) }}
     guard_allow_unapproved_skills: "{{ opencode_allow_unapproved_skills }}"
   tags: [opencode_skills, upgrade]
 

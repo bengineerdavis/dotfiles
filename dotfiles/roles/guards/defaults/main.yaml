@@ -46,6 +46,22 @@ guard_approved_sources: []
 # note so the exception is checkable rather than remembered.
 guard_vendored_skills: []
 
+# Sources banned outright. A ban outranks approval and licence both, because it
+# is a judgement about a publisher rather than about paperwork. A bare owner bans
+# the whole org; owner/repo bans one repository.
+guard_denied_sources: []
+
+# Per-source skill vetoes, as {source: [names]}.
+guard_skill_excludes: {}
+
+# Copyleft is open, but vendoring into a library every agent loads is
+# redistribution and carries obligations, so it arrives only on purpose.
+guard_allow_copyleft: false
+
+# The decision program. On PATH once installed with
+# `uv tool install <chezmoi source>/tools/skill-trust`.
+guard_skill_trust_cmd: skill-trust
+
 # How to ask dotagents for its declared inventory. A parameter rather than a
 # literal so the guard can be exercised against a scripted inventory offline —
 # the alternative is a test that reaches the network and can only ever assert
