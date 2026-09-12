@@ -339,6 +339,14 @@ nothing is.
   fixed today, one layer deeper: the import happens before pytest can skip
   anything. `pytest.importorskip` in the conftest is the likely fix, but check
   what else the harness pulls in at import time first.
+- Check AGENTS.md and CONTRIBUTING.md for places the agent→function
+  graduation policy should apply, and reference the policy artifact from
+  `ai-prompt-library` once it exists. The bias: prefer a trusted function
+  over agent judgment where the task is mechanical; agents stay for
+  adaptability and interpretation (high-context tasks — deciding what to do,
+  how to succeed). **[blocked: the threshold research and council decision
+  are owned in ai-prompt-library's TASKS.md — no text lands here until the
+  artifact exists.]**
 - Decide when `scriv collect` runs. The changelog exists and fragments
   accumulate, but nothing says what a "release" is for a dotfiles repo that does
   not release. Candidates: on a cadence, at each machine rebuild, or never —
