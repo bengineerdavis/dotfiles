@@ -183,9 +183,10 @@ nothing is.
   and the changelog fragment is written — each verified, with the questioning
   skill's discovery tested before touching ai-prompt-library.
   State: built on branch `apps-opencode`, dry-runs green (provision and remove).
-  Remaining: author reviews and pushes the ai-prompt-library commit `94a3156`
-  (unblocks interaction-questioning discovery), approves the `apps-opencode`
-  push, and runs `chezmoi apply` for the config.
+  All five skills verified installed and loaded in opencode on 2026-09-12, after
+  the library push landed. Author pre-authorized `chezmoi apply` but it is held
+  for main-only: apply waits on the apps-opencode merge. Author asked to be
+  reminded if their review of the branch lingers.
 ## Planned
 
 Has a done-condition and is queued, but is not next. Promote into **Now**
