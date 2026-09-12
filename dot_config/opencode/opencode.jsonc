@@ -25,10 +25,14 @@
     "bash": { "git *": "allow", "*": "ask" },
     "webfetch": "ask",
     "websearch": "ask",
+    // external_directory evaluates the LAST matching rule, so the deny is
+    // FIRST and the specific allows LAST — broad-first, narrow-last. The
+    // original order (allows then deny) defeated ~/code/** and was caught
+    // live on 2026-09-12 when a write to ai-prompt-library was refused.
     "external_directory": {
-      "~/.local/share/chezmoi/**": "allow",
-      "~/code/**": "allow",
-      "*": "deny"
+      "*": "deny",
+      "/home/bdavis/.local/share/chezmoi/**": "allow",
+      "/home/bdavis/code/**": "allow"
     }
   }
 }
