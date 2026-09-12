@@ -157,6 +157,49 @@ concern per layer.** chezmoi owns dotfiles and symlinks, Ansible owns package
 installs and system state, zsh owns shell runtime config. A symlink task in Ansible
 belongs in chezmoi; a `brew install` in a shell script belongs in Ansible.
 
+## What agents do here — and what they refuse
+
+Agents in this repository work the trunk: deciding and managing **which tools,
+services, and configurations belong on which machines** — topics, chezmoi
+state, Ansible tasks, with per-machine granularity. Writing an install task or
+a config file is the job; that is configuration, not a build.
+
+If satisfying a need would require **building** a tool, service, or bespoke
+code, agents do not build it here. The ladder, in order:
+
+1. **Outsource.** Route the work to its home and do it there. AI work —
+   skills, evals, policy, tooling — goes to `ai-prompt-library` (impromptu
+   eventually), per the author's 2026-09-12 scoping decision.
+2. **Notify and ask.** If the destination is unclear or the author is present,
+   say what would need building and where it could live, and ask before
+   anything is created.
+3. **Refuse.** If the author declines outsourcing, the build does not happen.
+   There is no middle ground where the tool quietly gets built here anyway.
+
+Machine-specific granularity is part of the question, not an afterthought:
+**which machines need this** is asked before **how do we get it**, because the
+answer can change the decision — something worth building for one machine may
+not be worth it for the fleet.
+
+The boundary is not always visible on the surface. An install task that clones
+and compiles a bespoke project, a template that writes substantial new code, a
+"config" fragment that embeds logic — each passes a surface check as
+configuration while being a build. Until the enforcement tool exists, agents
+run the ladder as a deliberate check on their own work and **surface probable
+builds to the author** rather than deciding silently; the author decides and
+can override. Determinant functions that classify actions mechanically — with
+surface-and-override as their minimum contract, never a silent pass or a
+silent block — are a recorded requirement on the enforcement tool in
+`ROADMAP.md`. Building those functions here would itself be a build: they
+land with the tool, or the author decides otherwise.
+
+This policy is a candidate for enforcement by the `topic` CLI
+(`dotfiles/docs/ROADMAP-topic-cli.md`, `ROADMAP.md`) or a future CLI agent
+that abstracts configuration management and updates: a tool that knows what
+each machine should have can also tell an agent what is configuration work —
+its job — versus a build, which is out of scope. Until that tool exists, the
+ladder is enforced by agent judgment and by review.
+
 ## Where the source of truth is
 
 Scripts under `bin/` are **chezmoi source files**, named `executable_<name>`. The

@@ -70,6 +70,27 @@ layers for machine-local rules, `bin/policy` as the resolver — and no new
 policy home is created. This line is deleted only when the over-arching
 question is answered and the answer is recorded in `PRD.md`.
 
+### A policy-aware CLI agent, or the topic CLI growing one more job
+
+`AGENTS.md` § What agents do here makes build-versus-configure routing agent
+policy, with per-machine granularity. The author named it a candidate for
+enforcement by the `topic` CLI (A1–A7, scheduled) or by a separate CLI agent
+that abstracts configuration management and updates — a tool that knows what
+each machine should have can tell an agent what is configuration work versus
+a build. Unscoped; worth settling alongside the topic CLI's `bootstrap`
+command (A5), which already owns "run a topic's install" — the same state
+knowledge this would read.
+
+**Determinant detection functions are a required capability**, not a nice-to-
+have. The boundary is not always visible on the surface: an action can be
+valid as configuration (a well-formed task, a plausible config file) and still
+be substantively a build — a template writing real code, an install task
+compiling a bespoke project, a "config" embedding logic. The functions classify
+actions deterministically, and their minimum contract is to **surface the
+finding to the author with override** — never a silent pass, never a silent
+block. Refusing is the agent ladder's job; the tool's job is to make the
+boundary visible so a human decides.
+
 ### Topics as portable, installable modules
 
 `PRD.md` states the requirement: a topic should be installable on its own, so a
