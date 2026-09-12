@@ -112,8 +112,6 @@ in those two files as suspect until audited.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
-
-
 - **[4] Fill `~/.local/state/ai-policy/company.yaml`'s 22 TODO fields.** Decided:
   proceed top-down as proposed — `device.approved` gates the rest. Machine-local
   and unversioned, so it cannot be tracked here beyond this pointer. Until it is
