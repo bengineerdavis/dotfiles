@@ -29,6 +29,59 @@ Welcome to my {{ app_name }} app module in my local machine provisioning setup!
   ansible-playbook apps/rancher-desktop/playbook.yaml --tags remove -K
   ```
 
+## Running as a service
+
+Rancher Desktop is a GUI app that happens to carry a container engine. This
+topic inverts that emphasis: the engine runs at login with no window, and
+`docker` / `docker compose` are the interface. You should never need to open the
+app.
+
+| Setting | Value | Why |
+|---|---|---|
+| `application.autoStart` | `true` | engine is up before you need it |
+| `application.startInBackground` | `true` | no window on login |
+| `application.window.quitOnClose` | `false` | closing the window leaves the engine running |
+
+That last one is easy to get backwards — `true` terminates the whole app when
+the window closes, which is exactly what a service must not do. Set by
+`tasks/service-mode.yaml` via `rdctl`, Rancher's own CLI, so the app persists
+the change itself.
+
+### Bringing containers up and down
+
+Through the container CLIs, not through Rancher:
+
+```sh
+docker ps                     # what is running
+docker compose up -d          # bring a stack up
+docker compose down           # and back down
+docker run --rm …             # one-shot, removed on exit
+```
+
+`docker compose` is the v2 plugin bundled with Rancher (`~/.rd/bin/docker-compose`),
+not a separate install. `podman` and `nerdctl` are **not** installed — Rancher
+provides the `moby` (dockerd) engine here, and podman would be a second,
+independent engine rather than another CLI over this one.
+
+To stop the engine entirely: `rdctl shutdown`. It will come back at next login.
+
+### Kubernetes is a separate, standing cost
+
+`kubernetes.enabled` is **on**, which runs a full control plane — on this
+machine that is five permanently resident containers (coredns, traefik,
+metrics-server, local-path-provisioner and their pause containers) that exist
+whether or not you are using Kubernetes.
+
+This topic deliberately does **not** change it. Running the engine as a service
+is about how the app starts; whether you pay for a control plane is a decision
+about what you use the machine for. If you only want containers:
+
+```sh
+rdctl set --kubernetes.enabled=false
+```
+
+Everything in the section above continues to work without it.
+
 ## Links
 
 - [project website](https://rancherdesktop.io/) 
