@@ -219,19 +219,15 @@ nothing is.
   should deploy at all: if the tool is installed rather than cloned, the copy
   in `$HOME` is redundant and `.chezmoiignore` should skip it. Done when a fresh
   machine gets skill-trust without anyone typing a uv command. [me]
-- **Get unlicensed internal material out of `~/.agents/skills`.**
-  `what-would-kobby-do` is an internal team tool with no licence, and
-  `support-escalation` is undeclared with no licence or `PROVENANCE.md` and was
-  installed the same day — classify it. That directory is user-global: claude,
-  cursor, codex, opencode and copilot all auto-load it, so both are being read
-  into context on personal projects. It already happened on 2026-09-12, in a
-  session working on this repo. dotagents supports project scope (`--project`,
-  writing `.agents/skills` in the repo), which is where work-only material
-  belongs. Audit the rest while there: of the eight installed, five are declared
-  in `apps/opencode`, `skillet-authoring` is public MIT (`getsentry/skillet`) and
-  `no-ai-slop` carries LICENCE and PROVENANCE — only these two are unaccounted
-  for. Done when nothing in the user-global path lacks a licence or a provenance
-  note, and the work-only skills load only inside the work repo. [me]
+- **Render `support-escalation`'s SKILL.md, or retire it.** Moving it into
+  `ai-prompt-library` on 2026-09-12 revealed it had never been a working skill:
+  spec.md, 5 eval fixtures and a legacy `.skillet.yaml`, but no SKILL.md, so
+  nothing could load it — it sat in the user-global path for two weeks doing
+  nothing. `skillet status skills/support-escalation` will report the legacy
+  format first; migrate that before rendering. Until a SKILL.md exists dotagents
+  cannot discover it, which is the correct state for something unfinished. Done
+  when `skillet validate` passes and it installs from the wildcard, or the
+  directory is deleted and this line with it. [me]
 - **Define an `agentic-context-engineer` role and add it to the ai library.**
   A role, not a skill: it is invoked deliberately for open design questions,
   wants its own context, and returns a considered answer — where a skill changes
