@@ -22,8 +22,12 @@
 # Take pathManagementStrategy off Rancher's rc-file default and clean up any
 # block it already injected. Shared with upgrade.yaml, because an app update
 # re-applies the injection. See tasks/path-management.yaml.
+
 - name: "Rancher: own the PATH entry instead of Rancher's rc-file injection"
   ansible.builtin.import_tasks: path-management.yaml
+
+- name: "Rancher: run the engine as a background service"
+  ansible.builtin.import_tasks: service-mode.yaml
 
 # ── Linux (apt, OPTIONAL playground) ──────────────────────────────────────────
 # Only reachable via the standalone runner — the main playbook keeps this topic

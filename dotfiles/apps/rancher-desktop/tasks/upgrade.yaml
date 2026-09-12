@@ -15,3 +15,6 @@
 
 - name: "Rancher: re-assert PATH ownership after an update"
   ansible.builtin.import_tasks: path-management.yaml
+
+- name: "Rancher: run the engine as a background service"
+  ansible.builtin.import_tasks: service-mode.yaml

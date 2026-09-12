@@ -49,3 +49,21 @@ rancher_rc_files:
   - .cshrc
   - .tcshrc
   - .config/fish/config.fish
+
+# ── Service mode: the engine is the point, the window is incidental ──────────
+# Rancher Desktop is a GUI app carrying a container engine. We want it the other
+# way round — `docker` and `docker compose` are the interface, and the app is
+# infrastructure nobody opens.
+#
+# Flags verified with `rdctl set --help` rather than recalled:
+#   --application.auto-start
+#   --application.start-in-background
+#   --application.window.quit-on-close
+#
+# ⚠ quit-on-close is the one that is easy to get backwards. `true` terminates
+# the whole app when the window closes, which is precisely what a service must
+# not do. It is already false by default; asserted anyway, because a default
+# that is load-bearing and unstated is one an update may change under you.
+rancher_auto_start: true
+rancher_start_in_background: true
+rancher_quit_on_close: false
