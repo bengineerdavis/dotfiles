@@ -49,10 +49,16 @@ approval record, the register points at the living home.
 
 ### Watch list
 
-- **MCP** ([modelcontextprotocol.io](https://modelcontextprotocol.io)) and
-  **ACP** ([agentclientprotocol.com](https://agentclientprotocol.com)) are
-  tracked, not followed — runtime and editor-interop protocols, out of the
-  skills-only v1 scope. Re-check if an MCP or plugin decision lands.
+- **MCP** ([modelcontextprotocol.io](https://modelcontextprotocol.io)) —
+  specification 2026-07-28 verified 2026-09-12. Adopted as the tool-execution
+  *boundary* (target state, nothing stood up) — see
+  `dotfiles/docs/MODEL-ACCESS.md`. Track SEP-1024 (client security for local
+  installs) and the Skills Over MCP working group.
+- **LiteLLM** ([github.com/BerriAI/litellm](https://github.com/BerriAI/litellm))
+  — verified 2026-09-12. Deferred with a named trigger: revisit when model
+  access becomes multi-developer. The incumbent (`llm` + provider plugins)
+  holds until then because the egress policy resolver wraps it and no gateway
+  does.
 - **Agent Plugins v1** ([agent-plugins.org](https://agent-plugins.org)) — the
   bundle format dotagents implements for plugins; relevant when plugin scope
   opens.
@@ -78,6 +84,8 @@ Recorded so the decision is not re-litigated. Each was measured, not assumed.
 | [Contributor Covenant](https://www.contributor-covenant.org/) | `PRD.md` § Non-goals: not expecting contributors. |
 | cursor's `unslop` | Its "avoid em dashes entirely" conflicts with measured house style (12 per 1000 words in documents predating any agent). `no-ai-slop` reaches the same goal with a calibrated rule. |
 | commitlint / gitlint / commitizen | They enforce format; format is already 71% consistent. The measured defect was length, which none of them check. |
+| [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) | A managed third-party control plane replaces the on-device egress policy decision and routes every model call through Vercel. Verified 2026-09-12 — see `dotfiles/docs/MODEL-ACCESS.md`. |
+| Native vendor SDKs (Anthropic/OpenAI) as the model layer | The lock-in the anti-lock-in work exists to prevent. Hosted models arrive via OpenRouter through `llm`, local models through `llm-ollama`, behind one interface. |
 
 ## Undecided
 
