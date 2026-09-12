@@ -1,0 +1,34 @@
+{
+  // Deployed by chezmoi from dot_config/opencode/opencode.jsonc.
+  // Machine-local state (auth.json, opencode.db) lives beside it and is
+  // deliberately not managed. When both opencode.json and opencode.jsonc
+  // exist, this file wins (measured 2026-09-12).
+  "$schema": "https://opencode.ai/config.json",
+
+  // Never auto-publish session shares.
+  "share": "disabled",
+  "autoupdate": "notify",
+
+  // Same models everywhere. Default runs hosted; the small model (titles,
+  // summaries, compaction) stays local so trivial calls never leave the box.
+  "model": "openrouter/z-ai/glm-5.3-flash",
+  "small_model": "ollama/qwen3:8b",
+
+  // Baseline safety: reads are free, git is allowed, everything else asks.
+  // Tokens live in auth.json, never here.
+  "permission": {
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "edit": "allow",
+    "bash": { "git *": "allow", "*": "ask" },
+    "webfetch": "ask",
+    "websearch": "ask",
+    "external_directory": {
+      "~/.local/share/chezmoi/**": "allow",
+      "~/code/**": "allow",
+      "*": "deny"
+    }
+  }
+}
