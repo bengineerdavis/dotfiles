@@ -1,0 +1,77 @@
+# apps/opencode/tasks/install.yaml
+# Binary install and skill sync.
+#
+# Config files (opencode.jsonc) are NOT here — chezmoi owns them. See
+# dot_config/opencode/opencode.jsonc in the chezmoi source tree.
+#
+# Every piece of state created here has a matching teardown in remove.yaml,
+# per the CRUD ownership invariant in docs/TOPICS.md.
+
+# ── Guard: the dependency graph promised us a brew ───────────────────────────
+# topic_requires: [homebrew] resolves via the homebrew topic on Darwin and via
+# the PATH check on Debian (linuxbrew). If neither ran, fail with the fix
+# named rather than with a confusing module error.
+
+- name: "Check that brew is on PATH"
+  ansible.builtin.command: brew --version
+  register: opencode_brew_check
+  changed_when: false
+  failed_when: false
+
+- name: "Fail with the fix if brew is absent"
+  ansible.builtin.fail:
+    msg: >-
+      brew not found on PATH. On macOS run the homebrew topic's bootstrap
+      (apps/homebrew, --tags bootstrap); on Debian install linuxbrew first
+      (https://docs.brew.sh/Homebrew-on-Linux), then re-run.
+  when: opencode_brew_check.rc != 0
+
+# ── The binary, from the pinned tap ─────────────────────────────────────────
+# anomalyco/tap is pinned deliberately: homebrew/core carries a formula of the
+# same name, and the two are not the same build. This machine runs the tap
+# build (1.18.30 at authoring), and the tap shadows core here. Naming the tap
+# explicitly keeps both OSes on the same source instead of leaving Darwin on
+# core and Debian on the tap.
+
+- name: "Tap anomalyco/tap"
+  community.general.homebrew_tap:
+    name: "{{ opencode_tap }}"
+    state: present
+
+- name: "Install opencode from the pinned tap"
+  community.general.homebrew:
+    name: "{{ opencode_tap }}/opencode"
+    state: present
+
+# ── The skill set, via dotagents ────────────────────────────────────────────
+# dotagents installs user-global into ~/.agents/skills, which opencode (and
+# claude, cursor, codex...) auto-load. Re-adding an identical declaration
+# refreshes the installation, so this is idempotent — and the same tasks carry
+# the `upgrade` tag, since a manifest bump is what "upgrading skills" means
+# here. There is no other upgrade path for skills: they are not brew packages.
+#
+# Runs npx from the mise shims so node resolves without relying on the
+# caller's interactive shell config.
+
+- name: "Sync each manifest skill via dotagents"
+  ansible.builtin.command:
+    cmd: >-
+      npx -y @sentry/dotagents@latest --user
+      add {{ item.source }} {{ item.name }}
+  environment:
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
+  loop: "{{ opencode_skills }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: opencode_skill_add
+  changed_when: >-
+    'Added skills' in opencode_skill_add.stdout
+    or 'Added skill' in opencode_skill_add.stdout
+  tags: [opencode_skills, upgrade]
+
+- name: "Report skill sync results"
+  ansible.builtin.debug:
+    msg: >-
+      {{ opencode_skills | map(attribute='name') | join(', ') }} declared in
+      ~/.agents/agents.toml; `dotagents list` reports state per skill.
+  tags: [opencode_skills, upgrade]
