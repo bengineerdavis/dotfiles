@@ -523,9 +523,9 @@ author rather than the machine.
   binary and config remain its own — and gets skills only through the
   dependency. Done when the skill manifest lives in the dotagents topic,
   skills install from it alone, and apps/opencode carries no skill manifest
-  of its own. Open before building: run `cat ~/.agents/agents.lock` (the
-  decision record's one open verification) and run the skillet evals, since
-  the eval gate is now policy.
+  of its own. Open before building: run the skillet evals, since the eval
+  gate is now policy. (The agents.lock verification resolved 2026-09-12: the
+  lock records resolved commit SHAs — see the record's exit-path section.)
 - Choose a project templating tool, and benchmark rather than assume. `copier`
   9.17.2 is installed and is the incumbent, so it is the baseline to beat, not
   the default to accept. Candidates worth measuring: copier, cookiecutter,
