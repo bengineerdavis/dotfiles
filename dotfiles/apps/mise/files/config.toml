@@ -175,7 +175,12 @@ usage = "latest"
 "pipx:yt-dlp" = "latest"
 "pipx:zxcvbn" = "latest"
 "pipx:fangfrisch" = "latest"
-"github:danielmiessler/fabric" = "v1.4.478"
+# No `v` prefix. mise resolves the release tag but records the install under the
+# bare version, so a "v1.4.478" request never reads as satisfied: it reinstalled
+# on every run ("Upgraded 1 tool: fabric v1.4.478 → 1.4.478"), kept a duplicate
+# tree under installs/.../v1.4.478 alongside 1.4.478, and left the topic
+# reporting `changed` forever — which hides the changes that are real.
+"github:danielmiessler/fabric" = "1.4.478"
 
 [tasks.sk]
 description = "Core skillet command"
