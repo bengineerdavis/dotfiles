@@ -117,16 +117,18 @@ nothing is.
   and unversioned, so it cannot be tracked here beyond this pointer. Until it is
   filled, `fail_closed` means the company layer denies everything it is asked,
   which is safe and useless.
-- **Reclaim the orphaned fabric installs.** `f1f051d` stopped the churn but left
-  what it created: `installs/github-danielmiessler-fabric/` holds both `1.4.478`
-  and the now-unreferenced `v1.4.478`, plus `1.4.459`, with `v1`/`v1.4`/`vlatest`
-  symlinks pointing into the dead tree — 213M total. `mise uninstall
-  github:danielmiessler/fabric@v1.4.478` is the clean removal. Check nothing is
-  using 1.4.459 first: it is still the copy on `$PATH` in at least one running
-  shell, which is its own loose end — `mise which`, `mise env` and `mise ls` all
-  agree on 1.4.478, and nothing in this repo writes the stale entry, so it looks
-  like session-inherited env rather than config. Not reproduced from a clean
-  shell; confirm against a brand-new terminal before chasing it further.
+- **Work out why `fabric` on `$PATH` is 1.4.459, then retire that install.** The
+  orphaned `v1.4.478` tree is gone (72M reclaimed, `mise` took its `v1`/`v1.4`/
+  `vlatest` symlinks with it), leaving `1.4.459` beside the current `1.4.478`.
+  `1.4.459` is not safe to remove yet: it is the copy on `$PATH` in at least one
+  running shell, even though `mise which`, `mise env` and `mise ls` all agree on
+  1.4.478 and nothing in this repo writes the stale entry. Looks like
+  session-inherited env rather than config, but that was **not** confirmed — a
+  clean shell had no fabric on `PATH` at all, so the test proved nothing. Done
+  when a brand-new terminal is checked: if it reports 1.4.478 this was stale env
+  and `mise uninstall github:danielmiessler/fabric@1.4.459` closes it out; if it
+  reports 1.4.459 something is writing that path and the uninstall would break
+  a working command.
 - **Fix `cosine()` in `apps/ollama/files/executable_ollama-evals` — it can
   return a value above 1.0.** Hypothesis found it on 2026-09-11: `a=[1.0]`,
   `b=[1.2794807103967847e-160]` gives `1.000070683603874`, over the test's own
