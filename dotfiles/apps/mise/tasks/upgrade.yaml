@@ -20,10 +20,43 @@
   changed_when: >-
     ('upgraded' in (mise_upgrade_result.stdout | default('') | lower))
     or ('installed' in (mise_upgrade_result.stdout | default('') | lower))
+  # Fail on a broken mise, not on a tool that declined to upgrade. One
+  # unresolvable npm package used to abort the entire provisioning run here —
+  # every task after this one was skipped because 1 of 72 tools failed, while
+  # the other 71 had upgraded and the failed one was still installed and
+  # working at its previous version. See vars/main.yaml for the discriminator.
   failed_when:
     - (mise_upgrade_result.rc | default(0)) != 0
     - "'no tools' not in (mise_upgrade_result.stderr | default('') | lower)"
+    - not ((mise_upgrade_result.stderr | default('')) is search(mise_partial_failure_pattern))
 
+# Tolerating the failure is only safe if it is still reported. Silently
+# continuing would turn "one tool is stale" into something nobody learns about
+# until the stale tool misbehaves.
+- name: "Upgrade: report tools that did not upgrade"
+  vars:
+    # `\S+` rather than `[^:]+`: the tool name CONTAINS colons
+    # ("npm:@sentry/skillet@latest"), so stopping at the first one reported the
+    # failing tool as "npm". Terminate on the colon-space that ends the name.
+    mise_upgrade_failures: >-
+      {{ mise_upgrade_result.stderr_lines | default([])
+         | select('search', 'Failed to (install|upgrade) ')
+         | map('regex_replace', '^.*Failed to (?:install|upgrade) (\S+): .*$', '\1')
+         | list }}
+  ansible.builtin.debug:
+    msg: >-
+      mise upgrade left {{ mise_upgrade_failures | length }} tool(s) on their
+      current version; every other tool upgraded:
+      {{ mise_upgrade_failures | join(', ') | default('see the mise output above', true) }}.
+      Provisioning continued. Run `mise upgrade` by hand for the full error.
+  when:
+    - (mise_upgrade_result.rc | default(0)) != 0
+    - (mise_upgrade_result.stderr | default('')) is search(mise_partial_failure_pattern)
+
+# Deliberately strict, unlike the upgrade above. A tool that fails to INSTALL
+# was just added to config.toml and has no working version to fall back on, so
+# the run has not delivered what the config asked for. A tool that fails to
+# UPGRADE still works at its current version.
 - name: "Upgrade: install any tools newly added to mise config"
   ansible.builtin.command:
     cmd: mise install --yes
