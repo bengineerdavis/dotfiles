@@ -54,7 +54,6 @@ Format: `- <UTC start> — <what> — <files or resource>`
 
 - 2026-08-27T18:20Z — adding the pre-egress review gate (as in bin/trace-public) — bin/executable_pii-redactor
 - 2026-09-10T21:25Z — adding a chrome browser topic (separate session, reported by the author) — dotfiles/apps/chrome, install/remove tasks
-- 2026-09-12T10:30Z — running the skillet eval suites (real agent sessions, model account spend) — ~/code/projects/personal/ai-prompt-library/skills/, TASKS.md
 
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
@@ -227,14 +226,21 @@ when it becomes the thing to do, rather than working straight from here.
   reporting bug reached the deployed script and was caught by a manual smoke test
   rather than the 218-test suite. The env/flag/fallback resolution is the obvious
   first case.
-- Run the eval suites for the library skills, prioritizing the five in the
-  opencode manifest (`commit-hygiene`, 5 cases; `pii-redaction`, 6;
-  `review-best-practices`, 5; `interaction-questioning`, 14; skillet's
-  `skillet-authoring`, upstream's own). No case has ever been executed — both
-  decision records gate skill promotion on this, so it is policy to make
-  practice. `skillet eval <dir> --baseline` compares pass rates without the
-  skill installed, which is the number that says whether each earns its keep.
-  Expect to fix cases, not just read results. [me, claimed 2026-09-12]
+- Define how this repo's policy reaches builders, and the save-back contract
+  for tool-built policy. The author's requirement (2026-09-12): this repo may
+  carry a policy that agents read or are fed; when a policy tool exists
+  (impromptu), its output must have a known way to be saved into this
+  machine-management repo where retention is wanted — or, if policy lives
+  here, the tool takes over managing it. Done when the contract is written
+  down: what a builder reads, from where, in what format, and what a tool
+  must produce for this repo to retain it. The larger question this sits
+  inside — whether over-arching policy is independent of this repo — is in
+  `ROADMAP.md` § Over-arching policy and is the author's to settle.
+- Run the eval suites for the library skills. **Re-homed 2026-09-12** to
+  `ai-prompt-library` (its TASKS.md), per the author's scoping decision: AI
+  work — skills, evals, policy, tooling — stops landing in this repository.
+  This repo's provisioning (the dotagents topic, the opencode manifest)
+  consumes the eval gate's verdicts but does not execute them.
 - Document that `git add -p` and `git commit -o` do not compose, in AGENTS.md
   § Working alongside other sessions. It currently recommends both, but `--only`
   commits the **working-tree** content of the named paths and discards partial
@@ -354,9 +360,13 @@ branch, and the architecture rule says provisioning may install and trigger a
 tool but never contain its logic or state. The Ansible role STAYS — installing a
 runtime and pulling weights is machine setup. What leaves is everything about the
 author rather than the machine.
-- B1. Decide the new home and its install method: separate repo, name, and how
-  this repo pins it. Blocks everything below. Note the constraint that the result
-  must be installable by the provisioning layer like any other dependency.
+- B1. Decide the new home and its install method. **Home decided by the author
+  2026-09-12:** `ai-prompt-library` now (skills, evals, policy, tooling work
+  lands there), `impromptu` eventually once the tool is built up. Still open,
+  and deliberately so: the install method this repo pins (B1's other half),
+  and whether policy management has full scope in either home — the author
+  marked this unresolved; see `ROADMAP.md` § Over-arching policy. Blocks B2
+  below only on the install-method half.
 - B2. Write the move manifest — every affected file classified as leaves, stays,
   or is deleted. Done when the list exists and later items cite it instead of
   re-deciding per file.
