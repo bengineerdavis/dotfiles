@@ -37,6 +37,18 @@ HARNESS = """\
 """
 
 
+def said(result, phrase: str) -> bool:
+    """Whether the run's output contains `phrase`, ignoring line wrapping.
+
+    Ansible hard-wraps a task's msg for the terminal, so a phrase that reads as
+    one sentence in the source arrives split across a newline. Asserting on the
+    raw text makes a test pass or fail on where the wrap happens to land, which
+    is not a property of the guard at all.
+    """
+    collapse = lambda s: " ".join(s.split())
+    return collapse(phrase) in collapse(result.stdout)
+
+
 @pytest.fixture(scope="session")
 def ansible_playbook() -> str:
     exe = shutil.which("ansible-playbook")

@@ -36,7 +36,7 @@ import re
 
 import pytest
 
-from conftest import DOTFILES, GUARDS
+from conftest import DOTFILES, GUARDS, said
 
 APPS = DOTFILES / "apps"
 CONFLICT_MARKER = "exist on both sides"
@@ -52,8 +52,8 @@ def test_fails_when_a_name_exists_on_both_sides(run_guard, scope):
     result = run_guard(**scope.vars)
 
     assert result.returncode != 0, result.stdout
-    assert CONFLICT_MARKER in result.stdout
-    assert "commit-hygiene" in result.stdout
+    assert said(result, CONFLICT_MARKER)
+    assert said(result, "commit-hygiene")
 
 
 def test_every_conflict_is_named_not_just_the_first(run_guard, scope):
@@ -86,7 +86,7 @@ def test_hidden_entries_are_conflicts_too(run_guard, scope):
     result = run_guard(**scope.vars)
 
     assert result.returncode != 0
-    assert ".system" in result.stdout
+    assert said(result, ".system")
 
 
 # --- it relents ---------------------------------------------------------------
@@ -173,9 +173,9 @@ def test_the_failure_names_a_next_action(run_guard, scope):
 
     result = run_guard(**scope.vars)
 
-    assert "path:.agents/skills" in result.stdout, "no adopt-in-place fix offered"
-    assert "guard_allow_skill_dir_conflicts=true" in result.stdout, "no override named"
-    assert "Nothing has been installed or moved" in result.stdout
+    assert said(result, "path:.agents/skills"), "no adopt-in-place fix offered"
+    assert said(result, "guard_allow_skill_dir_conflicts=true"), "no override named"
+    assert said(result, "Nothing has been installed or moved")
 
 
 # --- the defaults are real ----------------------------------------------------
