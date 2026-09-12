@@ -213,9 +213,11 @@ nothing is.
   shape `apps/opencode`'s brew check already has: a topic should own it, and
   `tools/` will grow more inhabitants with the same need. Decide whether that is
   a `tools` topic installing everything under `tools/`, or each consumer
-  declaring what it needs. Note the tree split that makes this awkward: `tools/`
-  sits at the chezmoi repo root and is NOT deployed to `~/dotfiles`, so the
-  install path has to reach back into the chezmoi source. Done when a fresh
+  declaring what it needs. Note where it lands: `tools/` sits at the chezmoi *source root*, so it
+  deploys to `~/tools/`, not to `~/dotfiles/tools/` beside the Ansible tree —
+  a topic would install from `~/tools/skill-trust`. Worth deciding whether it
+  should deploy at all: if the tool is installed rather than cloned, the copy
+  in `$HOME` is redundant and `.chezmoiignore` should skip it. Done when a fresh
   machine gets skill-trust without anyone typing a uv command. [me]
 - **Get unlicensed internal material out of `~/.agents/skills`.**
   `what-would-kobby-do` is an internal team tool with no licence, and
