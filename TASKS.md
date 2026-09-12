@@ -112,6 +112,20 @@ in those two files as suspect until audited.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
+- **Build a `dotfiles-triage` agent and the skill set it loads, so a failing
+  `chezmoi apply` / `ansible-playbook` / `update.sh` run goes straight into
+  troubleshooting instead of stopping at "non-zero return code".** The
+  `apps/opencode` skill-sync failure on 2026-09-12 is the motivating case and the
+  first eval fixture: Ansible reported a return code and nothing else, because
+  the task read `.stdout` while dotagents writes errors to `.stderr` — finding
+  the cause took reading the `@sentry/dotagents` source. The agent's first job is
+  the cheap one: name which stream the message went to, which lifecycle tag and
+  topic failed, and whether the deployed tree matches the chezmoi source. Then it
+  works the known failure classes, one skill each, added as they are met —
+  unmigratable state at a destination (`roles/guards/`), a missing dependency, a
+  pinned ref that moved (`apps/chrome`), a source edited but never applied. Done
+  when a deliberately broken topic run yields a named cause and a next action
+  without a human opening task YAML. [me]
 - **[4] Fill `~/.local/state/ai-policy/company.yaml`'s 22 TODO fields.** Decided:
   proceed top-down as proposed — `device.approved` gates the rest. Machine-local
   and unversioned, so it cannot be tracked here beyond this pointer. Until it is
@@ -194,15 +208,19 @@ when it becomes the thing to do, rather than working straight from here.
   ByteDance Seed, Cohere are all on the existing OpenRouter account. Rank them
   with `model-bench`, not by assertion: several post-date any model's training
   cutoff, so relative quality is genuinely unknown until measured.
-- Symlink skills into `~/.claude/skills` on each machine that wants them:
-  `ln -s ~/code/personal/ai-prompt-library/skills/<name> ~/.claude/skills/`.
-  Per-machine because `~/.claude` is chezmoi-ignored, so this recurs on every
-  new host rather than being done once. **This Mac: done 2026-09-11** for
-  `pii-redaction`, `commit-hygiene` and `review-best-practices`, each verified
-  to resolve to a real SKILL.md. `model-fitness` was deliberately skipped —
-  it is uncommitted in ai-prompt-library and belongs to another session.
-  `no-ai-slop` is also installed on this Mac, vendored from a third party rather
-  than symlinked: `gh api repos/petergyang/no-ai-slop/contents/skills/no-ai-slop/SKILL.md
+- **Retired 2026-09-12 — do not hand-symlink skills into `~/.claude/skills`.**
+  `apps/opencode` now declares `pii-redaction`, `commit-hygiene`,
+  `review-best-practices`, `interaction-questioning` and `skillet-authoring` in
+  its manifest, and dotagents installs them into `~/.agents/skills`, which
+  `~/.claude/skills` is now a symlink to. The hand-made links were not merely
+  redundant: they were the direct cause of the `dotagents add` failures on
+  2026-09-12 (see `roles/guards/tasks/dotagents-skills-migration.yaml`), and
+  dotagents silently replaces any it finds at the destination. If a skill really
+  should point at a live working clone, declare it `path:.agents/skills/<name>`
+  so dotagents adopts it in place — never `ln -s` by hand. `model-fitness` stays
+  out: it is uncommitted in ai-prompt-library and belongs to another session.
+  `no-ai-slop` remains a third-party vendored copy rather than a manifest entry:
+  `gh api repos/petergyang/no-ai-slop/contents/skills/no-ai-slop/SKILL.md
   --jq .content | base64 -d`. See its `PROVENANCE.md` for the em-dash deviation.
 - File the upstream issue on `simonw/llm-pdf-to-images`: it does `import fitz`,
   and PyMuPDF's shim prints a deprecation notice to **stdout**, corrupting any
