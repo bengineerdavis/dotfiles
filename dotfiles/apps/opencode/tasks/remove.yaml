@@ -30,12 +30,29 @@
   loop_control:
     label: "{{ item.name }}"
   register: opencode_skill_remove
+  # Same reason as install.yaml: dotagents writes its errors to stderr and
+  # leaves stdout empty, so failing here would discard the only diagnosis.
+  failed_when: false
   changed_when: "'Removed' in opencode_skill_remove.stdout"
   # Off by default. Skills install user-global and serve every agent on the
   # machine — claude and cursor load the same ~/.agents/skills — so removing
   # opencode must not silently strip the shared library. Flip
   # opencode_remove_skills only when the whole skill set is going away.
   when: opencode_remove_skills | bool
+
+- name: "Fail with every skill dotagents could not remove"
+  ansible.builtin.fail:
+    msg: >-
+      dotagents could not remove
+      {{ opencode_skill_remove.results | rejectattr('rc', 'eq', 0)
+         | map(attribute='item.name') | join(', ') }}.
+      What it actually said:
+      {{ opencode_skill_remove.results | rejectattr('rc', 'eq', 0)
+         | map(attribute='stderr') | map('trim') | select | join(' | ')
+         | default('nothing on stderr; re-run the failing `npx` command by hand', true) }}
+  when:
+    - opencode_remove_skills | bool
+    - opencode_skill_remove.results | default([]) | rejectattr('rc', 'eq', 0) | list | length > 0
 
 # ── What is intentionally NOT removed here ───────────────────────────────────
 # ~/.config/opencode is chezmoi-managed: opencode.jsonc deploys from

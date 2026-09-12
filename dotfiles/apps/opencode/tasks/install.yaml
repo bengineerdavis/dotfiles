@@ -53,6 +53,15 @@
 # Runs npx from the mise shims so node resolves without relying on the
 # caller's interactive shell config.
 
+- name: "Guard against an agent skills directory dotagents cannot migrate"
+  ansible.builtin.import_role:
+    name: "roles/guards"
+    tasks_from: dotagents-skills-migration.yaml
+  vars:
+    guard_caller: "apps/opencode"
+    guard_allow_skill_dir_conflicts: "{{ opencode_allow_skill_dir_conflicts }}"
+  tags: [opencode_skills, upgrade]
+
 - name: "Sync each manifest skill via dotagents"
   ansible.builtin.command:
     cmd: >-
@@ -64,9 +73,27 @@
   loop_control:
     label: "{{ item.name }}"
   register: opencode_skill_add
+  # Never fail per item. dotagents reports its errors on stderr and leaves
+  # stdout empty, so a task that dies here surfaces as a bare "non-zero return
+  # code" with the message thrown away — see the reporting task below, which is
+  # the whole reason this is deferred rather than left to the module.
+  failed_when: false
   changed_when: >-
     'Added skills' in opencode_skill_add.stdout
     or 'Added skill' in opencode_skill_add.stdout
+  tags: [opencode_skills, upgrade]
+
+- name: "Fail with every skill dotagents could not sync"
+  ansible.builtin.fail:
+    msg: >-
+      dotagents could not sync
+      {{ opencode_skill_add.results | rejectattr('rc', 'eq', 0)
+         | map(attribute='item.name') | join(', ') }}.
+      What it actually said:
+      {{ opencode_skill_add.results | rejectattr('rc', 'eq', 0)
+         | map(attribute='stderr') | map('trim') | select | join(' | ')
+         | default('nothing on stderr; re-run the failing `npx` command by hand', true) }}
+  when: opencode_skill_add.results | rejectattr('rc', 'eq', 0) | list | length > 0
   tags: [opencode_skills, upgrade]
 
 - name: "Report skill sync results"

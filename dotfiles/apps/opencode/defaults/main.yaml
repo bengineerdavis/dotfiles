@@ -58,6 +58,13 @@ opencode_tap: anomalyco/tap
 # it later. Flipping this to true is a deliberate act.
 opencode_remove_tap: false
 
+# Accept an unmigratable agent skills directory for one run, letting dotagents
+# fail on its own terms instead of the guard stopping first. Off by default: the
+# conflict means two copies of the same skill exist and something has to decide
+# which one survives, which is not a call a provisioning run makes silently.
+# See roles/guards/tasks/dotagents-skills-migration.yaml for the three fixes.
+opencode_allow_skill_dir_conflicts: false
+
 # Run `dotagents remove` for each manifest skill on remove. Off by default:
 # skills install user-global and serve every agent on the machine, so removing
 # opencode must not silently strip the shared library. Set true only when the
