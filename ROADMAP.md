@@ -159,6 +159,31 @@ library, the versioning, the changelog and now the dev/ship split are all the sa
 mechanism. The cost is still the boundary question above — a collection has to
 say what a topic may depend on before it can be built at all.
 
+**The split is not binary, and that matters.** Also raised 2026-09-14: a user
+importing a topic should be able to *opt in* to its tests if they want them —
+to verify a topic on their own machine rather than trusting ours. That pulls
+against `build_ignore`, which removes files from the artifact outright: anything
+filtered is not available to opt into, only to clone the source for.
+
+So the likely shape is two tiers rather than one line, drawn by what a test
+*needs* rather than by what it is:
+
+- `molecule/` — needs a VM or container, a driver, and minutes. Development only;
+  a consumer cannot run it without adopting the whole harness. `build_ignore`
+  this.
+- `tests/` — the pytest suites that check a topic's own logic, already co-located
+  per `docs/TOPICS.md`. Cheap, no driver. Ship these and let running them be the
+  opt-in.
+
+Unverified, and the thing to check before designing further: whether
+`ansible-test` can run a collection's shipped tests from an installed collection
+or only from a source checkout. If only from source, then "opt in" means "clone
+the repo" and the tiering above buys nothing — which would be worth knowing
+before building toward it.
+
+Not essential. Recorded so the dev/ship split is not designed as a single
+on/off switch and then found to be one.
+
 ### Use the accept-vs-revise signal in git history as training data for the judge gate
 
 Use the accept-vs-revise signal in git history as training data for the judge gate. The gate itself shipped (PR #1) and decides on real test results; this is the unbuilt half of that task, separated rather than quietly dropped. The idea: `binned` records whether a generated script was accepted, revised, or discarded, and that history says which scripts a human actually wanted. Open questions before it is schedulable — where that signal is stored today, whether there is enough of it to be worth anything yet, and what it would change about the gate, since a gate that already defers to real test results may have little left to learn.
