@@ -53,12 +53,17 @@ opencode_skill_vendored:
 
 # The tap the binary installs from. Pinned (see tasks/install.yaml): naming the
 # tap explicitly keeps both OSes on the same build instead of letting Darwin
-# fall to the same-named homebrew/core formula.
+# fall to the same-named homebrew/core formula, which trails releases.
 opencode_tap: anomalyco/tap
 
-# Untap anomalyco/tap on remove. Off by default: the tap was added by this
-# topic, but a tap is shared infrastructure — any other formula could come from
-# it later. Flipping this to true is a deliberate act.
+# Untap AND untrust anomalyco/tap on remove. Off by default: the tap was added
+# by this topic, but a tap is shared infrastructure — any other formula could
+# come from it later. Flipping this to true is a deliberate act.
+#
+# One flag covers both because they are one unit. Homebrew 7 needs the tap
+# trusted before it will load any formula from it, so install creates two
+# pieces of state; revoking trust while the tap is still present would break
+# anything else installed from it. See tasks/remove.yaml.
 opencode_remove_tap: false
 
 # Accept an unmigratable agent skills directory for one run, letting dotagents

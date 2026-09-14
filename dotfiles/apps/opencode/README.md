@@ -18,9 +18,35 @@ machine-local and no topic touches it on install or remove.
 
 ## The binary
 
-Installed from `anomalyco/tap`, named explicitly
-(`anomalyco/tap/opencode`) because homebrew/core carries a formula of the
-same name and the two are different builds. This machine runs the tap build.
+Installed from `anomalyco/tap`, named explicitly (`anomalyco/tap/opencode`)
+because homebrew/core carries a formula of the same name and the tap is the one
+that tracks releases. Measured 2026-09-14: tap 1.18.31, core 1.18.30 — core's
+formula sets `livecheck { throttle 5 }`, so it follows every fifth release and
+trails upstream by design.
+
+### The tap must be trusted first
+
+Homebrew 7 refuses to load formulae from a third-party tap until the tap is
+trusted, and **the refusal surfaces at tap time, not install time**. `brew tap`
+validates every formula in the tap, refuses each one, and aborts with:
+
+```
+Error: Cannot tap anomalyco/tap: invalid syntax in tap!
+```
+
+which names neither trust nor the fix. So `install.yaml` runs
+`brew trust --tap anomalyco/tap` *before* the tap task. Trust is a config entry
+keyed by name (`~/.homebrew/trust.json`, or `$XDG_CONFIG_HOME/homebrew/trust.json`
+when that is set), not a property of tap contents, so trusting an untapped tap
+is valid — and it is the only ordering that works.
+
+No Ansible module covers this; `homebrew_tap` predates brew's trust store, so
+the task is a raw command. It is idempotent: a second run exits 0 and reports
+`Already trusted tap`.
+
+Trusting a tap lets brew execute its Ruby. This tap is upstream opencode's own
+(`anomalyco/opencode` ships it via GoReleaser), so trusting it is trusting the
+vendor whose binary we are installing regardless.
 
 Darwin uses the homebrew topic. Debian resolves `homebrew` through the PATH
 check — this box runs linuxbrew, and a fresh Debian box needs linuxbrew
@@ -62,7 +88,12 @@ chezmoi-managed file is authoritative.
 `--tags remove` uninstalls the binary. Two states are guarded behind flags
 that default to false — flip them deliberately:
 
-- `opencode_remove_tap` — untap `anomalyco/tap`
+- `opencode_remove_tap` — untap **and** untrust `anomalyco/tap` (one flag: brew
+  needs the tap trusted to load it, so install creates both, and revoking trust
+  while the tap is still present would break anything else installed from it).
+  Two untrusts, not one: `brew trust --tap` writes the tap entry and `brew
+  install` writes a separate formula entry, and `brew untrust --tap` does not
+  remove the latter — measured on Homebrew 7.0.1, 2026-09-14.
 - `opencode_remove_skills` — `dotagents remove` each manifest skill
 
 ```bash

@@ -28,12 +28,38 @@
 
 # ── The binary, from the pinned tap ─────────────────────────────────────────
 # anomalyco/tap is pinned deliberately: homebrew/core carries a formula of the
-# same name, and the two are not the same build. This machine runs the tap
-# build (1.18.30 at authoring), and the tap shadows core here. Naming the tap
-# explicitly keeps both OSes on the same source instead of leaving Darwin on
-# core and Debian on the tap.
+# same name, and the tap is the one that tracks releases. Measured 2026-09-14:
+# tap 1.18.31, core 1.18.30 — core's formula sets `livecheck { throttle 5 }`,
+# so it only tracks every fifth release and trails upstream by design. Naming
+# the tap explicitly keeps both OSes on the same source instead of leaving
+# Darwin on core and Debian on the tap.
 
-- name: "Tap anomalyco/tap"
+- name: "Trust the tap so Homebrew will load its formulae: {{ opencode_tap }}"
+  # Homebrew 7 will not load formulae from a third-party tap until the tap is
+  # trusted, and the refusal surfaces at tap time, not install time: `brew tap`
+  # validates every formula in the tap and aborts the whole tap with
+  # "Cannot tap anomalyco/tap: invalid syntax in tap!" — a message that names
+  # neither trust nor the fix. Measured on Homebrew 7.0.1, 2026-09-14.
+  #
+  # So this runs BEFORE the tap task. Trust is a config entry keyed by name
+  # (~/.homebrew/trust.json, or $XDG_CONFIG_HOME/homebrew/trust.json when that
+  # is set), not a property of tap contents, so trusting an untapped tap is
+  # valid and is the only ordering that works.
+  #
+  # No Ansible module covers this — homebrew_tap predates brew's trust store —
+  # hence the raw command. It is idempotent by design: a second run exits 0 and
+  # reports "Already trusted tap", which is what changed_when reads.
+  #
+  # Trusting a tap lets brew execute its Ruby. That is the same judgement the
+  # skill sources below get, and it is recorded the same way: this tap is
+  # upstream opencode's own (anomalyco/opencode ships it via GoReleaser), so
+  # trusting it is trusting the vendor whose binary we are installing anyway.
+  ansible.builtin.command:
+    cmd: "brew trust --tap {{ opencode_tap }}"
+  register: opencode_trust_tap
+  changed_when: "'Already trusted' not in opencode_trust_tap.stdout"
+
+- name: "Tap {{ opencode_tap }}"
   community.general.homebrew_tap:
     name: "{{ opencode_tap }}"
     state: present
