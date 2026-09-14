@@ -257,10 +257,48 @@ apt
 homebrew
 ```
 
+## Presence vs currency — install and upgrade are different questions
+
+Two separate guarantees, and a topic needs both covered:
+
+| | Question | Tag | Mechanism |
+|---|---|---|---|
+| **Presence** | is it installed at all? | `install` | modules with `state: present` |
+| **Currency** | is it the latest version? | `upgrade` | the system role's `upgrade_all`, or the topic's own upgrade tasks |
+
+`state: present` converges: it installs what is missing and is a no-op on what is
+already there. It deliberately does **not** upgrade — that is `state: latest`,
+which is not used here, because it would couple presence to currency and make
+every install pass hit the network.
+
+The consequence is that neither tag alone covers both. `--tags install` adds what
+is missing and leaves versions alone; `--tags upgrade` refreshes what exists and
+never installs anything absent. **A run that must guarantee both asks for both:**
+`--tags "install,upgrade"`. That is the closest thing to a converge operation, and
+it is also why `./update` — which requests `upgrade` only — cannot install a topic
+that was never provisioned.
+
+### Currency for anything brew and apt do not install
+
+"Upgrade logic belongs in system roles" holds only for packages a system role
+actually manages. A topic installed some other way is **not** reached by the
+system upgrade pass, so it must own its own upgrade or it silently never updates.
+
+Both current cases do this deliberately: `apps/ori` fetches a release binary and
+`apps/ollama` unpacks a tarball, and each tags its install tasks
+`[install, upgrade]` so the same checksum-compared fetch serves both phases. That
+is not a violation of the rule below — it is the case the rule does not cover.
+
+The test for a new topic: *if `brew upgrade` / `apt upgrade` will not move this to
+the latest version, what will?* If the answer is nothing, the topic is missing its
+upgrade path.
+
 ## Where upgrade logic lives
 
-Upgrade logic belongs in system roles (`homebrew`, `apt`, `docker`), not in topics.  
-If you find an upgrade task in a topic's `install.yaml`, move it to the system role.
+Upgrade logic for **brew- and apt-installed packages** belongs in system roles
+(`homebrew`, `apt`, `docker`), not in topics.
+If you find that kind of upgrade task in a topic's `install.yaml`, move it to the
+system role. For topics the system roles cannot reach, see the section above.
 
 ```yaml
 # ❌ wrong — upgrade logic in a topic
