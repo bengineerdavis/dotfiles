@@ -8,6 +8,7 @@ and the contract between topics and the parent `playbook.yaml`.
 A topic is a self-contained Ansible role under `apps/<topic>/`. Required files:
 
 - `topic.yml`           — topic metadata (at role root)
+- `CHANGELOG.md`        — this topic's own history (see below)
 - `tasks/main.yaml`     — lifecycle router (see below)
 - `tasks/bootstrap.yaml`     — bring the system tool into existence on a fresh machine
 - `tasks/prerequisites.yaml` — core dependencies needed before any topic installs
@@ -293,6 +294,55 @@ Bootstrap tasks must:
 - Prompt for confirmation before installing
 - Verify success after installing
 - Fail loudly if something goes wrong
+
+## Per-topic changelog and local edge cases
+
+Every topic keeps its own `CHANGELOG.md`, and anything surprising about *that*
+topic is recorded in the topic — in its changelog, its README, or in a comment
+beside the task that works around it. Not in a central document.
+
+This is a portability rule, not a bookkeeping one. `PRD.md` § "Topics are
+installable modules" wants someone to borrow one topic without adopting the
+repository; `ROADMAP.md` carries the unsettled boundary. A topic that keeps its
+history and its quirks somewhere else arrives at its new home stripped of both,
+and the first person to hit a known edge case rediscovers it from scratch. Same
+reasoning as co-locating a topic's tests: what travels with the directory is what
+survives the move.
+
+The root `CHANGELOG.md` is unaffected — it answers "what changed in this repo",
+which is a different question from "what has this topic done to me".
+
+### Categories
+
+Use the section names from **antsibull-changelog** — the Ansible community's
+changelog tool. It is spelled *antsibull*, which is the project's real name and
+not a typo for *ansible*.
+
+    release_summary      short prose; a single string, not a list
+    breaking_changes     needs user action on upgrade
+    major_changes        large changes across several tasks
+    minor_changes        a new option, a new behaviour
+    deprecated_features  on the way out
+    removed_features     gone, deprecated earlier
+    security_fixes       security-relevant, with CVE where there is one
+    bugfixes             everything else that was broken
+    known_issues         not fixed, or will not be fixed
+    trivial              too minor to surface
+
+Borrowed rather than invented for one reason: if topics ever become a real
+Ansible collection, `changelogs/changelog.yaml` is the format the ecosystem
+already generates and consumes, and matching category names makes that a
+conversion instead of a rewrite. Nothing here depends on the tool being
+installed — these are section headings in a Markdown file.
+
+**`known_issues` is where topic-specific edge cases go.** Upstream behaviour we
+cannot change, a workaround whose reason is not obvious from the code, a failure
+whose error message names neither the cause nor the fix. Where the workaround
+lives in a task, the task carries the comment and the changelog carries the
+entry — the comment survives a rebase, the entry survives a move to another repo.
+
+Entries are dated, not versioned: topics carry no version yet, and inventing one
+per topic would be a versioning scheme nothing consumes.
 
 ## Template Conformance
 
