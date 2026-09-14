@@ -347,6 +347,19 @@ nothing is.
   how to succeed). **[blocked: the threshold research and council decision
   are owned in ai-prompt-library's TASKS.md — no text lands here until the
   artifact exists.]**
+- Sweep committed machine-adjacent strings, per the audit in
+  `dotfiles/docs/MULTI-MACHINE.md` (2026-09-12). The audit found: employer-
+  adjacent paths (`~/code/work/sentry/`, `sfw.security.sentry.io`), the §
+  Private tasks section describing the work it points to (obfuscation that
+  signals itself), environment mentions ("work machine", "the second
+  machine", "a Seer clone", "the work workspace"), and session-claim
+  provenance narration. Rewrites generalize to environment-neutral classes;
+  the purge of employer strings itself stays under § Private tasks. Done
+  when a grep over the committed tree for the audit's patterns comes back
+  clean and the MULTI-MACHINE design's generalization test is applied to
+  every rewritten line. **Wait for the council verdict first** — the council
+  may change what "bounded pointer" means before the sweep rewrites
+  pointers.
 - Decide when `scriv collect` runs. The changelog exists and fragments
   accumulate, but nothing says what a "release" is for a dotfiles repo that does
   not release. Candidates: on a cadence, at each machine rebuild, or never —
