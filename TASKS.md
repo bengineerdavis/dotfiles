@@ -164,10 +164,23 @@ nothing is.
   the tasks really use, that `--tags upgrade` touches what it claims and no
   more. Nothing links a topic edit to tests either — the `bats` pre-commit hook
   matches `^(bin|scripts)/` shell scripts only, so changing a topic's YAML runs
-  nothing and prompts nothing. Tests first on the next topic changed, per the
-  pytest doctrine in `AGENTS.md` and `docs/PYTHON.md`, then backfill rather
-  than pausing to write 27 suites up front. Done when a per-topic suite exists
-  over a shared harness (so topic 28 inherits it instead of re-inventing it), a
+  nothing and prompts nothing. **A topic's tests live with the topic** —
+  `dotfiles/apps/<topic>/tests/`, not a central `tests/topics/` — so a topic
+  stays portable: copy or extract the directory and its tests come with it,
+  which is also what makes the `ai-strategy` bundle and the Refactor B
+  extraction below movable rather than a re-write. Three things that costs, all
+  of which the implementation has to answer: `pytest.ini` sets
+  `testpaths = tests tools`, so topic-local suites are not collected today and a
+  bare `pytest` would silently pass while testing none of them; `.chezmoiignore`
+  ignores a bare `tests/`, so confirm whether that already excludes topic-local
+  test dirs from the deployed tree and decide whether it should, since
+  portability argues for shipping them so a provisioned machine can verify
+  itself; and `dotfiles/template_dir/` has no `tests/`, so the scaffold must
+  grow one or topic 28 starts untested by default. Tests first on the next topic
+  changed, per the pytest doctrine in `AGENTS.md` and `docs/PYTHON.md`, then
+  backfill rather than pausing to write 27 suites up front. Done when a
+  per-topic suite lives beside its topic over a shared harness (so topic 28
+  inherits it instead of re-inventing it), collection reaches those suites, a
   staged change under `dotfiles/apps/<topic>/` runs that topic's tests and fails
   the commit when they are red or absent, and the tap-trust fix in `e60982c`
   has the regression test it went in without — trust-before-tap ordering, and a
