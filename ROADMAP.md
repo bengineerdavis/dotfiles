@@ -111,6 +111,34 @@ Deliberately deferred. The copier topic template can be built against the format
 as it stands today; the module boundary only has to be settled before anyone
 outside this machine relies on it.
 
+Researched 2026-09-14, so the boundary decision is made with this rather than
+from scratch:
+
+- **The ecosystem's unit of distribution is a collection, not a role.**
+  `ansible-galaxy collection install` is what makes a role installable by a
+  third party with no knowledge of this repo's format. Standalone Galaxy roles
+  still exist but are superseded and carry no changelog standard. This matters
+  because `PRD.md` asks for borrowable "without adopting the whole repository" —
+  a stronger claim than borrowable into another repo that already uses this
+  format, which conventions alone can satisfy.
+- **`topic.yml` at role root is correct and does not block any of this.**
+  Verified empirically: `meta/main.yml` rejects unknown top-level keys
+  (`'topic_name' is not a valid attribute for a RoleMetadata`), so the existing
+  comment is right. But `topic.yml` and a valid `meta/main.yml` are not mutually
+  exclusive — all 27 topics currently have **zero** `meta/` directories, so
+  `galaxy_info`, `dependencies` and `argument_specs` are simply absent. Adding
+  them is additive and does not disturb discovery.
+- **Changelogs are collection-scoped upstream.** `antsibull-changelog` generates
+  `changelogs/changelog.yaml` per collection; roles appear inside it as objects.
+  There is no per-role changelog standard, so the per-topic `CHANGELOG.md` this
+  repo now requires is house style — deliberately using antsibull's category
+  names so the conversion is mechanical if topics ever become a collection.
+
+Unchanged by the research: the open question is still what a topic may depend on
+and how it declares it. `topic_requires` names deps this repo's playbook
+resolves; `meta/main.yml` `dependencies` names roles Ansible resolves. Deciding
+whether those stay separate, or one generates the other, is the boundary.
+
 ### Use the accept-vs-revise signal in git history as training data for the judge gate
 
 Use the accept-vs-revise signal in git history as training data for the judge gate. The gate itself shipped (PR #1) and decides on real test results; this is the unbuilt half of that task, separated rather than quietly dropped. The idea: `binned` records whether a generated script was accepted, revised, or discarded, and that history says which scripts a human actually wanted. Open questions before it is schedulable — where that signal is stored today, whether there is enough of it to be worth anything yet, and what it would change about the gate, since a gate that already defers to real test results may have little left to learn.
