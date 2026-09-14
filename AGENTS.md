@@ -157,6 +157,40 @@ concern per layer.** chezmoi owns dotfiles and symlinks, Ansible owns package
 installs and system state, zsh owns shell runtime config. A symlink task in Ansible
 belongs in chezmoi; a `brew install` in a shell script belongs in Ansible.
 
+### Machine-specific values are resolved, never written out
+
+Anything that differs between machines or environments — home directory, username,
+hostname, OS and architecture, the Homebrew prefix, XDG directories, per-machine
+toggles — is resolved **on the target at deploy time by the layer that owns the
+file**, never pasted in as a literal from whichever machine happened to author it.
+
+Resolve it at the highest layer that already knows the value:
+
+1. **The consuming tool**, where it expands paths itself — `~` in a shell script, or
+   in an opencode permission pattern. Nothing to render and nothing to drift.
+2. **chezmoi**, for anything it deploys: `{{ .chezmoi.homeDir }}`, `.chezmoi.os`,
+   `.chezmoi.arch`, `.chezmoi.username`, `.chezmoi.hostname`. The file becomes
+   `*.tmpl`; the target path is unaffected.
+3. **Ansible**, for values only a provisioning run can discover or must persist —
+   the resolved brew prefix, a fact gathered from the machine, a path written into
+   state another run reads back.
+
+Reach for a lower layer only when the one above genuinely cannot supply the value.
+Routing a value Ansible discovers through a chezmoi template, or a value chezmoi
+knows through an Ansible task, adds a moving part and a second place to be wrong.
+
+**Why this is a rule and not a preference: the failure is silent.** A hardcoded
+`/home/bdavis` in an `external_directory` allow-list does not error — the rule
+simply never matches, the surrounding deny stays in force, and the config looks
+healthy while doing the opposite of what it says. That exact bug sat in
+`dot_config/opencode/` until 2026-09-14. A machine-specific literal that has not
+broken yet is one whose machine has not differed yet — `dot_zshrc.tmpl` still
+carries several, correct only because one box's username happens to match.
+
+So: when a value **must** be baked in, the check that it resolved belongs next to
+it. A rule that cannot match is indistinguishable from a rule that is merely
+strict, and neither the tool nor the deploy reports the difference.
+
 ## What agents do here — and what they refuse
 
 Agents in this repository work the trunk: deciding and managing **which tools,
