@@ -116,6 +116,27 @@ in those two files as suspect until audited.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
+- **Give topics an integrations phase, and make `apps/opencode` own its
+  OpenRouter wiring as the first case.** `dot_config/opencode/opencode.jsonc`
+  already points `model` at `openrouter/z-ai/glm-5.3-flash` and `small_model`
+  at `ollama/qwen3:8b`, while `apps/opencode` declares `topic_requires:
+  [homebrew, node]` and checks neither provider — auth is a manual `opencode
+  auth login` that the README leaves to the reader. A freshly provisioned
+  machine therefore deploys a config whose default model cannot answer, and
+  nothing in the run says so. The convention to write into `docs/TOPICS.md`:
+  when a tool needs a provider or CLI at **runtime** rather than to install
+  (openrouter, ollama), the tool's own topic decides on it and acts — it checks
+  whether the dependency is reachable and owns the logic to add the integration
+  and to take it back out, rather than delegating either to the provider's
+  topic. Integrations stay separate from installation: they run only **after**
+  the tool is installed, and are skipped and reported — never failed — when the
+  tool is absent or the user declined it. That ordering is why this is a phase
+  of its own and not more `install.yaml`. Done when `apps/opencode` configures
+  the OpenRouter provider, confirms it with a check whose pass/fail the run
+  reports (`opencode auth list` at minimum, a one-token completion if that
+  proves too weak), skips cleanly where opencode was never installed, takes the
+  integration back out under `--tags remove`, and `docs/TOPICS.md` states the
+  convention so the next tool follows it without re-deciding.
 - **Build a `dotfiles-triage` agent and the skill set it loads, so a failing
   `chezmoi apply` / `ansible-playbook` / `update.sh` run goes straight into
   troubleshooting instead of stopping at "non-zero return code".** The
