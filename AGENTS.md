@@ -610,6 +610,15 @@ Do **not** over-split. A commit that leaves the tree broken so the next one can 
 it is worse than a slightly coarse one: it breaks `git bisect`. Atomic means
 self-contained, not small.
 
+**Writing a task is itself a commit.** Every task you queue in `TASKS.md` lands as
+its own commit, immediately, separate from whatever work is in flight — two tasks
+are two commits, and revising a queued task is a further commit rather than a
+rewrite of the one that added it. Where creating a single task honestly takes more
+than one commit, branch instead of interleaving it with in-flight work on main. The
+point is that a task survives the session that thought of it: a queued line still
+sitting in the working tree when context runs out is a task nobody ever had.
+`TASKS.md` § Conventions carries the same rule for readers who never open this file.
+
 Durable *why* belongs in a code comment next to the decision, where it survives
 rebases and is read by people who never open git log. The commit body carries only
 what a reverter needs.

@@ -29,6 +29,11 @@ Keep it short. This tracks *open* work and cross-session hazards, not history �
   for later gets its own commit, straight to main, the moment it is written —
   so it exits the conversation and cannot be lost to session context, even
   when nothing else will be done with it. Kept separate from in-flight work.
+  **One task, one commit** — queueing two tasks is two commits, and amending a
+  queued task is another, never a rewrite of the commit that added it. When
+  creating a single task genuinely needs several commits (the task plus the
+  convention doc it depends on, say), put them on a branch rather than
+  interleaving them with in-flight work on main.
 - Mark **[blocked: reason]** rather than deleting — a blocked item that vanishes
   gets rediscovered from scratch.
 - Mark **[inferred]** for anything reconstructed from repo evidence rather than
