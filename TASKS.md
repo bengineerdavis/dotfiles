@@ -131,12 +131,25 @@ nothing is.
   topic. Integrations stay separate from installation: they run only **after**
   the tool is installed, and are skipped and reported — never failed — when the
   tool is absent or the user declined it. That ordering is why this is a phase
-  of its own and not more `install.yaml`. Done when `apps/opencode` configures
-  the OpenRouter provider, confirms it with a check whose pass/fail the run
-  reports (`opencode auth list` at minimum, a one-token completion if that
-  proves too weak), skips cleanly where opencode was never installed, takes the
-  integration back out under `--tags remove`, and `docs/TOPICS.md` states the
-  convention so the next tool follows it without re-deciding.
+  of its own and not more `install.yaml`. Go through **`ori`** rather than
+  hand-rolling provider config: `ori opencode` is OpenRouter's own supported
+  path for pointing opencode at its models, and `apps/ori` already declares
+  `topic_provides: [ori]`, so the integration can require it through the
+  existing dependency graph instead of a PATH probe. The two failure modes are
+  deliberately not the same: a missing or declined **opencode** is a skip, while
+  a missing `ori`, or an `ori` that runs and cannot complete the integration, is
+  **raised** — the run fails with the named fix, or the agent surfaces it, rather
+  than leaving a half-wired provider behind. Mind the auth constraint the ori
+  README already records: `ori login` is interactive and deliberately not
+  automated, and an inherited `OPENROUTER_API_KEY` beats whatever it stores — so
+  the integration must work from that key and fail loudly, naming it, when
+  neither is present. Done when `apps/opencode` wires OpenRouter through `ori`,
+  confirms it with a check whose pass/fail the run reports (`opencode auth list`
+  at minimum, a one-token completion if that proves too weak), skips cleanly
+  where opencode was never installed, raises rather than skips when `ori` is
+  absent or fails, takes the integration back out under `--tags remove`, and
+  `docs/TOPICS.md` states the convention so the next tool follows it without
+  re-deciding.
 - **Build a `dotfiles-triage` agent and the skill set it loads, so a failing
   `chezmoi apply` / `ansible-playbook` / `update.sh` run goes straight into
   troubleshooting instead of stopping at "non-zero return code".** The
