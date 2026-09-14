@@ -27,6 +27,8 @@ Machine-adjacent content already committed, by severity:
 | Finding | Where | Why it matters |
 |---|---|---|
 | Employer-adjacent paths: `~/code/work/sentry/`, `sfw.security.sentry.io` | `TASKS.md` lines 150, 305 | The strongest topology signal; already scheduled for purge under § Private tasks |
+| Employer-adjacent path in **functional config**: `chrome_unpacked_root` under `~/code/work/sentry/` | `dotfiles/apps/chrome/defaults/main.yaml:43` | Missed by the first audit pass, caught in review — unlike prose, this needs a variable fix, not a rewrite; inside the § Private tasks purge scope |
+| Bare work-directory references: `~/code/work/` | `TASKS.md` lines 714, 813 | Employer-free but topology-shaping; the sweep generalizes these |
 | § Private tasks describes the work it points to | `TASKS.md` § Private tasks | The reader learns sensitive purging was planned — obfuscation that signals itself |
 | Environment mentions: "work machine", "the second machine", "a Seer clone", "the work workspace" | `TASKS.md` 146, 842; `MODEL-ACCESS.md` 34 | Accumulates a topology picture across documents |
 | Session claims that narrate provenance | `TASKS.md` § Claimed line 60 ("separate session, reported by the author") | Trains a pattern; provenance narration belongs in local state |
