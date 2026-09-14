@@ -150,6 +150,23 @@ nothing is.
   absent or fails, takes the integration back out under `--tags remove`, and
   `docs/TOPICS.md` states the convention so the next tool follows it without
   re-deciding.
+- **Give every topic a TDD-style test suite, and make editing a topic require
+  its tests.** `tests/topics/` holds exactly one file — `test_zsh_layout.py`,
+  about zsh fragment placement — against the 27 topics under `dotfiles/apps/`,
+  so nothing tests what a topic's lifecycle actually does: that every state
+  install creates has a teardown in remove (the CRUD invariant `docs/TOPICS.md`
+  asserts but nothing checks), that `topic_os` and `topic_requires` match what
+  the tasks really use, that `--tags upgrade` touches what it claims and no
+  more. Nothing links a topic edit to tests either — the `bats` pre-commit hook
+  matches `^(bin|scripts)/` shell scripts only, so changing a topic's YAML runs
+  nothing and prompts nothing. Tests first on the next topic changed, per the
+  pytest doctrine in `AGENTS.md` and `docs/PYTHON.md`, then backfill rather
+  than pausing to write 27 suites up front. Done when a per-topic suite exists
+  over a shared harness (so topic 28 inherits it instead of re-inventing it), a
+  staged change under `dotfiles/apps/<topic>/` runs that topic's tests and fails
+  the commit when they are red or absent, and the tap-trust fix in `e60982c`
+  has the regression test it went in without — trust-before-tap ordering, and a
+  teardown that clears both the tap and the formula trust entry.
 - **Build a `dotfiles-triage` agent and the skill set it loads, so a failing
   `chezmoi apply` / `ansible-playbook` / `update.sh` run goes straight into
   troubleshooting instead of stopping at "non-zero return code".** The
