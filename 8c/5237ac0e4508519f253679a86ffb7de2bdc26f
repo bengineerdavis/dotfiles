@@ -1,0 +1,14 @@
+TASKS.md
+  h_3789f648fd203c 350-362
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8c5237ac0e4508519f253679a86ffb7de2bdc26f",
+  "prompts": {},
+  "humans": {
+    "h_3789f648fd203c": {
+      "author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
