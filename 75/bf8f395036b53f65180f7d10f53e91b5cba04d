@@ -1,0 +1,16 @@
+changelog.d/20260912_120000_bengineerdavis_multi_machine_research.md
+  h_3789f648fd203c 1-19
+dotfiles/docs/MULTI-MACHINE.md
+  h_3789f648fd203c 1-120
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "75bf8f395036b53f65180f7d10f53e91b5cba04d",
+  "prompts": {},
+  "humans": {
+    "h_3789f648fd203c": {
+      "author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
