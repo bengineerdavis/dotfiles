@@ -176,6 +176,28 @@ nothing is.
   to copy. Done when `--check` completes clean across all topics, a second
   consecutive real run reports `changed=0`, and the check runs per topic so a
   failure names which one. Pairs with the per-topic suite task below.
+- **Adopt molecule for topic testing, with the vagrant driver where macOS is
+  required.** Approved 2026-09-14. Molecule is the standard Ansible role test
+  harness and its `idempotence` action is precisely the converge-twice check the
+  task above wants, so this supersedes hand-rolling one. It also fits two
+  decisions already made: scenarios live at `apps/<topic>/molecule/default/`,
+  inside the topic, matching the co-location rule; and molecule is the
+  conventional harness for collections, which is the direction the portability
+  research points. Split the drivers by what they can actually reach — measured
+  from `topic_os`: **19 topics are `[Darwin]`-only, 6 are both, 2 are
+  `[Debian]`-only.** The docker/podman drivers are Linux containers and cover
+  the 8 Debian-capable topics cheaply; the 19 Darwin-only ones — casks, launchd
+  agents, `monitorcontrol`, `rancher-desktop` — cannot be containerised at all
+  and need vagrant against a macOS VM. Unknowns to settle first, because they
+  decide whether the Darwin half is affordable: which vagrant provider works on
+  Apple Silicon (tart, UTM, Parallels — VirtualBox does not), image size, and
+  Apple's licensing limit of two macOS VMs per host. Do not convert all 27 at
+  once. Done when one Debian topic and one Darwin topic each have a scenario
+  that converges and passes `molecule test`'s idempotence step, the per-driver
+  choice is written into `docs/TOPICS.md`, and the pytest suite still owns
+  everything molecule does not — molecule tests convergence on a machine, not
+  the repo's own logic. [blocked: needs the `--check` fix above, since a run
+  that cannot dry-run cannot be trusted to converge twice either]
 - **Sweep the remaining hardcoded `/home/bdavis` paths out of
   `dot_zshrc.tmpl`.** Four of them, all inside the `{{ if eq .chezmoi.os
   "linux" }}` block (lines 69–459), so none render on macOS and none are broken
