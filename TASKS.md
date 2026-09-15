@@ -250,19 +250,16 @@ nothing is.
   then migration.** Reframed by the author 2026-09-15 from the registry
   capture below: the same folders on two machines SHOULD have the same
   structure, at least for how the author organizes types of data including
-  repos — this is standardization, not just a registry. Before any build:
-  an interview settles the policy (which trees are covered, the type
-  taxonomy, which machine's layout is canonical, ownership and enforcement
-  layers, drift handling, how a new machine adopts), then a written plan
-  including migration of divergent trees (the second machine's
-  `~/code/projects/personal/` content, the capture store with its
-  private/shareable split, this Mac's empty `~/code/try/` where the queue
-  claimed experiments). gita manages the repo sets; the `machines.yml`
-  concept (does not exist yet) is the layout data's likely home. Queue
-  claims then cite the standard by name instead of absolute paths. Done
-  when the policy is written and approved, the plan names the migration
-  steps with rollback, and implementation tasks are queued from it — not
-  before.
+  repos — this is standardization, not just a registry. **Interview held
+  2026-09-15; the policy and plan are written in `docs/LAYOUT.md`
+  (df080f7) and await the author's approval.** Settled there: seven flat
+  types under `~/code`, designed layout with both machines migrating,
+  `machines.yml` declares membership with work names in a machine-local
+  overlay, an Ansible topic owns the dirs and gita the repos, drift is
+  reported by a guard with auto-repair as the designed evolution, and the
+  six-phase migration plan with rollback. Remaining before implementation:
+  the author approves or amends `docs/LAYOUT.md`, then implementation
+  tasks are queued from its plan — inventory first.
 - **Research when LSP servers earn their keep with opencode — a deeper
   answer than the docs' best-practices page gives.** High priority, queued
   by the author 2026-09-15. The page (https://opencode.ai/docs/lsp/, fetched
