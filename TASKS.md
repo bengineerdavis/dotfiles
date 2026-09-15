@@ -83,6 +83,11 @@ cosine fix among them. Nothing live is broken, but `~/dotfiles` is behind the
 source on both machines' work until the author applies. Review list before a
 full apply is down to one file: `.zshrc` (see the git-ai task in § Planned).
 Drift re-measured at session end: **52 entries, as of 4ff1305.**
+**Machine-stamped:** those figures and the `.zshrc` review item are the
+*second machine's*, 2026-09-14. This Mac's drift on 2026-09-15 was 3 entries
+(TASKS-RESOLVED.md — now ignored in ade6473 — plus the mise pin and the
+cosine fix), and this Mac has no `~/.git-ai` or git-ai block in `~/.zshrc`;
+a full apply here is safe on that file.
 
 **The suite's one failure was fixed tonight — the skepticism was right to
 raise, and the answer went the other way.** `test_cosine_is_bounded` failed on
@@ -107,7 +112,10 @@ environmental 12. The suite needs no models — the `llm_judge` tests skip
 without one, and the six dependency packages are the only footprint.
 Correction from the advisor pass: `pii_redactor`'s conftest mocks by
 default, but its two failing integration tests call the real `llm` CLI for
-`qwen3.5:4b-mlx-bf16` — model-absence, not a mock issue. Also: running
+`qwen3.5:4b-mlx-bf16` — model-absence, not a mock issue. **Machine-stamped:**
+that absence is the second machine's; on this Mac the tag IS installed
+(`ollama list`, 2026-09-15), so re-run those two tests here before treating
+them as environmental. Also: running
 `tests/clipped` and `tests/pii_redactor` in ONE pytest invocation aborts at
 collection (conftest name collision) — run them separately.
 
@@ -129,7 +137,7 @@ collection (conftest name collision) — run them separately.
 | Four deep-research projects queued in the council pattern: sandboxing, session management, RAG/graphs, metamorphic testing | TASKS.md § Now, § Planned |
 | gita study, pkgup study, git topic, Caliber evaluation, env-failure diagnosis queued | TASKS.md § Now, § Planned |
 | Observations-are-deliverables rule established; advisor review of handoffs recorded as a process requirement | AGENTS.md, TASKS.md § Planned (process design) |
-| Research-capture store created outside any repo: `~/code/projects/personal/llocallabs-capture/` | two captures committed as leads; private notes kept out of git |
+| Research-capture store created outside any repo: `~/code/personal/llocallabs-capture/` | two captures committed as leads; private notes kept out of git |
 
 **Where the `topical` work stopped, and what is next.** A1 is answered and
 deleted. The design is amended: one CLI with deterministic and agent verbs,
@@ -174,7 +182,7 @@ Say any of these and the thread resumes where it stopped:
 
 | Say this | Resumes |
 |---|---|
-| **"apply"** | The unapplied chezmoi source — 52 drifted entries from both machines; applying stays author-only. **Exception: leave `~/.zshrc` unapplied** — the git-ai block is deployed-only; see the git topic task in § Planned |
+| **"apply"** | The unapplied chezmoi source — 52 drifted entries from both machines (second machine, 2026-09-14; this Mac: 2 after the ignore fix — the mise pin and the cosine fix); applying stays author-only. **Exception, second machine only: leave `~/.zshrc` unapplied** — its git-ai block is deployed-only; see the git topic task in § Planned. This Mac has no git-ai block; full apply is safe here |
 | **"topical"** or **"A9"** | The next build step: the manager-aware generator reading `managers.yaml` |
 | **"the template work"** | Same as A9 — that is what it refers to now |
 | **"voice typing"** / **"openwhispr"** | The voice topics; architecture is settled, `.deb` via `ansible.builtin.apt` |
@@ -246,9 +254,10 @@ nothing is.
   settle at creation: scaffold by hand versus the general copier template
   queued in § Planned (llocallabs would be its first real consumer — that
   coupling may be the reason to build the template now), and where it lives
-  (`~/code/projects/personal/` beside ai-prompt-library and impromptu is
-  the precedent — this machine`s actual layout; the shorter form in older
-  docs is stale). This repo's recently-queued research (sandboxing, session
+  (`~/code/personal/` beside ai-prompt-library and impromptu is
+  the precedent — verified on this Mac 2026-09-15; the
+  `~/code/projects/personal/` form in 984df10 was the author's other-machine
+  path, incorrect here, and the author confirmed reverting it). This repo's recently-queued research (sandboxing, session
   management, metamorphic testing) and the benchmarking tooling
   (`bin/model-bench`, `bin/binned`, the eval harness) are candidates for
   the move manifest — nothing moves until that manifest lands. Done when
@@ -276,7 +285,7 @@ nothing is.
   experiments become durable quickly and dead ones cost nothing. First
   evidence of the friction, same day: the author's Google AI research on
   Caliber lived only in a conversation until captured by hand to
-  `~/code/projects/personal/llocallabs-capture/` — and `~/code/try/` already
+  `~/code/personal/llocallabs-capture/` — and `~/code/try/` already
   holds the author's ad-hoc experiments (copier-stamps, git-ai-plugin,
   openrouter-tools), making it the embryonic scratchpad; research captures
   route to the capture store beside the personal projects until the
@@ -313,6 +322,9 @@ nothing is.
   `qwen3.5:4b-mlx-bf16` through the real `llm` CLI and gets
   `Unknown model`; no qwen3.5 model is installed. The snapshot's "runs
   against a mock" claim was wrong for these two tests and is corrected.
+  **Machine-stamped:** the absence is the second machine's, 2026-09-14 —
+  this Mac HAS the tag (`ollama list`, 2026-09-15), so here the diagnosis
+  is unconfirmed until the two tests are re-run.
   Remediation is the author's call: install that model (space
   consideration) or make the conftest skip-with-reason when the integration
   model is absent. The 10 `tests/clipped` failures remain clipboard/TTY —
@@ -694,7 +706,7 @@ nothing is.
   (https://github.com/nolabs-ai/nono). The council debate pairs with the
   panel-of-judges item below — settle that first or borrow its method.
   Lead from the second research capture (2026-09-14,
-  `~/code/projects/personal/llocallabs-capture/`): Omnigent —
+  `~/code/personal/llocallabs-capture/`): Omnigent —
   **[verified]** Apache-2.0 and active — claims bubblewrap (Linux) /
   Seatbelt (macOS) sandboxing with cost tracking across agent CLIs.
   **A lead, not a selection** — the capture's other options were routed by
@@ -738,7 +750,7 @@ nothing is.
   the `.context/` directory convention, and ctx-open (**[verified]**
   unlicensed and four months stale — design reference only under
   absent-is-not-permissive); raw material in
-  `~/code/projects/personal/llocallabs-capture/2026-09-14-agent-tooling-research.md`. The
+  `~/code/personal/llocallabs-capture/2026-09-14-agent-tooling-research.md`. The
   research learns the process and approaches first; the
   council's role is two-sided: weigh in on WHAT the deep research should
   ask, then debate, review and challenge the author's candidate ideas with
@@ -767,7 +779,7 @@ nothing is.
 - **Verify and evaluate Caliber (`caliber-ai-org/ai-setup`) as an
   agent-config generator.** Lead from the author's research capture,
   2026-09-14, raw paste preserved at
-  `~/code/projects/personal/llocallabs-capture/2026-09-14-caliber-ai-setup.md`: a
+  `~/code/personal/llocallabs-capture/2026-09-14-caliber-ai-setup.md`: a
   MIT-licensed CLI that scans a codebase locally and generates agent config
   files (AGENTS.md, .cursor/rules, CLAUDE.md), claiming a generic mode,
   BYO-key deep generation, and opencode/dotagents compatibility. The
@@ -796,7 +808,9 @@ nothing is.
   installer's edits are hand-placed: a `~/.gitconfig` written 2026-09-13
   (plain file, unmanaged), the `~/.git-ai/bin` PATH export appended to
   `~/.zshrc` (the one two-way-drifted file), plus any hooks or bin entries it
-  installed. Audit everything the installer touched first, then build
+  installed. **Machine-stamped:** that installer ran on the *second machine*
+  — this Mac has no `~/.git-ai` and no git-ai block in `~/.zshrc`
+  (verified 2026-09-15), so the audit starts there, not here. Audit everything the installer touched first, then build
   `dotfiles/apps/git/`: it owns the gitconfig as a chezmoi template where
   machine-specific, installs extensions as declared dependencies rather than
   curl-installers, and carries the shell integration the installers keep
@@ -870,7 +884,7 @@ nothing is.
   failing them. [me]
 - **Decide the capture-store contract: private/shareable separation,
   versioning, retention.** The llocallabs capture store
-  (`~/code/projects/personal/llocallabs-capture/`) is cited by five tasks as
+  (`~/code/personal/llocallabs-capture/`) is cited by five tasks as
   evidence, is unversioned and single-machine, and sits in one directory
   with private career notes — one careless copy puts private content in
   files future sessions are instructed to read. Decide: separation (a
@@ -885,7 +899,7 @@ nothing is.
   advisor roles), such that they survive and become durable mechanisms. The
   complete advisor tasking — the ask plus two verbatim briefs (a designer
   and a red-team critic) and launch instructions — is preserved at
-  `~/code/projects/personal/llocallabs-capture/2026-09-15-lessons-learned-advisor-briefs.md`.
+  `~/code/personal/llocallabs-capture/2026-09-15-lessons-learned-advisor-briefs.md`.
   A prior same-day run exists beside it as two per-brief files
   (`...prior-run-designer.md`, `...prior-run-redteam.md`, written by the
   advisors themselves): the re-running session runs the briefs FRESH and may
@@ -1387,7 +1401,7 @@ author rather than the machine.
   (6) The R&D factory is gated on the anchor repo and is the umbrella the
   research methods feed — it belongs to the collection from day one.
   Prerequisite the cluster silently assumed, now named: the capture store
-  (`~/code/projects/personal/llocallabs-capture/`) is unversioned,
+  (`~/code/personal/llocallabs-capture/`) is unversioned,
   single-machine, and mixes private with shareable notes — before any
   cluster item starts on the second machine it must be versioned or synced
   AND separated (see the capture-store contract task in § Planned). Until
@@ -1450,7 +1464,7 @@ author rather than the machine.
   stacked branches for dependent items (A3 on A2), items that must not be split
   (the original B4/B5 cut), shared `conftest.py` fixtures, and governance-doc collisions across
   unrelated branches. Use the questioning skill in
-  `~/code/projects/personal/ai-prompt-library`. Should land before more than two agents
+  `~/code/personal/ai-prompt-library`. Should land before more than two agents
   run in parallel.
 - Get a fast test loop. The full suite takes 104s, which is too slow to run per
   change — at that price the loop collapses into run-once-and-hope, which is
@@ -1482,7 +1496,7 @@ author rather than the machine.
   but it is also a running record of agent-versus-author correction that may not
   want to be public.]**
 - Factor a general git repository template out of this work, using copier
-  (9.17.2, installed). **Its own repository at `~/code/projects/personal/`**, alongside
+  (9.17.2, installed). **Its own repository at `~/code/personal/`**, alongside
   ai-prompt-library and impromptu — not a directory here, and not under
   `~/code/work/`. Name is not settled; it is the reusable half of this repo's
   practice, so something like `spec-driven-repo-template` describes it. What has
@@ -1502,7 +1516,7 @@ author rather than the machine.
   document set, passes `skillet validate`, and asks its project-specific parts as
   copier prompts rather than leaving placeholders to hand-edit.
 - Factor a copier template for the chezmoi-Ansible topic format. **Its own
-  repository at `~/code/projects/personal/`**, same placement as the general template
+  repository at `~/code/personal/`**, same placement as the general template
   above. It **builds on the general template rather than duplicating it** — but
   by composition, not inheritance. Verified against copier 9.17.2: there is no
   `extends`, `inherit`, `parent_template` or `base_template` keyword anywhere in
