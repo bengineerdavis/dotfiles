@@ -65,6 +65,26 @@ work nobody asked for. Three files carry the requirements between them:
 `spec.md` sits across all four steps: it is what must stay true whichever step
 you are in, and it is what Check checks against.
 
+### Observations are deliverables
+
+Work on one item often reveals something about others: a timing dependency, a
+collision surface, a cluster that must be classified together, a recorded
+claim the tree contradicts. Said in a session, it dies with the session — the
+handoff merges in this repo keep proving that prediction.
+
+- An observation a future session would need is written down the moment it is
+  made, attached to the task or document it concerns — never left in chat,
+  never held in a private queue.
+- A finding that contradicts a recorded claim is evidence: update the claim
+  or mark it suspect, citing what was found. `spec.md` § Evidence applies to
+  these the same as measured numbers.
+- An observation with no home yet gets one — a line in the affected item, a
+  § Planned task, or a line in the handoff snapshot.
+- Produce them deliberately. After finishing an item, ask what it changes
+  about other items, what the tree showed that the docs deny, and what
+  ordering the work revealed. If the practice earns its keep, promote it to
+  a skill (home: `ai-prompt-library`) — do not build it preemptively.
+
 ### Decomposing work into items
 
 Turning a roadmap item into work an agent can be handed is the step with the
