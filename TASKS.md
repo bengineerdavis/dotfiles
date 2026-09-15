@@ -529,6 +529,21 @@ nothing is.
   box with the key verified before use rather than trusted blind, and
   `--tags remove` takes the repo file and keyring back out.
 
+- **Extract the model benchmarking and scouting tools into their own repository.**
+  Near-future and deliberate, not urgent — recorded now so it does not happen by
+  accident. `bin/model-bench` is 1357 lines and `bin/model-scout` is 379, plus
+  `apps/ollama/files/ollama-bench` and `ollama-evals`; that is a model
+  evaluation toolkit living inside a machine-provisioning repo. It is also the
+  clearest case of the `AGENTS.md` ladder: AI work belongs outside this repo,
+  and benchmarking models is not configuring a machine. Same destination shape
+  as `topical` — its own repo, installed back here as a normal tool by a thin
+  topic, rather than vendored. Two things to settle before moving: the tools are
+  referenced by name in `.claude/settings.local.json` allowlists and in launchd
+  labels (`com.ollama-usage.snapshot`), so this shares the audit in A10 above;
+  and `ollama-evals`/`ollama-bench` are topic-owned while the `bin/` pair are
+  not, so the split is not along one clean line today. Done when benchmarking
+  lives in its own repo, this repo installs it like any other tool, and nothing
+  here imports it.
 - **Write a `ground-truth-a-dependency` skill from scratch.** The recurring need
   is what the 2026-09-12 dotagents failure took: reading a dependency's shipped
   source to find behaviour its docs never mention — an uncaught `SymlinkError`
