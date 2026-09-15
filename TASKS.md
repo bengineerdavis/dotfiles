@@ -1354,7 +1354,7 @@ author rather than the machine.
   stacked branches for dependent items (A3 on A2), items that must not be split
   (the original B4/B5 cut), shared `conftest.py` fixtures, and governance-doc collisions across
   unrelated branches. Use the questioning skill in
-  `~/code/personal/ai-prompt-library`. Should land before more than two agents
+  `~/code/projects/personal/ai-prompt-library`. Should land before more than two agents
   run in parallel.
 - Get a fast test loop. The full suite takes 104s, which is too slow to run per
   change — at that price the loop collapses into run-once-and-hope, which is
@@ -1386,7 +1386,7 @@ author rather than the machine.
   but it is also a running record of agent-versus-author correction that may not
   want to be public.]**
 - Factor a general git repository template out of this work, using copier
-  (9.17.2, installed). **Its own repository at `~/code/personal/`**, alongside
+  (9.17.2, installed). **Its own repository at `~/code/projects/personal/`**, alongside
   ai-prompt-library and impromptu — not a directory here, and not under
   `~/code/work/`. Name is not settled; it is the reusable half of this repo's
   practice, so something like `spec-driven-repo-template` describes it. What has
@@ -1406,7 +1406,7 @@ author rather than the machine.
   document set, passes `skillet validate`, and asks its project-specific parts as
   copier prompts rather than leaving placeholders to hand-edit.
 - Factor a copier template for the chezmoi-Ansible topic format. **Its own
-  repository at `~/code/personal/`**, same placement as the general template
+  repository at `~/code/projects/personal/`**, same placement as the general template
   above. It **builds on the general template rather than duplicating it** — but
   by composition, not inheritance. Verified against copier 9.17.2: there is no
   `extends`, `inherit`, `parent_template` or `base_template` keyword anywhere in
