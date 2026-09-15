@@ -38,8 +38,10 @@ Keep it short. This tracks *open* work and cross-session hazards, not history �
   gets rediscovered from scratch.
 - Mark **[inferred]** for anything reconstructed from repo evidence rather than
   stated by the author. Those may be wrong; correct them rather than trusting them.
-- When you claim an item, say so in the line. When you finish it, delete the line
-  — the commit is the record.
+- When you claim an item, say so in the line. When you finish it, move the
+  line to `TASKS-RESOLVED.md` with its outcome and evidence — a stopgap until
+  the process refactor lands, after which this rule follows the design.
+  Either way the commit is the record.
 - **Work done by an agent or subagent gets its task written first.** Before the
   agent starts, the line says what it is doing and what done means. Fanning work
   out across several agents is several tasks, not one — an agent whose unit of
@@ -60,9 +62,6 @@ is exactly the collision it exists to prevent.
 
 Format: `- <UTC start> — <what> — <files or resource>`
 
-
-- 2026-08-27T18:20Z — adding the pre-egress review gate (as in bin/trace-public) — bin/executable_pii-redactor
-- 2026-09-10T21:25Z — adding a chrome browser topic (separate session, reported by the author) — dotfiles/apps/chrome, install/remove tasks
 
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
@@ -168,6 +167,13 @@ Say any of these and the thread resumes where it stopped:
 | **"claude-code topic"** | Extending it to Debian via the signed apt repo |
 | **"the sunset plan"** / **"A10"** | Retiring the six `~/bin` names, blocked on the dispatcher working |
 | **"ansible user"** | The privileged-update service, scope the sudoers grant first |
+| **"llocallabs"** | The anchor repo and strategy/policy agent — the collection consolidating the AI work |
+| **"sandboxing"** | The two-phase agent-sandboxing research project |
+| **"session management"** / **"handoff protocol"** | The research feeding the TASKS.md process design; advisor review of handoffs is part of it |
+| **"rag"** / **"knowledge graphs"** | Preprocessed agent-context research |
+| **"gita"** | The multi-machine repo-manager study and its topic |
+| **"metamorphic"** | The metamorphic-testing research for the test suites |
+| **"pkgup"** | The Debian package-updater study, blocked on become privileges |
 
 The design decisions behind all of it are in `dotfiles/docs/ROADMAP-topic-cli.md`
 § Amendment — read that before writing any `topical` code, since several of them
@@ -555,7 +561,11 @@ nothing is.
   is recorded without growing a second file — and get the author's approval
   before cutting TASKS.md to match. Done when a written design exists, the
   author has approved it, and the re-cut file (or its successor) passes
-  `tests/tasks_doc` with the resolved-tasks stopgap retired. [me]
+  `tests/tasks_doc` with the resolved-tasks stopgap retired. Handoffs get an
+  advisor review before taking effect — the 2026-09-14 review ran with the
+  producing agent alone, exactly the self-certification the panel-of-judges
+  item warns about — so the design must make the advisor pass real rather
+  than optional. [me]
 - **Research agent sandboxing for projects and user tasks on this machine —
   deep research, debated with a council of advisors, delivered as a two-phase
   project with a spec binding them.** The permission tiers in
