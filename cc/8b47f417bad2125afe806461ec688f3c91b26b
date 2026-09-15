@@ -1,0 +1,19 @@
+AGENTS.md
+  s_addc33373b6748::t_6c10d8239993e8 19-20,301-307,523-526,616-617
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cc8b47f417bad2125afe806461ec688f3c91b26b",
+  "prompts": {},
+  "sessions": {
+    "s_addc33373b6748": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f610858baffeh4nPjYSCwiYP46",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
