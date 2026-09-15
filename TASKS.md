@@ -190,6 +190,17 @@ nothing is.
   model-output boundary, case-YAML ingestion, the policy layers. Done when a
   written recommendation exists — which seams fit, which do not, what adoption
   would refactor, and the author's adopt/adapt/reject call. [me]
+- **Diagnose the 12 environmental suite failures, then make each pass or skip
+  with a named reason.** From the 2026-09-14 full run: 10 in `tests/clipped`
+  (clipboard/TTY — a headless shell cannot paste), 2 in
+  `tests/pii_redactor` llm (cause undiagnosed; the conftest mocks a working
+  model, so the failure is not obviously model-absence). Diagnose first and
+  do not blanket-skip: each test either gets an environment skip naming the
+  missing capability (same doctrine as the conftest-skip task, one level up:
+  the missing thing is a pty or a clipboard service, not an import) or a fix,
+  if the environment is actually fine and the test is wrong. Done when a
+  full-suite run in a headless shell reports zero failed with skips named,
+  and a capable run still exercises what was skipped. [me]
 - **Give topics an integrations phase, and make `apps/opencode` own its
   OpenRouter wiring as the first case.** `dot_config/opencode/opencode.jsonc`
   already points `model` at `openrouter/z-ai/glm-5.3-flash` and `small_model`
@@ -572,8 +583,8 @@ nothing is.
   ~/.config/opencode ~/tools`) and leave `~/.zshrc` out. Done when `apps/git`
   installs cleanly on this machine, git-ai works from a fresh shell with no
   hand-edited line left in `~/.zshrc`, `diff <(chezmoi cat ~/.zshrc) ~/.zshrc`
-  no longer shows the git-ai block, and the live `~/.gitconfig` is the one the
-  topic owns. [me]
+   no longer shows the git-ai block, and the live `~/.gitconfig` is the one the
+   topic owns. [me]
 - **Bring the portable half of `~/.claude/` under chezmoi.** Deferred from the
   claude-code topic (`c988fef`), which owns the binaries and deliberately left
   config alone. Nothing there is versioned today, so user-global settings do not
