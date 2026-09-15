@@ -1,0 +1,19 @@
+ROADMAP.md
+  s_addc33373b6748::t_63130a66642157 69-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d8ea25967a62e1daaf6fc2b0e2daf7611b79a46c",
+  "prompts": {},
+  "sessions": {
+    "s_addc33373b6748": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f610858baffeh4nPjYSCwiYP46",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
