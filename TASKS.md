@@ -82,6 +82,7 @@ whole `apps/claude-code` topic, the opencode changes, `managers.yaml`,
 cosine fix among them. Nothing live is broken, but `~/dotfiles` is behind the
 source on both machines' work until the author applies. Review list before a
 full apply is down to one file: `.zshrc` (see the git-ai task in § Planned).
+Drift re-measured at session end: **52 entries, as of 4ff1305.**
 
 **The suite's one failure was fixed tonight — the skepticism was right to
 raise, and the answer went the other way.** `test_cosine_is_bounded` failed on
@@ -116,6 +117,11 @@ errors that look like breakage and are not.
 | A1 answered; the CLI is now `topical` and agent-first | `dotfiles/docs/ROADMAP-topic-cli.md` |
 | What each dependency manager requires of a topic | `dotfiles/managers.yaml` |
 | Cosine returns 0.0 when a norm's square is subnormal — the 3-day failure, fixed and mutation-proven | `apps/ollama/files/executable_ollama-evals`, `tests/ollama_evals/test_harness_property.py` (6c3079b) |
+| llocallabs.ai milestone queued — anchor repo, strategy/policy agent, R&D factory; B1 addendum and ROADMAP candidate answer recorded | TASKS.md § Now, § Refactor B, ROADMAP.md § Over-arching policy |
+| Four deep-research projects queued in the council pattern: sandboxing, session management, RAG/graphs, metamorphic testing | TASKS.md § Now, § Planned |
+| gita study, pkgup study, git topic, Caliber evaluation, env-failure diagnosis queued | TASKS.md § Now, § Planned |
+| Observations-are-deliverables rule established; advisor review of handoffs recorded as a process requirement | AGENTS.md, TASKS.md § Planned (process design) |
+| Research-capture store created outside any repo: `~/code/projects/personal/llocallabs-capture/` | two captures committed as leads; private notes kept out of git |
 
 **Where the `topical` work stopped, and what is next.** A1 is answered and
 deleted. The design is amended: one CLI with deterministic and agent verbs,
