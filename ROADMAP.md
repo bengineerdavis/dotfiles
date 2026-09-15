@@ -66,6 +66,13 @@ inside it:
 - The AI-home decision (2026-09-12) lands skill, eval and tooling work in
   `ai-prompt-library` now and `impromptu` eventually — but the author marked
   that neither home clearly has full scope for *policy management*.
+- 2026-09-14 milestone: the author announced `llocallabs.ai` — a collection
+  of repositories consolidating the AI tooling and agent projects, starting
+  with a new anchor repo, with AI research, testing and benchmarking leaving
+  this repo (tasks in TASKS.md § Now). A candidate answer to this section's
+  question — a strategy/policy agent is meant to live there — but
+  consolidation is deliberately undecided, so the safe default below stands
+  until the collection's shape is recorded in `PRD.md`.
 
 **Safe default until the author settles it:** policy stays where it is today —
 repo docs and spec for repository-level rules, `~/.local/state/ai-policy/`
