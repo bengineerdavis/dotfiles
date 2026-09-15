@@ -29,10 +29,17 @@
     // FIRST and the specific allows LAST — broad-first, narrow-last. The
     // original order (allows then deny) defeated ~/code/** and was caught
     // live on 2026-09-12 when a write to ai-prompt-library was refused.
+    //
+    // The home directory is templated, not written out. These were literal
+    // /home/bdavis paths until 2026-09-14, which meant both allows silently
+    // never matched on any machine whose home was elsewhere — macOS included,
+    // where the deny was therefore the only rule in force. A path rule that
+    // cannot match fails open into "deny everything" and reports nothing, so
+    // the wrong value looks exactly like a working config.
     "external_directory": {
       "*": "deny",
-      "/home/bdavis/.local/share/chezmoi/**": "allow",
-      "/home/bdavis/code/**": "allow"
+      "{{ .chezmoi.homeDir }}/.local/share/chezmoi/**": "allow",
+      "{{ .chezmoi.homeDir }}/code/**": "allow"
     }
   }
 }

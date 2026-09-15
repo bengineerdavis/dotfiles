@@ -205,19 +205,227 @@ confirm each before building:
 - Retiring any `~/bin` name
 - Making `browser-ext`'s reporting verbs browser-agnostic
 
-## Open questions for whoever picks this up
+## Open questions — answered 2026-09-14
 
-1. Should `topic new` also register the topic somewhere, or is the parent
-   playbook's directory scan enough? (It is enough today — topics are discovered
-   dynamically. Probably nothing to do.)
-2. Does `topic <name> ext add` write to `defaults/main.yaml` directly, or should
-   it round-trip through the dispatcher's own validation first? The text-append
-   approach in `browser-ext` exists specifically to preserve comments; keep that
-   property whatever else changes.
-3. Is `ext` the right noun for firefox too, or does it want `addon` to match
-   Mozilla's vocabulary? An alias costs nothing and reads better.
-4. For Fintastic specifically: publishing it to the Web Store as **unlisted**
-   would collapse it from a `git` entry to a `store` entry, remove the one-time
-   manual load *and* the reload-on-upgrade step, and needs no IT involvement.
-   That is a conversation with the repo owner (trjuntunen), not a code change,
-   but it would delete a whole category of work here.
+A1 in `TASKS.md` asked for these to be answered in the roadmap rather than in a
+conversation. They are. The questions are kept verbatim above their answers so
+the reasoning stays checkable.
+
+**1. Should `topic new` also register the topic somewhere, or is the parent
+playbook's directory scan enough?**
+
+No registration. Verified at `playbook.yaml:50-56`: the parent playbook runs
+`ansible.builtin.find` over `apps/` for `topic.yml`/`topic.yaml` with
+`recurse: true, depth: 2` on every run. A topic is discovered by existing. A
+registry would be a second source of truth able to disagree with the
+filesystem, which is the drift this repo avoids everywhere else. **Nothing to
+build.**
+
+One boundary: topic *bundles* may want a list, since a bundle is a grouping that
+does not exist on disk as a directory. That is bundle-level state and lives
+outside topics by design — it is not an argument for registering topics.
+
+**2. Does `topic <name> ext add` write to `defaults/main.yaml` directly, or
+round-trip through the dispatcher's own validation first?**
+
+Both, and `browser-ext` already works this way — this question describes a
+choice that was already made correctly. It parses with `yaml.safe_load` to
+validate (`executable_browser-ext:180`) and writes by text append
+(`:226`), whose docstring gives the reason: *"this file is more comment than
+data, and every one of those comments explains a constraint someone paid to
+discover. A dump would delete all of them."*
+
+Keep both halves. Researched 2026-09-14 rather than assumed: `ruamel.yaml`
+round-trip mode is the serious alternative and **would** work here, because it
+only loses comments under structural surgery (deleting keys, removing list
+entries) and `add` does neither. It is rejected anyway on evidence — Red Hat's
+Linux System Roles adopted ruamel for exactly this problem, converting commented
+Ansible YAML, and still report comments not indented correctly, line wrapping
+not preserved, and embedded scripts mis-indented. Text append loses none of
+that, and costs no dependency.
+
+**Revisit when, not if:** the moment `topic` needs to *remove* or *reorder*
+manifest entries, text editing stops being tractable and ruamel's `.ca` comment
+handling starts earning its cost. Adding is append-only; that is the whole
+reason this works.
+
+**3. Is `ext` the right noun for firefox too, or does it want `addon`?**
+
+Both. `ext` is canonical, `addon` is an alias. Mozilla's vocabulary is "add-on"
+and Chrome's is "extension"; an alias is one line in dispatch and spares every
+user the other project's jargon. Costs nothing, so there is no trade to weigh.
+
+**4. Fintastic: publish to the Web Store as unlisted?**
+
+**Not an agent's call, and not a blocker.** It is a conversation with the repo
+owner (trjuntunen) about how someone else's extension gets published. Recorded
+here so it is not rediscovered: doing it would collapse a `git` entry to a
+`store` entry and delete a category of work, but it changes nothing about the
+CLI's shape. Build as if it will not happen.
+
+### Also settled by A1: what `topic` is written in, and where it lives
+
+`apps/topic/files/topic`, symlinked to `~/bin/topic` by its own `install.yaml`,
+as the recommendation above says. **Python, as a PEP 723 `uv run --script`** —
+not a new decision so much as the one `browser-ext` already made: it is 816
+lines of exactly that, and `topic` is a dispatcher that will only grow. This is
+the repo's documented rule (`AGENTS.md` § Languages: bash while a script is
+small, Python once it is not) landing on the obvious side.
+
+
+---
+
+# Amendment — 2026-09-14
+
+The 2026-09-09 design above stands on dispatch shape, the `~/bin` compatibility
+rule, and the verified Chrome constraints. This amendment records decisions it
+did not cover, taken deliberately rather than by drift. Where the two disagree,
+this section wins and says so.
+
+## The tool is called `topical`
+
+`topic` becomes **`topical`**. Topics are the coconuts; the config is the trunk.
+It also stops the binary sharing a name with the domain noun, which was going to
+make every sentence in this document ambiguous.
+
+The file keeps its `ROADMAP-topic-cli.md` name until the tool exists, because
+`TASKS.md` references it by path and a rename would be churn for nothing.
+
+## One CLI, commands split between deterministic and agent
+
+Not two binaries. `topical` has deterministic verbs and agent verbs in one
+command surface. The CLI is for people who prefer it, for when no agent is
+available, and for opening a live session with the agent.
+
+The preferred path is still to hand work to the agent and let it decide — the
+agent knows the skills and the CLI. The deterministic verbs are what it drives,
+and what a human drives when the agent is unavailable or unwanted.
+
+## Drift between CLI and MCP: solved by a choice, not a process
+
+The agent reaches `topical` **both** ways: it shells out to the CLI, and the
+same commands are exposed over MCP for tools that speak it. That interoperates
+with things neither of us has thought of yet, which is the point.
+
+Two interfaces normally means two things to keep in step. This one does not,
+provided a decision is made now:
+
+> **Write `topical` with Typer, not argparse.**
+
+Researched 2026-09-14 rather than assumed. `pycli-mcp` (PyPI 0.4.0, "MCP server
+for any Python command line application") and `click-to-mcp` both **introspect a
+Click/Typer app at runtime** and expose each command as an MCP tool with a
+matching parameter schema. The CLI stays the single source of truth; the MCP
+tool list is derived, not maintained. Adding a verb adds a tool with no second
+edit, so drift is not policed — it is impossible.
+
+argparse is the one parser this does not work with: `pycli-mcp` marks argparse
+support experimental, and it lacks the introspection hooks the reflection
+depends on. `browser-ext` is argparse (`:55`, `:769`) and stays that way — it is
+a topic tool, not the dispatcher. Typer is already a repo dependency (`bin/binned`
+uses Typer and questionary), so this adds nothing new to install.
+
+### MCP-first was considered, and is the thing to revisit first
+
+The alternative is `fastmcp generate-cli`: define MCP tools, generate a typed
+CLI from their schemas. It genuinely solves drift too, and given that the agent
+is the primary consumer it deserves a real hearing rather than a footnote.
+
+It is rejected for now on one structural fact: **the CLI is a strict superset of
+the MCP surface.** `topical agent` opens an interactive session; MCP has no way
+to express that, and neither do any other interactive or long-running verbs. So
+MCP-first could only ever generate *part* of the CLI, leaving the rest
+hand-written beside it — which is the split this whole section exists to avoid.
+Deriving a subset from a superset is trivial; generating a superset from a
+subset is not possible.
+
+CLI-first also keeps the humans-and-fallback path authoritative, which is what
+the CLI is for. But the trade is real and the decision is explicitly provisional
+— the repo owner has said as much. **Revisit when** the reflected tool list
+reads badly enough as MCP tools that shaping CLI verbs to fix it starts
+distorting the CLI for its human users. That is the signal that the two surfaces
+want different shapes, and at that point one generated interface plus one
+hand-written one is the honest answer rather than a failure.
+
+**Caveat worth keeping:** MCP guidance favours tools designed around meaningful
+operations rather than a copy of every subcommand and flag. If reflected verbs
+ever read badly as tools, the fix is to shape the *CLI* verbs better, not to
+hand-write a divergent tool list.
+
+## Agent backends register like `llm` model plugins
+
+`topical agent` opens a live session, preferring an installed backend and taking
+`--with claude|opencode` to force one. But backends are **registered, not
+hardcoded** — the model is `llm`'s plugin system, where an engine declares
+itself and becomes selectable.
+
+Each backend declares how it is launched (`claude --agent topical`,
+opencode's equivalent). Configure once; do not pass it every time. The explicit
+per-invocation form stays for debugging and for doing it by hand.
+
+This is also what makes "other agents integrate with it" a config entry rather
+than a code change, which is the same property `topic_cli:` gives topics.
+
+## The agent ships as a plugin, from its own repository
+
+The agent, its skills and its commands are **one Claude Code plugin** —
+`.claude-plugin/plugin.json` with `agents/`, `skills/`, `commands/`, and
+optionally `.mcp.json`. Verified 2026-09-14: plugins do ship subagents, as
+markdown with `name`/`description`/`model`/`effort`/`maxTurns` frontmatter,
+surfacing under scoped names like `topical:topical`.
+
+Distribution is **dotagents**, which `add` resolves as plugins first, then
+skills. This repo declares it as a dependency the same way `apps/opencode`
+already declares its skill sources.
+
+**The CLI ships from that same repository, not from `apps/topical/`.** Settled
+2026-09-14, and it supersedes the "Where `topic` itself lives" recommendation
+above: one repo holds both the CLI and the plugin, this repo installs it like
+any other tool through a thin topic, and the two version and release together.
+The alternative — CLI here, agent elsewhere — splits a tool from the agent that
+drives it across two release cycles, which is the drift this design keeps trying
+to design out. The uv-tool-from-PyPI shape below is the end state of exactly
+this.
+
+The plugin lives in **its own repository**, not here and not in
+`ai-prompt-library`.
+That keeps `AGENTS.md`'s ladder intact — AI work is not authored in the
+provisioning repo — without making the prompt library own a tool that is really
+about machine configuration.
+
+Two directions recorded now so they are not rediscovered, neither in scope:
+
+- **The prompt library learning to host skills and agent files as components**,
+  so this repo's own skills could live there as first-class parts. That is a
+  roadmap item for *that* project, not this one.
+- **Installing `topical` as a uv tool from PyPI**, with a parallel topic
+  treating it like any other Python tool this machine pulls in. That is the
+  natural end state once it is a real package, and it is how the rest of the
+  `pipx:` entries in `apps/mise` already work.
+
+## Shrinking the agent is a ratchet, and it must be visible
+
+The agent's surface should shrink over time, until only what genuinely needs
+adaptation, heavy context, or agent-only ability is left. That only happens if
+graduation is visible, so two mechanisms, both **opt-in**:
+
+1. **Each agent-only capability names its deterministic replacement.** A line
+   saying what would have to exist for this to become a plain verb, and why it
+   cannot be one yet. Graduating it is then a diff: delete the note, add the
+   verb.
+2. **Record which verbs the agent actually invokes**, so repeated deterministic
+   sequences surface as refactor candidates from evidence rather than taste.
+
+Both land as **pull requests for review**. Neither replaces a skill, a command
+or code silently — least of all for the maintainer, who is the person most
+likely to be surprised by their own tooling changing underneath them.
+
+### Unhandled errors become offers, never actions
+
+When the agent hits an error it does not handle or did not expect, it may
+**offer** to escalate it as a PR against this repository — after checking there
+is not already one open for it. Offer, not act.
+
+This is the same posture `TASKS.md` already sets for `dotfiles-triage`: diagnose
+and propose, never self-apply. Two features arriving at the same rule
+independently is a good sign it is the right one.

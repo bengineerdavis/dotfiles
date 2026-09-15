@@ -18,6 +18,33 @@
   # surprise a `remove` should spring. Flip opencode_remove_tap deliberately.
   when: opencode_remove_tap | bool
 
+# Install leaves TWO trust entries, not one. `brew trust --tap` writes the tap
+# entry; `brew install` then writes a formula entry of its own
+# (anomalyco/tap/opencode). Measured on Homebrew 7.0.1, 2026-09-14:
+# `brew untrust --tap` removes only the tap entry and leaves the formula one
+# behind, so tearing down trust takes both commands. Both are idempotent — an
+# entry that is already gone reports "Not trusted" and exits 0.
+#
+# Both are gated on the same flag as the untap, because tap, trust and formula
+# trust are one unit: a trusted tap that is no longer tapped is harmless, but
+# revoking trust while the tap is still present would break every other
+# formula installed from it.
+
+- name: "Stop trusting the opencode formula from {{ opencode_tap }}"
+  ansible.builtin.command:
+    cmd: "brew untrust --formula {{ opencode_tap }}/opencode"
+  register: opencode_untrust_formula
+  changed_when: "'Not trusted' not in opencode_untrust_formula.stdout"
+  when: opencode_remove_tap | bool
+
+- name: "Stop trusting the tap: {{ opencode_tap }}"
+  # Last, mirroring the install order (trust → tap → install) in reverse.
+  ansible.builtin.command:
+    cmd: "brew untrust --tap {{ opencode_tap }}"
+  register: opencode_untrust_tap
+  changed_when: "'Not trusted' not in opencode_untrust_tap.stdout"
+  when: opencode_remove_tap | bool
+
 # ── The shared skill set ─────────────────────────────────────────────────────
 - name: "Remove every skill from each approved source"
   # By source, not by skill: the topic no longer knows which skills exist, and

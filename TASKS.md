@@ -29,6 +29,11 @@ Keep it short. This tracks *open* work and cross-session hazards, not history �
   for later gets its own commit, straight to main, the moment it is written —
   so it exits the conversation and cannot be lost to session context, even
   when nothing else will be done with it. Kept separate from in-flight work.
+  **One task, one commit** — queueing two tasks is two commits, and amending a
+  queued task is another, never a rewrite of the commit that added it. When
+  creating a single task genuinely needs several commits (the task plus the
+  convention doc it depends on, say), put them on a branch rather than
+  interleaving them with in-flight work on main.
 - Mark **[blocked: reason]** rather than deleting — a blocked item that vanishes
   gets rediscovered from scratch.
 - Mark **[inferred]** for anything reconstructed from repo evidence rather than
@@ -63,83 +68,117 @@ A stale claim is not a lock. If a line looks abandoned, check `git log -3` on th
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
 
-## Where things stand — 2026-09-11
+## Where things stand — 2026-09-14 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
 snapshots is worse than none.
 
-**Nothing is mid-flight.** Working tree clean, main pushed. Both open branches
-merged (PR #1, #2, #3); no branch is waiting.
+**Nothing is mid-flight except one carried-over edit.** The only uncommitted
+change is the skillet pin bump in `dotfiles/apps/mise/files/config.toml`
+(1.7.0 → 1.8.0, a previous session's in-flight work; the matching task in § Now
+tracks finishing it). The two machines' work met here: this session's commits
+(cosine fix, queue updates) merged with the other machine's 43, conflict
+confined to TASKS.md as predicted, and **pushed** — nothing lives on one
+machine only. What *is* outstanding is applying: `chezmoi status` shows **51
+drifted entries** — the whole `apps/claude-code` topic, the opencode changes,
+`managers.yaml`, `ROADMAP-topic-cli.md`, the docs trio, and tonight's cosine
+fix among them. Nothing live is broken, but `~/dotfiles` is behind the source
+on both machines' work until the author applies.
 
-**The suite is not green.** 441 passed, **1 failed**, 12 skipped (9m06s, full
-dependency set). `tests/ollama_evals/test_harness_property.py::test_cosine_is_bounded`
-fails on a hypothesis counterexample — first item in **Now**. It is unrelated
-to anything landed today and was found by running the suite, not caused by it.
+**The suite's one failure was fixed tonight — the skepticism was right to
+raise, and the answer went the other way.** `test_cosine_is_bounded` failed on
+a hypothesis counterexample and sat untracked for three days on the theory
+that the property might be over-strict. It is not: cosine similarity does
+guarantee the bound in real arithmetic, and floating point honours it except
+when a norm's square is subnormal — then sqrt stops round-tripping and the
+quotient escapes Cauchy-Schwarz (`cosine([1.0], [1.2794807103967847e-160])`
+returned 1.000070683603874). Fixed in 6c3079b: return 0.0 when either norm's
+square is below `sys.float_info.min`, counterexample pinned as its own test
+beside the property, mutation recorded (reverting the guard fails exactly that
+test and nothing else).
+
+The full suite **was** re-run tonight with the full dependency set: 454
+passed, 12 failed, 13 skipped. The 12 are environmental, not regressions: 10
+in `tests/clipped` (clipboard/TTY in a headless context) and 2 in
+`tests/pii_redactor` llm. Do not read green past them; do not chase them from
+a TTY-less shell either. Without `--with pillow` you still get 28 collection
+errors that look like breakage and are not.
 
 **Landed today, and where the reasoning lives:**
 
 | What | Where |
 |---|---|
-| Agent permissions rebuilt — 105 allow / 23 ask / 21 deny | `docs/PERMISSIONS.md` |
-| Commit messages checked against diff size | `scripts/check_commit_proportionality.py` |
-| A changelog, fragments via scriv | `CHANGELOG.md`, `changelog.d/scriv.ini` |
-| Contribution standards, manual path included | `CONTRIBUTING.md` |
-| External standards register | `docs/REFERENCES.md` |
-| Trust ladder — rungs and incident classes | `AGENTS.md` § Trust ladder |
-| Git hooks installed and proven to fail | `.pre-commit-config.yaml` |
-| One failed tool no longer aborts a provisioning run | `apps/mise/tasks/upgrade.yaml` |
+| opencode installed at last; Homebrew 7 needs a tap trusted *before* tapping | `apps/opencode/CHANGELOG.md` |
+| opencode's permission paths were hardcoded to another machine's home | `dot_config/opencode/opencode.jsonc.tmpl` |
+| `apps/claude-code` — both casks, plus clearing a mise shim that shadowed brew | `apps/claude-code/` |
+| Machine-specific values get resolved, never written out | `AGENTS.md` § Machine-specific values |
+| Every topic carries its own changelog, antsibull categories | `docs/TOPICS.md` § Per-topic changelog |
+| Presence and currency are different guarantees | `docs/TOPICS.md` § Presence vs currency |
+| Queueing a task is its own commit | `TASKS.md` § Conventions, `AGENTS.md` § Commits |
+| A1 answered; the CLI is now `topical` and agent-first | `dotfiles/docs/ROADMAP-topic-cli.md` |
+| What each dependency manager requires of a topic | `dotfiles/managers.yaml` |
+| Cosine returns 0.0 when a norm's square is subnormal — the 3-day failure, fixed and mutation-proven | `apps/ollama/files/executable_ollama-evals`, `tests/ollama_evals/test_harness_property.py` (6c3079b) |
 
-**Standing hazards, all machine-level rather than repo-level:**
+**Where the `topical` work stopped, and what is next.** A1 is answered and
+deleted. The design is amended: one CLI with deterministic and agent verbs,
+written in **Typer** so `pycli-mcp` can derive the MCP tool list by reflection
+rather than anyone maintaining two surfaces. A8 is delivered as
+`dotfiles/managers.yaml`. **A9 is the next piece of work** — a generator that
+reads that data and emits only the blocks a topic needs. Its first target is
+recorded: `template_dir/` scaffolds a `snap` block that zero topics use, which
+is most of 37 commented-out module lines now sitting in topics that never
+wanted them.
 
-- **Agents are still denied `chezmoi apply`** — the deny rule fired as designed
-  on 2026-09-11 and an agent stopped rather than working around it. But the
-  reason recorded here, two-way drift in `.zshrc` and `bin/ask-research`, is no
-  longer true: `chezmoi status` was empty on 2026-09-11 apart from the file
-  being worked on, and a scoped `chezmoi apply ~/dotfiles/apps/mise` by the
-  author applied cleanly. The rule stands on its own merits — one deployed tree
-  that cannot be branched — rather than on that drift.
-- `CONTRIBUTING.md` is deployed to `~/docs/` and is 171 lines diverged from
-  the live one — actively misleading, not merely stale. First item in **Now**.
-- Every new top-level file is chezmoi-managed by default. Four times today a new
-  artefact was one `.chezmoiignore` line from landing in `$HOME`.
-  `tests/chezmoi` catches the known ones; it cannot catch the next one.
+**Standing hazards:**
 
-**Known weakness in what was written today:** `spec.md` and `PRD.md` contain
-claims derived from repo evidence rather than stated by the author, and nothing
-marks which. One of them — a no-changelog policy — was invented from a sentence
-about `TASKS.md` and then cited back as settled. `TASKS.md` § Conventions
-requires `[inferred]` marking; it was not used once. Treat unattributed claims
-in those two files as suspect until audited.
+- **Agents are still denied `chezmoi apply`,** and the rule fired again today as
+  designed. The author applied by hand. The rule stands on its own merits — one
+  deployed tree that cannot be branched.
+- **Resolved 2026-09-14, and the mechanism is the lesson.** `~/docs/CONTRIBUTING.md`
+  was never "still being deployed" — root `CONTRIBUTING.md` was already in
+  `.chezmoiignore:24`. It was an **orphan**: adding a file to `.chezmoiignore`
+  stops chezmoi managing it but does **not** remove the copy already deployed,
+  so it sat unmanaged and drifted to 364 diff lines while looking like a
+  deployment problem. It self-declared "This file is superseded" at the top.
+  Trashed (recoverable), not `rm`-ed. **Expect this class again** — every future
+  `.chezmoiignore` addition leaves whatever it already deployed behind.
+- Every new top-level file is chezmoi-managed by default. `dotfiles/managers.yaml`
+  was placed beside `playbook.yaml` deliberately and **not** inside
+  `template_dir/`, because `init-config.sh` copies that directory verbatim and
+  it would have landed in every generated topic.
+- **Two casks now self-update** (`Claude.app`, and superwhisper/openwhispr when
+  those land), so brew's recorded version drifts from what is installed. Each
+  topic's `known_issues` records it; no central list exists and probably should
+  not.
+
+**Resolved today:** the Debian box is **x86_64/amd64** (author, 2026-09-14), so
+OpenWhispr's Linux builds apply and the `.deb` path stands. The habit that came
+out of it is recorded in the task — check a release's architecture list before
+choosing a package format rather than assuming parity with macOS.
+
+## Picking this back up
+
+Say any of these and the thread resumes where it stopped:
+
+| Say this | Resumes |
+|---|---|
+| **"apply"** | The unapplied chezmoi source — 51 drifted entries from both machines; applying stays author-only |
+| **"topical"** or **"A9"** | The next build step: the manager-aware generator reading `managers.yaml` |
+| **"the template work"** | Same as A9 — that is what it refers to now |
+| **"voice typing"** / **"openwhispr"** | The voice topics; architecture is settled, `.deb` via `ansible.builtin.apt` |
+| **"claude-code topic"** | Extending it to Debian via the signed apt repo |
+| **"the sunset plan"** / **"A10"** | Retiring the six `~/bin` names, blocked on the dispatcher working |
+| **"ansible user"** | The privileged-update service, scope the sudoers grant first |
+
+The design decisions behind all of it are in `dotfiles/docs/ROADMAP-topic-cli.md`
+§ Amendment — read that before writing any `topical` code, since several of them
+reversed earlier positions on purpose.
 
 ## Now
 
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
-- **Pull origin/main — 43 commits from the other machine, 5faaa80..22c0b78,
-  local fast-forwardable — and resolve every diff that would undo or overwrite
-  work from either side.** Verified at queue time: none of the 43 touch this
-  checkout's three locally-changed files (the skillet pin bump in
-  `apps/mise/files/config.toml`, the cosine fix and its test, now committed as
-  6c3079b), so the pull itself clobbers nothing — the real collision is
-  TASKS.md, which the remote rewrote for 2026-09-14 while this session commits
-  to the 09-11 file. That conflict is the next item, not collateral. Local
-  work stands by default, remote commits stand by default, and any file
-  touched from both directions is resolved with both intents intact or a drop
-  recorded with its reason. Also note `origin/apps-opencode` and
-  `origin/chrome-extension-topic` look stale — the 09-11 handoff recorded both
-  branches merged; confirm and delete. Done when main == origin/main,
-  `git status` is clean, and every two-sided file is accounted for. [me]
-- **Then, as tonight's last step and with the author: merge the two handoffs
-  into one snapshot for 2026-09-14.** Update, append and modify the incoming
-  snapshot rather than replaying the local one. This session's truth belongs
-  in it: the cosine fix landed and how it was proven (pinned counterexample,
-  mutation), the three todos queued here, the 12 pre-existing environmental
-  suite failures (10 clipped clipboard/TTY, 2 pii_redactor llm), and the
-  unapplied chezmoi drift visible in `chezmoi status`. Verify the incoming
-  snapshot's claims against this machine before they stand — resumption
-  triggers included. Done when a single snapshot remains, nothing either side
-  wrote was silently dropped, and the author has quizzed the merge. [me]
 - **Research metamorphic testing for this repo — generally and against our
   actual suites — and decide whether it complements or should refactor the
   current test tooling.** Run it as a review-best-practices pass (what exists,
@@ -152,6 +191,129 @@ nothing is.
   model-output boundary, case-YAML ingestion, the policy layers. Done when a
   written recommendation exists — which seams fit, which do not, what adoption
   would refactor, and the author's adopt/adapt/reject call. [me]
+- **Give topics an integrations phase, and make `apps/opencode` own its
+  OpenRouter wiring as the first case.** `dot_config/opencode/opencode.jsonc`
+  already points `model` at `openrouter/z-ai/glm-5.3-flash` and `small_model`
+  at `ollama/qwen3:8b`, while `apps/opencode` declares `topic_requires:
+  [homebrew, node]` and checks neither provider — auth is a manual `opencode
+  auth login` that the README leaves to the reader. A freshly provisioned
+  machine therefore deploys a config whose default model cannot answer, and
+  nothing in the run says so. The convention to write into `docs/TOPICS.md`:
+  when a tool needs a provider or CLI at **runtime** rather than to install
+  (openrouter, ollama), the tool's own topic decides on it and acts — it checks
+  whether the dependency is reachable and owns the logic to add the integration
+  and to take it back out, rather than delegating either to the provider's
+  topic. Integrations stay separate from installation: they run only **after**
+  the tool is installed, and are skipped and reported — never failed — when the
+  tool is absent or the user declined it. That ordering is why this is a phase
+  of its own and not more `install.yaml`. Go through **`ori`** rather than
+  hand-rolling provider config: `ori opencode` is OpenRouter's own supported
+  path for pointing opencode at its models, and `apps/ori` already declares
+  `topic_provides: [ori]`, so the integration can require it through the
+  existing dependency graph instead of a PATH probe. The two failure modes are
+  deliberately not the same: a missing or declined **opencode** is a skip, while
+  a missing `ori`, or an `ori` that runs and cannot complete the integration, is
+  **raised** — the run fails with the named fix, or the agent surfaces it, rather
+  than leaving a half-wired provider behind. Mind the auth constraint the ori
+  README already records: `ori login` is interactive and deliberately not
+  automated, and an inherited `OPENROUTER_API_KEY` beats whatever it stores — so
+  the integration must work from that key and fail loudly, naming it, when
+  neither is present. Done when `apps/opencode` wires OpenRouter through `ori`,
+  confirms it with a check whose pass/fail the run reports (`opencode auth list`
+  at minimum, a one-token completion if that proves too weak), skips cleanly
+  where opencode was never installed, raises rather than skips when `ori` is
+  absent or fails, takes the integration back out under `--tags remove`, and
+  `docs/TOPICS.md` states the convention so the next tool follows it without
+  re-deciding.
+- **Prove topic idempotency with a second-run check, and make `--check` work
+  again first.** Measured 2026-09-14 by dry-running
+  `--tags "upgrade,install,minimal"`: `ok=104 changed=6 failed=1`. The good
+  news is that **no package install task reported changed** — `state: present`
+  converges as advertised, so adding `install` to `./update`'s tags would add
+  missing topics without reinstalling present ones. The six that did change:
+  two are the homebrew upgrade tasks doing their job; `apps/ollama` "Download
+  latest Ollama Zsh completion to temporary path" fetches to a fresh tempfile
+  every run and so reports changed forever; and three script/agent installs
+  (`ollama` launchd agent, `clamav` daily script, `lynis` monthly script) need
+  checking for real drift versus a check-mode artifact. The blocker is
+  `failed=1`: `roles/guards/tasks/dotagents-approved-sources.yaml:59` dies under
+  `--check` because the `tempfile` task above it is skipped, leaving
+  `guard_trust_config` a dict with no `.path` — so the repo cannot currently be
+  dry-run at all. `check_mode: false` is the fix and the repo already uses it
+  four times (`apps/homebrew/tasks/upgrade.yaml:19` is the precedent). The
+  standard for the test itself is molecule's `idempotence` action — run converge
+  twice, fail if the second reports changed — which needs no molecule adoption
+  to copy. Done when `--check` completes clean across all topics, a second
+  consecutive real run reports `changed=0`, and the check runs per topic so a
+  failure names which one. Pairs with the per-topic suite task below.
+- **Adopt molecule for topic testing, with the vagrant driver where macOS is
+  required.** Approved 2026-09-14. Molecule is the standard Ansible role test
+  harness and its `idempotence` action is precisely the converge-twice check the
+  task above wants, so this supersedes hand-rolling one. It also fits two
+  decisions already made: scenarios live at `apps/<topic>/molecule/default/`,
+  inside the topic, matching the co-location rule; and molecule is the
+  conventional harness for collections, which is the direction the portability
+  research points. Split the drivers by what they can actually reach — measured
+  from `topic_os`: **19 topics are `[Darwin]`-only, 6 are both, 2 are
+  `[Debian]`-only.** The docker/podman drivers are Linux containers and cover
+  the 8 Debian-capable topics cheaply; the 19 Darwin-only ones — casks, launchd
+  agents, `monitorcontrol`, `rancher-desktop` — cannot be containerised at all
+  and need vagrant against a macOS VM. Unknowns to settle first, because they
+  decide whether the Darwin half is affordable: which vagrant provider works on
+  Apple Silicon (tart, UTM, Parallels — VirtualBox does not), image size, and
+  Apple's licensing limit of two macOS VMs per host. Do not convert all 27 at
+  once. Done when one Debian topic and one Darwin topic each have a scenario
+  that converges and passes `molecule test`'s idempotence step, the per-driver
+  choice is written into `docs/TOPICS.md`, and the pytest suite still owns
+  everything molecule does not — molecule tests convergence on a machine, not
+  the repo's own logic. [blocked: needs the `--check` fix above, since a run
+  that cannot dry-run cannot be trusted to converge twice either]
+- **Sweep the remaining hardcoded `/home/bdavis` paths out of
+  `dot_zshrc.tmpl`.** Four of them, all inside the `{{ if eq .chezmoi.os
+  "linux" }}` block (lines 69–459), so none render on macOS and none are broken
+  today — they are correct only because the Debian box's username happens to be
+  `bdavis`, which is precisely the failure the new convention in `AGENTS.md`
+  § "Machine-specific values are resolved, never written out" exists to stop.
+  Lines 331 and 355 both prepend `/home/bdavis/.local/bin` to `PATH` and can
+  simply go: `~/.local/bin` is already on `PATH` via `zsh/path.zsh`, verified on
+  this Mac. Line 381 sources the broot launcher by absolute path and needs
+  `{{ .chezmoi.homeDir }}` or `$HOME`. Lines 89 and 267 are cosmetic — a
+  compinstall marker and a shellcheck `source=` hint — and the real `source` on
+  267 already uses `~`. Cannot be verified from this Mac: the block only renders
+  on Debian, so `chezmoi execute-template` with a forced OS, or a check on the
+  box itself, is the proof. Done when no `/home/` literal remains in the
+  template and the rendered Debian output still sources broot and resolves
+  `~/.local/bin`.
+- **Give every topic a TDD-style test suite, and make editing a topic require
+  its tests.** `tests/topics/` holds exactly one file — `test_zsh_layout.py`,
+  about zsh fragment placement — against the 27 topics under `dotfiles/apps/`,
+  so nothing tests what a topic's lifecycle actually does: that every state
+  install creates has a teardown in remove (the CRUD invariant `docs/TOPICS.md`
+  asserts but nothing checks), that `topic_os` and `topic_requires` match what
+  the tasks really use, that `--tags upgrade` touches what it claims and no
+  more. Nothing links a topic edit to tests either — the `bats` pre-commit hook
+  matches `^(bin|scripts)/` shell scripts only, so changing a topic's YAML runs
+  nothing and prompts nothing. **A topic's tests live with the topic** —
+  `dotfiles/apps/<topic>/tests/`, not a central `tests/topics/` — so a topic
+  stays portable: copy or extract the directory and its tests come with it,
+  which is also what makes the `ai-strategy` bundle and the Refactor B
+  extraction below movable rather than a re-write. Three things that costs, all
+  of which the implementation has to answer: `pytest.ini` sets
+  `testpaths = tests tools`, so topic-local suites are not collected today and a
+  bare `pytest` would silently pass while testing none of them; `.chezmoiignore`
+  ignores a bare `tests/`, so confirm whether that already excludes topic-local
+  test dirs from the deployed tree and decide whether it should, since
+  portability argues for shipping them so a provisioned machine can verify
+  itself; and `dotfiles/template_dir/` has no `tests/`, so the scaffold must
+  grow one or topic 28 starts untested by default. Tests first on the next topic
+  changed, per the pytest doctrine in `AGENTS.md` and `docs/PYTHON.md`, then
+  backfill rather than pausing to write 27 suites up front. Done when a
+  per-topic suite lives beside its topic over a shared harness (so topic 28
+  inherits it instead of re-inventing it), collection reaches those suites, a
+  staged change under `dotfiles/apps/<topic>/` runs that topic's tests and fails
+  the commit when they are red or absent, and the tap-trust fix in `e60982c`
+  has the regression test it went in without — trust-before-tap ordering, and a
+  teardown that clears both the tap and the formula trust entry.
 - **Build a `dotfiles-triage` agent and the skill set it loads, so a failing
   `chezmoi apply` / `ansible-playbook` / `update.sh` run goes straight into
   troubleshooting instead of stopping at "non-zero return code".** The
@@ -394,6 +556,166 @@ nothing is.
 
 ## Planned
 
+- **Bring the portable half of `~/.claude/` under chezmoi.** Deferred from the
+  claude-code topic (`c988fef`), which owns the binaries and deliberately left
+  config alone. Nothing there is versioned today, so user-global settings do not
+  survive a machine. The work is the split, not the plumbing: `settings.json`,
+  `CLAUDE.md`, `agents/` and `commands/` are portable, while `history.jsonl`,
+  `projects/`, `session-env/`, `daemon/`, `backups/`, `file-history/` and
+  `~/.claude.json` are machine-local and must never be committed — the last of
+  those holds credentials. chezmoi owns the files once split, per the layering
+  rule in `AGENTS.md`; the topic does not template them. Two hazards worth
+  knowing before starting: the VS Code extension, the JetBrains plugin and the
+  desktop app all write `~/.claude/`, so the directory is not Claude Code's
+  alone; and `apps/opencode` already owns `~/.agents/skills` via dotagents,
+  which Claude auto-loads, so nothing here may write skills. Done when the
+  portable files deploy from the chezmoi source on a fresh machine, `chezmoi
+  status` is clean afterwards, and no machine-local state or credential has
+  entered git.
+
+- **Extend `apps/claude-code` to Debian via the signed apt repository.** The
+  topic is `topic_os: [Darwin]` because Homebrew casks are macOS-only, so the
+  Debian box has no managed Claude Code at all. Upstream publishes a signed apt
+  repo rather than expecting the native installer: keyring at
+  `/etc/apt/keyrings/claude-code.asc`, fingerprint
+  `31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE`, and — the part that bites — both
+  the URL path *and* the suite name change between channels
+  (`.../apt/stable stable main` versus `.../apt/latest latest main`), so
+  `claude_code_cask`'s stable/latest choice needs a Debian equivalent rather
+  than reuse. Needs `become: true` for the keyring and sources file, which no
+  part of this topic currently requires. Note apt installs do not auto-update
+  through Claude Code either, so currency still comes from the system upgrade
+  pass. Done when the topic flips to `[Darwin, Debian]`, installs on the Debian
+  box with the key verified before use rather than trusted blind, and
+  `--tags remove` takes the repo file and keyring back out.
+
+- **Extract the model benchmarking and scouting tools into their own repository.**
+  Near-future and deliberate, not urgent — recorded now so it does not happen by
+  accident. `bin/model-bench` is 1357 lines and `bin/model-scout` is 379, plus
+  `apps/ollama/files/ollama-bench` and `ollama-evals`; that is a model
+  evaluation toolkit living inside a machine-provisioning repo. It is also the
+  clearest case of the `AGENTS.md` ladder: AI work belongs outside this repo,
+  and benchmarking models is not configuring a machine. Same destination shape
+  as `topical` — its own repo, installed back here as a normal tool by a thin
+  topic, rather than vendored. Two things to settle before moving: the tools are
+  referenced by name in `.claude/settings.local.json` allowlists and in launchd
+  labels (`com.ollama-usage.snapshot`), so this shares the audit in A10 above;
+  and `ollama-evals`/`ollama-bench` are topic-owned while the `bin/` pair are
+  not, so the split is not along one clean line today. Done when benchmarking
+  lives in its own repo, this repo installs it like any other tool, and nothing
+  here imports it.
+- **Add voice-typing topics: `apps/openwhispr` and `apps/superwhisper`, macOS
+  first, with a Linux path that is not a cask.** Both exist as casks, verified
+  2026-09-14: `openwhispr` 1.10.1 ("Privacy-first voice-to-text dictation with
+  AI agents", open source, `OpenWhispr/openwhispr`) and `superwhisper` 2.18.3
+  ("Dictation tool including LLM reformatting", commercial, macOS >= 14). Both
+  declare `auto_updates`, so brew's recorded version drifts — the same
+  `known_issues` entry `apps/claude-code` already carries for `Claude.app`.
+  Start on Darwin because that is where the casks work; casks are macOS-only, so
+  Debian needs a different mechanism and the honest first step is `topic_os:
+  [Darwin]` rather than a half-built conditional, exactly as `apps/claude-code`
+  did. For the Linux path, `whisper.cpp` is a cross-platform **formula** and is
+  the likely base — note the handoff's "SoupaWhisper" sketch is essentially that.
+  **An external briefing document exists for this work — not the session handoff
+  above — and it does not describe this repo.** It assumes topics named `git/`, `zsh/`, `wayland/`, `macos/` and
+  an `openrouter/` topic; this repo has Ansible roles under `dotfiles/apps/` with
+  a fixed lifecycle, no `wayland` or `macos` topic, and OpenRouter reached
+  through `apps/ori`. Translate it, do not follow it literally. What does carry
+  over, and is worth keeping:
+  - **No hardcoded credentials.** It wants `$OPENROUTER_API_KEY` from the
+    environment rather than baked into a config file. That already matches
+    practice here — `llm-openrouter` and `ori` both read it — and
+    `AGENTS.md` § "Machine-specific values are resolved, never written out" is
+    the rule it is reaching for.
+  - **Wayland cannot be assumed.** Its text-injection rules (`ydotool`/`wtype`,
+    `wl-clipboard`, adding the user to the `input` group for `/dev/uinput`)
+    presuppose a Wayland desktop. **Verify the Debian box actually runs one
+    before building any of it** — that is unconfirmed, and the whole Linux
+    design rests on it.
+  - **Hotkeys belong to the compositor, not the app**, with macOS parity via an
+    Apple Shortcut or Automator action calling the same CLI. That shape is
+    sound; it needs a real toggle command to exist first.
+  **OpenWhispr on Linux is required, not optional** — Darwin-first is about
+  sequence, not scope, and this one has to run on the Debian box too. Research
+  it properly rather than assuming the cask story carries over; upstream already
+  ships for Linux, verified 2026-09-14 against release `v1.10.1`:
+
+      OpenWhispr-1.10.1-linux-amd64.deb        ← apt, matches apps/apt + become
+      OpenWhispr-1.10.1-linux-x86_64.rpm
+      OpenWhispr-1.10.1-linux-x86_64.AppImage
+      OpenWhispr-1.10.1-linux-x64.tar.gz       ← tarball, the apps/ollama shape
+
+  MIT, Electron, actively released. Prefer a package manager over a bare
+  download — but note these are the *same* mechanism here, not alternatives:
+  `ansible.builtin.apt` takes a `deb:` parameter and downloads it itself when
+  given a URL, so "install via apt" and "fall back to the .deb" collapse into
+  one task pointing at the release asset. Check first whether upstream publishes
+  an actual apt *repository*, which would be better still since it makes
+  upgrades ordinary; nothing in the v1.10.1 release assets suggests one, but
+  that only rules out the release page. The tarball is the last resort and
+  matches how `apps/ollama` already installs on Linux.
+
+  **Architecture is confirmed: the Debian box is x86_64/amd64**, stated by the
+  author 2026-09-14, so OpenWhispr's Linux builds apply and the `.deb` path
+  stands. Worth keeping in view anyway, because it nearly went the other way:
+  every OpenWhispr Linux artifact is x86_64 and there is **no arm64 Linux
+  build**, while macOS ships both. Adopt the habit rather than the one-off
+  answer — **check a release's actual architecture list before choosing a
+  package format**, and prefer reading upstream's published metadata over
+  assuming parity with macOS. `apps/ori` already does the honest version of
+  this, resolving `arm64` vs `x64` from `ansible_facts` and verifying against a
+  published `SHA256SUMS`. Second, the release carries
+  `latest-linux.yml`, which is electron-updater metadata: the app self-updates,
+  so it has the same two-owners question `apps/claude-code` answered for the
+  desktop cask, and the answer has to be deliberate rather than inherited.
+
+  Done when OpenWhispr installs, removes and upgrades cleanly on **both** this
+  Mac and the Debian box — or, if the architecture rules it out, when that is
+  recorded with the `whisper.cpp` alternative chosen — and superwhisper's
+  Darwin-only status is stated as a decision rather than an omission.
+- **Explore OpenTypeless before committing to it.** Named alongside OpenWhispr
+  in the voice-typing handoff but not evaluated. Nothing is known here about its
+  licence, its config format, whether it packages for macOS or Linux at all, or
+  whether it duplicates what OpenWhispr already does. Deliberately an
+  exploration, not an install task — `review-best-practices` is the shape, and
+  the output is a recommendation with what was rejected, not a topic.
+- **Give privileged topics a dedicated ansible user per environment, and a
+  service that runs configuration updates.** Today the five apt-using topics
+  (`docker`, `clamav`, `lynis`, `mise`, `ollama` — the only `become: true`
+  topics, per `dotfiles/managers.yaml`) escalate through whoever happens to be
+  running the playbook, which means an unattended update is impossible and an
+  attended one carries the human's full sudo rights. A dedicated account fixes
+  both: the service has an identity, and its powers can be smaller than a
+  person's.
+  **Scope the privileges before building anything.** A service that can apply
+  machine configuration unattended is a standing grant, not a convenience — the
+  sudoers entry should enumerate the specific commands the playbook actually
+  needs rather than `NOPASSWD: ALL`, and `dotfiles/managers.yaml` already names
+  which managers need escalation and which do not, so the list is derivable
+  rather than guessed. `docs/PERMISSIONS.md` is the relevant prior art and is
+  blunt that this layer stops accidents, not a misaligned or prompt-injected
+  agent; a scheduled runner with root is exactly the thing that document warns
+  is not contained by permissions. Decide deliberately whether the service ever
+  runs agent-authored changes, or only reviewed ones.
+  Per environment, because the two boxes differ: launchd on Darwin, systemd on
+  Debian. Both have precedent here — `apps/ollama` installs a launchd agent and
+  `apps/clamav` a systemd timer — so this is a new user and a new unit, not a
+  new mechanism. Done when each machine has an ansible user whose sudo rights
+  are enumerated and reviewable, a scheduled unit that applies configuration and
+  reports what it changed, and a documented way to run it by hand.
+- **Bootstrap a whole machine from chezmoi alone, including Ansible itself.**
+  Later, deliberately. chezmoi ships as a self-contained static binary with no
+  runtime, which makes it the one thing that can be present before anything else
+  is — so `chezmoi init --apply <repo>` could pull the configuration *and* stand
+  up the system dependencies it needs, rather than the current order where
+  Ansible must already exist for the playbook to run. That removes the
+  chicken-and-egg step in `bootstrap/` and shortens a new machine to one
+  command. Worth checking before designing: chezmoi's `run_once_before_` scripts
+  are the hook for this and already appear in the repo
+  (`crontab/run_onchange_after_install-crontab.sh.tmpl`), so the mechanism is
+  known rather than novel. The interesting question is what minimum must be
+  bootstrapped — mise brings Ansible today, and mise itself has to arrive
+  somehow.
 - **Write a `ground-truth-a-dependency` skill from scratch.** The recurring need
   is what the 2026-09-12 dotagents failure took: reading a dependency's shipped
   source to find behaviour its docs never mention — an uncaught `SymlinkError`
@@ -556,31 +878,43 @@ nothing is.
   requires no policy change. Pairs with `spec.md` § Shared code does not assume
   a provider, which states the rule but has no mechanism behind it.
 
-### Refactor A — the `topic` CLI (provisioning config, state, bootstrapping)
+### Refactor A — the `topical` CLI (provisioning config, state, bootstrapping)
 
 Design already exists: `dotfiles/docs/ROADMAP-topic-cli.md`, marked "designed,
 not built", written 2026-09-09. **Do not redesign it.** MVP is two commands and
 the roadmap says to resist a third. These items implement it. Read the roadmap's
 § Constraints that are verified, not assumed before starting — they were checked
 against this machine and must not be re-litigated.
-- A1. Answer the roadmap's § Open questions for whoever picks this up, and decide
-  § Where `topic` itself lives. Blocks everything below, because it fixes the
-  install path and the language. Done when each open question has an answer
-  recorded in the roadmap rather than in a conversation.
-- A2. Build `topic new <name>`. Replaces `init-config.sh`, which copies
+- A10. **Plan the sunset of the six `~/bin` tool names, and connect it to the
+  dispatcher work.** The design is explicit that `topical` adds a front door and
+  does not close the old one, because renaming is a breaking change — but
+  "never" is not the intent either. This is the deliberate, separate change the
+  design says it must be. Four reference classes have to be audited together,
+  all verified in `docs/ROADMAP-topic-cli.md` § Migration inventory:
+  `playbook.yaml:291,303` calling `~/bin/ollama-models sync` in `post_tasks`;
+  `apps/ollama/tasks/remove.yaml:160-161` removing tools by absolute path;
+  `.claude/settings.local.json` allowlisting `ollama-role get *` and others **by
+  name**, so a rename silently costs permissions; and launchd labels that embed
+  the name, like `com.ollama-usage.snapshot`. The six are `browser-ext`,
+  `ollama-models`, `ollama-role`, `ollama-usage`, `ollama-bench`, `ollama-evals`.
+  Sequence matters: the front door must be proven before the old door closes, so
+  this is blocked on the dispatcher actually working. Done when a dated plan
+  exists naming which names go, which stay, and what each retirement touches —
+  not when anything is renamed.
+- A2. Build `topical new <name>`. Replaces `init-config.sh`, which copies
   `template_dir/` and stops, leaving every `topic.yml` field and five lifecycle
   stubs to be hand-edited. Done when scaffolding firefox needs no hand-editing to
   reach a valid, installable topic — and when the generated topic carries its own
   removal path, per `spec.md` § Layering — teardown changes with the thing it
   creates. That property is the main reason this tool is worth building.
-- A3. Generalise `browser-ext` into `topic <name> ext add ...`. It already
+- A3. Generalise `browser-ext` into `topical <name> ext add ...`. It already
   validates IDs, resolves names, pins tags and appends without destroying
   comments — but it lives inside the chrome topic and only knows browsers. Done
   when it serves chrome and firefox with no browser-specific code in the CLI.
 - A4. Add dependency add/remove for non-extension topics, following the same
   comment-preserving edit approach. Done when adding a package to a topic never
   requires hand-editing YAML.
-- A5. Add `topic bootstrap` — run a topic's install and its late-stage
+- A5. Add `topical bootstrap` — run a topic's install and its late-stage
   initialization, per `PRD.md` § Architecture. Done when a topic goes from
   scaffolded to "ready to use" through the CLI alone.
 - A6. Make the CLI the path an agent drives, with the CLI remaining the human
@@ -588,6 +922,80 @@ against this machine and must not be re-litigated.
   end-to-end without editing a topic file directly.
 - A7. Work the roadmap's § Migration inventory. Explicitly out of MVP — do not
   start before A2 and A3 are working.
+- A8. **Record what each dependency manager requires of a topic, as data the CLI
+  can read.** Blocks A2 and A4: a scaffold cannot generate a valid topic, and
+  `topical <name> add <package>` cannot edit one, without knowing what the chosen
+  manager needs. Today that knowledge exists only as a pattern to be copied
+  correctly from a neighbouring topic, and copying the wrong neighbour fails —
+  `apps/claude-code` was scaffolded from `apps/opencode`, which installs no cask
+  and so carries no `vars:` block, and the cask install died on
+  `'user_appdir' is undefined` (fixed in `c988fef`). Four axes the data has to
+  cover, each observed rather than imagined:
+  - **Variables the topic must define.** Every cask-installing topic playbook
+    repeats the same two lines — `homebrew_prefix` and `user_appdir` — in ten
+    places, with the parent playbook holding an eleventh copy. Nothing declares
+    that a cask *requires* them.
+  - **Privilege.** brew must not run under `become`; apt must. A scaffold that
+    guesses wrong fails at run time, not at generation time.
+  - **Currency.** `brew upgrade` reaches formulae and casks, so those topics
+    need no upgrade tasks; anything installed by mise, npm, cargo, ubi or a
+    release tarball is reached by neither system role and must own its upgrade,
+    as `apps/ori` and `apps/ollama` do. Nothing checks that a topic in the
+    second group actually has one — see `docs/TOPICS.md` § "Presence vs
+    currency".
+  - **Channel and version selection.** The same idea has a different shape per
+    manager: a brew channel is a *cask name* (`claude-code` vs
+    `claude-code@latest`), while the apt equivalent changes both the URL path
+    and the suite name. `claude_code_cask` has no Debian counterpart to reuse.
+  Also needed: somewhere for per-manager exceptions to live. `homebrew_upgrade_cask_exclude`
+  exists with a documented reason for `rancher` and has no counterpart for any
+  other manager, so the next such exception will be invented somewhere new.
+  Done when `topical new` generates a topic whose playbook, privilege and upgrade
+  path are correct for its manager without the author consulting a neighbour,
+  and when adding a package to a topic knows which manager it belongs to.
+- A9. **Make `template_dir/` manager-aware and fold it into the CLI, with an
+  optional agent pass on top.** Consumes A8. Today the template is one shape for
+  every topic, so `init-config.sh` copies a scaffold that is wrong for whichever
+  manager the topic actually uses — no `vars:` block for a cask, no `become` for
+  apt, an empty `upgrade.yaml` stub even when the manager's system role will
+  never reach the topic.
+
+  **Decided 2026-09-14: one template plus a generator that emits only what
+  applies, not a set of per-manager variants.** Variants would be five
+  near-identical scaffolds to keep in step, and `dotfiles/managers.yaml` (A8,
+  delivered) already holds the differences as data for the generator to read.
+  Write the generator to be carried into the separate `topical` project rather
+  than as something thrown away here. **Review the choice after using it, not
+  before** — variants read and diff more easily, so if the generator's
+  conditionals grow hairier than five small directories would have been, that is
+  the signal to switch. The trade is recorded so that comparison stays possible.
+
+  First thing the generator should delete: `template_dir/` scaffolds a commented
+  `snap` block that **zero topics use**, and that boilerplate is most of the 37
+  commented-out module lines now sitting in topics that never wanted them.
+  Emitting the one block a topic needs removes the category rather than
+  documenting it.
+  **Do not build a second agent mechanism for the rest.** `migrate-to-roles.sh`
+  already does this job and is the thing to absorb: it treats `template_dir/` as
+  canonical, checks conformance with a **local** LLM (an Ollama chain —
+  devstral-small-2, qwen3.5, mistral-small3.1, with deepseek-r1 and phi4 for
+  reasoning), is re-runnable, has `--dry-run` and prompt previews, and already
+  knows real legacy shapes: `uninstall.yaml` / `cleanup.yaml` / `teardown.yaml`
+  as remove-task sources, stray root files belonging in `files/`, and the
+  system-role topics that carry extra subtasks. That is the "migrations from
+  older or unsupported formats" capability, built and working, sitting outside
+  the CLI that should own it. A7 already covers the migration *inventory*; this
+  is the mechanism.
+  Keep the two passes separate and the second optional: the deterministic
+  scaffold must produce a valid topic on its own, with the agent extending it
+  only for cases the template does not encode — a manager nobody has written a
+  variant for yet, a topic arriving in a shape the rules do not describe. An
+  agent pass that is required rather than optional makes every `topical new`
+  depend on a model being installed and answering, which is a worse failure mode
+  than a scaffold that needs one manual edit. Done when `topical new` emits a
+  topic correct for its manager without an LLM in the loop, `migrate-to-roles.sh`
+  has no logic the CLI lacks, and the agent pass is reachable by an explicit flag
+  that says what it changed.
 
 ### Topic bundles — data-first grouping
 
@@ -787,7 +1195,7 @@ author rather than the machine.
   flows into every project built from it, topic repos included. Purpose is that someone can build a topic from scratch with an
   agent, and borrow one piece of this configuration without adopting the whole
   repo — see `PRD.md` § Topics are installable modules. Overlaps refactor A:
-  `topic new` scaffolds a topic INSIDE this repo and this template scaffolds one
+  `topical new` scaffolds a topic INSIDE this repo and this template scaffolds one
   for a repo that is not this one. They should share the canonical template
   rather than diverge — decide which owns it before the second is built. The
   module boundary itself is deferred to `ROADMAP.md` and is not a blocker; build

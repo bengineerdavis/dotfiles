@@ -111,6 +111,79 @@ Deliberately deferred. The copier topic template can be built against the format
 as it stands today; the module boundary only has to be settled before anyone
 outside this machine relies on it.
 
+Researched 2026-09-14, so the boundary decision is made with this rather than
+from scratch:
+
+- **The ecosystem's unit of distribution is a collection, not a role.**
+  `ansible-galaxy collection install` is what makes a role installable by a
+  third party with no knowledge of this repo's format. Standalone Galaxy roles
+  still exist but are superseded and carry no changelog standard. This matters
+  because `PRD.md` asks for borrowable "without adopting the whole repository" —
+  a stronger claim than borrowable into another repo that already uses this
+  format, which conventions alone can satisfy.
+- **`topic.yml` at role root is correct and does not block any of this.**
+  Verified empirically: `meta/main.yml` rejects unknown top-level keys
+  (`'topic_name' is not a valid attribute for a RoleMetadata`), so the existing
+  comment is right. But `topic.yml` and a valid `meta/main.yml` are not mutually
+  exclusive — all 27 topics currently have **zero** `meta/` directories, so
+  `galaxy_info`, `dependencies` and `argument_specs` are simply absent. Adding
+  them is additive and does not disturb discovery.
+- **Changelogs are collection-scoped upstream.** `antsibull-changelog` generates
+  `changelogs/changelog.yaml` per collection; roles appear inside it as objects.
+  There is no per-role changelog standard, so the per-topic `CHANGELOG.md` this
+  repo now requires is house style — deliberately using antsibull's category
+  names so the conversion is mechanical if topics ever become a collection.
+
+Unchanged by the research: the open question is still what a topic may depend on
+and how it declares it. `topic_requires` names deps this repo's playbook
+resolves; `meta/main.yml` `dependencies` names roles Ansible resolves. Deciding
+whether those stay separate, or one generates the other, is the boundary.
+
+### Develop topics with heavy tests; import them without
+
+Raised 2026-09-14: topics might live in their own library where development and
+testing happen — molecule scenarios, VMs, the slow things — and be imported for
+ordinary use without any of that coming along. Far off, and deliberately an idea
+rather than a task.
+
+Worth recording now because the ecosystem already has the mechanism, which moves
+this from "can we" to "what would it cost". `galaxy.yml` takes a **`build_ignore`**
+key (Ansible 2.10+): "a list of file glob-like patterns used to filter any files
+or directories that should not be included in the build artifact." Listing
+`molecule/` and `tests/` there gives exactly the split — the source repository
+keeps them, the built collection does not. Only `galaxy.yml`, `*.pyc`, `*.retry`
+and `.git` are filtered by default, so test directories must be named explicitly.
+
+This makes the collection direction stronger rather than adding a second one: the
+library, the versioning, the changelog and now the dev/ship split are all the same
+mechanism. The cost is still the boundary question above — a collection has to
+say what a topic may depend on before it can be built at all.
+
+**The split is not binary, and that matters.** Also raised 2026-09-14: a user
+importing a topic should be able to *opt in* to its tests if they want them —
+to verify a topic on their own machine rather than trusting ours. That pulls
+against `build_ignore`, which removes files from the artifact outright: anything
+filtered is not available to opt into, only to clone the source for.
+
+So the likely shape is two tiers rather than one line, drawn by what a test
+*needs* rather than by what it is:
+
+- `molecule/` — needs a VM or container, a driver, and minutes. Development only;
+  a consumer cannot run it without adopting the whole harness. `build_ignore`
+  this.
+- `tests/` — the pytest suites that check a topic's own logic, already co-located
+  per `docs/TOPICS.md`. Cheap, no driver. Ship these and let running them be the
+  opt-in.
+
+Unverified, and the thing to check before designing further: whether
+`ansible-test` can run a collection's shipped tests from an installed collection
+or only from a source checkout. If only from source, then "opt in" means "clone
+the repo" and the tiering above buys nothing — which would be worth knowing
+before building toward it.
+
+Not essential. Recorded so the dev/ship split is not designed as a single
+on/off switch and then found to be one.
+
 ### Use the accept-vs-revise signal in git history as training data for the judge gate
 
 Use the accept-vs-revise signal in git history as training data for the judge gate. The gate itself shipped (PR #1) and decides on real test results; this is the unbuilt half of that task, separated rather than quietly dropped. The idea: `binned` records whether a generated script was accepted, revised, or discarded, and that history says which scripts a human actually wanted. Open questions before it is schedulable — where that signal is stored today, whether there is enough of it to be worth anything yet, and what it would change about the gate, since a gate that already defers to real test results may have little left to learn.
