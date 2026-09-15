@@ -1,0 +1,21 @@
+dotfiles/apps/ollama/files/executable_ollama-evals
+  s_addc33373b6748::t_3e990ec7f1047f 817-823
+tests/ollama_evals/test_harness_property.py
+  s_addc33373b6748::t_416e813974e664 246-259
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6c3079bae051f8499598a193e59c5733d22ad72b",
+  "prompts": {},
+  "sessions": {
+    "s_addc33373b6748": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f610858baffeh4nPjYSCwiYP46",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
