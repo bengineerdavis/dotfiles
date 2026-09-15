@@ -68,7 +68,7 @@ A stale claim is not a lock. If a line looks abandoned, check `git log -3` on th
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
 
-## Where things stand — 2026-09-14
+## Where things stand — 2026-09-14 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
 snapshots is worse than none.
@@ -608,8 +608,8 @@ nothing is.
   [Darwin]` rather than a half-built conditional, exactly as `apps/claude-code`
   did. For the Linux path, `whisper.cpp` is a cross-platform **formula** and is
   the likely base — note the handoff's "SoupaWhisper" sketch is essentially that.
-  **An external handoff document exists for this work, and it does not describe
-  this repo.** It assumes topics named `git/`, `zsh/`, `wayland/`, `macos/` and
+  **An external briefing document exists for this work — not the session handoff
+  above — and it does not describe this repo.** It assumes topics named `git/`, `zsh/`, `wayland/`, `macos/` and
   an `openrouter/` topic; this repo has Ansible roles under `dotfiles/apps/` with
   a fixed lifecycle, no `wayland` or `macos` topic, and OpenRouter reached
   through `apps/ori`. Translate it, do not follow it literally. What does carry
