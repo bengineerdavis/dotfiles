@@ -698,10 +698,6 @@ not built", written 2026-09-09. **Do not redesign it.** MVP is two commands and
 the roadmap says to resist a third. These items implement it. Read the roadmap's
 § Constraints that are verified, not assumed before starting — they were checked
 against this machine and must not be re-litigated.
-- A1. Answer the roadmap's § Open questions for whoever picks this up, and decide
-  § Where `topic` itself lives. Blocks everything below, because it fixes the
-  install path and the language. Done when each open question has an answer
-  recorded in the roadmap rather than in a conversation.
 - A2. Build `topic new <name>`. Replaces `init-config.sh`, which copies
   `template_dir/` and stops, leaving every `topic.yml` field and five lifecycle
   stubs to be hand-edited. Done when scaffolding firefox needs no hand-editing to
