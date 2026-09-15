@@ -62,3 +62,18 @@ deleted.
   pairing `-o` with partial staging. Fixed before it bit — the advisor pass
   caught AGENTS.md still teaching the unsafe combination while the fix sat
   queued here.
+- **Standardize the cross-machine directory layout — policy and plan first,
+  then migration.** Reframed by the author from the registry capture,
+  interviewed 2026-09-15 (three question rounds), approved the same day:
+  the policy and six-phase plan are `docs/LAYOUT.md` (df080f7) — seven
+  flat types under `~/code`, designed layout with both machines migrating,
+  `machines.yml` declares membership with work names in a machine-local
+  overlay, an Ansible topic owns the dirs and gita the repos, drift is
+  guard-reported with auto-repair as the designed evolution. Same-session
+  execution: this Mac migrated (seven type dirs exist,
+  Best-README-Template → `templates/`, repo intact) and
+  `dotfiles/machines.yml` carries this machine's membership (a3513d6).
+  What remains lives in the plan, not here: the second-machine inventory
+  (queued in § Now), the topic-owned skeleton (with the gita study), the
+  second-machine migration, and the citation switch plus drift guard. The
+  author's two permission-blocked steps are in the handoff.
