@@ -505,6 +505,17 @@ nothing is.
 
 ## Planned
 
+- **Design the replacement for the TASKS.md state-and-handoff process.** The
+  queue has become a second codebase: a handoff snapshot two machines rewrite
+  under each other (the 2026-09-14 merge conflict was predicted and then real),
+  resolved tasks with no home (the stopgap `TASKS-RESOLVED.md` exists for
+  exactly that), claims, hazards, standing reminders, and five governance docs
+  all pointing at each other. Design what replaces it — what state lives
+  where, how two machines merge without hand-reconciling prose, how resolution
+  is recorded without growing a second file — and get the author's approval
+  before cutting TASKS.md to match. Done when a written design exists, the
+  author has approved it, and the re-cut file (or its successor) passes
+  `tests/tasks_doc` with the resolved-tasks stopgap retired. [me]
 - **Create a `git` topic that owns git config and extensions; git-ai is its
   first extension.** Git config is not managed at all today — no
   `dot_gitconfig` in the source, no `apps/git` topic — and the git-ai
