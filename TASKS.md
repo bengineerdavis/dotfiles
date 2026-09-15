@@ -221,7 +221,13 @@ nothing is.
   (ideation, brainstorming, stress-testing, fact-checking — not
   exhaustive), recruiting the right experts for each, and trying out
   agents, skills and workflows in a low-stakes environment where useful
-  experiments become durable quickly and dead ones cost nothing. This task
+  experiments become durable quickly and dead ones cost nothing. First
+  evidence of the friction, same day: the author's Google AI research on
+  Caliber lived only in a conversation until captured by hand to
+  `~/code/try/llocallabs-capture/` — and `~/code/try/` already holds the
+  author's ad-hoc experiments (copier-stamps, git-ai-plugin,
+  openrouter-tools), making it the embryonic scratchpad; research captures
+  route there until the factory's own pipeline exists. This task
   is stage one, **gated on the anchor repo existing** — the factory belongs
   to the collection, not here. Stage one classifies: inventory the author's
   actual research modes from what the queues already show (the
@@ -653,6 +659,25 @@ nothing is.
   council rounds are recorded, and — with the author — a decision lands:
   adopt, adapt, or reject, with any follow-on tasks queued citing the
   findings. [me]
+- **Verify and evaluate Caliber (`caliber-ai-org/ai-setup`) as an
+  agent-config generator.** Lead from the author's research capture,
+  2026-09-14, raw paste preserved at
+  `~/code/try/llocallabs-capture/2026-09-14-caliber-ai-setup.md`: a
+  MIT-licensed CLI that scans a codebase locally and generates agent config
+  files (AGENTS.md, .cursor/rules, CLAUDE.md), claiming a generic mode,
+  BYO-key deep generation, and opencode/dotagents compatibility. The
+  capture is an AI-generated summary — **UNVERIFIED**, and the
+  load-bearing claims are exactly what `review-best-practices` exists to
+  check: the local-vs-API split, the npm scope (`@rely-ai/caliber` in the
+  paste vs `caliber-ai-org` on GitHub — one is wrong), the claimed
+  `.skill.md` export for dotagents, and — decisive for this repo — whether
+  it overwrites or respects an existing hand-maintained AGENTS.md, which
+  would disqualify it here while leaving llocallabs's scaffold as a
+  legitimate consumer. Coupling: the general copier template queued below
+  generates the same class of files, so this evaluation answers for both.
+  Done when the claims are checked against the actual repo, a use/don't-use
+  decision is recorded with the author, and any adoption is queued as
+  tasks. [me]
 - **Create a `git` topic that owns git config and extensions; git-ai is its
   first extension.** Git config is not managed at all today — no
   `dot_gitconfig` in the source, no `apps/git` topic — and the git-ai
