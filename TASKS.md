@@ -613,11 +613,16 @@ nothing is.
   that only rules out the release page. The tarball is the last resort and
   matches how `apps/ollama` already installs on Linux.
 
-  **Two things to settle before picking one.** Every Linux artifact is
-  x86_64/amd64 — there is **no arm64 Linux build**, while macOS gets both. If
-  the Debian box is ARM, none of these run and the Linux answer becomes
-  `whisper.cpp` rather than OpenWhispr; confirm the box's architecture first,
-  because it decides the whole approach. Second, the release carries
+  **Architecture is confirmed: the Debian box is x86_64/amd64**, stated by the
+  author 2026-09-14, so OpenWhispr's Linux builds apply and the `.deb` path
+  stands. Worth keeping in view anyway, because it nearly went the other way:
+  every OpenWhispr Linux artifact is x86_64 and there is **no arm64 Linux
+  build**, while macOS ships both. Adopt the habit rather than the one-off
+  answer — **check a release's actual architecture list before choosing a
+  package format**, and prefer reading upstream's published metadata over
+  assuming parity with macOS. `apps/ori` already does the honest version of
+  this, resolving `arm64` vs `x64` from `ansible_facts` and verifying against a
+  published `SHA256SUMS`. Second, the release carries
   `latest-linux.yml`, which is electron-updater metadata: the app self-updates,
   so it has the same two-owners question `apps/claude-code` answered for the
   desktop cask, and the answer has to be deliberate rather than inherited.
