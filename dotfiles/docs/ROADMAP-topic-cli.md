@@ -325,10 +325,27 @@ depends on. `browser-ext` is argparse (`:55`, `:769`) and stays that way — it 
 a topic tool, not the dispatcher. Typer is already a repo dependency (`bin/binned`
 uses Typer and questionary), so this adds nothing new to install.
 
-The alternative — `fastmcp generate-cli`, which reads MCP tool schemas and
-writes a CLI — was rejected for the same reason inverted: it makes the MCP
-schema authoritative and the CLI generated, and here the CLI is the thing humans
-and the agent both use directly.
+### MCP-first was considered, and is the thing to revisit first
+
+The alternative is `fastmcp generate-cli`: define MCP tools, generate a typed
+CLI from their schemas. It genuinely solves drift too, and given that the agent
+is the primary consumer it deserves a real hearing rather than a footnote.
+
+It is rejected for now on one structural fact: **the CLI is a strict superset of
+the MCP surface.** `topical agent` opens an interactive session; MCP has no way
+to express that, and neither do any other interactive or long-running verbs. So
+MCP-first could only ever generate *part* of the CLI, leaving the rest
+hand-written beside it — which is the split this whole section exists to avoid.
+Deriving a subset from a superset is trivial; generating a superset from a
+subset is not possible.
+
+CLI-first also keeps the humans-and-fallback path authoritative, which is what
+the CLI is for. But the trade is real and the decision is explicitly provisional
+— the repo owner has said as much. **Revisit when** the reflected tool list
+reads badly enough as MCP tools that shaping CLI verbs to fix it starts
+distorting the CLI for its human users. That is the signal that the two surfaces
+want different shapes, and at that point one generated interface plus one
+hand-written one is the honest answer rather than a failure.
 
 **Caveat worth keeping:** MCP guidance favours tools designed around meaningful
 operations rather than a copy of every subcommand and flag. If reflected verbs
