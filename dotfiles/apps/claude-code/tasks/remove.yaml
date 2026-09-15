@@ -1,0 +1,53 @@
+# apps/claude-code/tasks/remove.yaml
+# Teardown for everything install.yaml creates, per the CRUD ownership
+# invariant in docs/TOPICS.md. User data is guarded behind a flag because it
+# outlives the binary that wrote it.
+
+# ── The binaries ─────────────────────────────────────────────────────────────
+
+- name: "Uninstall the Claude Code CLI: {{ claude_code_cask }}"
+  community.general.homebrew_cask:
+    name: "{{ claude_code_cask }}"
+    state: absent
+
+- name: "Uninstall the Claude desktop app"
+  # Gated on the same flag that installed it, so a machine that never wanted
+  # the GUI does not report a change for removing something it never had.
+  community.general.homebrew_cask:
+    name: claude
+    state: absent
+  when: claude_code_install_gui | bool
+
+# ── User data, behind a flag ─────────────────────────────────────────────────
+
+- name: "Zap Claude Code's configuration and cached data"
+  # The casks' `zap` stanza trashes ~/.cache/claude, ~/.claude.json*,
+  # ~/.config/claude, ~/.local/bin/claude and ~/.local/share/claude. That is
+  # credentials, settings and session history — none of which this topic
+  # created, and all of which a reinstall cannot restore.
+  #
+  # Off by default for the same reason opencode_remove_skills is: removing a
+  # tool should not silently destroy the work done with it. Note the VS Code
+  # extension, the JetBrains plugin and the desktop app also write ~/.claude/,
+  # so zapping while any of those remain installed removes state they still use.
+  ansible.builtin.command:
+    cmd: "brew uninstall --zap --cask {{ claude_code_cask }}"
+  register: claude_code_zap
+  changed_when: claude_code_zap.rc == 0
+  failed_when: false
+  when: claude_code_remove_config | bool
+
+# ── What teardown deliberately does NOT undo ─────────────────────────────────
+# The orphaned mise install that install.yaml removes is not restored here. It
+# was pre-existing breakage this topic cleaned up, not state it authored, and
+# the CRUD invariant is about undoing what you created — not about recreating
+# what you found broken.
+
+- name: "Note what remove leaves in place"
+  ansible.builtin.debug:
+    msg: >-
+      Binaries removed. Configuration and session history in ~/.claude were
+      {{ 'zapped' if claude_code_remove_config | bool
+         else 'kept (claude_code_remove_config is false)' }}.
+      The orphaned mise shim is not restored — removing it was a fix, not a
+      change this topic owns.

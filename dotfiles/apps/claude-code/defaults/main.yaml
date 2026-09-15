@@ -1,0 +1,40 @@
+# apps/claude-code/defaults/main.yaml
+
+# ── Which release channel ────────────────────────────────────────────────────
+# Homebrew ships TWO casks and they are channels, not a fast/slow fork of the
+# same thing. Measured 2026-09-14: claude-code 2.1.236, claude-code@latest
+# 2.1.270. Upstream's own words (code.claude.com/docs/en/setup):
+#
+#   "Homebrew installations choose a channel by cask name instead of this
+#    setting: claude-code tracks stable and claude-code@latest tracks latest."
+#
+#   stable — "typically about one week old, skipping releases with major
+#            regressions"
+#   latest — "receives new versions as soon as they ship"
+#
+# The two declare `conflicts_with` each other and both ship a `claude` binary,
+# so exactly one may be installed. install.yaml uninstalls the other.
+#
+# Note this is why the `autoUpdatesChannel` setting is irrelevant here: under
+# Homebrew the cask name IS the channel.
+claude_code_cask: claude-code@latest
+
+# ── The desktop app ──────────────────────────────────────────────────────────
+# Cask `claude` → Claude.app. Requires macOS >= 13 and declares auto_updates,
+# so the app keeps itself current between provisioning runs.
+claude_code_install_gui: true
+
+# ── Cleanup of a pre-existing conflicting install ────────────────────────────
+# This machine carried an undeclared mise install of npm:@anthropic-ai/claude-code
+# whose shim shadowed Homebrew's binary on PATH. Removing it is why this topic
+# can promise that `claude` means one thing. Off only if some machine genuinely
+# wants the npm install to win, which would defeat the point of the topic.
+claude_code_remove_mise_orphan: true
+
+# ── Teardown of user data ────────────────────────────────────────────────────
+# `brew uninstall --zap` trashes ~/.claude.json*, ~/.config/claude,
+# ~/.local/share/claude and ~/.cache/claude — that is credentials, settings and
+# session history, not just the binary. Off by default and deliberately so: the
+# same reasoning as opencode_remove_skills, which guards state the topic did not
+# author. Flip it only when the account is genuinely going away.
+claude_code_remove_config: false
