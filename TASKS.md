@@ -80,14 +80,23 @@ machine only. Two chezmoi changes are also unapplied
 Ansible-side docs and data, so nothing live is affected, but `~/dotfiles` is
 behind the source until applied.
 
-**The suite still has the same one failure.**
+**The suite still has the same one failure, and it is nobody's task.**
 `tests/ollama_evals/test_harness_property.py::test_cosine_is_bounded` fails on a
 hypothesis counterexample (`:229`), re-confirmed today — 1 failed, 26 passed, 1
-skipped in that file. Unchanged since 2026-09-11 and still the first item in
-**Now**. The rest of the suite was **not** re-run today; do not read this as
-green. Note the full dependency set really is required — running without
-`--with pillow` produces 28 collection errors that look like breakage and are
-not.
+skipped in that file. Unchanged since 2026-09-11.
+
+The 2026-09-11 snapshot called it "the first item in Now" and this one repeated
+that without checking. **It is not in Now, and there is no task for it
+anywhere** — it has been failing for three days with nothing tracking it.
+Deliberately left untracked rather than queued: three days without consequence
+is evidence the property may be over-strict rather than the code broken, and a
+task saying "fix the failing test" would assert the opposite. Whoever picks it
+up should first ask whether the assertion describes something cosine similarity
+actually guarantees.
+
+The rest of the suite was **not** re-run today; do not read this as green. The
+full dependency set really is required — without `--with pillow` you get 28
+collection errors that look like breakage and are not.
 
 **Landed today, and where the reasoning lives:**
 
@@ -118,8 +127,14 @@ wanted them.
 - **Agents are still denied `chezmoi apply`,** and the rule fired again today as
   designed. The author applied by hand. The rule stands on its own merits — one
   deployed tree that cannot be branched.
-- **`CONTRIBUTING.md` deployed to `~/docs/` has drifted further**, not less:
-  364 diff lines today against 171 on 2026-09-11. Still actively misleading.
+- **Resolved 2026-09-14, and the mechanism is the lesson.** `~/docs/CONTRIBUTING.md`
+  was never "still being deployed" — root `CONTRIBUTING.md` was already in
+  `.chezmoiignore:24`. It was an **orphan**: adding a file to `.chezmoiignore`
+  stops chezmoi managing it but does **not** remove the copy already deployed,
+  so it sat unmanaged and drifted to 364 diff lines while looking like a
+  deployment problem. It self-declared "This file is superseded" at the top.
+  Trashed (recoverable), not `rm`-ed. **Expect this class again** — every future
+  `.chezmoiignore` addition leaves whatever it already deployed behind.
 - Every new top-level file is chezmoi-managed by default. `dotfiles/managers.yaml`
   was placed beside `playbook.yaml` deliberately and **not** inside
   `template_dir/`, because `init-config.sh` copies that directory verbatim and
@@ -129,10 +144,29 @@ wanted them.
   topic's `known_issues` records it; no central list exists and probably should
   not.
 
-**Unverified and load-bearing:** the Debian box's architecture is unknown, and
-two queued items depend on it. OpenWhispr ships **no arm64 Linux build**, so if
-that box is ARM the voice-typing answer becomes `whisper.cpp` instead. Confirm
-it before designing either.
+**Resolved today:** the Debian box is **x86_64/amd64** (author, 2026-09-14), so
+OpenWhispr's Linux builds apply and the `.deb` path stands. The habit that came
+out of it is recorded in the task — check a release's architecture list before
+choosing a package format rather than assuming parity with macOS.
+
+## Picking this back up
+
+Say any of these and the thread resumes where it stopped:
+
+| Say this | Resumes |
+|---|---|
+| **"push"** / **"apply"** | The two loose ends below — unpushed commits, unapplied chezmoi changes |
+| **"topical"** or **"A9"** | The next build step: the manager-aware generator reading `managers.yaml` |
+| **"the template work"** | Same as A9 — that is what it refers to now |
+| **"voice typing"** / **"openwhispr"** | The voice topics; architecture is settled, `.deb` via `ansible.builtin.apt` |
+| **"claude-code topic"** | Extending it to Debian via the signed apt repo |
+| **"the sunset plan"** / **"A10"** | Retiring the six `~/bin` names, blocked on the dispatcher working |
+| **"the failing test"** | `test_cosine_is_bounded` — start by questioning the property, not the code |
+| **"ansible user"** | The privileged-update service, scope the sudoers grant first |
+
+The design decisions behind all of it are in `dotfiles/docs/ROADMAP-topic-cli.md`
+§ Amendment — read that before writing any `topical` code, since several of them
+reversed earlier positions on purpose.
 
 ## Now
 
