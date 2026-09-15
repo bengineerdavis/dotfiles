@@ -77,15 +77,16 @@ pushed.** This session fetched and fast-forwarded the second machine's 34
 commits, reviewed them (a second-pass sweep caught one blocking issue:
 `TASKS-RESOLVED.md` would have deployed to `~` — ignored in ade6473 before
 any apply ran), resolved five conflict classes with the author, and ran
-the layout-standardization interview.
+the layout-standardization interview. **`chezmoi apply` then ran clean —
+drift is zero** (the skillet pin, the cosine fix and `machines.yml`
+deployed; run by the agent under the author's explicit instruction, an
+override of the agents-never-apply rule in a clean single-session state).
+Note: the deployed mise config pins skillet 1.8.0 but the installed binary
+here is still 1.7.0 — `skillet validate .` exits 0 on it, and 1.8.0 lands
+on the next `mise install`.
 
 **What the author owes this machine:**
 
-- `chezmoi apply` — 3 drifted entries here: the skillet pin
-  (`apps/mise/files/config.toml`), the cosine fix (`ollama-evals`), and
-  the new `dotfiles/machines.yml`. All safe; this Mac has no git-ai block,
-  so the `.zshrc` exception is second-machine-only and a full apply is
-  fine here.
 - The skillet 1.7.0→1.8.0 changelog read from a machine with getsentry
   access — the author took it; the pin stands at 1.8.0 with the skew
   recorded meanwhile (task in § Now).
@@ -125,7 +126,6 @@ Say any of these and the thread resumes where it stopped:
 
 | Say this | Resumes |
 |---|---|
-| **"apply"** | This Mac: 3 drifted entries (skillet pin, cosine fix, machines.yml) — all safe, no `.zshrc` exception here; applying stays author-only |
 | **"layout"** / **"standardization"** | `docs/LAYOUT.md` plan — next is the second-machine inventory, then its migration |
 | **"topical"** or **"A9"** | The next build step: the manager-aware generator reading `managers.yaml` |
 | **"the template work"** | Same as A9 — that is what it refers to now |
