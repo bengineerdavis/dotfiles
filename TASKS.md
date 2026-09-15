@@ -585,9 +585,15 @@ nothing is.
       OpenWhispr-1.10.1-linux-x86_64.AppImage
       OpenWhispr-1.10.1-linux-x64.tar.gz       ← tarball, the apps/ollama shape
 
-  MIT, Electron, actively released. The `.deb` is the obvious candidate and
-  fits an existing pattern; the tarball is the fallback and matches how
-  `apps/ollama` already installs on Linux.
+  MIT, Electron, actively released. Prefer a package manager over a bare
+  download — but note these are the *same* mechanism here, not alternatives:
+  `ansible.builtin.apt` takes a `deb:` parameter and downloads it itself when
+  given a URL, so "install via apt" and "fall back to the .deb" collapse into
+  one task pointing at the release asset. Check first whether upstream publishes
+  an actual apt *repository*, which would be better still since it makes
+  upgrades ordinary; nothing in the v1.10.1 release assets suggests one, but
+  that only rules out the release page. The tarball is the last resort and
+  matches how `apps/ollama` already installs on Linux.
 
   **Two things to settle before picking one.** Every Linux artifact is
   x86_64/amd64 — there is **no arm64 Linux build**, while macOS gets both. If
