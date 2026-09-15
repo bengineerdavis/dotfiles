@@ -101,7 +101,11 @@ passed, 12 failed, 13 skipped. The 12 are environmental, not regressions: 10
 in `tests/clipped` (clipboard/TTY in a headless context) and 2 in
 `tests/pii_redactor` llm. Do not read green past them; do not chase them from
 a TTY-less shell either. Without `--with pillow` you still get 28 collection
-errors that look like breakage and are not.
+errors that look like breakage and are not. **Re-confirmed at session end**
+after ~30 further queue/doc commits: identical numbers, the same
+environmental 12. The suite needs no models — the `llm_judge` tests skip
+without one, `pii_redactor` llm runs against a mock, and the six dependency
+packages are the only footprint.
 
 **Landed today, and where the reasoning lives:**
 
@@ -601,7 +605,11 @@ nothing is.
   advisor review before taking effect — the 2026-09-14 review ran with the
   producing agent alone, exactly the self-certification the panel-of-judges
   item warns about — so the design must make the advisor pass real rather
-  than optional. [me]
+  than optional. **That self-review has now run to completion** (session
+  end, 2026-09-15): full suite re-confirmed, merge gates audited across the
+  night's commits, the two repaired commits verified message-matched, and
+  the findings recorded in the snapshot. What is still missing is the
+  independent advisor pass this design must supply. [me]
 - **Research agent sandboxing for projects and user tasks on this machine —
   deep research, debated with a council of advisors, delivered as a two-phase
   project with a spec binding them.** The permission tiers in
