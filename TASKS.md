@@ -1187,6 +1187,21 @@ author rather than the machine.
 - B2. Write the move manifest — every affected file classified as leaves, stays,
   or is deleted. Done when the list exists and later items cite it instead of
   re-deciding per file.
+  **The llocallabs cluster and its timing dependencies (recorded 2026-09-14).**
+  Five queued items cite each other and must be classified together, in
+  this order: (1) the anchor repo must exist before the manifest can classify
+  anything *to* llocallabs — a manifest naming a nonexistent home is a guess;
+  (2) the three research projects queued in § Now and § Planned (sandboxing,
+  session-management handoff, RAG/graphs) are first-class llocallabs
+  candidates — if the anchor exists before they start, start them there; if
+  any starts here first, its outputs are manifest candidates, not resident
+  work; (3) gita's per-machine inventory (§ Planned) must include the
+  collection once it exists — its repos are exactly the share-across-machines
+  set gita is meant to manage; (4) the strategy/policy agent consumes the
+  research projects, so it cannot be stood up ahead of them; (5) B1's
+  install-method answer still gates this manifest's "stays and installs
+  back" column. Until the manifest lands, nothing in the cluster moves, and
+  no item in it should be worked on the assumption it stays here forever.
 - B3. Define the state contract for the new utility: one owner and one retention
   rule for data currently scattered across `~/.local/share/ollama-{usage,bench,
   evals}` and the `llm` sqlite log. This closes the standing data-ownership
