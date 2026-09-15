@@ -16,6 +16,10 @@ tests/
 # Dev tooling — tracked in git but not deployed to home
 .claude
 AGENTS.md
+# Symlink to AGENTS.md so Claude Code loads it — it reads CLAUDE.md, not
+# AGENTS.md. Ignored for the same reason AGENTS.md is: it is repo tooling, and
+# deploying it would put a dangling symlink in $HOME.
+CLAUDE.md
 TASKS.md
 spec.md
 PRD.md
