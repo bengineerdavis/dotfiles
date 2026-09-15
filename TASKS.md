@@ -73,17 +73,16 @@ delete the line and say so in your commit.
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
 snapshots is worse than none.
 
-**Nothing is mid-flight except one carried-over edit.** The only uncommitted
-change is the skillet pin bump in `dotfiles/apps/mise/files/config.toml`
-(1.7.0 → 1.8.0, a previous session's in-flight work; the matching task in § Now
-tracks finishing it). The two machines' work met here: this session's commits
-(cosine fix, queue updates) merged with the other machine's 43, conflict
-confined to TASKS.md as predicted, and **pushed** — nothing lives on one
-machine only. What *is* outstanding is applying: `chezmoi status` shows **51
-drifted entries** — the whole `apps/claude-code` topic, the opencode changes,
-`managers.yaml`, `ROADMAP-topic-cli.md`, the docs trio, and tonight's cosine
-fix among them. Nothing live is broken, but `~/dotfiles` is behind the source
-on both machines' work until the author applies.
+**Nothing is mid-flight; the working tree is clean.** The two machines' work
+met here: this session's commits (cosine fix, queue updates, the skillet pin
+resolution) merged with the other machine's 43, conflict confined to TASKS.md
+as predicted, and **pushed** — nothing lives on one machine only. What *is*
+outstanding is applying: `chezmoi status` shows **51 drifted entries** — the
+whole `apps/claude-code` topic, the opencode changes, `managers.yaml`,
+`ROADMAP-topic-cli.md`, the docs trio, `tools/` (skill-trust), and tonight's
+cosine fix among them. Nothing live is broken, but `~/dotfiles` is behind the
+source on both machines' work until the author applies. Review list before a
+full apply is down to one file: `.zshrc` (see the git-ai task in § Planned).
 
 **The suite's one failure was fixed tonight — the skepticism was right to
 raise, and the answer went the other way.** `test_cosine_is_bounded` failed on
@@ -488,16 +487,21 @@ nothing is.
   and `mise uninstall github:danielmiessler/fabric@1.4.459` closes it out; if it
   reports 1.4.459 something is writing that path and the uninstall would break
   a working command.
-- **Drop the `npm:@sentry/skillet` pin in `apps/mise/files/config.toml`.**
-  Pinned to 1.7.0 on 2026-09-11 because mise's npm resolver (aube) cannot fetch
-  vite's 39 MB packument through `sfw.security.sentry.io` — `curl` and `npm`
-  both can, so it is a mise-side limit, not registry or auth. Done when
-  `mise install npm:@sentry/skillet@1.8.0` succeeds and the pin is back to
-  `latest`; re-test after each mise upgrade. The topic prints the pin on every
-  run, so this cannot rot silently. Decide at the same time whether the four
-  `npx @sentry/skillet@latest` task aliases in that file should follow the pin —
-  they float today, so `mise run skillet-validate` uses a different version from
-  the installed binary, and `spec.md` pins 1.7.0.
+- **Drop the `npm:@sentry/skillet` pin in `apps/mise/files/config.toml` to
+  `latest`.** The pin sat at 1.7.0 since 2026-09-11 because mise's npm resolver
+  (aube) could not fetch vite's 39 MB packument through
+  `sfw.security.sentry.io` — `curl` and `npm` both can, so it is a mise-side
+  limit, not registry or auth. **Resolved 2026-09-14: 1.8.0 verified working
+  here** (`skillet validate .` exits 0; 1.8.0 was already installed, and `mise
+  install` pruned 1.7.0 — reinstall it via
+  `mise install npm:@sentry/skillet@1.7.0` if ever needed), committed as
+  ee09e38. What remains before the pin drops to `latest`: the
+  `apps/mise/tasks/upgrade.yaml` pin-print must follow the version, decide
+  whether the four `npx @sentry/skillet@latest` task aliases stay floating
+  (they align once the pin is `latest`), and `spec.md`'s 1.7.0 pin plus the
+  `docs/REFERENCES.md` row need aligning — that alignment is queued there
+  already. Done when the config says `latest`, the pin-print tells the truth,
+  and the spec/REFERENCES rows agree with it.
 - Install `ty` and typecheck the Python. Named in the house toolchain and
   currently absent — not installed, zero references in the repo. 32 test files
   and 36 PEP 723 scripts are unchecked. Note `ty` is pre-1.0; decide whether it
