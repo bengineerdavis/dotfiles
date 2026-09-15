@@ -16,7 +16,8 @@ which files. Read `PRD.md` too when the work is about scope — whether somethin
 belongs here at all.
 
 **When `TASKS.md` § Now is empty, the work is not finished** — read `ROADMAP.md`.
-Open is a queue whose lines are deleted on completion, so it cannot hold anything
+Open is a queue whose lines move to `TASKS-RESOLVED.md` on completion — a
+stopgap until the process refactor lands — so it cannot hold anything
 long-horizon; an empty queue means "nothing scheduled", never "nothing to do".
 The roadmap says what to do next: take an item, interview the author about it,
 then update `PRD.md` with the requirements that settles and `TASKS.md` with the
@@ -297,8 +298,13 @@ else has built on the history.
     git commit -o <paths> -F -    # --only: commit exactly these, ignore the rest
     git show --stat HEAD          # verify before pushing
 
-`git add -p` is the other half when two sessions are editing the same file.
-`TASKS.md` is the likeliest place for that, since everyone writes to it.
+**For a co-edited file** — `TASKS.md` is the likeliest — the sequence is
+`git add -p`, then a **bare** `git commit` with nothing else staged, then
+`git show --stat HEAD` to verify. `git commit -o` and `git add -p` do not
+compose: `--only` commits the working-tree content of the named paths and
+discards partial staging, silently taking the other session's hunks. Use
+`-o` for paths only you are touching; use add -p plus a bare commit when
+another session may share the file.
 
 **A worktree gives you your own index.** That is a stronger reason to use one than
 the file-churn argument below — the index is shared on *every* commit, not just
@@ -514,6 +520,10 @@ An agent may sit at rung 3 for docs and rung 1 for policy at the same time.
 | 3 | Self-merge code inside a named blast radius when § Merge gates pass. |
 | 4 | Work unattended on a task class and report async. |
 
+A first-time agent starts at **rung 0 in every task class** — propose only —
+until the ledger exists to promote against (queued: § Planned, Build the
+LEDGER).
+
 **Promotion** is a streak of clean items at the current rung: 5 to reach rung 2,
 10 to reach rung 3, 20 to reach rung 4. Clean means merged with no author
 correction of any class below. The counts rise because the cost of a mistake
@@ -603,8 +613,8 @@ uv run --with pytest pytest tests -m "not llm_judge" -q   # skip real-model test
 uv run --with pytest pytest tests -m llm_judge -q         # only real-model tests
 
 bats tests/<name>.bats         # bash scripts only — see Languages below
-./run-role.sh <topic>          # apply one ansible topic
-./run-role.sh <topic> remove   # tear it down
+dotfiles/executable_run-role.sh <topic>          # apply one ansible topic
+dotfiles/executable_run-role.sh <topic> remove   # tear it down
 ```
 
 A bare `pytest tests` reports "24 passed, 89 skipped" and looks green while testing
