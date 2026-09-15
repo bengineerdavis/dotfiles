@@ -227,6 +227,20 @@ nothing is.
   provisioning. Done when the spec is written and validated, and the
   capability runs end-to-end against both a deliberately conflicting merge
   (hands to meld) and a clean one (passes through).
+- **Build the per-machine repo-path registry — managed via gita — that
+  queue claims cite instead of absolute paths.** Captured 2026-09-15 from
+  the merge review, per the author: the other machine recorded
+  `~/code/projects/personal/` as "the actual layout" while this Mac's is
+  `~/code/personal/`, and the correction renamed previously-correct paths —
+  repo layout is not consistent machine state yet, and queue prose keeps
+  baking one machine's layout into shared truth. Part of the larger
+  cross-machine project. Wanted: a declared per-machine layout (the
+  `machines.yml` map concept, which does not exist yet) that gita manages
+  and the queue cites by name; the capture store, ai-prompt-library and
+  impromptu are the first entries. Feeds the gita study in § Planned and
+  the capture-store contract. Done when one machine-owned source names each
+  shared repo's path per machine, the queue cites it, and adding a machine
+  means adding data rather than re-verifying prose.
 - **Research when LSP servers earn their keep with opencode — a deeper
   answer than the docs' best-practices page gives.** High priority, queued
   by the author 2026-09-15. The page (https://opencode.ai/docs/lsp/, fetched
