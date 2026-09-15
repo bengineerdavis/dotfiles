@@ -174,6 +174,7 @@ Say any of these and the thread resumes where it stopped:
 | **"gita"** | The multi-machine repo-manager study and its topic |
 | **"metamorphic"** | The metamorphic-testing research for the test suites |
 | **"pkgup"** | The Debian package-updater study, blocked on become privileges |
+| **"r&d factory"** | The llocallabs exploratory pipeline — scratchpad experiments promoted by test suites, not vibes |
 
 The design decisions behind all of it are in `dotfiles/docs/ROADMAP-topic-cli.md`
 § Amendment — read that before writing any `topical` code, since several of them
@@ -1219,7 +1220,7 @@ author rather than the machine.
   or is deleted. Done when the list exists and later items cite it instead of
   re-deciding per file.
   **The llocallabs cluster and its timing dependencies (recorded 2026-09-14).**
-  Five queued items cite each other and must be classified together, in
+  Six queued items cite each other and must be classified together, in
   this order: (1) the anchor repo must exist before the manifest can classify
   anything *to* llocallabs — a manifest naming a nonexistent home is a guess;
   (2) the three research projects queued in § Now and § Planned (sandboxing,
@@ -1231,8 +1232,11 @@ author rather than the machine.
   set gita is meant to manage; (4) the strategy/policy agent consumes the
   research projects, so it cannot be stood up ahead of them; (5) B1's
   install-method answer still gates this manifest's "stays and installs
-  back" column. Until the manifest lands, nothing in the cluster moves, and
-  no item in it should be worked on the assumption it stays here forever.
+  back" column; and (6) the R&D factory project is gated on the anchor repo
+  and is the umbrella the research projects' methods feed — it belongs to
+  the collection from day one. Until the manifest lands, nothing in the
+  cluster moves, and no item in it should be worked on the assumption it
+  stays here forever.
 - B3. Define the state contract for the new utility: one owner and one retention
   rule for data currently scattered across `~/.local/share/ollama-{usage,bench,
   evals}` and the `llm` sqlite log. This closes the standing data-ownership
