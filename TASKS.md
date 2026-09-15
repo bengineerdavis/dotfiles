@@ -754,6 +754,34 @@ against this machine and must not be re-litigated.
   Done when `topic new` generates a topic whose playbook, privilege and upgrade
   path are correct for its manager without the author consulting a neighbour,
   and when adding a package to a topic knows which manager it belongs to.
+- A9. **Make `template_dir/` manager-aware and fold it into the CLI, with an
+  optional agent pass on top.** Consumes A8. Today the template is one shape for
+  every topic, so `init-config.sh` copies a scaffold that is wrong for whichever
+  manager the topic actually uses — no `vars:` block for a cask, no `become` for
+  apt, an empty `upgrade.yaml` stub even when the manager's system role will
+  never reach the topic. The generator has to pick a variant from A8's data
+  rather than emit one shape and leave the author to spot the difference.
+  **Do not build a second agent mechanism for the rest.** `migrate-to-roles.sh`
+  already does this job and is the thing to absorb: it treats `template_dir/` as
+  canonical, checks conformance with a **local** LLM (an Ollama chain —
+  devstral-small-2, qwen3.5, mistral-small3.1, with deepseek-r1 and phi4 for
+  reasoning), is re-runnable, has `--dry-run` and prompt previews, and already
+  knows real legacy shapes: `uninstall.yaml` / `cleanup.yaml` / `teardown.yaml`
+  as remove-task sources, stray root files belonging in `files/`, and the
+  system-role topics that carry extra subtasks. That is the "migrations from
+  older or unsupported formats" capability, built and working, sitting outside
+  the CLI that should own it. A7 already covers the migration *inventory*; this
+  is the mechanism.
+  Keep the two passes separate and the second optional: the deterministic
+  scaffold must produce a valid topic on its own, with the agent extending it
+  only for cases the template does not encode — a manager nobody has written a
+  variant for yet, a topic arriving in a shape the rules do not describe. An
+  agent pass that is required rather than optional makes every `topic new`
+  depend on a model being installed and answering, which is a worse failure mode
+  than a scaffold that needs one manual edit. Done when `topic new` emits a
+  topic correct for its manager without an LLM in the loop, `migrate-to-roles.sh`
+  has no logic the CLI lacks, and the agent pass is reachable by an explicit flag
+  that says what it changed.
 
 ### Topic bundles — data-first grouping
 
