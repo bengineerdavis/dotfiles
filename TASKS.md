@@ -698,6 +698,22 @@ not built", written 2026-09-09. **Do not redesign it.** MVP is two commands and
 the roadmap says to resist a third. These items implement it. Read the roadmap's
 § Constraints that are verified, not assumed before starting — they were checked
 against this machine and must not be re-litigated.
+- A10. **Plan the sunset of the six `~/bin` tool names, and connect it to the
+  dispatcher work.** The design is explicit that `topical` adds a front door and
+  does not close the old one, because renaming is a breaking change — but
+  "never" is not the intent either. This is the deliberate, separate change the
+  design says it must be. Four reference classes have to be audited together,
+  all verified in `docs/ROADMAP-topic-cli.md` § Migration inventory:
+  `playbook.yaml:291,303` calling `~/bin/ollama-models sync` in `post_tasks`;
+  `apps/ollama/tasks/remove.yaml:160-161` removing tools by absolute path;
+  `.claude/settings.local.json` allowlisting `ollama-role get *` and others **by
+  name**, so a rename silently costs permissions; and launchd labels that embed
+  the name, like `com.ollama-usage.snapshot`. The six are `browser-ext`,
+  `ollama-models`, `ollama-role`, `ollama-usage`, `ollama-bench`, `ollama-evals`.
+  Sequence matters: the front door must be proven before the old door closes, so
+  this is blocked on the dispatcher actually working. Done when a dated plan
+  exists naming which names go, which stay, and what each retirement touches —
+  not when anything is renamed.
 - A2. Build `topic new <name>`. Replaces `init-config.sh`, which copies
   `template_dir/` and stops, leaving every `topic.yml` field and five lifecycle
   stubs to be hand-edited. Done when scaffolding firefox needs no hand-editing to
