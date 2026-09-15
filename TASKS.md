@@ -560,19 +560,27 @@ nothing is.
 
 ## Planned
 
-- **Capture the git-ai installer's edits into the zsh source tree.** The
-  deployed `~/.zshrc` is the one two-way-drifted (`MM`) file: it carries lines
-  the git-ai installer appended on 2026-09-13 — the
-  `~/.git-ai/bin` PATH export and any plugin configuration it wrote. Audit the
-  deployed file for everything git-ai added before touching it, then move each
-  piece into the appropriate source fragment (the PATH export into
-  `zsh/path.zsh` or its peer; plugin config wherever the other plugins live).
-  Not urgent — until it lands, a full `chezmoi apply` would delete the
-  installer's lines from `~/.zshrc`, so apply everything else selectively
-  (`chezmoi apply ~/dotfiles ~/.config/opencode ~/tools`) and leave
-  `~/.zshrc` out. Done when the git-ai block lives in source, `diff
-  <(chezmoi cat ~/.zshrc) ~/.zshrc` no longer shows it as deployed-only, a
-  fresh shell still has git-ai on PATH, and `.zshrc` is no longer `MM`. [me]
+- **Create a `git` topic that owns git config and extensions; git-ai is its
+  first extension.** Git config is not managed at all today — no
+  `dot_gitconfig` in the source, no `apps/git` topic — and the git-ai
+  installer's edits are hand-placed: a `~/.gitconfig` written 2026-09-13
+  (plain file, unmanaged), the `~/.git-ai/bin` PATH export appended to
+  `~/.zshrc` (the one two-way-drifted file), plus any hooks or bin entries it
+  installed. Audit everything the installer touched first, then build
+  `dotfiles/apps/git/`: it owns the gitconfig as a chezmoi template where
+  machine-specific, installs extensions as declared dependencies rather than
+  curl-installers, and carries the shell integration the installers keep
+  hand-appending — the PATH line moves into the topic's shell-integration
+  fragment (or `zsh/path.zsh` if it stays a zsh concern), never the deploy
+  target. This supersedes the earlier zsh-fragment framing: git-ai is a git
+  extension and belongs beside git config, not scattered into zsh. Until it
+  lands, a full `chezmoi apply` would delete the installer's lines from
+  `~/.zshrc`, so apply everything else selectively (`chezmoi apply ~/dotfiles
+  ~/.config/opencode ~/tools`) and leave `~/.zshrc` out. Done when `apps/git`
+  installs cleanly on this machine, git-ai works from a fresh shell with no
+  hand-edited line left in `~/.zshrc`, `diff <(chezmoi cat ~/.zshrc) ~/.zshrc`
+  no longer shows the git-ai block, and the live `~/.gitconfig` is the one the
+  topic owns. [me]
 - **Bring the portable half of `~/.claude/` under chezmoi.** Deferred from the
   claude-code topic (`c988fef`), which owns the binaries and deliberately left
   config alone. Nothing there is versioned today, so user-global settings do not
