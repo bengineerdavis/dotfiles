@@ -195,8 +195,9 @@ nothing is.
   settle at creation: scaffold by hand versus the general copier template
   queued in § Planned (llocallabs would be its first real consumer — that
   coupling may be the reason to build the template now), and where it lives
-  (`~/code/personal/` beside ai-prompt-library and impromptu is the
-  precedent). This repo's recently-queued research (sandboxing, session
+  (`~/code/projects/personal/` beside ai-prompt-library and impromptu is
+  the precedent — this machine`s actual layout; the shorter form in older
+  docs is stale). This repo's recently-queued research (sandboxing, session
   management, metamorphic testing) and the benchmarking tooling
   (`bin/model-bench`, `bin/binned`, the eval harness) are candidates for
   the move manifest — nothing moves until that manifest lands. Done when
@@ -224,10 +225,11 @@ nothing is.
   experiments become durable quickly and dead ones cost nothing. First
   evidence of the friction, same day: the author's Google AI research on
   Caliber lived only in a conversation until captured by hand to
-  `~/code/try/llocallabs-capture/` — and `~/code/try/` already holds the
-  author's ad-hoc experiments (copier-stamps, git-ai-plugin,
+  `~/code/projects/personal/llocallabs-capture/` — and `~/code/try/` already
+  holds the author's ad-hoc experiments (copier-stamps, git-ai-plugin,
   openrouter-tools), making it the embryonic scratchpad; research captures
-  route there until the factory's own pipeline exists. This task
+  route to the capture store beside the personal projects until the
+  factory's own pipeline exists. This task
   is stage one, **gated on the anchor repo existing** — the factory belongs
   to the collection, not here. Stage one classifies: inventory the author's
   actual research modes from what the queues already show (the
@@ -619,7 +621,14 @@ nothing is.
   and `nono`, least-privilege per-agent and per-tool sandboxes with a
   credential proxy and L7 filtering, Apache-2.0, from the Sigstore team
   (https://github.com/nolabs-ai/nono). The council debate pairs with the
-  panel-of-judges item below — settle that first or borrow its method. Done
+  panel-of-judges item below — settle that first or borrow its method.
+  Leads from the second research capture (2026-09-14,
+  `~/code/projects/personal/llocallabs-capture/`): Omnigent —
+  **[verified]** Apache-2.0 and active — claims bubblewrap (Linux) /
+  Seatbelt (macOS) sandboxing with cost tracking across agent CLIs; and
+  the Podman-on-macOS constraints (hidden Linux VM, nested-virtualization
+  limits, network rules applied inside the machine rather than the host)
+  shape the phase-1 requirements for the macOS target. Done
   when the phase-1 spec exists, the council debate is recorded, the author
   has approved the requirements, and phase 2's changes are queued rather
   than imagined. [me]
@@ -634,7 +643,15 @@ nothing is.
   (https://www.youtube.com/watch?v=dtAJ2dOd3ko); the author's accompanying
   skills links were shared as a YouTube redirect to
   `https://aihero.dev/s/YL1zWx`, which 404s — re-fetch or re-share before
-  relying on it. The research learns the process and approaches first; the
+  relying on it. A second research capture the same day supplies candidate
+  tools to evaluate rather than rediscover: Backlog.md (**[verified]** MIT,
+  active — git-native tasks with a drafts→tasks promotion flow and MCP
+  exposure), the `handoff` CLI's six-file `.handoff/` session-state layout,
+  the `.context/` directory convention, and ctx-open (**[verified]**
+  unlicensed and four months stale — design reference only under
+  absent-is-not-permissive); raw material in
+  `~/code/projects/personal/llocallabs-capture/2026-09-14-agent-tooling-research.md`. The
+  research learns the process and approaches first; the
   council's role is two-sided: weigh in on WHAT the deep research should
   ask, then debate, review and challenge the author's candidate ideas with
   critique before any task is cut. Done when the findings exist, the
@@ -662,7 +679,7 @@ nothing is.
 - **Verify and evaluate Caliber (`caliber-ai-org/ai-setup`) as an
   agent-config generator.** Lead from the author's research capture,
   2026-09-14, raw paste preserved at
-  `~/code/try/llocallabs-capture/2026-09-14-caliber-ai-setup.md`: a
+  `~/code/projects/personal/llocallabs-capture/2026-09-14-caliber-ai-setup.md`: a
   MIT-licensed CLI that scans a codebase locally and generates agent config
   files (AGENTS.md, .cursor/rules, CLAUDE.md), claiming a generic mode,
   BYO-key deep generation, and opencode/dotagents compatibility. The
@@ -673,11 +690,18 @@ nothing is.
   `.skill.md` export for dotagents, and — decisive for this repo — whether
   it overwrites or respects an existing hand-maintained AGENTS.md, which
   would disqualify it here while leaving llocallabs's scaffold as a
-  legitimate consumer. Coupling: the general copier template queued below
-  generates the same class of files, so this evaluation answers for both.
-  Done when the claims are checked against the actual repo, a use/don't-use
-  decision is recorded with the author, and any adoption is queued as
-  tasks. [me]
+  legitimate consumer. Second capture, same day: the npm scope is explained
+  as the **for-profit entity behind the tool** (`@rely-ai`, enterprise
+  portal at trycaliber.ai with a sales desk) — so the scope mismatch is an
+  open-core-trajectory question to track, not just a typo; `caliber
+  refresh` drift protection via pre-commit hooks and MCP recommendations
+  are further claims to check. **[verified 2026-09-14 via `gh api`: MIT,
+  not archived, but last push 2026-07-26 — ~7 weeks stale by the 30–45-day
+  maintainership criterion.]** Coupling: the general copier template queued
+  below generates the same class of files, so this evaluation answers for
+  both. Done when the claims are checked against the actual repo, a
+  use/don't-use decision is recorded with the author, and any adoption is
+  queued as tasks. [me]
 - **Create a `git` topic that owns git config and extensions; git-ai is its
   first extension.** Git config is not managed at all today — no
   `dot_gitconfig` in the source, no `apps/git` topic — and the git-ai
