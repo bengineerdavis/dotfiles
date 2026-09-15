@@ -21,6 +21,8 @@ AGENTS.md
 # deploying it would put a dangling symlink in $HOME.
 CLAUDE.md
 TASKS.md
+# Stopgap archive for resolved work — repo tooling, same treatment as TASKS.md.
+TASKS-RESOLVED.md
 spec.md
 PRD.md
 ROADMAP.md
