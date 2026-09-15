@@ -15,6 +15,7 @@ instead, so the root holds only the five documents that govern the project.
 | `PERMISSIONS.md` | what an agent may run, and the threat model it does not address |
 | `REFERENCES.md` | external standards followed, their versions, when last checked |
 | `TOPICS.md` | index entry for topic conventions, which live in the deployed tree |
+| `LAYOUT.md` | the cross-machine directory standard: taxonomy, ownership, migration plan |
 
 ## Adding one
 

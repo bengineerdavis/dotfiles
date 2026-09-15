@@ -737,6 +737,9 @@ root holds only the five documents that govern the project:
   the version it follows, and when that was last checked. Add a row before
   adopting a standard; a convention with no version means whatever its latest
   revision says.
+- **`docs/LAYOUT.md`** — the cross-machine directory standard: the
+  `~/code` taxonomy, who owns it, and the migration plan. Cite it by name
+  instead of pasting absolute repo paths into queue prose.
 
 `CONTRIBUTING.md` is the human entry point and lives there rather than
 here on purpose: GitHub only discovers `CONTRIBUTING.md` in `.github/`, the
