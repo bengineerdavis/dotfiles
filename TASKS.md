@@ -116,6 +116,42 @@ in those two files as suspect until audited.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
+- **Pull origin/main — 43 commits from the other machine, 5faaa80..22c0b78,
+  local fast-forwardable — and resolve every diff that would undo or overwrite
+  work from either side.** Verified at queue time: none of the 43 touch this
+  checkout's three locally-changed files (the skillet pin bump in
+  `apps/mise/files/config.toml`, the cosine fix and its test, now committed as
+  6c3079b), so the pull itself clobbers nothing — the real collision is
+  TASKS.md, which the remote rewrote for 2026-09-14 while this session commits
+  to the 09-11 file. That conflict is the next item, not collateral. Local
+  work stands by default, remote commits stand by default, and any file
+  touched from both directions is resolved with both intents intact or a drop
+  recorded with its reason. Also note `origin/apps-opencode` and
+  `origin/chrome-extension-topic` look stale — the 09-11 handoff recorded both
+  branches merged; confirm and delete. Done when main == origin/main,
+  `git status` is clean, and every two-sided file is accounted for. [me]
+- **Then, as tonight's last step and with the author: merge the two handoffs
+  into one snapshot for 2026-09-14.** Update, append and modify the incoming
+  snapshot rather than replaying the local one. This session's truth belongs
+  in it: the cosine fix landed and how it was proven (pinned counterexample,
+  mutation), the three todos queued here, the 12 pre-existing environmental
+  suite failures (10 clipped clipboard/TTY, 2 pii_redactor llm), and the
+  unapplied chezmoi drift visible in `chezmoi status`. Verify the incoming
+  snapshot's claims against this machine before they stand — resumption
+  triggers included. Done when a single snapshot remains, nothing either side
+  wrote was silently dropped, and the author has quizzed the merge. [me]
+- **Research metamorphic testing for this repo — generally and against our
+  actual suites — and decide whether it complements or should refactor the
+  current test tooling.** Run it as a review-best-practices pass (what exists,
+  what practitioners do, ranked options with rejections recorded), questioning
+  the author liberally before scope settles. Anchors: the property suites
+  (`tests/ollama_evals`, `tests/binned`), hand-rolled mutation checks
+  (AGENTS.md § Prove the test fails), the fuzz guidance (§ Properties and
+  fuzzing), and relations already in place unnamed — `nudge_whitespace`
+  preserving content under spacing perturbation is one. Candidate seams: the
+  model-output boundary, case-YAML ingestion, the policy layers. Done when a
+  written recommendation exists — which seams fit, which do not, what adoption
+  would refactor, and the author's adopt/adapt/reject call. [me]
 - **Build a `dotfiles-triage` agent and the skill set it loads, so a failing
   `chezmoi apply` / `ansible-playbook` / `update.sh` run goes straight into
   troubleshooting instead of stopping at "non-zero return code".** The
@@ -290,16 +326,6 @@ nothing is.
   and `mise uninstall github:danielmiessler/fabric@1.4.459` closes it out; if it
   reports 1.4.459 something is writing that path and the uninstall would break
   a working command.
-- **Fix `cosine()` in `apps/ollama/files/executable_ollama-evals` — it can
-  return a value above 1.0.** Hypothesis found it on 2026-09-11: `a=[1.0]`,
-  `b=[1.2794807103967847e-160]` gives `1.000070683603874`, over the test's own
-  `1.0000001` tolerance. A denormal magnitude underflows the norm, so the
-  division is no longer bounded by Cauchy-Schwarz in floating point. Done when
-  the counterexample is committed as its own example test next to the property
-  (`AGENTS.md` § Properties and fuzzing requires this — the generator is under
-  no obligation to produce it again) and cosine is clamped or the tiny-norm case
-  is handled explicitly. Decide which: clamping hides genuine bugs, returning
-  0.0 for a zero-ish norm is the more honest answer.
 - **Drop the `npm:@sentry/skillet` pin in `apps/mise/files/config.toml`.**
   Pinned to 1.7.0 on 2026-09-11 because mise's npm resolver (aube) cannot fetch
   vite's 39 MB packument through `sfw.security.sentry.io` — `curl` and `npm`
