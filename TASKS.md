@@ -776,7 +776,7 @@ nothing is.
   requires no policy change. Pairs with `spec.md` § Shared code does not assume
   a provider, which states the rule but has no mechanism behind it.
 
-### Refactor A — the `topic` CLI (provisioning config, state, bootstrapping)
+### Refactor A — the `topical` CLI (provisioning config, state, bootstrapping)
 
 Design already exists: `dotfiles/docs/ROADMAP-topic-cli.md`, marked "designed,
 not built", written 2026-09-09. **Do not redesign it.** MVP is two commands and
@@ -799,20 +799,20 @@ against this machine and must not be re-litigated.
   this is blocked on the dispatcher actually working. Done when a dated plan
   exists naming which names go, which stay, and what each retirement touches —
   not when anything is renamed.
-- A2. Build `topic new <name>`. Replaces `init-config.sh`, which copies
+- A2. Build `topical new <name>`. Replaces `init-config.sh`, which copies
   `template_dir/` and stops, leaving every `topic.yml` field and five lifecycle
   stubs to be hand-edited. Done when scaffolding firefox needs no hand-editing to
   reach a valid, installable topic — and when the generated topic carries its own
   removal path, per `spec.md` § Layering — teardown changes with the thing it
   creates. That property is the main reason this tool is worth building.
-- A3. Generalise `browser-ext` into `topic <name> ext add ...`. It already
+- A3. Generalise `browser-ext` into `topical <name> ext add ...`. It already
   validates IDs, resolves names, pins tags and appends without destroying
   comments — but it lives inside the chrome topic and only knows browsers. Done
   when it serves chrome and firefox with no browser-specific code in the CLI.
 - A4. Add dependency add/remove for non-extension topics, following the same
   comment-preserving edit approach. Done when adding a package to a topic never
   requires hand-editing YAML.
-- A5. Add `topic bootstrap` — run a topic's install and its late-stage
+- A5. Add `topical bootstrap` — run a topic's install and its late-stage
   initialization, per `PRD.md` § Architecture. Done when a topic goes from
   scaffolded to "ready to use" through the CLI alone.
 - A6. Make the CLI the path an agent drives, with the CLI remaining the human
@@ -822,7 +822,7 @@ against this machine and must not be re-litigated.
   start before A2 and A3 are working.
 - A8. **Record what each dependency manager requires of a topic, as data the CLI
   can read.** Blocks A2 and A4: a scaffold cannot generate a valid topic, and
-  `topic <name> add <package>` cannot edit one, without knowing what the chosen
+  `topical <name> add <package>` cannot edit one, without knowing what the chosen
   manager needs. Today that knowledge exists only as a pattern to be copied
   correctly from a neighbouring topic, and copying the wrong neighbour fails —
   `apps/claude-code` was scaffolded from `apps/opencode`, which installs no cask
@@ -848,7 +848,7 @@ against this machine and must not be re-litigated.
   Also needed: somewhere for per-manager exceptions to live. `homebrew_upgrade_cask_exclude`
   exists with a documented reason for `rancher` and has no counterpart for any
   other manager, so the next such exception will be invented somewhere new.
-  Done when `topic new` generates a topic whose playbook, privilege and upgrade
+  Done when `topical new` generates a topic whose playbook, privilege and upgrade
   path are correct for its manager without the author consulting a neighbour,
   and when adding a package to a topic knows which manager it belongs to.
 - A9. **Make `template_dir/` manager-aware and fold it into the CLI, with an
@@ -873,9 +873,9 @@ against this machine and must not be re-litigated.
   scaffold must produce a valid topic on its own, with the agent extending it
   only for cases the template does not encode — a manager nobody has written a
   variant for yet, a topic arriving in a shape the rules do not describe. An
-  agent pass that is required rather than optional makes every `topic new`
+  agent pass that is required rather than optional makes every `topical new`
   depend on a model being installed and answering, which is a worse failure mode
-  than a scaffold that needs one manual edit. Done when `topic new` emits a
+  than a scaffold that needs one manual edit. Done when `topical new` emits a
   topic correct for its manager without an LLM in the loop, `migrate-to-roles.sh`
   has no logic the CLI lacks, and the agent pass is reachable by an explicit flag
   that says what it changed.
@@ -1078,7 +1078,7 @@ author rather than the machine.
   flows into every project built from it, topic repos included. Purpose is that someone can build a topic from scratch with an
   agent, and borrow one piece of this configuration without adopting the whole
   repo — see `PRD.md` § Topics are installable modules. Overlaps refactor A:
-  `topic new` scaffolds a topic INSIDE this repo and this template scaffolds one
+  `topical new` scaffolds a topic INSIDE this repo and this template scaffolds one
   for a repo that is not this one. They should share the canonical template
   rather than diverge — decide which owns it before the second is built. The
   module boundary itself is deferred to `ROADMAP.md` and is not a blocker; build
