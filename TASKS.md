@@ -100,7 +100,7 @@ The full suite **was** re-run tonight with the full dependency set: 454
 passed, 12 failed, 13 skipped. The 12 are environmental, not regressions: 10
 in `tests/clipped` (clipboard/TTY in a headless context) and 2 in
 `tests/pii_redactor` llm. Do not read green past them; do not chase them from
-a TTY-less shell either. Without `--with pillow` you still get 28 collection
+a TTY-less shell either. Without `--with pillow` you still get 53 collection
 errors that look like breakage and are not. **Re-confirmed at session end**
 after ~30 further queue/doc commits: identical numbers, the same
 environmental 12. The suite needs no models — the `llm_judge` tests skip
@@ -1230,7 +1230,7 @@ against this machine and must not be re-litigated.
   does not close the old one, because renaming is a breaking change — but
   "never" is not the intent either. This is the deliberate, separate change the
   design says it must be. Four reference classes have to be audited together,
-  all verified in `docs/ROADMAP-topic-cli.md` § Migration inventory:
+  all verified in `dotfiles/docs/ROADMAP-topic-cli.md` § Migration inventory:
   `playbook.yaml:291,303` calling `~/bin/ollama-models sync` in `post_tasks`;
   `apps/ollama/tasks/remove.yaml:160-161` removing tools by absolute path;
   `.claude/settings.local.json` allowlisting `ollama-role get *` and others **by

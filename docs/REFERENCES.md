@@ -79,8 +79,9 @@ approval record, the register points at the living home.
   evidence (validate exits 0), but the mandated read of the 1.7.0→1.8.0
   changes is BLOCKED from this machine — the source repo is not accessible
   (getsentry org is SAML-blocked; npm metadata carries no repository URL).
-  The read must happen from a machine with access; until then the spec
-  footer and this row record the skew rather than papering over it.
+  The read must happen from a machine with access; until then this row
+  records the skew rather than papering over it (the spec footer records
+  only the pin), and the author has taken the read — decision pending.
 - **ruff 0.16.5 is installed but wired to nothing.** When it is wired, pin the
   ruleset here — PEP 723's `[tool]` table lets ruff config live in each script,
   which may remove the need for a repo-wide config file.

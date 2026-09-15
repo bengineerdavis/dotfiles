@@ -29,7 +29,8 @@ belongs here. Size and urgency do not enter into it — a small vague thing is a
 roadmap item, and a large precise one is a task.
 
 Items here have no owner, no date and no done-condition. That is exactly what
-separates them from `TASKS.md` § Now, whose lines are deleted on completion.
+separates them from `TASKS.md` § Now, whose lines move to `TASKS-RESOLVED.md`
+on completion (a stopgap until the process refactor lands).
 Anything here that acquires a done-condition should be promoted rather than left.
 
 ## Scheduled — pointers only
