@@ -75,6 +75,12 @@ approval record, the register points at the living home.
   lock, which is why it is not the installer.
 - **skillet 1.8.0 is available** and `spec.md` pins 1.7.0. Upgrading changes what
   `skillet validate` accepts, so read its changes before moving the pin.
+  **Update 2026-09-15:** the pin has moved to 1.8.0 in `config.toml` on local
+  evidence (validate exits 0), but the mandated read of the 1.7.0→1.8.0
+  changes is BLOCKED from this machine — the source repo is not accessible
+  (getsentry org is SAML-blocked; npm metadata carries no repository URL).
+  The read must happen from a machine with access; until then the spec
+  footer and this row record the skew rather than papering over it.
 - **ruff 0.16.5 is installed but wired to nothing.** When it is wired, pin the
   ruleset here — PEP 723's `[tool]` table lets ruff config live in each script,
   which may remove the need for a repo-wide config file.
