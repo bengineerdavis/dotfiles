@@ -1,0 +1,25 @@
+# machines.yml — per-machine data: repo membership by layout type.
+#
+# Standard: docs/LAYOUT.md (settled 2026-09-15). Plain data, slurped by the
+# parent playbook the same way topic.yml files are; gita consumes `repos`.
+#
+# Work repos are NOT named here — spec.md § Data forbids committing
+# employer-identifying strings. They live in the machine-local overlay at
+# ~/.local/state/layout/machines.local.yaml (same schema, owner: the layout
+# standard; retention: until the machine is decommissioned).
+#
+# Bundle-group membership (hostname → groups) lands here with the topic
+# bundles work; only `repos` is settled today.
+machines:
+  L37V3P6GQ3:  # this Mac
+    repos:
+      personal:
+        - ai-prompt-library
+        - impromptu
+        - bengineerdavis.github.io
+      templates:
+        - Best-README-Template
+      try: []
+      captures: []
+      forks: []
+      archive: []
