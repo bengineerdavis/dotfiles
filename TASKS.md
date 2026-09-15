@@ -213,6 +213,27 @@ nothing is.
   the over-arching-policy contract in ROADMAP.md. Done when the agent
   answers a real strategy question with a recommendation and rejected
   alternatives, running from its own repo rather than this one. [me]
+- **Build the llocallabs R&D factory — an exploratory pipeline from
+  scratchpad experiments to durable, reusable elements, in service of the
+  long horizon: autonomous knowledge projects.** The author's recurring
+  trouble, named 2026-09-14: classifying the different modes of research
+  (ideation, brainstorming, stress-testing, fact-checking — not
+  exhaustive), recruiting the right experts for each, and trying out
+  agents, skills and workflows in a low-stakes environment where useful
+  experiments become durable quickly and dead ones cost nothing. This task
+  is stage one, **gated on the anchor repo existing** — the factory belongs
+  to the collection, not here. Stage one classifies: inventory the author's
+  actual research modes from what the queues already show (the
+  council-pattern deep-research projects, the eval-gate doctrine, the
+  `agentic-context-engineer` role), map each mode to the agents, skills and
+  workflows it needs, and record which experts — human or model — belong to
+  which mode. Stage two, queued by stage one's output, is the scratchpad:
+  disposable environments where an experiment runs with a lightweight eval,
+  and the promotion gate into a durable element (a skill, an agent, a
+  workflow) is a passing test suite — never vibes. Done when stage one's
+  classification exists, the author has corrected it, and the
+  scratchpad/promotion stages are queued in llocallabs with their own
+  gates. [me]
 - **Research metamorphic testing for this repo — generally and against our
   actual suites — and decide whether it complements or should refactor the
   current test tooling.** Run it as a review-best-practices pass (what exists,
