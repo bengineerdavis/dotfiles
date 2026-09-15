@@ -178,6 +178,35 @@ reversed earlier positions on purpose.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
+- **Create the first llocallabs.ai repository — the collection that will
+  consolidate the author's AI tooling and agent projects.** The milestone
+  (2026-09-14): AI research, testing and benchmarking move out of this
+  repo — it carries the machine trunk and is overloaded with strategy work
+  that wants isolation. The first repo anchors the collection: document set
+  first (PRD what-for, spec, ROADMAP, TASKS, AGENTS — the separation this
+  repo runs on), then it queues its own move-manifest work. Two questions
+  settle at creation: scaffold by hand versus the general copier template
+  queued in § Planned (llocallabs would be its first real consumer — that
+  coupling may be the reason to build the template now), and where it lives
+  (`~/code/personal/` beside ai-prompt-library and impromptu is the
+  precedent). This repo's recently-queued research (sandboxing, session
+  management, metamorphic testing) and the benchmarking tooling
+  (`bin/model-bench`, `bin/binned`, the eval harness) are candidates for
+  the move manifest — nothing moves until that manifest lands. Done when
+  the repo exists, carries the document set, passes `skillet validate`, and
+  its TASKS.md queues the move-manifest and strategy-agent work. [me]
+- **Stand up the llocallabs strategy/policy agent.** At least one separate
+  agent that works on tooling and decisions about the author's personal AI
+  strategy and policy — the role this repo was never meant to play (PRD:
+  provisioning is the trunk; strategy is a branch). Its definition, context
+  and tooling live in llocallabs, not here; the machine-side part —
+  registering it in opencode/claude config, its permissions — is a follow-on
+  task here once the definition exists. It consumes the research projects
+  this repo queued (sandboxing, session-management handoff, metamorphic
+  testing) as strategy inputs, and its policy decisions feed back through
+  the over-arching-policy contract in ROADMAP.md. Done when the agent
+  answers a real strategy question with a recommendation and rejected
+  alternatives, running from its own repo rather than this one. [me]
 - **Research metamorphic testing for this repo — generally and against our
   actual suites — and decide whether it complements or should refactor the
   current test tooling.** Run it as a review-best-practices pass (what exists,
