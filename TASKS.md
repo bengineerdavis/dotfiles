@@ -638,6 +638,19 @@ nothing is.
   new mechanism. Done when each machine has an ansible user whose sudo rights
   are enumerated and reviewable, a scheduled unit that applies configuration and
   reports what it changed, and a documented way to run it by hand.
+- **Bootstrap a whole machine from chezmoi alone, including Ansible itself.**
+  Later, deliberately. chezmoi ships as a self-contained static binary with no
+  runtime, which makes it the one thing that can be present before anything else
+  is — so `chezmoi init --apply <repo>` could pull the configuration *and* stand
+  up the system dependencies it needs, rather than the current order where
+  Ansible must already exist for the playbook to run. That removes the
+  chicken-and-egg step in `bootstrap/` and shortens a new machine to one
+  command. Worth checking before designing: chezmoi's `run_once_before_` scripts
+  are the hook for this and already appear in the repo
+  (`crontab/run_onchange_after_install-crontab.sh.tmpl`), so the mechanism is
+  known rather than novel. The interesting question is what minimum must be
+  bootstrapped — mise brings Ansible today, and mise itself has to arrive
+  somehow.
 - **Write a `ground-truth-a-dependency` skill from scratch.** The recurring need
   is what the 2026-09-12 dotagents failure took: reading a dependency's shipped
   source to find behaviour its docs never mention — an uncaught `SymlinkError`
