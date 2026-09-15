@@ -67,114 +67,57 @@ A stale claim is not a lock. If a line looks abandoned, check `git log -3` on th
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
 
-## Where things stand — 2026-09-14 (the session handoff)
+## Where things stand — 2026-09-15 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
 snapshots is worse than none.
 
-**Nothing is mid-flight; the working tree is clean.** The two machines' work
-met here: this session's commits (cosine fix, queue updates, the skillet pin
-resolution) merged with the other machine's 43, conflict confined to TASKS.md
-as predicted, and **pushed** — nothing lives on one machine only. What *is*
-outstanding is applying: `chezmoi status` shows **51 drifted entries** — the
-whole `apps/claude-code` topic, the opencode changes, `managers.yaml`,
-`ROADMAP-topic-cli.md`, the docs trio, `tools/` (skill-trust), and tonight's
-cosine fix among them. Nothing live is broken, but `~/dotfiles` is behind the
-source on both machines' work until the author applies. Review list before a
-full apply is down to one file: `.zshrc` (see the git-ai task in § Planned).
-Drift re-measured at session end: **52 entries, as of 4ff1305.**
-**Machine-stamped:** those figures and the `.zshrc` review item are the
-*second machine's*, 2026-09-14. This Mac's drift on 2026-09-15 was 3 entries
-(TASKS-RESOLVED.md — now ignored in ade6473 — plus the mise pin and the
-cosine fix), and this Mac has no `~/.git-ai` or git-ai block in `~/.zshrc`;
-a full apply here is safe on that file.
+**Nothing is mid-flight; the working tree is clean and everything is
+pushed.** This session fetched and fast-forwarded the second machine's 34
+commits, reviewed them (a second-pass sweep caught one blocking issue:
+`TASKS-RESOLVED.md` would have deployed to `~` — ignored in ade6473 before
+any apply ran), resolved five conflict classes with the author, and ran
+the layout-standardization interview.
 
-**The suite's one failure was fixed tonight — the skepticism was right to
-raise, and the answer went the other way.** `test_cosine_is_bounded` failed on
-a hypothesis counterexample and sat untracked for three days on the theory
-that the property might be over-strict. It is not: cosine similarity does
-guarantee the bound in real arithmetic, and floating point honours it except
-when a norm's square is subnormal — then sqrt stops round-tripping and the
-quotient escapes Cauchy-Schwarz (`cosine([1.0], [1.2794807103967847e-160])`
-returned 1.000070683603874). Fixed in 6c3079b: return 0.0 when either norm's
-square is below `sys.float_info.min`, counterexample pinned as its own test
-beside the property, mutation recorded (reverting the guard fails exactly that
-test and nothing else).
+**What the author owes this machine:**
 
-The full suite **was** re-run tonight with the full dependency set: 454
-passed, 12 failed, 13 skipped. The 12 are environmental, not regressions: 10
-in `tests/clipped` (clipboard/TTY in a headless context) and 2 in
-`tests/pii_redactor` llm. Do not read green past them; do not chase them from
-a TTY-less shell either. Without `--with pillow` you still get 53 collection
-errors that look like breakage and are not. **Re-confirmed at session end**
-after ~30 further queue/doc commits: identical numbers, the same
-environmental 12. The suite needs no models — the `llm_judge` tests skip
-without one, and the six dependency packages are the only footprint.
-Correction from the advisor pass: `pii_redactor`'s conftest mocks by
-default, but its two failing integration tests call the real `llm` CLI for
-`qwen3.5:4b-mlx-bf16` — model-absence, not a mock issue. **Machine-stamped:**
-that absence is the second machine's; on this Mac the tag IS installed
-(`ollama list`, 2026-09-15), so re-run those two tests here before treating
-them as environmental. Also: running
-`tests/clipped` and `tests/pii_redactor` in ONE pytest invocation aborts at
-collection (conftest name collision) — run them separately.
+- `chezmoi apply` — 3 drifted entries here: the skillet pin
+  (`apps/mise/files/config.toml`), the cosine fix (`ollama-evals`), and
+  the new `dotfiles/machines.yml`. All safe; this Mac has no git-ai block,
+  so the `.zshrc` exception is second-machine-only and a full apply is
+  fine here.
+- The skillet 1.7.0→1.8.0 changelog read from a machine with getsentry
+  access — the author took it; the pin stands at 1.8.0 with the skew
+  recorded meanwhile (task in § Now).
+- Two steps the permission layer blocked the agent from: create the
+  work-repo overlay `~/.local/state/layout/machines.local.yaml` (schema in
+  `dotfiles/machines.yml` comments), and register the work repos with gita
+  (`gita add ~/code/work/*` — gita currently tracks only ai-prompt-library
+  and impromptu here).
 
-**Landed today, and where the reasoning lives:**
+**Landed today (this session):** the merge review and its resolutions;
+the review-skill specification and opencode LSP research captures (top of
+§ Now); and the layout standard — policy + six-phase plan in
+`docs/LAYOUT.md`, author-approved, this Mac migrated in-session (seven
+type dirs under `~/code`, Best-README-Template → `templates/`,
+`dotfiles/machines.yml` added). Remaining phases live in the plan:
+second-machine inventory (queued, `[agent: second-machine session]`),
+topic-owned skeleton (with the gita study), second-machine migration,
+citation switch + drift guard.
 
-| What | Where |
-|---|---|
-| opencode installed at last; Homebrew 7 needs a tap trusted *before* tapping | `apps/opencode/CHANGELOG.md` |
-| opencode's permission paths were hardcoded to another machine's home | `dot_config/opencode/opencode.jsonc.tmpl` |
-| `apps/claude-code` — both casks, plus clearing a mise shim that shadowed brew | `apps/claude-code/` |
-| Machine-specific values get resolved, never written out | `AGENTS.md` § Machine-specific values |
-| Every topic carries its own changelog, antsibull categories | `docs/TOPICS.md` § Per-topic changelog |
-| Presence and currency are different guarantees | `docs/TOPICS.md` § Presence vs currency |
-| Queueing a task is its own commit | `TASKS.md` § Conventions, `AGENTS.md` § Commits |
-| A1 answered; the CLI is now `topical` and agent-first | `dotfiles/docs/ROADMAP-topic-cli.md` |
-| What each dependency manager requires of a topic | `dotfiles/managers.yaml` |
-| Cosine returns 0.0 when a norm's square is subnormal — the 3-day failure, fixed and mutation-proven | `apps/ollama/files/executable_ollama-evals`, `tests/ollama_evals/test_harness_property.py` (6c3079b) |
-| llocallabs.ai milestone queued — anchor repo, strategy/policy agent, R&D factory; B1 addendum and ROADMAP candidate answer recorded | TASKS.md § Now, § Refactor B, ROADMAP.md § Over-arching policy |
-| Four deep-research projects queued in the council pattern: sandboxing, session management, RAG/graphs, metamorphic testing | TASKS.md § Now, § Planned |
-| gita study, pkgup study, git topic, Caliber evaluation, env-failure diagnosis queued | TASKS.md § Now, § Planned |
-| Observations-are-deliverables rule established; advisor review of handoffs recorded as a process requirement | AGENTS.md, TASKS.md § Planned (process design) |
-| Research-capture store created outside any repo: `~/code/personal/llocallabs-capture/` | two captures committed as leads; private notes kept out of git |
+**Suite state, scoped honestly:** the ollama_evals property file is green
+here post-merge (28 passed, 1 skipped) — the cosine fix verified on this
+Mac. The full suite was NOT re-run this session; the other machine's
+454/12/13 claim (2026-09-14) is unverified here, and its pii_redactor
+model-absence diagnosis is second-machine — `qwen3.5:4b-mlx-bf16` IS
+installed on this Mac, so re-run those two tests before treating them as
+environmental. `tests/tasks_doc`: 12 passed after all queue edits.
 
-**Where the `topical` work stopped, and what is next.** A1 is answered and
-deleted. The design is amended: one CLI with deterministic and agent verbs,
-written in **Typer** so `pycli-mcp` can derive the MCP tool list by reflection
-rather than anyone maintaining two surfaces. A8 is delivered as
-`dotfiles/managers.yaml`. **A9 is the next piece of work** — a generator that
-reads that data and emits only the blocks a topic needs. Its first target is
-recorded: `template_dir/` scaffolds a `snap` block that zero topics use, which
-is most of 37 commented-out module lines now sitting in topics that never
-wanted them.
-
-**Standing hazards:**
-
-- **Agents are still denied `chezmoi apply`,** and the rule fired again today as
-  designed. The author applied by hand. The rule stands on its own merits — one
-  deployed tree that cannot be branched.
-- **Resolved 2026-09-14, and the mechanism is the lesson.** `~/docs/CONTRIBUTING.md`
-  was never "still being deployed" — root `CONTRIBUTING.md` was already in
-  `.chezmoiignore:24`. It was an **orphan**: adding a file to `.chezmoiignore`
-  stops chezmoi managing it but does **not** remove the copy already deployed,
-  so it sat unmanaged and drifted to 364 diff lines while looking like a
-  deployment problem. It self-declared "This file is superseded" at the top.
-  Trashed (recoverable), not `rm`-ed. **Expect this class again** — every future
-  `.chezmoiignore` addition leaves whatever it already deployed behind.
-- Every new top-level file is chezmoi-managed by default. `dotfiles/managers.yaml`
-  was placed beside `playbook.yaml` deliberately and **not** inside
-  `template_dir/`, because `init-config.sh` copies that directory verbatim and
-  it would have landed in every generated topic.
-- **Two casks now self-update** (`Claude.app`, and superwhisper/openwhispr when
-  those land), so brew's recorded version drifts from what is installed. Each
-  topic's `known_issues` records it; no central list exists and probably should
-  not.
-
-**Resolved today:** the Debian box is **x86_64/amd64** (author, 2026-09-14), so
-OpenWhispr's Linux builds apply and the `.deb` path stands. The habit that came
-out of it is recorded in the task — check a release's architecture list before
-choosing a package format rather than assuming parity with macOS.
+**Standing hazards — unchanged:** agents never run `chezmoi apply`;
+`.chezmoiignore` additions orphan whatever they already deployed (this
+session caught TASKS-RESOLVED.md BEFORE any apply, so no orphan); two
+casks self-update so brew's recorded versions drift; `bin/` scripts are
+chezmoi source, `~/bin` is what runs — check `chezmoi status` first.
 
 ## Picking this back up
 
@@ -182,7 +125,8 @@ Say any of these and the thread resumes where it stopped:
 
 | Say this | Resumes |
 |---|---|
-| **"apply"** | The unapplied chezmoi source — 52 drifted entries from both machines (second machine, 2026-09-14; this Mac: 2 after the ignore fix — the mise pin and the cosine fix); applying stays author-only. **Exception, second machine only: leave `~/.zshrc` unapplied** — its git-ai block is deployed-only; see the git topic task in § Planned. This Mac has no git-ai block; full apply is safe here |
+| **"apply"** | This Mac: 3 drifted entries (skillet pin, cosine fix, machines.yml) — all safe, no `.zshrc` exception here; applying stays author-only |
+| **"layout"** / **"standardization"** | `docs/LAYOUT.md` plan — next is the second-machine inventory, then its migration |
 | **"topical"** or **"A9"** | The next build step: the manager-aware generator reading `managers.yaml` |
 | **"the template work"** | Same as A9 — that is what it refers to now |
 | **"voice typing"** / **"openwhispr"** | The voice topics; architecture is settled, `.deb` via `ansible.builtin.apt` |
