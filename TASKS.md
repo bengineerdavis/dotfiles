@@ -529,7 +529,15 @@ nothing is.
   hand-appending — the PATH line moves into the topic's shell-integration
   fragment (or `zsh/path.zsh` if it stays a zsh concern), never the deploy
   target. This supersedes the earlier zsh-fragment framing: git-ai is a git
-  extension and belongs beside git config, not scattered into zsh. Until it
+  extension and belongs beside git config, not scattered into zsh.
+  **Open research question — settle before writing install tasks:** is git-ai
+  provisioned machine-globally, or per project? Per-project config on this
+  machine lives exclusively in the mise `config.toml` files at each project
+  root, so a per-project answer must route through that file (mise
+  `[tools]`/env/tasks) rather than a global gitconfig hook. Research what
+  git-ai actually scopes — global hook, per-repo config, PATH shim — and what
+  mise's per-project config can express, then take the decision to the author.
+  The answer decides what replaces the installer's hand edits. Until it
   lands, a full `chezmoi apply` would delete the installer's lines from
   `~/.zshrc`, so apply everything else selectively (`chezmoi apply ~/dotfiles
   ~/.config/opencode ~/tools`) and leave `~/.zshrc` out. Done when `apps/git`
