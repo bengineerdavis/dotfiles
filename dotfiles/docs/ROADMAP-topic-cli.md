@@ -205,19 +205,70 @@ confirm each before building:
 - Retiring any `~/bin` name
 - Making `browser-ext`'s reporting verbs browser-agnostic
 
-## Open questions for whoever picks this up
+## Open questions — answered 2026-09-14
 
-1. Should `topic new` also register the topic somewhere, or is the parent
-   playbook's directory scan enough? (It is enough today — topics are discovered
-   dynamically. Probably nothing to do.)
-2. Does `topic <name> ext add` write to `defaults/main.yaml` directly, or should
-   it round-trip through the dispatcher's own validation first? The text-append
-   approach in `browser-ext` exists specifically to preserve comments; keep that
-   property whatever else changes.
-3. Is `ext` the right noun for firefox too, or does it want `addon` to match
-   Mozilla's vocabulary? An alias costs nothing and reads better.
-4. For Fintastic specifically: publishing it to the Web Store as **unlisted**
-   would collapse it from a `git` entry to a `store` entry, remove the one-time
-   manual load *and* the reload-on-upgrade step, and needs no IT involvement.
-   That is a conversation with the repo owner (trjuntunen), not a code change,
-   but it would delete a whole category of work here.
+A1 in `TASKS.md` asked for these to be answered in the roadmap rather than in a
+conversation. They are. The questions are kept verbatim above their answers so
+the reasoning stays checkable.
+
+**1. Should `topic new` also register the topic somewhere, or is the parent
+playbook's directory scan enough?**
+
+No registration. Verified at `playbook.yaml:50-56`: the parent playbook runs
+`ansible.builtin.find` over `apps/` for `topic.yml`/`topic.yaml` with
+`recurse: true, depth: 2` on every run. A topic is discovered by existing. A
+registry would be a second source of truth able to disagree with the
+filesystem, which is the drift this repo avoids everywhere else. **Nothing to
+build.**
+
+One boundary: topic *bundles* may want a list, since a bundle is a grouping that
+does not exist on disk as a directory. That is bundle-level state and lives
+outside topics by design — it is not an argument for registering topics.
+
+**2. Does `topic <name> ext add` write to `defaults/main.yaml` directly, or
+round-trip through the dispatcher's own validation first?**
+
+Both, and `browser-ext` already works this way — this question describes a
+choice that was already made correctly. It parses with `yaml.safe_load` to
+validate (`executable_browser-ext:180`) and writes by text append
+(`:226`), whose docstring gives the reason: *"this file is more comment than
+data, and every one of those comments explains a constraint someone paid to
+discover. A dump would delete all of them."*
+
+Keep both halves. Researched 2026-09-14 rather than assumed: `ruamel.yaml`
+round-trip mode is the serious alternative and **would** work here, because it
+only loses comments under structural surgery (deleting keys, removing list
+entries) and `add` does neither. It is rejected anyway on evidence — Red Hat's
+Linux System Roles adopted ruamel for exactly this problem, converting commented
+Ansible YAML, and still report comments not indented correctly, line wrapping
+not preserved, and embedded scripts mis-indented. Text append loses none of
+that, and costs no dependency.
+
+**Revisit when, not if:** the moment `topic` needs to *remove* or *reorder*
+manifest entries, text editing stops being tractable and ruamel's `.ca` comment
+handling starts earning its cost. Adding is append-only; that is the whole
+reason this works.
+
+**3. Is `ext` the right noun for firefox too, or does it want `addon`?**
+
+Both. `ext` is canonical, `addon` is an alias. Mozilla's vocabulary is "add-on"
+and Chrome's is "extension"; an alias is one line in dispatch and spares every
+user the other project's jargon. Costs nothing, so there is no trade to weigh.
+
+**4. Fintastic: publish to the Web Store as unlisted?**
+
+**Not an agent's call, and not a blocker.** It is a conversation with the repo
+owner (trjuntunen) about how someone else's extension gets published. Recorded
+here so it is not rediscovered: doing it would collapse a `git` entry to a
+`store` entry and delete a category of work, but it changes nothing about the
+CLI's shape. Build as if it will not happen.
+
+### Also settled by A1: what `topic` is written in, and where it lives
+
+`apps/topic/files/topic`, symlinked to `~/bin/topic` by its own `install.yaml`,
+as the recommendation above says. **Python, as a PEP 723 `uv run --script`** —
+not a new decision so much as the one `browser-ext` already made: it is 816
+lines of exactly that, and `topic` is a dispatcher that will only grow. This is
+the repo's documented rule (`AGENTS.md` § Languages: bash while a script is
+small, Python once it is not) landing on the obvious side.
+
