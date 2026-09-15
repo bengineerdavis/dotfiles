@@ -496,29 +496,6 @@ nothing is.
 
 ## Planned
 
-- **Build an `apps/claude-code` topic. The agent that does the work in this repo
-  is the one thing the repo does not manage.** Measured 2026-09-14, three
-  separate gaps. (1) `npm:@anthropic-ai/claude-code` is installed through mise
-  but **is not declared** in `dotfiles/apps/mise/files/config.toml` — it was
-  added by hand with `mise use -g`, which is precisely the drift the `npm:@openai/codex`
-  entry's comment warns about two lines away. (2) Its version has two owners and
-  no authority: mise records `2.1.140`, the running binary reports `2.1.236`,
-  and `~/.claude.json` says `installMethod: global` — Claude Code self-updates
-  past whatever mise installed. Apply the presence/currency test from
-  `docs/TOPICS.md`: brew will not move this to latest, so *what will* — mise, or
-  its own updater? Picking one and disabling the other is most of this task.
-  (3) Nothing in `~/.claude/` is chezmoi-managed, so user-global settings,
-  `CLAUDE.md`, agents and commands are unversioned machine-local state; the
-  repo's own `.claude/` is project-scoped and deliberately not deployed
-  (`.chezmoiignore:17`). **Scope boundary:** skills are already owned by
-  `apps/opencode` via dotagents into `~/.agents/skills`, which Claude auto-loads
-  — this topic must not install skills or it will fight that one for the same
-  directory. Decide the install method first (mise npm as today, the native
-  installer, or Homebrew), since teardown and upgrade both follow from it. Done
-  when the topic installs and removes the CLI, one owner controls the version
-  and the other is switched off, `~/.claude/` config that should be portable is
-  chezmoi-managed with machine-local state left alone, and `--tags remove` does
-  not touch the shared skill set.
 - **Write a `ground-truth-a-dependency` skill from scratch.** The recurring need
   is what the 2026-09-12 dotagents failure took: reading a dependency's shipped
   source to find behaviour its docs never mention — an uncaught `SymlinkError`
