@@ -575,9 +575,33 @@ nothing is.
   - **Hotkeys belong to the compositor, not the app**, with macOS parity via an
     Apple Shortcut or Automator action calling the same CLI. That shape is
     sound; it needs a real toggle command to exist first.
-  Done when at least one of the two installs, removes and upgrades cleanly on
-  this Mac with a topic CHANGELOG recording what drifts, and the Linux decision
-  is recorded as a decision rather than left open.
+  **OpenWhispr on Linux is required, not optional** — Darwin-first is about
+  sequence, not scope, and this one has to run on the Debian box too. Research
+  it properly rather than assuming the cask story carries over; upstream already
+  ships for Linux, verified 2026-09-14 against release `v1.10.1`:
+
+      OpenWhispr-1.10.1-linux-amd64.deb        ← apt, matches apps/apt + become
+      OpenWhispr-1.10.1-linux-x86_64.rpm
+      OpenWhispr-1.10.1-linux-x86_64.AppImage
+      OpenWhispr-1.10.1-linux-x64.tar.gz       ← tarball, the apps/ollama shape
+
+  MIT, Electron, actively released. The `.deb` is the obvious candidate and
+  fits an existing pattern; the tarball is the fallback and matches how
+  `apps/ollama` already installs on Linux.
+
+  **Two things to settle before picking one.** Every Linux artifact is
+  x86_64/amd64 — there is **no arm64 Linux build**, while macOS gets both. If
+  the Debian box is ARM, none of these run and the Linux answer becomes
+  `whisper.cpp` rather than OpenWhispr; confirm the box's architecture first,
+  because it decides the whole approach. Second, the release carries
+  `latest-linux.yml`, which is electron-updater metadata: the app self-updates,
+  so it has the same two-owners question `apps/claude-code` answered for the
+  desktop cask, and the answer has to be deliberate rather than inherited.
+
+  Done when OpenWhispr installs, removes and upgrades cleanly on **both** this
+  Mac and the Debian box — or, if the architecture rules it out, when that is
+  recorded with the `whisper.cpp` alternative chosen — and superwhisper's
+  Darwin-only status is stated as a decision rather than an omission.
 - **Explore OpenTypeless before committing to it.** Named alongside OpenWhispr
   in the voice-typing handoff but not evaluated. Nothing is known here about its
   licence, its config format, whether it packages for macOS or Linux at all, or
