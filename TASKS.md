@@ -68,53 +68,71 @@ A stale claim is not a lock. If a line looks abandoned, check `git log -3` on th
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
 
-## Where things stand — 2026-09-11
+## Where things stand — 2026-09-14
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
 snapshots is worse than none.
 
-**Nothing is mid-flight.** Working tree clean, main pushed. Both open branches
-merged (PR #1, #2, #3); no branch is waiting.
+**Nothing is mid-flight.** Working tree clean. **14 commits are unpushed** —
+that is the one thing to do first tomorrow, or the day's work exists on one
+machine only. Two chezmoi changes are also unapplied
+(`dotfiles/docs/ROADMAP-topic-cli.md`, `dotfiles/managers.yaml`); both are
+Ansible-side docs and data, so nothing live is affected, but `~/dotfiles` is
+behind the source until applied.
 
-**The suite is not green.** 441 passed, **1 failed**, 12 skipped (9m06s, full
-dependency set). `tests/ollama_evals/test_harness_property.py::test_cosine_is_bounded`
-fails on a hypothesis counterexample — first item in **Now**. It is unrelated
-to anything landed today and was found by running the suite, not caused by it.
+**The suite still has the same one failure.**
+`tests/ollama_evals/test_harness_property.py::test_cosine_is_bounded` fails on a
+hypothesis counterexample (`:229`), re-confirmed today — 1 failed, 26 passed, 1
+skipped in that file. Unchanged since 2026-09-11 and still the first item in
+**Now**. The rest of the suite was **not** re-run today; do not read this as
+green. Note the full dependency set really is required — running without
+`--with pillow` produces 28 collection errors that look like breakage and are
+not.
 
 **Landed today, and where the reasoning lives:**
 
 | What | Where |
 |---|---|
-| Agent permissions rebuilt — 105 allow / 23 ask / 21 deny | `docs/PERMISSIONS.md` |
-| Commit messages checked against diff size | `scripts/check_commit_proportionality.py` |
-| A changelog, fragments via scriv | `CHANGELOG.md`, `changelog.d/scriv.ini` |
-| Contribution standards, manual path included | `CONTRIBUTING.md` |
-| External standards register | `docs/REFERENCES.md` |
-| Trust ladder — rungs and incident classes | `AGENTS.md` § Trust ladder |
-| Git hooks installed and proven to fail | `.pre-commit-config.yaml` |
-| One failed tool no longer aborts a provisioning run | `apps/mise/tasks/upgrade.yaml` |
+| opencode installed at last; Homebrew 7 needs a tap trusted *before* tapping | `apps/opencode/CHANGELOG.md` |
+| opencode's permission paths were hardcoded to another machine's home | `dot_config/opencode/opencode.jsonc.tmpl` |
+| `apps/claude-code` — both casks, plus clearing a mise shim that shadowed brew | `apps/claude-code/` |
+| Machine-specific values get resolved, never written out | `AGENTS.md` § Machine-specific values |
+| Every topic carries its own changelog, antsibull categories | `docs/TOPICS.md` § Per-topic changelog |
+| Presence and currency are different guarantees | `docs/TOPICS.md` § Presence vs currency |
+| Queueing a task is its own commit | `TASKS.md` § Conventions, `AGENTS.md` § Commits |
+| A1 answered; the CLI is now `topical` and agent-first | `dotfiles/docs/ROADMAP-topic-cli.md` |
+| What each dependency manager requires of a topic | `dotfiles/managers.yaml` |
 
-**Standing hazards, all machine-level rather than repo-level:**
+**Where the `topical` work stopped, and what is next.** A1 is answered and
+deleted. The design is amended: one CLI with deterministic and agent verbs,
+written in **Typer** so `pycli-mcp` can derive the MCP tool list by reflection
+rather than anyone maintaining two surfaces. A8 is delivered as
+`dotfiles/managers.yaml`. **A9 is the next piece of work** — a generator that
+reads that data and emits only the blocks a topic needs. Its first target is
+recorded: `template_dir/` scaffolds a `snap` block that zero topics use, which
+is most of 37 commented-out module lines now sitting in topics that never
+wanted them.
 
-- **Agents are still denied `chezmoi apply`** — the deny rule fired as designed
-  on 2026-09-11 and an agent stopped rather than working around it. But the
-  reason recorded here, two-way drift in `.zshrc` and `bin/ask-research`, is no
-  longer true: `chezmoi status` was empty on 2026-09-11 apart from the file
-  being worked on, and a scoped `chezmoi apply ~/dotfiles/apps/mise` by the
-  author applied cleanly. The rule stands on its own merits — one deployed tree
-  that cannot be branched — rather than on that drift.
-- `CONTRIBUTING.md` is deployed to `~/docs/` and is 171 lines diverged from
-  the live one — actively misleading, not merely stale. First item in **Now**.
-- Every new top-level file is chezmoi-managed by default. Four times today a new
-  artefact was one `.chezmoiignore` line from landing in `$HOME`.
-  `tests/chezmoi` catches the known ones; it cannot catch the next one.
+**Standing hazards:**
 
-**Known weakness in what was written today:** `spec.md` and `PRD.md` contain
-claims derived from repo evidence rather than stated by the author, and nothing
-marks which. One of them — a no-changelog policy — was invented from a sentence
-about `TASKS.md` and then cited back as settled. `TASKS.md` § Conventions
-requires `[inferred]` marking; it was not used once. Treat unattributed claims
-in those two files as suspect until audited.
+- **Agents are still denied `chezmoi apply`,** and the rule fired again today as
+  designed. The author applied by hand. The rule stands on its own merits — one
+  deployed tree that cannot be branched.
+- **`CONTRIBUTING.md` deployed to `~/docs/` has drifted further**, not less:
+  364 diff lines today against 171 on 2026-09-11. Still actively misleading.
+- Every new top-level file is chezmoi-managed by default. `dotfiles/managers.yaml`
+  was placed beside `playbook.yaml` deliberately and **not** inside
+  `template_dir/`, because `init-config.sh` copies that directory verbatim and
+  it would have landed in every generated topic.
+- **Two casks now self-update** (`Claude.app`, and superwhisper/openwhispr when
+  those land), so brew's recorded version drifts from what is installed. Each
+  topic's `known_issues` records it; no central list exists and probably should
+  not.
+
+**Unverified and load-bearing:** the Debian box's architecture is unknown, and
+two queued items depend on it. OpenWhispr ships **no arm64 Linux build**, so if
+that box is ARM the voice-typing answer becomes `whisper.cpp` instead. Confirm
+it before designing either.
 
 ## Now
 
