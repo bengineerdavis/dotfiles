@@ -227,6 +227,14 @@ nothing is.
   provisioning. Done when the spec is written and validated, and the
   capability runs end-to-end against both a deliberately conflicting merge
   (hands to meld) and a clean one (passes through).
+- **Handle machine-specific directory exceptions and their state backup in
+  the layout standard.** Deferred by the author 2026-09-15 from the
+  standardization interview: some directories will exist on one machine
+  only, yet their state should still be backed up to config. Design how the
+  standard declares a per-machine exception without breaking sameness
+  elsewhere, and how the exception trees' state plugs into the
+  backup-design item in § Planned. Deferred deliberately so the interview
+  can settle the shared-layout core first.
 - **Standardize the cross-machine directory layout — policy and plan first,
   then migration.** Reframed by the author 2026-09-15 from the registry
   capture below: the same folders on two machines SHOULD have the same
