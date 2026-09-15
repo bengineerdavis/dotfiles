@@ -1140,11 +1140,17 @@ runtime and pulling weights is machine setup. What leaves is everything about th
 author rather than the machine.
 - B1. Decide the new home and its install method. **Home decided by the author
   2026-09-12:** `ai-prompt-library` now (skills, evals, policy, tooling work
-  lands there), `impromptu` eventually once the tool is built up. Still open,
-  and deliberately so: the install method this repo pins (B1's other half),
-  and whether policy management has full scope in either home — the author
-  marked this unresolved; see `ROADMAP.md` § Over-arching policy. Blocks B2
-  below only on the install-method half.
+  lands there), `impromptu` eventually once the tool is built up. **Addendum
+  2026-09-14, a candidate supersession:** the author announced `llocallabs.ai`
+  — a collection of repositories consolidating the AI tooling and agent
+  projects, starting with a new anchor repo, with AI research, testing and
+  benchmarking moving out of this repo (tasks in § Now). ai-prompt-library
+  and impromptu may consolidate under it; whether that replaces the 09-12
+  home decision or sits above it is part of what B1 still answers. Still
+  open, and deliberately so: the install method this repo pins (B1's other
+  half), and whether policy management has full scope in any home — the
+  author marked this unresolved; see `ROADMAP.md` § Over-arching policy.
+  Blocks B2 below only on the install-method half.
 - B2. Write the move manifest — every affected file classified as leaves, stays,
   or is deleted. Done when the list exists and later items cite it instead of
   re-deciding per file.
