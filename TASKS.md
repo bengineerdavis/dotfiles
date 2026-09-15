@@ -856,8 +856,23 @@ against this machine and must not be re-litigated.
   every topic, so `init-config.sh` copies a scaffold that is wrong for whichever
   manager the topic actually uses — no `vars:` block for a cask, no `become` for
   apt, an empty `upgrade.yaml` stub even when the manager's system role will
-  never reach the topic. The generator has to pick a variant from A8's data
-  rather than emit one shape and leave the author to spot the difference.
+  never reach the topic.
+
+  **Decided 2026-09-14: one template plus a generator that emits only what
+  applies, not a set of per-manager variants.** Variants would be five
+  near-identical scaffolds to keep in step, and `dotfiles/managers.yaml` (A8,
+  delivered) already holds the differences as data for the generator to read.
+  Write the generator to be carried into the separate `topical` project rather
+  than as something thrown away here. **Review the choice after using it, not
+  before** — variants read and diff more easily, so if the generator's
+  conditionals grow hairier than five small directories would have been, that is
+  the signal to switch. The trade is recorded so that comparison stays possible.
+
+  First thing the generator should delete: `template_dir/` scaffolds a commented
+  `snap` block that **zero topics use**, and that boilerplate is most of the 37
+  commented-out module lines now sitting in topics that never wanted them.
+  Emitting the one block a topic needs removes the category rather than
+  documenting it.
   **Do not build a second agent mechanism for the rest.** `migrate-to-roles.sh`
   already does this job and is the thing to absorb: it treats `template_dir/` as
   canonical, checks conformance with a **local** LLM (an Ollama chain —
