@@ -227,20 +227,23 @@ nothing is.
   provisioning. Done when the spec is written and validated, and the
   capability runs end-to-end against both a deliberately conflicting merge
   (hands to meld) and a clean one (passes through).
-- **Build the per-machine repo-path registry — managed via gita — that
-  queue claims cite instead of absolute paths.** Captured 2026-09-15 from
-  the merge review, per the author: the other machine recorded
-  `~/code/projects/personal/` as "the actual layout" while this Mac's is
-  `~/code/personal/`, and the correction renamed previously-correct paths —
-  repo layout is not consistent machine state yet, and queue prose keeps
-  baking one machine's layout into shared truth. Part of the larger
-  cross-machine project. Wanted: a declared per-machine layout (the
-  `machines.yml` map concept, which does not exist yet) that gita manages
-  and the queue cites by name; the capture store, ai-prompt-library and
-  impromptu are the first entries. Feeds the gita study in § Planned and
-  the capture-store contract. Done when one machine-owned source names each
-  shared repo's path per machine, the queue cites it, and adding a machine
-  means adding data rather than re-verifying prose.
+- **Standardize the cross-machine directory layout — policy and plan first,
+  then migration.** Reframed by the author 2026-09-15 from the registry
+  capture below: the same folders on two machines SHOULD have the same
+  structure, at least for how the author organizes types of data including
+  repos — this is standardization, not just a registry. Before any build:
+  an interview settles the policy (which trees are covered, the type
+  taxonomy, which machine's layout is canonical, ownership and enforcement
+  layers, drift handling, how a new machine adopts), then a written plan
+  including migration of divergent trees (the second machine's
+  `~/code/projects/personal/` content, the capture store with its
+  private/shareable split, this Mac's empty `~/code/try/` where the queue
+  claimed experiments). gita manages the repo sets; the `machines.yml`
+  concept (does not exist yet) is the layout data's likely home. Queue
+  claims then cite the standard by name instead of absolute paths. Done
+  when the policy is written and approved, the plan names the migration
+  steps with rollback, and implementation tasks are queued from it — not
+  before.
 - **Research when LSP servers earn their keep with opencode — a deeper
   answer than the docs' best-practices page gives.** High priority, queued
   by the author 2026-09-15. The page (https://opencode.ai/docs/lsp/, fetched
