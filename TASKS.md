@@ -585,6 +585,23 @@ nothing is.
   hand-edited line left in `~/.zshrc`, `diff <(chezmoi cat ~/.zshrc) ~/.zshrc`
    no longer shows the git-ai block, and the live `~/.gitconfig` is the one the
    topic owns. [me]
+- **Study `pkgup` and turn its migration to the topic format into a queued
+  collection of tasks.** The script is not in this repo — it is the Debian
+  box's package updater (nothing named `pkgup` in the source, `~/bin`, or the
+  zsh fragments on this Mac; the macOS sibling here is `~/bin/upgrade-all.sh`,
+  which orchestrates `softwareupdate` and `brewup.sh`). The study is the
+  initial task: read the script where it lives, inventory every package
+  manager it drives, compare each against the existing topics (`apps/apt`
+  exists; brew's upgrade path lives in the homebrew topic), then queue one
+  migration task per manager or coherent clump — each in the topic format
+  with `topic.yml`, the install/upgrade/remove lifecycle, and a per-topic
+  test suite. **[blocked: root-level become permissions — an unattended
+  topic cannot run apt until the dedicated-ansible-user task's sudoers grant
+  enumerates the package-manager commands; do that privilege work first.]**
+  Done when the collection is queued in TASKS.md, each task names its
+  manager, its topic home and its teardown, and any non-manager logic left
+  in the script has an owner or a retirement note alongside A10's `~/bin`
+  sunset. [me]
 - **Bring the portable half of `~/.claude/` under chezmoi.** Deferred from the
   claude-code topic (`c988fef`), which owns the binaries and deliberately left
   config alone. Nothing there is versioned today, so user-global settings do not
