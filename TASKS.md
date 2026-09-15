@@ -23,7 +23,7 @@ Keep it short. This tracks *open* work and cross-session hazards, not history �
 - **Task or roadmap item?** If you can write "done when X" in one sentence, it
   is a task and belongs here. If you cannot, it is direction and belongs in
   `ROADMAP.md`. Nothing else distinguishes them — not size, not importance, not
-  how soon. An item here is deleted when finished; a roadmap item is not.
+  how soon. An item here is finished when it moves to `TASKS-RESOLVED.md` — a stopgap until the process refactor lands; a roadmap item is never finished.
 - One line per item, imperative, with enough context to pick it up cold.
 - **Captures commit immediately.** Anything an agent queues here or captures
   for later gets its own commit, straight to main, the moment it is written —
@@ -104,8 +104,12 @@ a TTY-less shell either. Without `--with pillow` you still get 28 collection
 errors that look like breakage and are not. **Re-confirmed at session end**
 after ~30 further queue/doc commits: identical numbers, the same
 environmental 12. The suite needs no models — the `llm_judge` tests skip
-without one, `pii_redactor` llm runs against a mock, and the six dependency
-packages are the only footprint.
+without one, and the six dependency packages are the only footprint.
+Correction from the advisor pass: `pii_redactor`'s conftest mocks by
+default, but its two failing integration tests call the real `llm` CLI for
+`qwen3.5:4b-mlx-bf16` — model-absence, not a mock issue. Also: running
+`tests/clipped` and `tests/pii_redactor` in ONE pytest invocation aborts at
+collection (conftest name collision) — run them separately.
 
 **Landed today, and where the reasoning lives:**
 
@@ -170,7 +174,7 @@ Say any of these and the thread resumes where it stopped:
 
 | Say this | Resumes |
 |---|---|
-| **"apply"** | The unapplied chezmoi source — 51 drifted entries from both machines; applying stays author-only |
+| **"apply"** | The unapplied chezmoi source — 52 drifted entries from both machines; applying stays author-only. **Exception: leave `~/.zshrc` unapplied** — the git-ai block is deployed-only; see the git topic task in § Planned |
 | **"topical"** or **"A9"** | The next build step: the manager-aware generator reading `managers.yaml` |
 | **"the template work"** | Same as A9 — that is what it refers to now |
 | **"voice typing"** / **"openwhispr"** | The voice topics; architecture is settled, `.deb` via `ansible.builtin.apt` |
@@ -265,17 +269,22 @@ nothing is.
   model-output boundary, case-YAML ingestion, the policy layers. Done when a
   written recommendation exists — which seams fit, which do not, what adoption
   would refactor, and the author's adopt/adapt/reject call. [me]
-- **Diagnose the 12 environmental suite failures, then make each pass or skip
-  with a named reason.** From the 2026-09-14 full run: 10 in `tests/clipped`
-  (clipboard/TTY — a headless shell cannot paste), 2 in
-  `tests/pii_redactor` llm (cause undiagnosed; the conftest mocks a working
-  model, so the failure is not obviously model-absence). Diagnose first and
-  do not blanket-skip: each test either gets an environment skip naming the
-  missing capability (same doctrine as the conftest-skip task, one level up:
-  the missing thing is a pty or a clipboard service, not an import) or a fix,
-  if the environment is actually fine and the test is wrong. Done when a
-  full-suite run in a headless shell reports zero failed with skips named,
-  and a capable run still exercises what was skipped. [me]
+- **Close out the 12 environmental suite failures — the pii half is now
+  diagnosed.** The advisor pass found what this queue called undiagnosed:
+  the two `tests/pii_redactor` llm failures are model-absence, named by the
+  error itself — the conftest (`tests/pii_redactor/conftest.py:29`) requests
+  `qwen3.5:4b-mlx-bf16` through the real `llm` CLI and gets
+  `Unknown model`; no qwen3.5 model is installed. The snapshot's "runs
+  against a mock" claim was wrong for these two tests and is corrected.
+  Remediation is the author's call: install that model (space
+  consideration) or make the conftest skip-with-reason when the integration
+  model is absent. The 10 `tests/clipped` failures remain clipboard/TTY —
+  each gets an environment skip naming the missing capability or a fix if
+  the test is wrong. Run clipped and pii_redactor in SEPARATE pytest
+  invocations: one invocation aborts at collection (conftest name
+  collision, `from conftest import CLIPBOARD_CONTENT`). Done when a
+  headless full run reports zero failed with skips named, and a capable run
+  still exercises what was skipped. [me]
 - **Give topics an integrations phase, and make `apps/opencode` own its
   OpenRouter wiring as the first case.** `dot_config/opencode/opencode.jsonc`
   already points `model` at `openrouter/z-ai/glm-5.3-flash` and `small_model`
@@ -503,7 +512,7 @@ nothing is.
   `ai-prompt-library` on a fresh machine. [me]
 - **[4] Fill `~/.local/state/ai-policy/company.yaml`'s 22 TODO fields.** Decided:
   proceed top-down as proposed — `device.approved` gates the rest. Machine-local
-  and unversioned, so it cannot be tracked here beyond this pointer. Until it is
+  and unversioned, so it cannot be tracked here beyond this pointer. Agent-unreadable on this machine (permission rules) — existence is the author's to verify; do not treat as done-or-lost. Until it is
   filled, `fail_closed` means the company layer denies everything it is asked,
   which is safe and useless.
 - **Work out why `fabric` on `$PATH` is 1.4.459, then retire that install.** The
@@ -532,7 +541,13 @@ nothing is.
   (they align once the pin is `latest`), and `spec.md`'s 1.7.0 pin plus the
   `docs/REFERENCES.md` row need aligning — that alignment is queued there
   already. Done when the config says `latest`, the pin-print tells the truth,
-  and the spec/REFERENCES rows agree with it.
+  and the spec/REFERENCES rows agree with it. **Changelog-read blocker,
+  recorded 2026-09-15:** the REFERENCES standard (read the 1.7.0→1.8.0
+  changes before moving the pin) cannot currently be satisfied from this
+  machine — the source repo is not accessible (the getsentry org is
+  SAML-blocked; npm metadata carries no repository URL) — so the pin stands
+  on local evidence only and the read must happen from a machine with
+  access.
 - Install `ty` and typecheck the Python. Named in the house toolchain and
   currently absent — not installed, zero references in the repo. 32 test files
   and 36 PEP 723 scripts are unchecked. Note `ty` is pre-1.0; decide whether it
@@ -605,11 +620,15 @@ nothing is.
   advisor review before taking effect — the 2026-09-14 review ran with the
   producing agent alone, exactly the self-certification the panel-of-judges
   item warns about — so the design must make the advisor pass real rather
-  than optional. **That self-review has now run to completion** (session
-  end, 2026-09-15): full suite re-confirmed, merge gates audited across the
-  night's commits, the two repaired commits verified message-matched, and
-  the findings recorded in the snapshot. What is still missing is the
-  independent advisor pass this design must supply. [me]
+  than optional. **Advisor pass v1 has now run** (2026-09-15): three
+  fresh-context subagents — records auditor, red-team critic, cold-start
+  usability — reviewed the session's records and decisions; intra-model by
+  weights, independent by context and brief, and it caught real errors the
+  self-review missed (a wrong diagnosis, an asymmetric routing test, a
+  bypassed verification standard). Findings are applied or queued in this
+  file. The design must still supply an independent-model pass and must NOT
+  pre-commit whether multi-agent review beats self-review — that is the
+  panel-of-judges research's measured question. [me]
 - **Research agent sandboxing for projects and user tasks on this machine —
   deep research, debated with a council of advisors, delivered as a two-phase
   project with a spec binding them.** The permission tiers in
@@ -650,8 +669,14 @@ nothing is.
   a candidate. Verification so far is first-order only — existence,
   licence, activity; Omnigent's enforcement claims and its claimed
   Databricks backing are UNVERIFIED and come from the same AI-generated
-  source that produced the Caliber npm-scope discrepancy. The
-  Podman-on-macOS constraints (hidden Linux VM, nested-virtualization
+  source that produced the Caliber npm-scope discrepancy.
+  **Post-advisor demotion:** the routing test was applied asymmetrically —
+  Omnigent's own description is orchestration-first with sandboxing as one
+  feature, so it fails the same subject test that excluded Caliber. Treat
+  it as contextual reference for the debate, not a peer lead, and note the
+  lead-admission bar silently moved from author-provided to capture-sourced:
+  capture-sourced leads need deeper verification before entering the
+  council debate. The Podman-on-macOS constraints (hidden Linux VM, nested-virtualization
   limits, network rules applied inside the machine rather than the host)
   still stand as phase-1 requirements for the macOS target. Done
   when the phase-1 spec exists, the council debate is recorded, the author
@@ -783,12 +808,46 @@ nothing is.
   what remotes — because the topic can only declare what the agent
   understands. Machine granularity is the design constraint: the repo set
   is a per-machine decision resolved on the target (the machines.yml group
-  map is the precedent), never one flat list for the fleet. Done when
+  map is the settled design, though the file itself does not exist yet), never one flat list for the fleet. Done when
   existing-config detection is written, the per-machine inventory is
   recorded, and a decision — with the author — fixes the topic's shape:
   declared repo sets versus gita's group semantics, install via
   `topic_requires`, and where the config lives; queued as the
-  topic-creation task it feeds. [me]
+  topic-creation task it feeds. Collision surface, named per the
+  decomposition rules: `apps/git` (the git-ai topic task above) is also
+  git-adjacent — decide whether gita's config rides in it or a second topic
+  coexists, before either is scaffolded. [me]
+- **Harden cosine beyond the subnormal guard: the overflow tail and scale
+  invariance.** The advisor pass found what 6c3079b's guard missed. Two
+  tails: an overflow tail where sums overflow to inf and the quotient
+  becomes NaN — and the coverage classifier counts NaN as classified
+  (`nan < args.min_margin` is False), the exact "unknown becomes a claim"
+  shape; and the guard breaks scale invariance (parallel tiny vectors score
+  0.0), which no property test pins and which the centroid classifier hits
+  for near-centroid prompts by construction. Candidate fix: max-abs
+  pre-scaling (preserves invariance, fixes both tails), plus a
+  scale-invariance property, a NaN-cannot-classify assertion, and an eval
+  case pinning near-centroid behavior. Done when the properties exist, the
+  counterexamples are pinned, and the mutation check shows the old guard
+  failing them. [me]
+- **Decide the capture-store contract: private/shareable separation,
+  versioning, retention.** The llocallabs capture store
+  (`~/code/projects/personal/llocallabs-capture/`) is cited by five tasks as
+  evidence, is unversioned and single-machine, and sits in one directory
+  with private career notes — one careless copy puts private content in
+  files future sessions are instructed to read. Decide: separation (a
+  private/ subtree or a separate store), versioning or sync for cross-machine
+  cluster work, retention and backup (feeds the backup-design item). Done
+  when the contract is written, the author has approved it, and the store is
+  reorganized to match. [me]
+- **Extend `tests/tasks_doc` to fail on referenced paths that do not exist.**
+  The advisor pass found dangling references a validator would catch
+  mechanically: `run-role.sh` unprefixed in AGENTS.md, `machines.yml`
+  described as existing when it was a design, `.chezmoiignore` line-number
+  decay, a task line naming one file twice where two were meant. Scope:
+  parse backtick-quoted repo-relative paths and check existence; fail on
+  section-heading mismatches. Done when the validator catches a deliberately
+  planted dangling path (mutation-checked). [me]
 - **Bring the portable half of `~/.claude/` under chezmoi.** Deferred from the
   claude-code topic (`c988fef`), which owns the binaries and deliberately left
   config alone. Nothing there is versioned today, so user-global settings do not
@@ -1032,13 +1091,6 @@ nothing is.
   work — skills, evals, policy, tooling — stops landing in this repository.
   This repo's provisioning (the dotagents topic, the opencode manifest)
   consumes the eval gate's verdicts but does not execute them.
-- Document that `git add -p` and `git commit -o` do not compose, in AGENTS.md
-  § Working alongside other sessions. It currently recommends both, but `--only`
-  commits the **working-tree** content of the named paths and discards partial
-  staging — so `git add -p TASKS.md && git commit -o TASKS.md` quietly commits the
-  other session's hunks too. For a co-edited file it has to be `git add -p`, then
-  a bare `git commit` with nothing else staged, verified immediately with
-  `git show --stat HEAD`.
 - Evaluate whether contract testing earns its keep here. The candidate seams are
   real: `bin/policy`'s exit codes (0/1/2/3) consumed by several callers, the
   `ollama-evals` case schema shared by 25 YAML files, and the model-manifest
@@ -1155,37 +1207,6 @@ against this machine and must not be re-litigated.
   end-to-end without editing a topic file directly.
 - A7. Work the roadmap's § Migration inventory. Explicitly out of MVP — do not
   start before A2 and A3 are working.
-- A8. **Record what each dependency manager requires of a topic, as data the CLI
-  can read.** Blocks A2 and A4: a scaffold cannot generate a valid topic, and
-  `topical <name> add <package>` cannot edit one, without knowing what the chosen
-  manager needs. Today that knowledge exists only as a pattern to be copied
-  correctly from a neighbouring topic, and copying the wrong neighbour fails —
-  `apps/claude-code` was scaffolded from `apps/opencode`, which installs no cask
-  and so carries no `vars:` block, and the cask install died on
-  `'user_appdir' is undefined` (fixed in `c988fef`). Four axes the data has to
-  cover, each observed rather than imagined:
-  - **Variables the topic must define.** Every cask-installing topic playbook
-    repeats the same two lines — `homebrew_prefix` and `user_appdir` — in ten
-    places, with the parent playbook holding an eleventh copy. Nothing declares
-    that a cask *requires* them.
-  - **Privilege.** brew must not run under `become`; apt must. A scaffold that
-    guesses wrong fails at run time, not at generation time.
-  - **Currency.** `brew upgrade` reaches formulae and casks, so those topics
-    need no upgrade tasks; anything installed by mise, npm, cargo, ubi or a
-    release tarball is reached by neither system role and must own its upgrade,
-    as `apps/ori` and `apps/ollama` do. Nothing checks that a topic in the
-    second group actually has one — see `docs/TOPICS.md` § "Presence vs
-    currency".
-  - **Channel and version selection.** The same idea has a different shape per
-    manager: a brew channel is a *cask name* (`claude-code` vs
-    `claude-code@latest`), while the apt equivalent changes both the URL path
-    and the suite name. `claude_code_cask` has no Debian counterpart to reuse.
-  Also needed: somewhere for per-manager exceptions to live. `homebrew_upgrade_cask_exclude`
-  exists with a documented reason for `rancher` and has no counterpart for any
-  other manager, so the next such exception will be invented somewhere new.
-  Done when `topical new` generates a topic whose playbook, privilege and upgrade
-  path are correct for its manager without the author consulting a neighbour,
-  and when adding a package to a topic knows which manager it belongs to.
 - A9. **Make `template_dir/` manager-aware and fold it into the CLI, with an
   optional agent pass on top.** Consumes A8. Today the template is one shape for
   every topic, so `init-config.sh` copies a scaffold that is wrong for whichever
@@ -1241,7 +1262,7 @@ nesting ever comes, it happens together with the queued TOPICS-citation
 rewrite — never as two rewrites of 40 files.
 
 **Binding resolved 2026-09-12, after the author's expert challenge:** the
-machine→groups map is `machines.yml` kept as **plain data** (hostname →
+machine→groups map is `machines.yml` — a file that does not exist yet, settled design rather than precedent — kept as **plain data** (hostname →
 groups), slurped by the parent playbook exactly like `topic.yml` files are
 today — no Ansible inventory semantics. Disambiguation is
 `ansible_facts['hostname']` (gathered every run) intersected with the map;
@@ -1293,24 +1314,29 @@ author rather than the machine.
 - B2. Write the move manifest — every affected file classified as leaves, stays,
   or is deleted. Done when the list exists and later items cite it instead of
   re-deciding per file.
-  **The llocallabs cluster and its timing dependencies (recorded 2026-09-14).**
-  Six queued items cite each other and must be classified together, in
-  this order: (1) the anchor repo must exist before the manifest can classify
-  anything *to* llocallabs — a manifest naming a nonexistent home is a guess;
-  (2) the three research projects queued in § Now and § Planned (sandboxing,
-  session-management handoff, RAG/graphs) are first-class llocallabs
-  candidates — if the anchor exists before they start, start them there; if
-  any starts here first, its outputs are manifest candidates, not resident
-  work; (3) gita's per-machine inventory (§ Planned) must include the
-  collection once it exists — its repos are exactly the share-across-machines
-  set gita is meant to manage; (4) the strategy/policy agent consumes the
-  research projects, so it cannot be stood up ahead of them; (5) B1's
-  install-method answer still gates this manifest's "stays and installs
-  back" column; and (6) the R&D factory project is gated on the anchor repo
-  and is the umbrella the research projects' methods feed — it belongs to
-  the collection from day one. Until the manifest lands, nothing in the
-  cluster moves, and no item in it should be worked on the assumption it
-  stays here forever.
+  **The llocallabs cluster and its timing dependencies (recorded 2026-09-14,
+  corrected by the advisor pass 2026-09-15).** Six queued items cite each
+  other. The gate structure has TWO independent roots, not one linear order:
+  the manifest needs the anchor repo to exist (a manifest naming a
+  nonexistent home is a guess) AND B1's install-method answer, which is
+  deliberately still open. (2) The three research projects queued in § Now
+  and § Planned (sandboxing, session-management handoff, RAG/graphs) are
+  first-class llocallabs candidates — but which branch fires, start-there
+  or start-here, is the AUTHOR'S call, made and recorded in the session
+  that starts the work; without that arbiter two machines can pick opposite
+  branches and both be following this file. (3) gita is a consumer, not a
+  gate: its per-machine inventory must include the collection once it
+  exists, but it waits on nothing here. (4) The strategy/policy agent
+  consumes the research projects and cannot be stood up ahead of them.
+  (6) The R&D factory is gated on the anchor repo and is the umbrella the
+  research methods feed — it belongs to the collection from day one.
+  Prerequisite the cluster silently assumed, now named: the capture store
+  (`~/code/projects/personal/llocallabs-capture/`) is unversioned,
+  single-machine, and mixes private with shareable notes — before any
+  cluster item starts on the second machine it must be versioned or synced
+  AND separated (see the capture-store contract task in § Planned). Until
+  the manifest lands, nothing in the cluster moves, and no item in it
+  should be worked on the assumption it stays here forever.
 - B3. Define the state contract for the new utility: one owner and one retention
   rule for data currently scattered across `~/.local/share/ollama-{usage,bench,
   evals}` and the `llm` sqlite log. This closes the standing data-ownership
@@ -1517,12 +1543,15 @@ author rather than the machine.
   cannot re-open what a project DENY closes, **assuming deny wins across cascade
   layers**. That assumption is unverified; confirm it in a fresh session before
   relying on it, and if it is wrong this item becomes urgent rather than tidy.
-- Resolve the three CONTRIBUTING.md files. `CONTRIBUTING.md` is the
-  real one and `AGENTS.md` cites it. `CONTRIBUTING.md` is a stale copy in the
-  older repo-root `docs/` tree, differing by 171 lines, which GitHub would surface
-  if `CONTRIBUTING.md` did not now take precedence. Decide whether the
-  whole repo-root `docs/` tree goes rather than patching one file — `AGENTS.md`
-  already calls it an older copy kept but not maintained.
+- Resolve the CONTRIBUTING.md question and the repo-root `docs/` topology.
+  The stale root `docs/CONTRIBUTING.md` copy is already trashed (`db4fc0e`) —
+  but the advisor pass found the "older copy" story is wrong for three LIVE
+  files: `docs/PYTHON.md`, `docs/PERMISSIONS.md` and `docs/REFERENCES.md`
+  exist only in the root tree while AGENTS.md directs editors to
+  `dotfiles/docs/` copies that do not exist for them. Decide: consolidate
+  the root tree into `dotfiles/docs/` or document the split honestly —
+  includes the original question of whether the whole root `docs/` tree
+  goes.
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 

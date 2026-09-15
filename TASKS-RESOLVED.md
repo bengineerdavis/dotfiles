@@ -12,8 +12,11 @@ deleted.
 ## 2026-09-14
 
 - **Approved-source allowlist replaced `apps/opencode`'s per-skill manifest,
-  with a guard.** Resolved by the other machine's session (merged in 22c0b78;
-  verified against the tree 2026-09-14). `dotfiles/apps/opencode/defaults/main.yaml`
+  with a guard.** Resolved by the other machine's session (landed via merge
+  a586c5b — the opencode defaults change in e60982c, the skill-trust/guard
+  work in 10ccccd and 33f6ad7; machine attribution is not verifiable from
+  git, identical author identity on both sides; verified against the tree
+  2026-09-14). `dotfiles/apps/opencode/defaults/main.yaml`
   now holds approved *sources* — owner/repo shorthand, a `why`, per-source
   `exclude` vetoes — wired to `dotagents trust add` and
   `dotagents add <source> --all`; the guard
@@ -31,3 +34,20 @@ deleted.
   absent-is-not-permissive (no LICENSE or `NOASSERTION` → deny). Follow-on
   still open in § Now: a topic should install skill-trust rather than the
   current hand install.
+
+## 2026-09-15
+
+- **A8 — what each dependency manager requires of a topic, as data the CLI
+  can read.** Delivered 2026-09-14 by the other machine's session as
+  `dotfiles/managers.yaml`; the handoff snapshot and A9 both record it
+  delivered, yet the task line stayed queued — found by the advisor pass.
+  The design detail (four axes: variables, privilege, currency, channel
+  selection; per-manager exceptions) is in git history under the A8 task
+  line and in the file itself. Moved here per the finish-a-task convention.
+- **Document that `git add -p` and `git commit -o` do not compose.** Landed
+  2026-09-15: AGENTS.md § Working alongside other sessions now teaches the
+  correct sequence for a co-edited file (add -p, then a bare commit with
+  nothing else staged, then verify with `git show --stat HEAD`) instead of
+  pairing `-o` with partial staging. Fixed before it bit — the advisor pass
+  caught AGENTS.md still teaching the unsafe combination while the fix sat
+  queued here.
