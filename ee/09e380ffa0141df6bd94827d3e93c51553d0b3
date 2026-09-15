@@ -1,0 +1,20 @@
+dotfiles/apps/mise/files/config.toml
+  s_addc33373b6748::t_d2f2aef3388b2d 55
+  s_addc33373b6748::t_4650c0afb75efd 47-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ee09e380ffa0141df6bd94827d3e93c51553d0b3",
+  "prompts": {},
+  "sessions": {
+    "s_addc33373b6748": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f610858baffeh4nPjYSCwiYP46",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
