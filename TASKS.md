@@ -723,6 +723,37 @@ against this machine and must not be re-litigated.
   end-to-end without editing a topic file directly.
 - A7. Work the roadmap's § Migration inventory. Explicitly out of MVP — do not
   start before A2 and A3 are working.
+- A8. **Record what each dependency manager requires of a topic, as data the CLI
+  can read.** Blocks A2 and A4: a scaffold cannot generate a valid topic, and
+  `topic <name> add <package>` cannot edit one, without knowing what the chosen
+  manager needs. Today that knowledge exists only as a pattern to be copied
+  correctly from a neighbouring topic, and copying the wrong neighbour fails —
+  `apps/claude-code` was scaffolded from `apps/opencode`, which installs no cask
+  and so carries no `vars:` block, and the cask install died on
+  `'user_appdir' is undefined` (fixed in `c988fef`). Four axes the data has to
+  cover, each observed rather than imagined:
+  - **Variables the topic must define.** Every cask-installing topic playbook
+    repeats the same two lines — `homebrew_prefix` and `user_appdir` — in ten
+    places, with the parent playbook holding an eleventh copy. Nothing declares
+    that a cask *requires* them.
+  - **Privilege.** brew must not run under `become`; apt must. A scaffold that
+    guesses wrong fails at run time, not at generation time.
+  - **Currency.** `brew upgrade` reaches formulae and casks, so those topics
+    need no upgrade tasks; anything installed by mise, npm, cargo, ubi or a
+    release tarball is reached by neither system role and must own its upgrade,
+    as `apps/ori` and `apps/ollama` do. Nothing checks that a topic in the
+    second group actually has one — see `docs/TOPICS.md` § "Presence vs
+    currency".
+  - **Channel and version selection.** The same idea has a different shape per
+    manager: a brew channel is a *cask name* (`claude-code` vs
+    `claude-code@latest`), while the apt equivalent changes both the URL path
+    and the suite name. `claude_code_cask` has no Debian counterpart to reuse.
+  Also needed: somewhere for per-manager exceptions to live. `homebrew_upgrade_cask_exclude`
+  exists with a documented reason for `rancher` and has no counterpart for any
+  other manager, so the next such exception will be invented somewhere new.
+  Done when `topic new` generates a topic whose playbook, privilege and upgrade
+  path are correct for its manager without the author consulting a neighbour,
+  and when adding a package to a topic knows which manager it belongs to.
 
 ### Topic bundles — data-first grouping
 
