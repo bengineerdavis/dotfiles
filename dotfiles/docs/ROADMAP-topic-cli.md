@@ -378,7 +378,17 @@ Distribution is **dotagents**, which `add` resolves as plugins first, then
 skills. This repo declares it as a dependency the same way `apps/opencode`
 already declares its skill sources.
 
-It lives in **its own repository**, not here and not in `ai-prompt-library`.
+**The CLI ships from that same repository, not from `apps/topical/`.** Settled
+2026-09-14, and it supersedes the "Where `topic` itself lives" recommendation
+above: one repo holds both the CLI and the plugin, this repo installs it like
+any other tool through a thin topic, and the two version and release together.
+The alternative — CLI here, agent elsewhere — splits a tool from the agent that
+drives it across two release cycles, which is the drift this design keeps trying
+to design out. The uv-tool-from-PyPI shape below is the end state of exactly
+this.
+
+The plugin lives in **its own repository**, not here and not in
+`ai-prompt-library`.
 That keeps `AGENTS.md`'s ladder intact — AI work is not authored in the
 provisioning repo — without making the prompt library own a tool that is really
 about machine configuration.
