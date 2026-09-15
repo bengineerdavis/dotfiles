@@ -1,0 +1,20 @@
+TASKS.md
+  s_addc33373b6748::t_6dcc9e0c0bda9b 76-85
+  s_addc33373b6748::t_87da11e97813da 490-504
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8c19cb7242ac4d6aea7ae1e986c284f8f39f6ff6",
+  "prompts": {},
+  "sessions": {
+    "s_addc33373b6748": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f610858baffeh4nPjYSCwiYP46",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
