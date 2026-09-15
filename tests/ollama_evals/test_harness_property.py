@@ -243,6 +243,20 @@ def test_cosine_of_zero_vector_is_zero_not_an_error(ev, a):
     assert ev.cosine([0.0] * len(a), a) == 0.0
 
 
+def test_cosine_denormal_norm_counterexample_is_zero(ev):
+    """Hypothesis's shrunk counterexample, pinned as its own test.
+
+    b's square underflows to subnormal, so sqrt no longer round-trips and the
+    quotient escaped Cauchy-Schwarz: cosine([1.0], [1.2794807103967847e-160])
+    returned 1.000070683603874. The generator is under no obligation to produce
+    this input again — it passed a full run after being found — so it lives
+    here. The fix returns 0.0 for a norm this small rather than a direction
+    computed from a precision-destroyed magnitude.
+    """
+    out = ev.cosine([1.0], [1.2794807103967847e-160])
+    assert out == 0.0, f"denormal-norm cosine must be 0.0, got {out!r}"
+
+
 # ── run_check: the untrusted boundary ────────────────────────────────────────
 # Model output is the input most likely to be malformed, because the producer is
 # a sampling process and not a program. A harness defect here reports itself as

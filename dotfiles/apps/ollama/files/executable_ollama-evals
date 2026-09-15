@@ -814,7 +814,13 @@ def cosine(a: list[float], b: list[float]) -> float:
     num = sum(x * y for x, y in zip(a, b))
     na = sum(x * x for x in a) ** 0.5
     nb = sum(y * y for y in b) ** 0.5
-    return num / (na * nb) if na and nb else 0.0
+    # A norm whose square is subnormal has lost most of its precision, so the
+    # quotient is no longer bounded by Cauchy-Schwarz and can exceed 1.
+    # Hypothesis counterexample: cosine([1.0], [1.2794807103967847e-160]) was
+    # 1.0000706. Report such a vector as zero rather than a wrong direction.
+    if na * na < sys.float_info.min or nb * nb < sys.float_info.min:
+        return 0.0
+    return num / (na * nb)
 
 
 def cmd_coverage(args):
