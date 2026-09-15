@@ -650,6 +650,22 @@ nothing is.
   manager, its topic home and its teardown, and any non-manager logic left
   in the script has an owner or a retirement note alongside A10's `~/bin`
   sunset. [me]
+- **Study gita across the machines and decide its topic's shape.** The
+  author wants `gita` to manage the set of repositories that should be
+  shared or present on one or more machines — add and update flows through
+  one tool instead of ad-hoc clones. Two things before the topic exists:
+  detect what already exists (gita config at `~/.config/gita/` on each
+  machine is unmanaged today and may not exist on both), and build the repo
+  inventory per machine — which repos exist, which are wanted where, at
+  what remotes — because the topic can only declare what the agent
+  understands. Machine granularity is the design constraint: the repo set
+  is a per-machine decision resolved on the target (the machines.yml group
+  map is the precedent), never one flat list for the fleet. Done when
+  existing-config detection is written, the per-machine inventory is
+  recorded, and a decision — with the author — fixes the topic's shape:
+  declared repo sets versus gita's group semantics, install via
+  `topic_requires`, and where the config lives; queued as the
+  topic-creation task it feeds. [me]
 - **Bring the portable half of `~/.claude/` under chezmoi.** Deferred from the
   claude-code topic (`c988fef`), which owns the binaries and deliberately left
   config alone. Nothing there is versioned today, so user-global settings do not
