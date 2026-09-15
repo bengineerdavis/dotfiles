@@ -622,13 +622,24 @@ nothing is.
   credential proxy and L7 filtering, Apache-2.0, from the Sigstore team
   (https://github.com/nolabs-ai/nono). The council debate pairs with the
   panel-of-judges item below — settle that first or borrow its method.
-  Leads from the second research capture (2026-09-14,
+  Lead from the second research capture (2026-09-14,
   `~/code/projects/personal/llocallabs-capture/`): Omnigent —
   **[verified]** Apache-2.0 and active — claims bubblewrap (Linux) /
-  Seatbelt (macOS) sandboxing with cost tracking across agent CLIs; and
-  the Podman-on-macOS constraints (hidden Linux VM, nested-virtualization
+  Seatbelt (macOS) sandboxing with cost tracking across agent CLIs.
+  **A lead, not a selection** — the capture's other options were routed by
+  subject and verification: nono and Lima remain the primary leads
+  (capture #1); Caliber generates config rather than sandboxing (its own
+  evaluation task); AgentMD is a claimed-frozen spec; OpenCtx is archived
+  in favour of MCP; ctx-open is unlicensed and stale (reference only);
+  Backlog.md and `handoff` are session-state tools (routed to the
+  session-management research); Podman-on-macOS is a constraint input, not
+  a candidate. Verification so far is first-order only — existence,
+  licence, activity; Omnigent's enforcement claims and its claimed
+  Databricks backing are UNVERIFIED and come from the same AI-generated
+  source that produced the Caliber npm-scope discrepancy. The
+  Podman-on-macOS constraints (hidden Linux VM, nested-virtualization
   limits, network rules applied inside the machine rather than the host)
-  shape the phase-1 requirements for the macOS target. Done
+  still stand as phase-1 requirements for the macOS target. Done
   when the phase-1 spec exists, the council debate is recorded, the author
   has approved the requirements, and phase 2's changes are queued rather
   than imagined. [me]
