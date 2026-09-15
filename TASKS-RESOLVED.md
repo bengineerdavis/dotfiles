@@ -37,6 +37,17 @@ deleted.
 
 ## 2026-09-15
 
+- **Fix `cosine()` in `apps/ollama/files/executable_ollama-evals` — it could
+  return above 1.0.** Resolved 2026-09-14 as 6c3079b, before the
+  move-to-RESOLVED convention existed (the other entries here predate it by
+  hours, which is why this one was missing); backfilled 2026-09-15 with the
+  author's ratification. Cosine now returns 0.0 when either norm's square is
+  subnormal — the honest answer, not a clamp — and hypothesis's shrunk
+  counterexample (`[1.0]`, `[1.2794807103967847e-160]` → 1.000070683603874)
+  is pinned as its own test in `tests/ollama_evals/test_harness_property.py`,
+  with a mutation check recorded. Verified again on this machine 2026-09-15:
+  28 passed, 1 skipped in that file. Follow-on lives in TASKS.md § Planned:
+  the overflow tail, NaN-cannot-classify, and scale invariance.
 - **A8 — what each dependency manager requires of a topic, as data the CLI
   can read.** Delivered 2026-09-14 by the other machine's session as
   `dotfiles/managers.yaml`; the handoff snapshot and A9 both record it
