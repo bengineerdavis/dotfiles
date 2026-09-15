@@ -584,7 +584,8 @@ nothing is.
   machine — the source repo is not accessible (the getsentry org is
   SAML-blocked; npm metadata carries no repository URL) — so the pin stands
   on local evidence only and the read must happen from a machine with
-  access.
+  access. **Decided 2026-09-15: the author does the read before the pin
+  question is settled — it stays at 1.8.0 meanwhile, skew recorded.**
 - Install `ty` and typecheck the Python. Named in the house toolchain and
   currently absent — not installed, zero references in the repo. 32 test files
   and 36 PEP 723 scripts are unchecked. Note `ty` is pre-1.0; decide whether it
