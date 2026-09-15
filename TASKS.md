@@ -544,6 +544,46 @@ nothing is.
   not, so the split is not along one clean line today. Done when benchmarking
   lives in its own repo, this repo installs it like any other tool, and nothing
   here imports it.
+- **Add voice-typing topics: `apps/openwhispr` and `apps/superwhisper`, macOS
+  first, with a Linux path that is not a cask.** Both exist as casks, verified
+  2026-09-14: `openwhispr` 1.10.1 ("Privacy-first voice-to-text dictation with
+  AI agents", open source, `OpenWhispr/openwhispr`) and `superwhisper` 2.18.3
+  ("Dictation tool including LLM reformatting", commercial, macOS >= 14). Both
+  declare `auto_updates`, so brew's recorded version drifts — the same
+  `known_issues` entry `apps/claude-code` already carries for `Claude.app`.
+  Start on Darwin because that is where the casks work; casks are macOS-only, so
+  Debian needs a different mechanism and the honest first step is `topic_os:
+  [Darwin]` rather than a half-built conditional, exactly as `apps/claude-code`
+  did. For the Linux path, `whisper.cpp` is a cross-platform **formula** and is
+  the likely base — note the handoff's "SoupaWhisper" sketch is essentially that.
+  **An external handoff document exists for this work, and it does not describe
+  this repo.** It assumes topics named `git/`, `zsh/`, `wayland/`, `macos/` and
+  an `openrouter/` topic; this repo has Ansible roles under `dotfiles/apps/` with
+  a fixed lifecycle, no `wayland` or `macos` topic, and OpenRouter reached
+  through `apps/ori`. Translate it, do not follow it literally. What does carry
+  over, and is worth keeping:
+  - **No hardcoded credentials.** It wants `$OPENROUTER_API_KEY` from the
+    environment rather than baked into a config file. That already matches
+    practice here — `llm-openrouter` and `ori` both read it — and
+    `AGENTS.md` § "Machine-specific values are resolved, never written out" is
+    the rule it is reaching for.
+  - **Wayland cannot be assumed.** Its text-injection rules (`ydotool`/`wtype`,
+    `wl-clipboard`, adding the user to the `input` group for `/dev/uinput`)
+    presuppose a Wayland desktop. **Verify the Debian box actually runs one
+    before building any of it** — that is unconfirmed, and the whole Linux
+    design rests on it.
+  - **Hotkeys belong to the compositor, not the app**, with macOS parity via an
+    Apple Shortcut or Automator action calling the same CLI. That shape is
+    sound; it needs a real toggle command to exist first.
+  Done when at least one of the two installs, removes and upgrades cleanly on
+  this Mac with a topic CHANGELOG recording what drifts, and the Linux decision
+  is recorded as a decision rather than left open.
+- **Explore OpenTypeless before committing to it.** Named alongside OpenWhispr
+  in the voice-typing handoff but not evaluated. Nothing is known here about its
+  licence, its config format, whether it packages for macOS or Linux at all, or
+  whether it duplicates what OpenWhispr already does. Deliberately an
+  exploration, not an install task — `review-best-practices` is the shape, and
+  the output is a recommendation with what was rejected, not a topic.
 - **Write a `ground-truth-a-dependency` skill from scratch.** The recurring need
   is what the 2026-09-12 dotagents failure took: reading a dependency's shipped
   source to find behaviour its docs never mention — an uncaught `SymlinkError`
