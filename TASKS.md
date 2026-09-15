@@ -516,6 +516,35 @@ nothing is.
   before cutting TASKS.md to match. Done when a written design exists, the
   author has approved it, and the re-cut file (or its successor) passes
   `tests/tasks_doc` with the resolved-tasks stopgap retired. [me]
+- **Research agent sandboxing for projects and user tasks on this machine —
+  deep research, debated with a council of advisors, delivered as a two-phase
+  project with a spec binding them.** The permission tiers in
+  `docs/PERMISSIONS.md` gate what tools agents may run but do not isolate
+  what a permitted tool can touch — sandboxing is the layer they cannot
+  provide. **Phase 1 — requirements.** Write the spec: what is being
+  sandboxed (agents working in project directories, agent-driven user tasks
+  on the machine), against which threats (egress, writes outside declared
+  scope, credential access, machine-config mutation), under which constraints
+  (macOS and Debian targets, one machine-management repo, the existing
+  `bin/policy` boundary model, agents never applying chezmoi). Debated with
+  the council before the author approves it. **Phase 2 — apply.** Update the
+  spec with what the research taught and land the background knowledge where
+  it is consumed: `bin/policy` boundary keys, the agent permission layers,
+  and topic/machine configuration — as queued tasks citing the spec, never
+  implemented silently. Initial leads, author-provided 2026-09-14, fetched
+  and verified that day: wincent's "Coding Agent Sandboxes — Comprehensive
+  List", a taxonomy from OS primitives to policy layers
+  (https://gist.github.com/wincent/2752d8d97727577050c043e4ff9e386e);
+  "Sandboxing AI coding agents with Lima", VM-grade isolation with
+  near-native UX, naming egress and forwarded secrets as the unsolved gaps
+  (https://bogoyavlensky.com/blog/sandboxing-ai-coding-agents-with-lima/);
+  and `nono`, least-privilege per-agent and per-tool sandboxes with a
+  credential proxy and L7 filtering, Apache-2.0, from the Sigstore team
+  (https://github.com/nolabs-ai/nono). The council debate pairs with the
+  panel-of-judges item below — settle that first or borrow its method. Done
+  when the phase-1 spec exists, the council debate is recorded, the author
+  has approved the requirements, and phase 2's changes are queued rather
+  than imagined. [me]
 - **Create a `git` topic that owns git config and extensions; git-ai is its
   first extension.** Git config is not managed at all today — no
   `dot_gitconfig` in the source, no `apps/git` topic — and the git-ai
