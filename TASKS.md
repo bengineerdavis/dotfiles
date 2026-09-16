@@ -164,6 +164,16 @@ reversed earlier positions on purpose.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
+- **Rework the project `opencode.json` permission rules and add an opt-in
+  `autonomous` agent.** The author-curated file (ef6a934) carries duplicate
+  allow rules, `ask`s the interpreters this repo's own test command
+  requires, and is missing the read-only tooling agents run every session.
+  Done when rules are deduplicated and ordered broad-first/narrow-last, the
+  workhorse allows (pytest / `uv run` / bats / skillet / ruff / shellcheck /
+  `ollama ps`) are present, an inline `autonomous` primary agent carries a
+  complete standalone permission map widening interpreters, test tooling,
+  webfetch and local `gh` reads, and both directions verify in a fresh
+  session.
 - **Extract the incoming-changes review into a reusable agent capability,
   with a specification.** High priority, queued by the author 2026-09-15,
   from this session's review pattern: on `git fetch`, before any merge, the
