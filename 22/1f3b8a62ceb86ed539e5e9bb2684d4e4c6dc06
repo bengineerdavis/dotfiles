@@ -1,0 +1,20 @@
+docs/LANGUAGES.md
+  s_b7fbe76563a0e7::t_ad5213376853cd 33
+  s_b7fbe76563a0e7::t_ccb67690b63e91 46-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "221f3b8a62ceb86ed539e5e9bb2684d4e4c6dc06",
+  "prompts": {},
+  "sessions": {
+    "s_b7fbe76563a0e7": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f57317986ffe3mWyJOdA2bbVV1",
+        "model": "deepseek/deepseek-v4-pro-0813"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
