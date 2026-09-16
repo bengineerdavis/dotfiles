@@ -85,15 +85,18 @@ Note: the deployed mise config pins skillet 1.8.0 but the installed binary
 here is still 1.7.0 — `skillet validate .` exits 0 on it, and 1.8.0 lands
 on the next `mise install`.
 
-**What the author owes this machine:**
+**What the author owes this machine:** one command and one restart.
 
-- `chezmoi apply` for two source edits, then two follow-ups: the opencode
-  permission rules (2b31407) need an **opencode restart** — config loads
-  once at startup; the leaktk/betterleaks entries (4aebd9d) need a
-  `mise install` (or the next mise topic run) to actually land.
-- The skillet 1.7.0→1.8.0 changelog read from a machine with getsentry
-  access — the author took it; the pin stands at 1.8.0 with the skew
-  recorded meanwhile (task in § Now).
+- Regenerate the gita overlay without the venv-vendored entry (the agent's
+  find had no filter): rerun the generator with `-not -path "*/.venv/*"`
+  added to the find, writing `~/.local/state/layout/machines.local.yaml`.
+- Restart opencode when convenient: the new bash permission rules applied
+  today but config loads once at startup.
+- (Done by the agent since the last snapshot: chezmoi apply ×2, the
+  leaktk/betterleaks install on the github: backend, the skillet changelog
+  read — acceptance unchanged, pin aligned at 1.8.0 in 94389a5 — and the
+  project `opencode.json` you curated got versioned + deploy-ignored in
+  ef6a934.)
 - Register the repos with gita — **done 2026-09-15**, with two recorded
   residuals. 51 repos registered (48 work + the two newly added
   personal/templates + the two pre-existing). Residuals: (a) the overlay
@@ -596,8 +599,14 @@ nothing is.
   machine — the source repo is not accessible (the getsentry org is
   SAML-blocked; npm metadata carries no repository URL) — so the pin stands
   on local evidence only and the read must happen from a machine with
-  access. **Decided 2026-09-15: the author does the read before the pin
-  question is settled — it stays at 1.8.0 meanwhile, skew recorded.**
+  access. **Read DONE 2026-09-15, on this Mac after all** — the block was
+  the second machine's. The 1.7.0→1.8.0 compare (5 commits) shows grammar
+  and exit codes untouched; the change is diagnostics (the no-eval-case
+  warning was deleted) and the authoring workflow (evals opt-in). Pin
+  aligned at 1.8.0 across `config.toml` and the spec footer (94389a5);
+  REFERENCES records the read. What remains of this task: the
+  `apps/mise/tasks/upgrade.yaml` pin-print must follow the version, and the
+  four `npx @sentry/skillet@latest` aliases need a float-vs-pin decision.
 - Install `ty` and typecheck the Python. Named in the house toolchain and
   currently absent — not installed, zero references in the repo. 32 test files
   and 36 PEP 723 scripts are unchecked. Note `ty` is pre-1.0; decide whether it
