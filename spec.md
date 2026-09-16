@@ -537,4 +537,7 @@ finding that `TASKS.md` tracks.
      from it and no eval cases reference its behavior ids, so it exceeds the
      ~8-behavior guidance deliberately. Splitting it would trade one warning for
      the drift of many files. -->
-<!-- skillet-version: 1.7.0 -->
+<!-- skillet-version: 1.8.0 -- moved from 1.7.0 on 2026-09-15 after reading
+     the upstream compare (5 commits): grammar and exit-code logic untouched,
+     acceptance identical; the change is diagnostics and the authoring
+     workflow. Evidence: docs/REFERENCES.md skillet row. -->

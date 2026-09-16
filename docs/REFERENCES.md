@@ -75,13 +75,17 @@ approval record, the register points at the living home.
   lock, which is why it is not the installer.
 - **skillet 1.8.0 is available** and `spec.md` pins 1.7.0. Upgrading changes what
   `skillet validate` accepts, so read its changes before moving the pin.
-  **Update 2026-09-15:** the pin has moved to 1.8.0 in `config.toml` on local
-  evidence (validate exits 0), but the mandated read of the 1.7.0→1.8.0
-  changes is BLOCKED from this machine — the source repo is not accessible
-  (getsentry org is SAML-blocked; npm metadata carries no repository URL).
-  The read must happen from a machine with access; until then this row
-  records the skew rather than papering over it (the spec footer records
-  only the pin), and the author has taken the read — decision pending.
+  **Update 2026-09-15: the read is done and the premise was wrong.** The pin
+  moved to 1.8.0 in `config.toml` on local evidence while the read was
+  believed blocked; it was not — `gh api` reaches getsentry/skillet from the
+  Mac (the block was the other machine's). The 1.7.0→1.8.0 compare (5
+  commits, github.com/getsentry/skillet/compare/1.7.0...1.8.0) shows the
+  grammar and exit-code logic UNTOUCHED — acceptance is identical; what
+  changed is diagnostics (the "Behavior has no eval case" warning was
+  deleted; the coverage section renamed) and the authoring workflow
+  (evals are opt-in — the `!` is `skillet new`/`status`, not `validate`).
+  So this row's "changes what validate accepts" was inaccurate; the spec
+  footer moves to 1.8.0 on this evidence.
 - **ruff 0.16.5 is installed but wired to nothing.** When it is wired, pin the
   ruleset here — PEP 723's `[tool]` table lets ruff config live in each script,
   which may remove the need for a repo-wide config file.
