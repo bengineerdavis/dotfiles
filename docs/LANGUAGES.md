@@ -30,7 +30,7 @@ open.
 |---|---|---|---|---|---|
 | Python | ruff | ruff | ty (queued) | pytest + hypothesis; xdoctest (queued) | pyright or pyrefly (TBD) |
 | bash | — | shellcheck | — | bats | bash-language-server (TBD) |
-| zsh | — | shellcheck (sh/bash subset only) | — | — | — |
+| zsh | — | shellcheck (bash standard, interim) | — | — | — |
 | YAML / Ansible | — | — | — | molecule (queued) | yaml-ls (TBD) |
 
 Notes:
@@ -43,9 +43,14 @@ Notes:
 - **ruff and ty are named but not enforcing.** ruff lints nothing on commit yet
   (the hooks run shellcheck and bats only); ty is not installed. Both are queued.
   See `docs/PYTHON.md`.
-- **zsh has no first-class toolchain here.** shellcheck covers the sh/bash
-  subset; zsh-specific linting is not in the profile, so zsh fragments are
-  reviewed by hand.
+- **`.zsh` marks how a file is used, not a different language.** These files are
+  zsh lifecycle fragments sourced into the shell config; the extension says where
+  the file fits, not that it needs its own toolchain. The bash standard is the
+  interim profile: the pre-commit shellcheck hook runs on every `types: [shell]`
+  file, and identify tags `.zsh` as `shell`, so fragments are already linted as
+  shell. Trusting that output on zsh is the author's working position, pending
+  the queued zsh-tooling research (`TASKS.md`), which owns whether the bash
+  standard is kept, adapted, or replaced.
 - **This table is a tracking doc, not config.** Promoting a row into global or
   per-project config is a per-entry decision made when a tool is actually wired.
   The LSP row is the first candidate, and its home is the queued task's to settle.
