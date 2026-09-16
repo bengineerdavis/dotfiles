@@ -1241,13 +1241,19 @@ nothing is.
   Marked rather than guessed, per `spec.md` § Ambiguity is marked, not resolved.]**
 - Reconcile changelog style: plain language, the house commit style in
   `docs/TOPICS.md` § Commit granularity, and the changelog standard have to
-  intersect without contradicting. Note this repo deliberately has no
-  `CHANGELOG.md` — `git log` is the changelog — so this governs release notes and
-  any user-facing summary, not a file we keep.
-  **[open question: "the 2.0 changelog standard" needs pinning down. Keep a
-  Changelog is at 1.1.0 and has no 2.0; `ai-prompt-library/CHANGELOG.md` cites
-  1.0.0. Common Changelog is the other candidate. Confirm which before writing
-  the rule.]**
+  intersect without contradicting.
+  **[corrected 2026-09-16: the "no CHANGELOG.md — git log is the changelog"
+  premise is stale. The repo adopted scriv (00e278e): fragments live in
+  `changelog.d/` and collect into `CHANGELOG.md` on release, per
+  `CONTRIBUTING.md` § Writing a changelog entry. Same session observed a
+  second gap: sessions intermittently skip fragments — the 2026-09-16 opencode
+  permission rework landed 14 commits with none, later backfilled — and nothing
+  enforces one. The reconciliation should cover fragment *reliability*, not
+  style alone.]**
+  **[open question: which changelog standard to cite. `CHANGELOG.md` already
+  names Keep a Changelog 1.1.0; `ai-prompt-library/CHANGELOG.md` cites 1.0.0.
+  Common Changelog is the other candidate. Confirm which before writing the
+  rule.]**
 - Reconcile `prek` and `pre-commit`. Both are installed and both read
   `.pre-commit-config.yaml`. Pick one as the documented runner so hooks cannot
   pass under one and fail under the other, and say which in AGENTS.md § Commands.
