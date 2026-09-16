@@ -1,0 +1,25 @@
+tests/topic_resolution/topic_resolution_harness.py
+  s_5f0e601ae45c79::t_2dd31042d35fe9 1-96
+tests/topic_resolution/conftest.py
+  s_5f0e601ae45c79::t_f71d52e9d132ec 1-80
+tests/topic_resolution/test_opencode_both_os.py
+  s_5f0e601ae45c79::t_44d4a9d8e0bf1e 1-46
+tests/topic_resolution/test_states.py
+  s_5f0e601ae45c79::t_29f559273082d8 1-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "266763e6d9cd6c391034e04e5ee0a369eee027c2",
+  "prompts": {},
+  "sessions": {
+    "s_5f0e601ae45c79": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f56fc6641ffeitzKabXiz10eKH",
+        "model": "deepseek/deepseek-v4-pro-0813"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
