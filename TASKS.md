@@ -181,6 +181,12 @@ nothing is.
   Done when the doc names both files, the deep-merge/project-overrides-global
   ordering, the agent-dial mechanism, and points the change-together rule at
   both layers.
+- **Fix the stale hardcoded `Read(//Users/ben.davis/...)` paths in
+  `.claude/settings.json`.** They name a username (`ben.davis`) that does not
+  match this machine's, so the secret-path denies silently never match — the
+  exact machine-specific-literal failure `AGENTS.md` § resolved-never-written-out
+  warns about. Done when the read paths are username-agnostic and the affected
+  denies still refuse in a fresh session.
 - **Extract the incoming-changes review into a reusable agent capability,
   with a specification.** High priority, queued by the author 2026-09-15,
   from this session's review pattern: on `git fetch`, before any merge, the
