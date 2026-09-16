@@ -105,7 +105,7 @@ The general lesson is that prefix matching describes command *text*, not command
 differently. That is another reason this layer is described above as catching
 accidents rather than as a boundary.
 
-## Which file
+## Which file (Claude Code)
 
 Settings are **per project directory**, and this machine has two directories
 that both look like "the dotfiles project":
@@ -133,6 +133,51 @@ Within a project the cascade is `~/.claude/settings.json` (user, all projects) �
 The previous arrangement had this inverted — personal one-off approvals had
 accumulated in the committed file, which is how it grew to 88 rules that no
 review ever saw as a whole.
+
+## The opencode layer
+
+opencode's rules live in two files, both versioned here:
+
+- `dot_config/opencode/opencode.jsonc.tmpl` — the **global** config, deployed by
+  chezmoi to `~/.config/opencode/opencode.jsonc`. Baseline: reads free, git
+  allowed, everything else asks, and `external_directory` is deny-first /
+  allow-last so only the chezmoi source and `~/code` are reachable outside a
+  project.
+- `opencode.jsonc` — the **project** config for sessions run in this repo. It
+  sets the bash tier and defines the `autonomous` agent. It is deploy-ignored
+  (`.chezmoiignore`) — repo tooling, not a home file.
+
+The two scopes are **deep-merged, project overrides global**. Within a
+`permission` map, opencode takes the **last matching rule**, so every map here
+puts the catch-all `*` first and the narrowest rules (denies) last. The global
+template's bash map had this backwards — `*` at the end — which would have
+turned every command into an `ask` at the next restart; it was fixed alongside
+the project rewrite.
+
+### The autonomy dial
+
+The default agent is conservative: git read ops, the test/lint toolchain,
+interpreters and read-only shell utilities are `allow`; commit/push, network
+egress, installs and history rewriting are `ask`; `chezmoi apply`, force-push
+and credential paths are `deny`.
+
+`autonomous` (Tab to switch) is the opt-in widening: a complete, self-contained
+map that additionally allows commit/push, `gh`, `curl`/`wget`, package installs
+and model pulls, plus `webfetch`/`websearch`. Its deny tier is identical to the
+default's — applying, force-push and credentials stay blocked no matter which
+agent is running. The agent block is written as a full map so it is correct
+whether opencode replaces or merges it over the base.
+
+opencode also ships a built-in dial: `opencode --auto` (or the TUI
+"auto-approve permissions" toggle) approves every `ask` that is not explicitly
+`deny`. It is coarser than the `autonomous` agent — it widens everything, not the
+chosen operations — but it has no config to maintain, so it cannot drift. Prefer
+the agent when you want to name what gets widened; use `--auto` for a one-off
+unattended run.
+
+The boundary holds for the agent too: `external_directory` and `read`/`edit` are
+not widened by `autonomous`, so it cannot read or write outside the chezmoi
+source and `~/code`, however many bash commands it may run.
 
 ## Verifying a change
 
