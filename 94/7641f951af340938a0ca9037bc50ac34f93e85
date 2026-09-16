@@ -1,0 +1,19 @@
+tests/topics/test_opencode_os_agnostic.py
+  s_5621050bf60196::t_d14549f0914dda 1-158
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "947641f951af340938a0ca9037bc50ac34f93e85",
+  "prompts": {},
+  "sessions": {
+    "s_5621050bf60196": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f56fc07dbffek3vHSRn9uvqzO4",
+        "model": "deepseek/deepseek-v4-pro-0813"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
