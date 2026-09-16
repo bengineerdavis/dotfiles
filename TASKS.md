@@ -843,7 +843,27 @@ nothing is.
   what remotes — because the topic can only declare what the agent
   understands. Machine granularity is the design constraint: the repo set
   is a per-machine decision resolved on the target (the machines.yml group
-  map is the settled design, though the file itself does not exist yet), never one flat list for the fleet. Done when
+  map is the settled design — the file now EXISTS, created 2026-09-15 as
+  `dotfiles/machines.yml` under `docs/LAYOUT.md`, with this Mac's
+  membership recorded), never one flat list for the fleet.
+  **Learnings from the 2026-09-15 registration pass on this Mac — the
+  topic's config must encode these so they are not re-learned:**
+  (1) `gita add <dir>` without `-r` registers only depth-1 repos and
+  reported "No new repos found" while 48 repos sat 2-4 levels deep under
+  `~/code/work/` — the topic's registration flow must recurse.
+  (2) Duplicate basenames collide silently: one registration per name, the
+  second repo dropped (`symbolicator`, `sentry-docs`,
+  `sillysnakes-python-sdk-playground-1-29-26` across org dirs). The
+  inventory must detect dupes and either rename or declare the drop
+  deliberate; membership lists cite paths, not names (LAYOUT.md).
+  (3) Recursive discovery must exclude `.venv` — the generator's find
+  swallowed pip-vendored content (`temporalio/bridge/sdk-core` inside a
+  virtualenv); same filter class as `.chezmoiignore`'s `**/.venv`.
+  (4) `gita ls` prints all names space-separated on ONE line — verify
+  counts with `wc -w`, never `wc -l`.
+  (5) `~/.config/gita/repos.csv` is unmanaged today; this session's
+  51-repo registration is the de facto baseline the topic's inventory
+  should ADOPT, not rediscover. Done when
   existing-config detection is written, the per-machine inventory is
   recorded, and a decision — with the author — fixes the topic's shape:
   declared repo sets versus gita's group semantics, install via
