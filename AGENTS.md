@@ -740,6 +740,9 @@ root holds only the five documents that govern the project:
 - **`docs/LAYOUT.md`** — the cross-machine directory standard: the
   `~/code` taxonomy, who owns it, and the migration plan. Cite it by name
   instead of pasting absolute repo paths into queue prose.
+- **`docs/LANGUAGES.md`** — the languages the repo's scripts use, and the
+  reusable per-language tool profile (formatter/linter/typecheck/test/LSP).
+  Points at `docs/PYTHON.md` instead of repeating it.
 
 `CONTRIBUTING.md` is the human entry point and lives there rather than
 here on purpose: GitHub only discovers `CONTRIBUTING.md` in `.github/`, the
