@@ -187,6 +187,13 @@ nothing is.
   exact machine-specific-literal failure `AGENTS.md` § resolved-never-written-out
   warns about. Done when the read paths are username-agnostic and the affected
   denies still refuse in a fresh session.
+- **Add `docs/LANGUAGES.md` tracking the repo's script languages and reusable
+  per-language profiles.** `bin/`/`scripts/`/`tools/` span bash, Python (PEP
+  723) and zsh, but nothing records which tools belong to which language, so
+  reuse across languages and projects is by memory. Done when the inventory
+  lists each script directory with its languages, a per-language table names
+  formatter/linter/typechecker/test-runner/LSP, and it records that the
+  global-vs-project wiring decision stays with the queued LSP profile task.
 - **Extract the incoming-changes review into a reusable agent capability,
   with a specification.** High priority, queued by the author 2026-09-15,
   from this session's review pattern: on `git fetch`, before any merge, the
