@@ -174,6 +174,13 @@ nothing is.
   complete standalone permission map widening interpreters, test tooling,
   webfetch and local `gh` reads, and both directions verify in a fresh
   session.
+- **Document the opencode permission layer in `docs/PERMISSIONS.md`.** The
+  doc currently describes only `.claude/settings.json`; the global template
+  (`dot_config/opencode/opencode.jsonc.tmpl`) and the project file
+  (`opencode.json`) are a second, coexisting layer nobody has written down.
+  Done when the doc names both files, the deep-merge/project-overrides-global
+  ordering, the agent-dial mechanism, and points the change-together rule at
+  both layers.
 - **Extract the incoming-changes review into a reusable agent capability,
   with a specification.** High priority, queued by the author 2026-09-15,
   from this session's review pattern: on `git fetch`, before any merge, the
