@@ -3,8 +3,12 @@
 How agent permissions are set in this repository, and — more importantly — what
 they do not protect against.
 
-The rules live in `.claude/settings.json`, which is JSON and cannot carry
-comments. This file is the reasoning behind them. Change them together.
+Two agent surfaces are configured here, and the rules for both are versioned:
+**opencode** — the global template `dot_config/opencode/opencode.jsonc.tmpl`
+and the project file `opencode.jsonc` — and **Claude Code**
+(`.claude/settings.json`). Claude Code's file is JSON and cannot carry
+comments; opencode's are JSONC and carry the reasoning inline. This file is
+the reasoning for both. Change rules and this file together.
 
 ## What this layer is for
 
@@ -36,8 +40,9 @@ contradicting a written convention.
   never apply; there is one deployed tree and it cannot be branched. This rule
   existed as an **allow** until today, which is why the convention and the
   configuration disagreed, and the configuration is what actually decides.
-- Force-push and history rewriting tools. `spec.md` § Change records requires a
-  backup branch and `git notes` first, and a rewrite does not un-publish.
+- Force-push (`git push --force`, `-f`, `--force-with-lease`). `spec.md` § Change
+  records requires a backup branch and `git notes` first, and a rewrite does not
+  un-publish.
 - Credential stores and secret files. These are read-denies, and Claude Code
   extends a Read deny to Edit and Write on the same path.
 
@@ -46,8 +51,9 @@ point: it is the moment a human sees what is about to happen.
 
 Publishing (`git push`, `gh`), machine mutation (`brew`/`pip`/`npm` installs,
 `launchctl`, `./run-role.sh`), destruction (`rm`, `git reset --hard`), network
-egress (`curl`, `wget`), secret access (`op`), and large or destructive model
-operations (`ollama pull`/`rm`).
+egress (`curl`, `wget`), secret access (`op`), history rewriting
+(`git filter-repo`/`filter-branch`), and large or destructive model operations
+(`ollama pull`/`rm`).
 
 **allow** — read-only inspection, and changes that git can undo.
 
