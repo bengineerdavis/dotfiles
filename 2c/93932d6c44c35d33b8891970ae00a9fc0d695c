@@ -1,0 +1,26 @@
+docs/PERMISSIONS.md
+  s_b7fbe76563a0e7::t_ea25cf99b29072 6-11
+  s_b7fbe76563a0e7::t_5d233cf9adf40f 43-45
+  s_b7fbe76563a0e7::t_2dc21c76e60bec 54-56
+opencode.jsonc
+  s_b7fbe76563a0e7::t_9aa5ebe7a4eb67 293
+  s_b7fbe76563a0e7::t_0121b23e03fe85 277-278
+  s_b7fbe76563a0e7::t_10a76072acfb62 155
+  s_b7fbe76563a0e7::t_be477684766b4c 125-129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2c93932d6c44c35d33b8891970ae00a9fc0d695c",
+  "prompts": {},
+  "sessions": {
+    "s_b7fbe76563a0e7": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f57317986ffe3mWyJOdA2bbVV1",
+        "model": "deepseek/deepseek-v4-pro-0813"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
