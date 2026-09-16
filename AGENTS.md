@@ -929,6 +929,11 @@ that breaks on a fresh or half-applied box. See `require()` in `bin/llm-ctx`.
 Name the fix in the error, not just the failure: `~/bin` scripts come from
 `chezmoi apply ~/bin`, system tools from the Ansible topics via `update.sh`.
 
+Adding a tool to `apps/mise/files/config.toml`: use the `github:` backend for
+GitHub release binaries, never `ubi:` — mise deprecates it (removal in
+2027.1.0). The convention comment at the top of `[tools]` is the enforcement
+point; existing `ubi:` entries migrate to `github:` when touched.
+
 ## Cross-platform
 
 macOS and Debian/Ubuntu are both targets. Guard the package manager in-task rather
