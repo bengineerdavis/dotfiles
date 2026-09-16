@@ -698,7 +698,17 @@ nothing is.
   capture-sourced leads need deeper verification before entering the
   council debate. The Podman-on-macOS constraints (hidden Linux VM, nested-virtualization
   limits, network rules applied inside the machine rather than the host)
-  still stand as phase-1 requirements for the macOS target. Done
+  still stand as phase-1 requirements for the macOS target. Lead from the
+  author 2026-09-15, verified same day: `opencodebox`
+  (https://github.com/fityannugroho/opencodebox) — MIT, a bash wrapper
+  running opencode inside a bubblewrap sandbox with namespace isolation,
+  read-only system mounts, per-project read-write binds, a seccomp filter
+  for recent socket CVEs, and refusal to run from sensitive dirs.
+  **Linux-only** (bubblewrap needs Linux namespaces), so it is a Debian-side
+  candidate, not a macOS answer — and a concrete reference for the
+  per-project bind-mount shape on that target. Small and new (3 stars, 34
+  commits): first-order verification only, like the other capture-sourced
+  leads. Done
   when the phase-1 spec exists, the council debate is recorded, the author
   has approved the requirements, and phase 2's changes are queued rather
   than imagined. [me]
