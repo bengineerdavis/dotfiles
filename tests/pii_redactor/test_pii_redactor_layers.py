@@ -72,6 +72,132 @@ def test_find_hits_agrees_with_scrub(pii_module):
     assert not pii_module.find_hits(scrubbed)
 
 
+# ── Layer 1 — crash reports, HAR files, and local paths ──────────────────────
+#
+# Same rule as above, stated again for the new classes: a test claiming to
+# prove redaction must assert the input's identifier is absent from the output.
+# What survives is what debugging needs — the field name, the auth scheme, the
+# code-identifying leaf of a path — never the device, the session, the owner.
+
+@pytest.mark.parametrize(
+    ("text", "label", "absent"),
+    [
+        ('{"deviceIdentifierForVendor":"9B4E0B7C-A1B2-3C4D-5E6F-7A8B9C0D1E2F"}',  "ips_device_uuid", ["9B4E0B7C"]),
+        ('{"incidentID":"A1B2C3D4-1111-2222-3333-444455556666"}',                 "ips_device_uuid", ["A1B2C3D4"]),
+        ('{"incident_id":"A1B2C3D4-1111-2222-3333-444455556666"}',                "ips_device_uuid", ["A1B2C3D4"]),
+        ('{"crashReporterKey":"B7C9D1E3-2222-3333-4444-555566667777"}',           "ips_device_uuid", ["B7C9D1E3"]),
+        ('{"bootSessionUUID":"C8D0E2F4-3333-4444-5555-666677778888"}',            "ips_device_uuid", ["C8D0E2F4"]),
+        ('"/private/var/containers/Bundle/Application/D9E1F3A5-4444-5555-6666-777788889999/App.app/App"', "ips_container_path", ["D9E1F3A5"]),
+        ('"/var/mobile/Containers/Data/Application/EAF2A4B6-5555-6666-7777-888899990000/Documents/db.sqlite"', "ips_container_path", ["EAF2A4B6"]),
+        ('{"userID":501}',                                                        "ips_user_id", ["501"]),
+        ('{"experimentId":"Kx9mQ2vL7pR4tY8w"}',                                   "ips_trial_id", ["Kx9mQ2vL7pR4tY8w"]),
+        ('{"rolloutId":"8fJ2kQ9vL5pR7tY3w"}',                                     "ips_trial_id", ["8fJ2kQ9vL5pR7tY3w"]),
+        ("Cookie: session_id=abc123def; Path=/; HttpOnly",                        "har_cookie_line", ["abc123def"]),
+        ("Set-Cookie: sid=xyz789; Domain=example.com; Max-Age=3600",              "har_cookie_line", ["xyz789"]),
+        ('{"cookies":[{"name":"session_id","value":"xyz789","path":"/"}]}',       "har_cookie_json", ["xyz789"]),
+        ("Authorization: Bearer eyJhbGciOi.eyJzdWIi.SflKxwRJ",                    "har_auth_line", ["eyJhbGciOi"]),
+        ("x-api-key: sk-live-abc123def456",                                       "har_auth_line", ["sk-live"]),
+        ('{"name":"X-API-Key","value":"sk-live-abc123def456"}',                   "har_auth_json", ["sk-live"]),
+        ('{"name":"Authorization","value":"Bearer eyJhbGciOi.eyJzdWIi.SflKxwRJ"}', "har_auth_json", ["eyJhbGciOi"]),
+        ("https://fed3c1d5d2c34e2a9d71b0e1a2b3c4d5@o450.ingest.us.sentry.io/4507001", "sentry_dsn", ["fed3c1d5"]),
+    ],
+)
+def test_scrub_redacts_crash_and_har_classes(pii_module, text, label, absent):
+    scrubbed, hits = pii_module.scrub(text)
+    assert hits[label] == 1, f"{label} not detected in {text!r}"
+    # The identifier itself must be gone, not merely counted away. What stays
+    # is the field name, the auth scheme, the cookie attributes — the parts
+    # debugging reads.
+    for value in absent:
+        assert value not in scrubbed, f"{value!r} survived scrubbing"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        # The key of a field is diagnostic; the rule must not eat the whole line.
+        '{"userID":0501}',                       # leading zero: a version, not a uid
+        '{"userID":0}',
+        '{"userID":"501"}',                      # quoted: a string field, not the uid
+        '{"incidentID":"not-a-uuid"}',
+        '{"experimentId":12345678}',             # unquoted, not the id form
+        # Cookie attributes are not credentials.
+        "Path=/; Domain=example.com; HttpOnly",
+        # URLs and relative names are network shape or bare code, not local paths.
+        "see https://example.com/docs/setup for details",
+        "Frameworks/Alamofire.framework/Alamofire",
+        # The IP is redacted by the address rule; the /8 mask must survive it,
+        # unclaimed by the path collapser.
+        "the /8 suffix in 10.0.0.0/8 is a mask",
+    ],
+)
+def test_scrub_leaves_crash_and_har_lookalikes_alone(pii_module, text):
+    scrubbed, hits = pii_module.scrub(text)
+    if hits:
+        # The one allowed hit: the IP address itself, not the mask.
+        assert text.startswith("the /8") and scrubbed.endswith("/8 is a mask")
+        assert "10.0.0.0" not in scrubbed
+    else:
+        assert scrubbed == text, f"over-redacted: {text!r} -> {scrubbed!r}"
+
+
+# Local paths: policy A — collapse the shape, keep the code identity.
+
+@pytest.mark.parametrize(
+    ("given", "expected"),
+    [
+        # The leaf survives; the topology does not.
+        ("/Users/jane/Projects/app-ios/Build/Products/Debug/App.app/App",
+         "[HOME]/App.app/App"),
+        ("/Users/jane/Projects/app-ios/AppDelegate.swift",
+         "[HOME]/AppDelegate.swift"),
+        ("/System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore",
+         "[SYSTEM]/UIKitCore.framework/UIKitCore"),
+        ("/usr/lib/system/libsystem_c.dylib", "[SYSTEM]/libsystem_c.dylib"),
+        ("/opt/homebrew/Cellar/wget/1.21/bin/wget", "[SYSTEM]/wget"),
+        # A container path is claimed by its own detector first: the whole
+        # per-install prefix goes, not just the UUID.
+        ("/var/mobile/Containers/Data/Application/D9E1F3A5-4444-5555-6666-777788889999/notes.txt",
+         "[APP-INSTALL]/notes.txt"),
+        ("/srv/builds/acme-internal/App", "[LOCAL-PATH]/App"),
+        # Trailing punctuation in prose is not part of the path.
+        ("crash in /Users/jane/app/bin/run.", "crash in [HOME]/run"),
+    ],
+)
+def test_paths_collapse_but_keep_the_code_identity(pii_module, given, expected):
+    scrubbed, hits = pii_module.scrub(given)
+    assert scrubbed == expected, f"{given!r} -> {scrubbed!r}"
+    # Claimed by exactly one detector — the container paths by their own rule,
+    # everything else by the generic collapse.
+    assert sum(hits.values()) == 1, hits
+
+
+def test_the_scrubbed_path_names_the_same_code(pii_module):
+    """The property the policy exists for: what called is still knowable."""
+    text = 'frames: /Users/jane/Projects/app-ios/App.app/App then /usr/lib/system/libsystem_kernel.dylib'
+    scrubbed, _ = pii_module.scrub(text)
+    assert "App.app/App" in scrubbed
+    assert "libsystem_kernel.dylib" in scrubbed
+    assert "jane" not in scrubbed
+    assert "/Users/" not in scrubbed
+
+
+def test_cookie_redaction_keeps_names_and_attributes(pii_module):
+    scrubbed, hits = pii_module.scrub("Cookie: session_id=abc123def; theme=dark; Path=/assets; HttpOnly")
+    assert hits["har_cookie_line"] == 1
+    assert "session_id=[REDACTED]" in scrubbed
+    assert "theme=[REDACTED]" in scrubbed
+    assert "Path=/assets" in scrubbed
+    assert "HttpOnly" in scrubbed
+
+
+def test_authorization_redaction_keeps_the_scheme(pii_module):
+    scrubbed, _ = pii_module.scrub("Authorization: Bearer eyJhbGciOi.eyJzdWIi.SflKxwRJ")
+    assert scrubbed == "Authorization: Bearer [REDACTED]"
+    scrubbed, _ = pii_module.scrub("x-api-key: sk-live-abc123def456")
+    assert scrubbed == "x-api-key: [REDACTED]"
+
+
 # ── Layer 2: what the model is allowed to see ────────────────────────────────
 
 SENSITIVE = "Contact Jane Smith at jane.smith@example.com or 555-867-5309.\n"

@@ -157,6 +157,110 @@ def _url_token(match: re.Match) -> str:
     return f"{match.group(1)}[TOKEN]"
 
 
+# ── iOS crash reports (.ips) ─────────────────────────────────────────────────
+# The key survives, the value does not: "which field was this?" stays readable,
+# "which device was it?" does not.
+
+def _keep_key(match: re.Match) -> str:
+    return f"{match.group(1)}[DEVICE-ID]{match.group(3)}"
+
+
+def _container(match: re.Match) -> str:
+    # The whole container prefix is iOS boilerplate — drop it, not just the
+    # UUID, or the generic path collapser re-processes the remains.
+    return f"[APP-INSTALL]{match.group(3)}"
+
+
+_UUID = r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
+
+# ── Cookie and auth headers, line form and HAR JSON form ─────────────────────
+# Chrome's "sanitized" HAR export drops Cookie and Authorization but leaves
+# every custom key header and the full cookie JSON — so both shapes are here.
+
+_COOKIE_KEEP = {
+    "path", "domain", "samesite", "secure", "httponly", "priority",
+    "partitioned", "expires", "max-age", "version", "comment",
+}
+# Cookie and auth attribute names are diagnostic (which cookies exist, how
+# auth was negotiated); their session values are credentials.
+_AUTH_SCHEMES = {"bearer", "basic", "digest", "token", "negotiate", "ntlm", "oauth"}
+
+
+def _cookie_line(match: re.Match) -> str:
+    kept = []
+    for segment in match.group(2).split(";"):
+        if "=" in segment:
+            name, _, _ = segment.partition("=")
+            if name.strip().lower() not in _COOKIE_KEEP:
+                kept.append(f"{name}=[REDACTED]")
+                continue
+        kept.append(segment)
+    return f"{match.group(1)}{'; '.join(kept)}"
+
+
+def _auth_line(match: re.Match) -> str:
+    scheme = match.group(2).split(" ", 1)[0].lower()
+    if scheme in _AUTH_SCHEMES and " " in match.group(2):
+        return f"{match.group(1)}{match.group(2).split(' ', 1)[0]} [REDACTED]"
+    return f"{match.group(1)}[REDACTED]"
+
+
+def _cookie_json(match: re.Match) -> str:
+    """Every `value` inside a cookies array is a credential; `name` survives."""
+    inner = match.group(2)
+    return match.group(1) + re.sub(r'("value"\s*:\s*")[^"]*(")', r"\1[REDACTED]\2", inner) + match.group(3)
+
+
+def _auth_json(match: re.Match) -> str:
+    prefix, value = match.group(1), match.group(2)
+    scheme = value.split(" ", 1)[0].lower()
+    if scheme in _AUTH_SCHEMES and " " in value:
+        return f"{prefix}{value.split(' ', 1)[0]} [REDACTED]{match.group(3)}"
+    return f"{prefix}[REDACTED]{match.group(3)}"
+
+
+# ── Local paths: hide the shape, keep the code identity ──────────────────────
+# Decided with a human (docs/pii.md): every absolute path collapses to a typed
+# placeholder plus its code-identifying leaf; a trailing `X.framework/X` pair
+# survives as the pair. Prefixes only NAME the placeholder — they never decide
+# what is kept. The lookbehind keeps the rule out of URLs (`https://host/path`
+# is network shape, not the local filesystem) and out of markdown link
+# targets, which are documentation, not disclosures.
+
+_PATH_TYPE_PREFIXES = (
+    ("/Users/", "[HOME]"),
+    ("/home/", "[HOME]"),
+    ("/var/mobile/", "[APP-SANDBOX]"),
+    ("/var/containers/", "[APP-SANDBOX]"),
+    ("/private/var/", "[APP-SANDBOX]"),
+    ("/System/", "[SYSTEM]"),
+    ("/usr/", "[SYSTEM]"),
+    ("/Library/", "[SYSTEM]"),
+    ("/opt/", "[SYSTEM]"),
+    ("/Applications/", "[SYSTEM]"),
+    ("/etc/", "[SYSTEM]"),
+    ("/bin/", "[SYSTEM]"),
+    ("/sbin/", "[SYSTEM]"),
+)
+
+_PATH_CHARS = r"""[^\s"'`<>|;()\[\]{}\\]"""
+
+
+def _collapse_path(match: re.Match) -> str | None:
+    path = match.group(0).rstrip(".,;:!?")
+    # `/` alone, and one-or-two-character leftovers like the `/8` in a CIDR
+    # range, are not paths worth a placeholder — leave them, uncounted.
+    if len(path) < 4:
+        return None
+    parts = [p for p in path.split("/") if p]
+    if len(parts) >= 2 and parts[-2].endswith((".framework", ".app")) and parts[-1] == parts[-2].rsplit(".", 1)[0]:
+        keep = "/".join(parts[-2:])
+    else:
+        keep = parts[-1]
+    placeholder = next((ph for prefix, ph in _PATH_TYPE_PREFIXES if path.startswith(prefix)), "[LOCAL-PATH]")
+    return f"{placeholder}/{keep}"
+
+
 # (label, pattern, replacement) — replacement is a string, or a callable that
 # returns None to leave the match alone when a validator rejects it.
 DETECTORS: list[tuple[str, re.Pattern, object]] = [
@@ -182,6 +286,63 @@ DETECTORS: list[tuple[str, re.Pattern, object]] = [
             re.IGNORECASE,
         ),
         _url_token,
+    ),
+    (
+        "sentry_dsn",
+        re.compile(r"https://[0-9a-f]{10,64}@o\d+\.[a-z0-9.\-]*sentry\.io/\d+"),
+        "[SENTRY-DSN]",
+    ),
+    (
+        "ips_device_uuid",
+        re.compile(
+            r'("(?:deviceIdentifierForVendor|incident(?:_id|ID)?|crashReporterKey|bootSessionUUID)"\s*:\s*")('
+            + _UUID
+            + r')(")'
+        ),
+        _keep_key,
+    ),
+    (
+        "ips_container_path",
+        re.compile(
+            r'(/(?:private/)?var/(?:containers/Bundle|mobile/Containers/Data)/Application/)('
+            + _UUID
+            + r')(/?)'
+        ),
+        _container,
+    ),
+    (
+        "ips_user_id",
+        re.compile(r'("userID"\s*:\s*)([1-9]\d{1,9})'),
+        lambda m: f"{m.group(1)}[USER-ID]",
+    ),
+    (
+        "ips_trial_id",
+        re.compile(
+            r'("(?:experimentId|rolloutId|treatmentId|deploymentId)"\s*:\s*")([0-9A-Za-z\-]{8,64})(")'
+        ),
+        lambda m: f"{m.group(1)}[EXPERIMENT-ID]{m.group(3)}",
+    ),
+    (
+        "har_cookie_json",
+        re.compile(r'("cookies"\s*:\s*\[)([^\]]*)("?\])'),
+        _cookie_json,
+    ),
+    (
+        "har_auth_json",
+        re.compile(
+            r'("name"\s*:\s*"(?i:(?:proxy-)?authorization|x-api-key|x-auth-token|api-key)"\s*,\s*"value"\s*:\s*")([^"]*)(")'
+        ),
+        _auth_json,
+    ),
+    (
+        "har_cookie_line",
+        re.compile(r"(?im)^((?:set-)?cookie\s*:\s*)(.+)$"),
+        _cookie_line,
+    ),
+    (
+        "har_auth_line",
+        re.compile(r"(?im)^((?:proxy-)?authorization\s*:\s*|x-api-key\s*:\s*|x-auth-token\s*:\s*|api-key\s*:\s*)(\S.*)$"),
+        _auth_line,
     ),
     (
         "email",
@@ -228,6 +389,21 @@ DETECTORS: list[tuple[str, re.Pattern, object]] = [
             r"(?:\(\d{3}\)\s*|\d{3}[ .\-])\d{3}[ .\-]\d{4}(?!\d)"
         ),
         "[PHONE]",
+    ),
+    (
+        # Last, so the specific detectors above take their matches first and the
+        # placeholders they leave behind are excluded by the lookbehind.
+        "local_path",
+        re.compile(
+            # `=` excluded too: a cookie attribute like `Path=/assets` is a
+            # value, not a filesystem location.
+            r"""(?<![\w./:~\-()\[\]=])/(?:"""
+            + _PATH_CHARS
+            + r"""+/)*"""
+            + _PATH_CHARS
+            + r"""*"""
+        ),
+        _collapse_path,
     ),
 ]
 
