@@ -103,3 +103,25 @@ deleted.
   inventory and a per-language formatter/linter/typecheck/test/LSP table,
   recording that the LSP home decision (global template vs per-repo
   `opencode.jsonc`) stays with the queued LSP profile task.
+
+## 2026-09-16
+
+- **Fix the dependency check for topics requiring `homebrew` on Debian, and
+  extract resolution into a testable role.** The resolver probed for a
+  `homebrew` binary, but Homebrew's CLI is `brew` on every platform, so
+  `opencode` failed with `[TOPIC_NOT_RUN]` on a Debian box where linuxbrew
+  was present. Resolution moved out of `playbook.yaml` pre_tasks into
+  `dotfiles/roles/topic-resolution/` (23c0f8c), which maps the `homebrew`
+  token to `brew` (`dependency_probe_binary`) and fixes the `fail_msg` path
+  that pointed at the nonexistent `apps/<topic>/meta/main.yml`. The same
+  facts and tags are emitted; behaviour is otherwise unchanged.
+- **Test the resolution under both OS families.** `tests/topic_resolution/`
+  (266763e) drives the role through ansible-playbook; `test_states.py`
+  reaches all three states and `test_opencode_both_os.py` runs the real
+  `apps/*/topic.yml` under Darwin and Debian. Mutation-proven: removing the
+  alias turns the Debian leg red. 7 passed.
+- **Guard the opencode topic's CRUD against OS-specific drift.**
+  `tests/topics/test_opencode_os_agnostic.py` (947641f) asserts no
+  `os_family` branch, no hard-coded brew prefix, and install/remove via
+  `community.general.homebrew` from the pinned tap, with a counterweight so
+  it cannot pass vacuously. Mutation-proven.
