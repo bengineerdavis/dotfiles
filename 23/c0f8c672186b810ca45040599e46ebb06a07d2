@@ -1,0 +1,38 @@
+dotfiles/roles/topic-resolution/tasks/main.yaml
+  s_5d92d1cf225901::t_b8f55a5f5a6777 1-165
+dotfiles/playbook.yaml
+  s_5d92d1cf225901::t_498aaa8588c442 88,90-91,94-96
+changelog.d/20260916_080244_bengineerdavis_topic_resolution.md
+  s_5d92d1cf225901::t_60504fe6c3a186 1-18
+dotfiles/docs/TOPICS.md
+  s_5d92d1cf225901::t_015a3bc8f3528f 104-111
+dotfiles/roles/topic-resolution/README.md
+  s_5d92d1cf225901::t_a02c1ac250d78e 1-20
+dotfiles/roles/topic-resolution/defaults/main.yaml
+  s_5f0e601ae45c79::t_85231ebde7e596 11
+  s_5d92d1cf225901::t_a53b2a82bd76a9 1-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "23c0f8c672186b810ca45040599e46ebb06a07d2",
+  "prompts": {},
+  "sessions": {
+    "s_5d92d1cf225901": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f573e7279ffe9Egb68iMmkcqvl",
+        "model": "deepseek/deepseek-v4-pro-0813"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    },
+    "s_5f0e601ae45c79": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f56fc6641ffeitzKabXiz10eKH",
+        "model": "deepseek/deepseek-v4-pro-0813"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
