@@ -17,7 +17,11 @@ current tree is canonical. Queue prose and docs cite the standard by name
 instead of pasting absolute paths — the 2026-09-15 merge broke three
 claims on exactly that.
 
-**The taxonomy.** Seven types, flat under `~/code/<type>/<repo>`:
+**The taxonomy.** Seven types under `~/code/<type>/`. Six are flat —
+`<type>/<repo>`. The exception is `work`, which may nest by org/project
+(observed: `work/sentry/what-would-kobby-do/<repo>`, 28 repos deep); an
+employer's org structure is not ours to flatten. Amended 2026-09-15 when
+the tree contradicted the flat rule — evidence over policy.
 
 | Type | Holds | Observed members |
 |---|---|---|
@@ -38,7 +42,9 @@ Personal repo names are committed; work repos appear by group only and are
 named in a machine-local overlay, because employer-identifying strings
 must not be committed (`spec.md` § Data). `TASKS.md` already names
 `~/code/work/sentry/` in committed text — that is a violation to fix, not
-a precedent to extend.
+a precedent to extend. Membership lists cite **paths relative to the type
+dir**, not bare names — names collide across orgs (`symbolicator` exists
+twice under `work/sentry/`).
 
 **New repos.** The type is declared at clone time. No default pile, no
 post-hoc sorting pass.
