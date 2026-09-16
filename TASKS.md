@@ -164,36 +164,6 @@ reversed earlier positions on purpose.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
-- **Rework the project `opencode.json` permission rules and add an opt-in
-  `autonomous` agent.** The author-curated file (ef6a934) carries duplicate
-  allow rules, `ask`s the interpreters this repo's own test command
-  requires, and is missing the read-only tooling agents run every session.
-  Done when rules are deduplicated and ordered broad-first/narrow-last, the
-  workhorse allows (pytest / `uv run` / bats / skillet / ruff / shellcheck /
-  `ollama ps`) are present, an inline `autonomous` primary agent carries a
-  complete standalone permission map widening interpreters, test tooling,
-  webfetch and local `gh` reads, and both directions verify in a fresh
-  session.
-- **Document the opencode permission layer in `docs/PERMISSIONS.md`.** The
-  doc currently describes only `.claude/settings.json`; the global template
-  (`dot_config/opencode/opencode.jsonc.tmpl`) and the project file
-  (`opencode.json`) are a second, coexisting layer nobody has written down.
-  Done when the doc names both files, the deep-merge/project-overrides-global
-  ordering, the agent-dial mechanism, and points the change-together rule at
-  both layers.
-- **Fix the stale hardcoded `Read(//Users/ben.davis/...)` paths in
-  `.claude/settings.json`.** They name a username (`ben.davis`) that does not
-  match this machine's, so the secret-path denies silently never match — the
-  exact machine-specific-literal failure `AGENTS.md` § resolved-never-written-out
-  warns about. Done when the read paths are username-agnostic and the affected
-  denies still refuse in a fresh session.
-- **Add `docs/LANGUAGES.md` tracking the repo's script languages and reusable
-  per-language profiles.** `bin/`/`scripts/`/`tools/` span bash, Python (PEP
-  723) and zsh, but nothing records which tools belong to which language, so
-  reuse across languages and projects is by memory. Done when the inventory
-  lists each script directory with its languages, a per-language table names
-  formatter/linter/typechecker/test-runner/LSP, and it records that the
-  global-vs-project wiring decision stays with the queued LSP profile task.
 - **Extract the incoming-changes review into a reusable agent capability,
   with a specification.** High priority, queued by the author 2026-09-15,
   from this session's review pattern: on `git fetch`, before any merge, the
