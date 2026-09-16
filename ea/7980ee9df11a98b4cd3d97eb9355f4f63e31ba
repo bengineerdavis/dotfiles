@@ -1,0 +1,19 @@
+changelog.d/20260916_134708_bengineerdavis_opencode_permissions.md
+  s_b7fbe76563a0e7::t_1b2e1d0c77d2e0 1-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ea7980ee9df11a98b4cd3d97eb9355f4f63e31ba",
+  "prompts": {},
+  "sessions": {
+    "s_b7fbe76563a0e7": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f57317986ffe3mWyJOdA2bbVV1",
+        "model": "deepseek/deepseek-v4-pro-0813"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
