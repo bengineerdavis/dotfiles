@@ -213,10 +213,10 @@ nothing is.
   agent-loop value; where `lsp` config should live per repo and per topic
   here; and which repos actually earn enablement. Route it as a
   review-best-practices pass — what exists, what practitioners do, ranked
-   options with rejections recorded — and it feeds the llocallabs topic
-   design. Done when a written recommendation says when LSP earns its keep
-   here, per language, and the author has made the adopt/adapt/reject call.
-   [me]
+  options with rejections recorded — and it feeds the llocallabs topic
+  design. Done when a written recommendation says when LSP earns its keep
+  here, per language, and the author has made the adopt/adapt/reject call.
+  [me]
 - **Configure opencode LSP profiles for Python and Bash projects — ty or
   pyrefly alongside ruff and the other servers that matter — if we are not
   doing that already.** Queued by the author 2026-09-15; the concrete
