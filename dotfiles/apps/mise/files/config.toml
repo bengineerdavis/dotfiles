@@ -122,6 +122,12 @@ rust = "latest"
 "cargo:shellharden" = "latest"
 "ubi:Canop/broot" = "latest"
 "ubi:bootandy/dust" = "latest"
+# Secret-leak scanners, added 2026-09-15 as an evaluation pair ("for now",
+# per the author): betterleaks is the gitleaks-successor engine, leaktk
+# wraps it and other scanners behind one JSONL API. Both Go, MIT, goreleaser
+# binaries via ubi. If one wins, drop the other rather than keeping both.
+"ubi:leaktk/leaktk" = "latest"
+"ubi:betterleaks/betterleaks" = "latest"
 dua = "latest"
 duf = "latest"
 dust = "latest"
