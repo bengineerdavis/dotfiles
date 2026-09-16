@@ -85,143 +85,15 @@
           }}
       tags: [always]
 
-    - name: "Initialize topics_in_run as empty list"
+    - name: "Prepare resolution inputs"
       ansible.builtin.set_fact:
-        topics_in_run: []
+        resolution_topic_metadata: "{{ topic_metadata }}"
+        resolution_os_family: "{{ ansible_facts['os_family'] }}"
       tags: [always]
 
-    - name: "Filter topics to current OS family"
-      ansible.builtin.set_fact:
-        topics_in_run: "{{ topics_in_run + [item] }}"
-      loop: "{{ topic_metadata }}"
-      loop_control:
-        label: "{{ item.topic_name }} ({{ item.topic_tier }})"
-      when: ansible_facts['os_family'] in item.topic_os
-      tags: [always]
-
-    # ── Build provides maps ──────────────────────────────────────────────────
-    - name: "Initialize provides maps as empty"
-      ansible.builtin.set_fact:
-        provides_map_all: {}
-        provides_map_run: {}
-      tags: [always]
-
-    - name: "Populate provides_map_all (every topic, regardless of OS)"
-      ansible.builtin.set_fact:
-        provides_map_all: "{{ provides_map_all | combine({item.1: item.0.topic_name}) }}"
-      loop: "{{ topic_metadata | subelements('topic_provides', skip_missing=True) }}"
-      loop_control:
-        label: "{{ item.1 }} → {{ item.0.topic_name }}"
-      tags: [always]
-
-    - name: "Populate provides_map_run (topics in this run only)"
-      ansible.builtin.set_fact:
-        provides_map_run: "{{ provides_map_run | combine({item.1: item.0.topic_name}) }}"
-      loop: "{{ topics_in_run | subelements('topic_provides', skip_missing=True) }}"
-      loop_control:
-        label: "{{ item.1 }} → {{ item.0.topic_name }}"
-      tags: [always]
-
-    # ── Build the reverse index: dep → every topic that requires it ──────────
-    # provides_map answers "who installs X". requires_map answers "who NEEDS X",
-    # which is the question teardown has to ask: uninstalling a shared system
-    # package because one topic is going away silently breaks every other topic
-    # that also depends on it. A topic's remove.yaml consults this before
-    # tearing down anything it did not exclusively own.
-    #
-    # Built from topic_metadata (every topic in apps/), not topics_in_run — a
-    # topic excluded from this run by topic_os still counts as a consumer. Only
-    # removing a dep no topic anywhere claims is safe.
-    - name: "Initialize requires_map as empty"
-      ansible.builtin.set_fact:
-        requires_map: {}
-      tags: [always]
-
-    - name: "Populate requires_map (dep → topics requiring it)"
-      ansible.builtin.set_fact:
-        requires_map: >-
-          {{ requires_map | combine({
-               item.1: (requires_map[item.1] | default([])) + [item.0.topic_name]
-             }) }}
-      loop: "{{ topic_metadata | subelements('topic_requires', skip_missing=True) }}"
-      loop_control:
-        label: "{{ item.1 }} ← {{ item.0.topic_name }}"
-      tags: [always]
-
-    - name: "Report dependencies shared by more than one topic"
-      ansible.builtin.debug:
-        msg: >-
-          [shared-dep] '{{ item.key }}' is required by {{ item.value | length }}
-          topics ({{ item.value | sort | join(', ') }}) and is
-          {{ "provided by topic '" ~ provides_map_all[item.key] ~ "'"
-             if item.key in provides_map_all
-             else "not provided by any topic" }}.
-          Teardown of any one of them must leave it installed.
-      loop: "{{ requires_map | dict2items | sort(attribute='key') }}"
-      loop_control:
-        label: "{{ item.key }}"
-      when: item.value | length > 1
-      tags: [always]
-
-    # ── Sanity check: resolve every topic_requires ───────────────────────────
-    # For each (topic, required dep) pair we resolve to one of three states:
-    #   OK            — provided by a topic in run, or present on PATH
-    #   TOPIC_NOT_RUN — a topic provides it, but is not in this run (OS mismatch)
-    #   NO_TOPIC      — nothing provides it and it's not on PATH
-    # See docs/TOPICS.md.
-
-    - name: "Collect (topic, required-dep) pairs"
-      ansible.builtin.set_fact:
-        require_pairs: "{{ topics_in_run | subelements('topic_requires', skip_missing=True) }}"
-      tags: [bootstrap, prerequisites, install, upgrade, remove, provision]
-
-    - name: "Probe PATH for each required dep"
-      ansible.builtin.shell: "command -v {{ item.1 | quote }} >/dev/null 2>&1"
-      args:
-        executable: /bin/bash
-      register: dep_probe
-      loop: "{{ require_pairs }}"
-      loop_control:
-        label: "{{ item.0.topic_name }} → {{ item.1 }}"
-      changed_when: false
-      failed_when: false
-      tags: [bootstrap, prerequisites, install, upgrade, remove, provision]
-
-    - name: "Sanity check (strict): fail on unresolved deps"
-      ansible.builtin.assert:
-        that:
-          - (item.item.1 in provides_map_run) or (item.rc == 0)
-        fail_msg: >-
-          {%- set topic = item.item.0.topic_name -%}
-          {%- set dep = item.item.1 -%}
-          {%- if dep in provides_map_all -%}
-          [TOPIC_NOT_RUN] topic '{{ topic }}' requires '{{ dep }}'. Topic
-          'apps/{{ provides_map_all[dep] }}' provides it, but is not in this
-          run (likely a topic_os mismatch). Install that topic first, or
-          update apps/{{ topic }}/meta/main.yml.
-          {%- else -%}
-          [NO_TOPIC] topic '{{ topic }}' requires '{{ dep }}'. No topic
-          provides '{{ dep }}' and it is not on PATH. Either add a topic
-          for '{{ dep }}', or remove the requirement from
-          apps/{{ topic }}/meta/main.yml.
-          {%- endif -%}
-      loop: "{{ dep_probe.results }}"
-      loop_control:
-        label: "{{ item.item.0.topic_name }} → {{ item.item.1 }}"
-      tags: [bootstrap, prerequisites, install, upgrade, provision]
-
-    - name: "Sanity check (warn-only under --tags remove)"
-      ansible.builtin.debug:
-        msg: >-
-          [remove] topic '{{ item.item.0.topic_name }}' requires
-          '{{ item.item.1 }}' — dependency missing, tolerated under remove.
-      loop: "{{ dep_probe.results }}"
-      loop_control:
-        label: "{{ item.item.0.topic_name }} → {{ item.item.1 }}"
-      when:
-        - item.item.1 not in provides_map_run
-        - item.rc != 0
-      tags: [remove]
+    - name: "Resolve topic dependencies (roles/topic-resolution)"
+      ansible.builtin.import_role:
+        name: "roles/topic-resolution"
 
   # ── Topic execution, ordered by tier ────────────────────────────────────────
   # Each block runs one tier. Within a tier, topics are sorted alphabetically.
