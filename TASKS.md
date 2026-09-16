@@ -87,21 +87,24 @@ on the next `mise install`.
 
 **What the author owes this machine:**
 
+- `chezmoi apply` for two source edits, then two follow-ups: the opencode
+  permission rules (2b31407) need an **opencode restart** — config loads
+  once at startup; the leaktk/betterleaks entries (4aebd9d) need a
+  `mise install` (or the next mise topic run) to actually land.
 - The skillet 1.7.0→1.8.0 changelog read from a machine with getsentry
   access — the author took it; the pin stands at 1.8.0 with the skew
   recorded meanwhile (task in § Now).
-- Register the repos with gita — the first attempt (`gita add
-  ~/code/work/*`) reported "No new repos found" because gita only registers
-  depth-1 repos without `-r`, and this Mac's 39 work repos nest 2-4 levels
-  deep by org. Corrected commands: `gita add -r ~/code/work` (watch the one
-  duplicate name, `symbolicator`), then `gita add
-  ~/code/personal/bengineerdavis.github.io ~/code/templates/Best-README-Template`.
-  The overlay `~/.local/state/layout/machines.local.yaml` exists (touched);
-  fill its work list with the repo paths relative to `~/code/work/` —
-  derivable any time with `find ~/code/work -name .git`. Do NOT paste that
-  list into committed files (spec.md § Data); the agent supplied it in
-  session. Done when `gita ls` covers the declared sets (43 repos on this
-  Mac: 39 work + 4 personal/templates).
+- Register the repos with gita — **done 2026-09-15**, with two recorded
+  residuals. 51 repos registered (48 work + the two newly added
+  personal/templates + the two pre-existing). Residuals: (a) the overlay
+  `~/.local/state/layout/machines.local.yaml` lists 49 work paths because
+  the generator's find had no `.venv` filter — one entry is pip-vendored
+  content (`temporalio/bridge/sdk-core`), so regenerate with
+  `-not -path "*/.venv/*"` added; (b) three duplicate basenames
+  (`sentry-docs`, `sillysnakes-python-sdk-playground-1-29-26`,
+  `symbolicator`) each kept one registration — the dropped copies are
+  hackathon/archive duplicates, deliberately left unregistered unless the
+  author wants them under distinct names.
 
 **Landed today (this session):** the merge review and its resolutions;
 the review-skill specification and opencode LSP research captures (top of
