@@ -32,6 +32,10 @@
     // external_directory scan cannot see) and gita's mutating subcommands
     // (mass pull/push/checkout across every repo is the ask tier's job).
     "bash": {
+      // Catch-all FIRST. opencode takes the last matching rule, so a catch-all
+      // placed last shadows every allow and deny in front of it (measured: the
+      // external_directory block below is deny-first/allow-last and works;
+      // this map was the reverse and never got a clean restart to show it).
       "*": "ask",
       "git *": "allow",
       // `mise *` reaches arbitrary execution through `mise exec`/`mise run`,
@@ -53,7 +57,8 @@
       "find *": "allow",
       "find *-delete*": "deny",
       "find *-exec*": "deny",
-      "find *-execdir*": "deny"
+      "find *-execdir*": "deny",
+      "*": "ask"
     },
     "webfetch": "ask",
     "websearch": "ask",

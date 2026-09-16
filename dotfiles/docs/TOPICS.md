@@ -101,6 +101,14 @@ The check fails under `bootstrap`, `prerequisites`, `install`, `upgrade`, and
 `provision`. It warns-but-continues under `remove`, since you may be tearing
 down the very tool the requirement was satisfied by.
 
+The PATH probe looks up the token with `command -v`. Most tokens are binary
+names (`node`, `apt`, `docker`, `mise`, `python`), so this needs no extra work.
+One is not: `homebrew` is the package manager's name, while its CLI is `brew` on
+every platform. A per-token alias in the playbook (`dependency_probe_binary`)
+maps such tokens to the binary to probe, so `topic_requires: [homebrew]`
+resolves via `brew` on a Debian box running linuxbrew even though the
+`apps/homebrew` topic is Darwin-only.
+
 ## Shared dependencies
 
 `provides_map` answers *"which topic installs X"*. Teardown needs the opposite

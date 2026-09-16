@@ -3,8 +3,12 @@
 How agent permissions are set in this repository, and — more importantly — what
 they do not protect against.
 
-The rules live in `.claude/settings.json`, which is JSON and cannot carry
-comments. This file is the reasoning behind them. Change them together.
+Two agent surfaces are configured here, and the rules for both are versioned:
+**opencode** — the global template `dot_config/opencode/opencode.jsonc.tmpl`
+and the project file `opencode.jsonc` — and **Claude Code**
+(`.claude/settings.json`). Claude Code's file is JSON and cannot carry
+comments; opencode's are JSONC and carry the reasoning inline. This file is
+the reasoning for both. Change rules and this file together.
 
 ## What this layer is for
 
@@ -36,8 +40,9 @@ contradicting a written convention.
   never apply; there is one deployed tree and it cannot be branched. This rule
   existed as an **allow** until today, which is why the convention and the
   configuration disagreed, and the configuration is what actually decides.
-- Force-push and history rewriting tools. `spec.md` § Change records requires a
-  backup branch and `git notes` first, and a rewrite does not un-publish.
+- Force-push (`git push --force`, `-f`, `--force-with-lease`). `spec.md` § Change
+  records requires a backup branch and `git notes` first, and a rewrite does not
+  un-publish.
 - Credential stores and secret files. These are read-denies, and Claude Code
   extends a Read deny to Edit and Write on the same path.
 
@@ -46,8 +51,9 @@ point: it is the moment a human sees what is about to happen.
 
 Publishing (`git push`, `gh`), machine mutation (`brew`/`pip`/`npm` installs,
 `launchctl`, `./run-role.sh`), destruction (`rm`, `git reset --hard`), network
-egress (`curl`, `wget`), secret access (`op`), and large or destructive model
-operations (`ollama pull`/`rm`).
+egress (`curl`, `wget`), secret access (`op`), history rewriting
+(`git filter-repo`/`filter-branch`), and large or destructive model operations
+(`ollama pull`/`rm`).
 
 **allow** — read-only inspection, and changes that git can undo.
 
@@ -99,7 +105,7 @@ The general lesson is that prefix matching describes command *text*, not command
 differently. That is another reason this layer is described above as catching
 accidents rather than as a boundary.
 
-## Which file
+## Which file (Claude Code)
 
 Settings are **per project directory**, and this machine has two directories
 that both look like "the dotfiles project":
@@ -127,6 +133,51 @@ Within a project the cascade is `~/.claude/settings.json` (user, all projects) �
 The previous arrangement had this inverted — personal one-off approvals had
 accumulated in the committed file, which is how it grew to 88 rules that no
 review ever saw as a whole.
+
+## The opencode layer
+
+opencode's rules live in two files, both versioned here:
+
+- `dot_config/opencode/opencode.jsonc.tmpl` — the **global** config, deployed by
+  chezmoi to `~/.config/opencode/opencode.jsonc`. Baseline: reads free, git
+  allowed, everything else asks, and `external_directory` is deny-first /
+  allow-last so only the chezmoi source and `~/code` are reachable outside a
+  project.
+- `opencode.jsonc` — the **project** config for sessions run in this repo. It
+  sets the bash tier and defines the `autonomous` agent. It is deploy-ignored
+  (`.chezmoiignore`) — repo tooling, not a home file.
+
+The two scopes are **deep-merged, project overrides global**. Within a
+`permission` map, opencode takes the **last matching rule**, so every map here
+puts the catch-all `*` first and the narrowest rules (denies) last. The global
+template's bash map had this backwards — `*` at the end — which would have
+turned every command into an `ask` at the next restart; it was fixed alongside
+the project rewrite.
+
+### The autonomy dial
+
+The default agent is conservative: git read ops, the test/lint toolchain,
+interpreters and read-only shell utilities are `allow`; commit/push, network
+egress, installs and history rewriting are `ask`; `chezmoi apply`, force-push
+and credential paths are `deny`.
+
+`autonomous` (Tab to switch) is the opt-in widening: a complete, self-contained
+map that additionally allows commit/push, `gh`, `curl`/`wget`, package installs
+and model pulls, plus `webfetch`/`websearch`. Its deny tier is identical to the
+default's — applying, force-push and credentials stay blocked no matter which
+agent is running. The agent block is written as a full map so it is correct
+whether opencode replaces or merges it over the base.
+
+opencode also ships a built-in dial: `opencode --auto` (or the TUI
+"auto-approve permissions" toggle) approves every `ask` that is not explicitly
+`deny`. It is coarser than the `autonomous` agent — it widens everything, not the
+chosen operations — but it has no config to maintain, so it cannot drift. Prefer
+the agent when you want to name what gets widened; use `--auto` for a one-off
+unattended run.
+
+The boundary holds for the agent too: `external_directory` and `read`/`edit` are
+not widened by `autonomous`, so it cannot read or write outside the chezmoi
+source and `~/code`, however many bash commands it may run.
 
 ## Verifying a change
 

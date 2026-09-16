@@ -1,0 +1,300 @@
+{
+  // Project-scoped opencode config for sessions run in this repo. Versioned,
+  // deploy-ignored (it is repo tooling, not a home-directory file).
+  //
+  // Deep-merged over the global config (dot_config/opencode/opencode.jsonc);
+  // this file's rules win. Last matching rule wins WITHIN a map, so the
+  // catch-all "*" sits first and the narrowest rules (denies) sit last.
+  //
+  // read/edit/glob/grep/list stay allowed and webfetch/websearch stay ask,
+  // all inherited from the global config. external_directory stays
+  // deny-first/allow-last from the global config. This file sets the bash
+  // tier plus the opt-in autonomous agent.
+  "$schema": "https://opencode.ai/config.json",
+
+  "permission": {
+    "bash": {
+      "*": "ask",
+
+      // --- read-only inspection and local git: the workhorse allow tier ---
+      "git status *": "allow",
+      "git diff *": "allow",
+      "git log *": "allow",
+      "git show *": "allow",
+      "git branch *": "allow",
+      "git rev-parse *": "allow",
+      "git rev-list *": "allow",
+      "git ls-files *": "allow",
+      "git fetch *": "allow",
+      "git remote *": "allow",
+      "git blame *": "allow",
+      "git shortlog *": "allow",
+      "git describe *": "allow",
+      "git worktree list *": "allow",
+      "git stash list *": "allow",
+      "git stash *": "allow",
+      "git notes *": "allow",
+      "git config --get *": "allow",
+      "git add *": "allow",
+      "git checkout *": "allow",
+      "git switch *": "allow",
+      "git restore *": "allow",
+      "git mv *": "allow",
+      "git cherry-pick *": "allow",
+      "git merge *": "allow",
+      "git check-ignore *": "allow",
+
+      // chezmoi read/verify; add moves deployed content into git, kept allow
+      // per docs/PERMISSIONS.md § allow
+      "chezmoi status *": "allow",
+      "chezmoi diff *": "allow",
+      "chezmoi managed *": "allow",
+      "chezmoi ignored *": "allow",
+      "chezmoi unmanaged *": "allow",
+      "chezmoi source-path *": "allow",
+      "chezmoi data *": "allow",
+      "chezmoi cat *": "allow",
+      "chezmoi add *": "allow",
+      "chezmoi verify *": "allow",
+
+      // test + lint + validation toolchain (AGENTS.md § Commands)
+      "pytest *": "allow",
+      "python3 -m pytest *": "allow",
+      "uv run --with pytest *": "allow",
+      "uv run *": "allow",
+      "bats *": "allow",
+      "skillet *": "allow",
+      "shellcheck *": "allow",
+      "ruff *": "allow",
+      "prek *": "allow",
+      "pre-commit *": "allow",
+
+      // interpreters — deliberately allowed (docs/PERMISSIONS.md § Interpreters
+      // are allowed: they cannot be denied while `uv run --with … pytest` is
+      // the test command, and every ask rule is bypassable from one anyway)
+      "python3 *": "allow",
+      "python *": "allow",
+
+      // read-only model + runtime inspection (AGENTS.md § Verification)
+      "ollama ps *": "allow",
+      "ollama list *": "allow",
+      "ollama show *": "allow",
+      "mise ls *": "allow",
+      "mise list *": "allow",
+
+      // read-only shell utilities
+      "ls *": "allow",
+      "cat *": "allow",
+      "head *": "allow",
+      "tail *": "allow",
+      "wc *": "allow",
+      "file *": "allow",
+      "stat *": "allow",
+      "grep *": "allow",
+      "rg *": "allow",
+      "diff *": "allow",
+      "sed *": "allow",
+      "awk *": "allow",
+      "sort *": "allow",
+      "uniq *": "allow",
+      "tr *": "allow",
+      "cut *": "allow",
+      "basename *": "allow",
+      "dirname *": "allow",
+      "readlink *": "allow",
+      "which *": "allow",
+      "echo *": "allow",
+      "printf *": "allow",
+      "date *": "allow",
+      "env *": "allow",
+      "mkdir *": "allow",
+      "touch *": "allow",
+      "cp *": "allow",
+      "mv *": "allow",
+      "chmod *": "allow",
+
+      // --- outward-facing or irreversible: ask. The prompt is the point ---
+      "git commit *": "ask",
+      "git push *": "ask",
+      "git rebase *": "ask",
+      "git reset --hard *": "ask",
+      "git reset *": "ask",
+      "git clean *": "ask",
+      "git rm --cached *": "ask",
+      "git bundle *": "ask",
+      // History rewriting asks rather than denies: the approval prompt shows
+      // the full command, so the human sees the cwd/context and applies the
+      // spec.md ceremony (backup branch + git notes) at the moment of use.
+      "git filter-branch *": "ask",
+      "git filter-repo *": "ask",
+      "rm *": "ask",
+      "rm -r *": "ask",
+      "rm -rf *": "ask",
+      "curl *": "ask",
+      "wget *": "ask",
+      "ssh *": "ask",
+      "brew *": "ask",
+      "mise install *": "ask",
+      "mise use *": "ask",
+      "mise run setup *": "ask",
+      "pip install *": "ask",
+      "npm install *": "ask",
+      "gh *": "ask",
+      "ollama pull *": "ask",
+      "ollama rm *": "ask",
+      "uv publish *": "ask",
+
+      // --- deny: never, matching docs/PERMISSIONS.md § deny. chezmoi apply is
+      // main-only (AGENTS.md § Applying is main-only) — denied, not asked ---
+      "chezmoi apply *": "deny",
+      "chezmoi init *": "deny",
+      "chezmoi re-add *": "deny",
+      "chezmoi purge *": "deny",
+      "git push --force *": "deny",
+      "git push -f *": "deny",
+      "git push --force-with-lease *": "deny"
+    }
+  },
+
+  "agent": {
+    "autonomous": {
+      "description": "Same toolset as build, with the frequent-but-reversible operations auto-approved: commit/push (never force), gh, network fetches, package installs, model pulls, webfetch. Deny tier is unchanged. Select it when you want the agent to work unattended.",
+      "mode": "primary",
+      "permission": {
+        "bash": {
+          "*": "ask",
+
+          // read-only inspection and local git (same as top level)
+          "git status *": "allow",
+          "git diff *": "allow",
+          "git log *": "allow",
+          "git show *": "allow",
+          "git branch *": "allow",
+          "git rev-parse *": "allow",
+          "git rev-list *": "allow",
+          "git ls-files *": "allow",
+          "git fetch *": "allow",
+          "git remote *": "allow",
+          "git blame *": "allow",
+          "git shortlog *": "allow",
+          "git describe *": "allow",
+          "git worktree list *": "allow",
+          "git stash list *": "allow",
+          "git stash *": "allow",
+          "git notes *": "allow",
+          "git config --get *": "allow",
+          "git add *": "allow",
+          "git checkout *": "allow",
+          "git switch *": "allow",
+          "git restore *": "allow",
+          "git mv *": "allow",
+          "git cherry-pick *": "allow",
+          "git merge *": "allow",
+          "git check-ignore *": "allow",
+
+          "chezmoi status *": "allow",
+          "chezmoi diff *": "allow",
+          "chezmoi managed *": "allow",
+          "chezmoi ignored *": "allow",
+          "chezmoi unmanaged *": "allow",
+          "chezmoi source-path *": "allow",
+          "chezmoi data *": "allow",
+          "chezmoi cat *": "allow",
+          "chezmoi add *": "allow",
+          "chezmoi verify *": "allow",
+
+          "pytest *": "allow",
+          "python3 -m pytest *": "allow",
+          "uv run --with pytest *": "allow",
+          "uv run *": "allow",
+          "bats *": "allow",
+          "skillet *": "allow",
+          "shellcheck *": "allow",
+          "ruff *": "allow",
+          "prek *": "allow",
+          "pre-commit *": "allow",
+
+          "python3 *": "allow",
+          "python *": "allow",
+
+          "ollama ps *": "allow",
+          "ollama list *": "allow",
+          "ollama show *": "allow",
+          "mise ls *": "allow",
+          "mise list *": "allow",
+
+          "ls *": "allow",
+          "cat *": "allow",
+          "head *": "allow",
+          "tail *": "allow",
+          "wc *": "allow",
+          "file *": "allow",
+          "stat *": "allow",
+          "grep *": "allow",
+          "rg *": "allow",
+          "diff *": "allow",
+          "sed *": "allow",
+          "awk *": "allow",
+          "sort *": "allow",
+          "uniq *": "allow",
+          "tr *": "allow",
+          "cut *": "allow",
+          "basename *": "allow",
+          "dirname *": "allow",
+          "readlink *": "allow",
+          "which *": "allow",
+          "echo *": "allow",
+          "printf *": "allow",
+          "date *": "allow",
+          "env *": "allow",
+          "mkdir *": "allow",
+          "touch *": "allow",
+          "cp *": "allow",
+          "mv *": "allow",
+          "chmod *": "allow",
+
+          // --- widened vs top level: these become allow instead of ask ---
+          "git commit *": "allow",
+          "git push *": "allow",
+          "gh *": "allow",
+          "curl *": "allow",
+          "wget *": "allow",
+          "brew *": "allow",
+          "mise install *": "allow",
+          "mise use *": "allow",
+          "mise run setup *": "allow",
+          "pip install *": "allow",
+          "npm install *": "allow",
+          "ollama pull *": "allow",
+
+          // --- still ask, even here ---
+          "git rebase *": "ask",
+          "git reset --hard *": "ask",
+          "git reset *": "ask",
+          "git clean *": "ask",
+          "git rm --cached *": "ask",
+          "git bundle *": "ask",
+          "git filter-branch *": "ask",
+          "git filter-repo *": "ask",
+          "rm *": "ask",
+          "rm -r *": "ask",
+          "rm -rf *": "ask",
+          "ssh *": "ask",
+          "ollama rm *": "ask",
+          "uv publish *": "ask",
+
+          // --- deny tier, unchanged ---
+          "chezmoi apply *": "deny",
+          "chezmoi init *": "deny",
+          "chezmoi re-add *": "deny",
+          "chezmoi purge *": "deny",
+          "git push --force *": "deny",
+          "git push -f *": "deny",
+          "git push --force-with-lease *": "deny"
+        },
+        "webfetch": "allow",
+        "websearch": "allow"
+      }
+    }
+  }
+}
