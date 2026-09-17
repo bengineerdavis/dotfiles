@@ -164,6 +164,19 @@ reversed earlier positions on purpose.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
+- **Write the normative spec for topics — a `spec.md` for the topic unit.
+  More urgent than the design work below it.** Queued 2026-09-17 ahead of
+  the downstream-IDE wiring so that work lands against a settled constraint
+  layer rather than after it. House spec form (SHALL/MUST with BDD
+  scenarios, skillet-validatable, carrying its `skillet-version` comment),
+  a sibling to the root `spec.md`: what a topic is and must remain — the
+  lifecycle contract, the CRUD ownership invariant, `topic.yml` as the
+  schema of record, template conformance, shared-dep teardown rules, the
+  guard doctrine. `TOPICS.md` then reduces to plain explanation that links
+  to the spec for binding wording — two normative statements of one rule
+  drift; an explanation plus a link does not. Done when the spec exists,
+  `skillet validate` passes on it, `TOPICS.md` cites it instead of
+  restating its SHALLs, and the author's adopt call is recorded. [me]
 - **Design how VS Code and its downstream IDEs (cursor, windsurf) share
   extensions without drift, via an advisor council.** Author requirements,
   settled 2026-09-17: one shared truth, not per-editor manifests; VS Code
