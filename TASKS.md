@@ -174,9 +174,14 @@ nothing is.
   schema of record, template conformance, shared-dep teardown rules, the
   guard doctrine. `TOPICS.md` then reduces to plain explanation that links
   to the spec for binding wording — two normative statements of one rule
-  drift; an explanation plus a link does not. Done when the spec exists,
-  `skillet validate` passes on it, `TOPICS.md` cites it instead of
-  restating its SHALLs, and the author's adopt call is recorded. [me]
+  drift; an explanation plus a link does not. **Input to the spec, by the
+  author 2026-09-17:** the vscode↔cursor downstream-IDE design below is a
+  deliberate probe of how upstream/downstream relationships between topics
+  should be declared and governed — its settled outcome normalizes "topics
+  as a format" and must be expressible in the spec's terms. Done when the
+  spec exists, `skillet validate` passes on it, `TOPICS.md` cites it
+  instead of restating its SHALLs, and the author's adopt call is
+  recorded. [me]
 - **Design how VS Code and its downstream IDEs (cursor, windsurf) share
   extensions without drift, via an advisor council.** Author requirements,
   settled 2026-09-17: one shared truth, not per-editor manifests; VS Code
