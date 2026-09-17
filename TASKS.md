@@ -62,6 +62,7 @@ is exactly the collision it exists to prevent.
 
 Format: `- <UTC start> — <what> — <files or resource>`
 
+- 2026-09-17 03:58 UTC — governance-docs consolidation (#1) — TASKS.md now; spec.md, PRD.md, AGENTS.md, docs/, dotfiles/docs/ next
 
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
@@ -163,6 +164,23 @@ reversed earlier positions on purpose.
 
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
+
+- **Consolidate the governance docs — PRD as the constitution, spec as the
+  derived statutes, conventions as the how-to.** [#1] Decided with the author
+  2026-09-16: PRD states each requirement once; spec derives its testable
+  SHALL/BDD form and cites the principle back; AGENTS-referenced convention
+  docs explain how to comply. The four docs are currently peers with no stated
+  precedence, and PRD has smuggled constraints (the provision-vs-logic rule,
+  the verification governor) that belong in spec — the drift behind the
+  changelog "discipline gap" (d1f10ff). Items, in order: (1) derivation-graph
+  inventory — map every spec.md behavior to its PRD.md principle and back,
+  marking orphans and unstatuted principles; (2) write the precedence rule into
+  the docs; (3) prune the drift — move smuggled statutes into spec with
+  citations; (4) retire the stale root docs/ tree (edit dotfiles/docs/ only);
+  (5) review TASKS.md § Now/Planned against the consolidated requirements.
+  Done when every spec behavior cites a PRD principle, PRD holds no testable
+  statutes, one maintained copy of each doc exists, and the open task list has
+  been re-reviewed. [me]
 
 - **Spec the zsh tooling standard — author interview first, then a
   review-best-practices pass, then council critique.** Queued by the author
