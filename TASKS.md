@@ -176,6 +176,18 @@ nothing is.
   antsibull categories, a README that says what the topic does and how to
   run it, `tasks.yaml` is gone, and `--syntax-check` plus `--check --tags
   provision` and `--tags remove` all pass clean. [me]
+- **Refresh `vs_extensions.txt` to the actual installed set and record why
+  nothing kept it current.** The manifest in `apps/visual-studio-code/`
+  records 18 extensions while VS Code has 40 installed
+  (`code --list-extensions`, 2026-09-17) — missing golang, jupyter, biome,
+  claude-code, mise, bats and 17 more. Root cause to record beside the
+  manifest: nothing consumes or refreshes it — the topic's install is
+  cask-only and `executable_export.manual`/`executable_import.manual` are
+  hand-run scripts never wired to `update.sh` or any upgrade path. Refresh
+  by exporting today's actual list; wiring the refresh in belongs to the
+  downstream-IDE design item below, not this one. Done when the manifest
+  matches `code --list-extensions` on this machine and the staleness
+  diagnosis is recorded in the vscode topic. [me]
 - **Spec the zsh tooling standard — author interview first, then a
   review-best-practices pass, then council critique.** Queued by the author
   2026-09-16, from the LANGUAGES.md zsh row: ~90 `.zsh` files are zsh
