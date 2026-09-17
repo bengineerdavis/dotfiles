@@ -125,3 +125,19 @@ deleted.
   `os_family` branch, no hard-coded brew prefix, and install/remove via
   `community.general.homebrew` from the pinned tap, with a counterweight so
   it cannot pass vacuously. Mutation-proven.
+
+## 2026-09-17
+
+- **Brought the cursor topic to TOPICS.md conformance and verified it.**
+  The topic already existed and was live (installed on this Mac, parent
+  playbook discovers it); the residue was missing CHANGELOG.md, a
+  template-boilerplate README, and a dead pre-role `tasks.yaml`. Added the
+  dated CHANGELOG.md (antsibull categories; known-issues record the
+  auto_updates cask drift, the not-yet-designed extension gap, and the
+  OpenVSX marketplace difference), rewrote the README, removed `tasks.yaml`
+  (grep-verified unreferenced) in b117f86. Evidence:
+  `--syntax-check` clean; `--check --tags provision` converged
+  (ok=2 changed=0 failed=0); `--check --tags remove` reported the expected
+  would-change (changed=1 failed=0). Residue noted for others: `meld` and
+  `rectangle` still carry their `tasks.yaml`; the queued per-topic-suite
+  item owns cursor's tests when it lands.
