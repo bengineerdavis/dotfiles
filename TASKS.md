@@ -164,18 +164,6 @@ reversed earlier positions on purpose.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
-- **Refresh `vs_extensions.txt` to the actual installed set and record why
-  nothing kept it current.** The manifest in `apps/visual-studio-code/`
-  records 18 extensions while VS Code has 40 installed
-  (`code --list-extensions`, 2026-09-17) — missing golang, jupyter, biome,
-  claude-code, mise, bats and 17 more. Root cause to record beside the
-  manifest: nothing consumes or refreshes it — the topic's install is
-  cask-only and `executable_export.manual`/`executable_import.manual` are
-  hand-run scripts never wired to `update.sh` or any upgrade path. Refresh
-  by exporting today's actual list; wiring the refresh in belongs to the
-  downstream-IDE design item below, not this one. Done when the manifest
-  matches `code --list-extensions` on this machine and the staleness
-  diagnosis is recorded in the vscode topic. [me]
 - **Design how VS Code and its downstream IDEs (cursor, windsurf) share
   extensions without drift, via an advisor council.** Author requirements,
   settled 2026-09-17: one shared truth, not per-editor manifests; VS Code

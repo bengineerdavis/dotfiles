@@ -141,3 +141,12 @@ deleted.
   would-change (changed=1 failed=0). Residue noted for others: `meld` and
   `rectangle` still carry their `tasks.yaml`; the queued per-topic-suite
   item owns cursor's tests when it lands.
+- **Refreshed `vs_extensions.txt` and recorded why nothing kept it
+  current.** Manifest was 18 entries against 40 actually installed
+  (`code --list-extensions`, 2026-09-17). Captured the live list (verified
+  identical by diff) in 8e25e32 and recorded the diagnosis in the vscode
+  topic's new CHANGELOG.md: the topic installs cask-only, export/import are
+  hand-run `.manual` scripts wired to nothing, so post-export installs stay
+  invisible to the repo. Wiring a refresh in belongs to the downstream-IDE
+  design item (still queued in § Now). Also recorded there: the `.manual`
+  scripts exist twice (topic root and `files/`).
