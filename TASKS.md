@@ -188,6 +188,24 @@ nothing is.
   downstream-IDE design item below, not this one. Done when the manifest
   matches `code --list-extensions` on this machine and the staleness
   diagnosis is recorded in the vscode topic. [me]
+- **Design how VS Code and its downstream IDEs (cursor, windsurf) share
+  extensions without drift, via an advisor council.** Author requirements,
+  settled 2026-09-17: one shared truth, not per-editor manifests; VS Code
+  must be deletable entirely without losing the shared config; per-downstream
+  deltas must be expressible (cursor vs windsurf may want different sets);
+  cursor uses OpenVSX, not Microsoft's marketplace, so availability differs
+  per editor (pylance is the known risk class) — per-extension verdicts plus
+  an ignore list, failing loudly when the list does not resolve. The
+  author's instinct is a 'downstream'/'forked' relationship between IDEs
+  rather than a plain shared file. This extends
+  `apps/chrome/TODO-ide-extensions.md`, which parked exactly this (its open
+  questions 1–4); the parked doc's sequencing note — topic CLI and firefox
+  first — is overtaken by this request. Run as the house research pattern:
+  review-best-practices pass first, then an advisor council that questions
+  each other, then the author's adopt/adapt/reject call. Done when a written
+  recommendation answers the parked doc's open questions for the downstream
+  case, the survives-vscode-deletion requirement has a mechanism, and the
+  wiring lands as queued tasks. [me]
 - **Spec the zsh tooling standard — author interview first, then a
   review-best-practices pass, then council critique.** Queued by the author
   2026-09-16, from the LANGUAGES.md zsh row: ~90 `.zsh` files are zsh
