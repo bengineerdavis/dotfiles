@@ -164,6 +164,18 @@ reversed earlier positions on purpose.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
+- **Bring the cursor topic to TOPICS.md conformance and verify it
+  end-to-end.** The topic exists and is live — installed on this Mac
+  (`~/Applications/Cursor.app`), discovered by the parent playbook, survived
+  the roles migration — but carries scaffold residue: no `CHANGELOG.md`
+  (required by `dotfiles/docs/TOPICS.md` § Topic structure), a `README.md`
+  that is still the untouched template boilerplate, and a dead `tasks.yaml`
+  from the pre-role include era that nothing references (grep-verified
+  2026-09-17; `meld` and `rectangle` carry the same residue — their cleanup
+  is their own task). Done when the topic has a dated CHANGELOG.md in the
+  antsibull categories, a README that says what the topic does and how to
+  run it, `tasks.yaml` is gone, and `--syntax-check` plus `--check --tags
+  provision` and `--tags remove` all pass clean. [me]
 - **Spec the zsh tooling standard — author interview first, then a
   review-best-practices pass, then council critique.** Queued by the author
   2026-09-16, from the LANGUAGES.md zsh row: ~90 `.zsh` files are zsh
