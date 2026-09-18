@@ -182,6 +182,20 @@ nothing is.
   spec exists, `skillet validate` passes on it, `TOPICS.md` cites it
   instead of restating its SHALLs, and the author's adopt call is
   recorded. [me]
+- **Create `dotfiles/config/editors.yaml` — the shared editor-extension
+  catalogue.** The data half of the adopted system-config model (see the
+  resolved council entry in `TASKS-RESOLVED.md`, 2026-09-17): one readable
+  catalogue file, folder-isolated from playbook.yaml, that editor topics
+  will consume by subscription. Seed from the live 40 in
+  `apps/visual-studio-code/vs_extensions.txt`; schema in a header comment —
+  per entry `id`, `why` (required), optional `editors:` scope, dated
+  availability verdicts — seeded with the probe evidence (ms-python.vscode-pylance
+  → not-available for cursor, Open VSX standalone 404;
+  anysphere.cursorpyright → substituted for cursor, verified by install
+  probe — see `apps/cursor/CHANGELOG.md`). Whys drafted for review, not
+  invented silently. Done when the file parses, carries all 40 entries with
+  whys, verdicts are dated, and the header states the subscription model it
+  serves. [me]
 - **Design the cadence by which topics pull in and refresh official
   upstream references, so topics track their tools proactively.** Queued
   2026-09-17 by the author: topics bind to external tools whose docs,
