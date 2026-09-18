@@ -24,6 +24,32 @@ Section names come from antsibull-changelog; see `docs/TOPICS.md`
   clears them from the deployed tree. `vs_settings.json` remains: live
   settings sharing is a separate, still-open question.
 
+### minor_changes
+
+- **The topic now installs, updates and tears down its extensions from the
+  shared catalogue — the interim direct-read contract** (2026-09-17, author
+  direction "also wire now"). `install` reads
+  `dotfiles/config/editors.yaml` by a role-relative path
+  (`vscode_catalogue_path`, stable under both the parent playbook and
+  `run-role.sh`), filters to this editor plus topic-local
+  `vscode_extra_extensions`, lists what is installed (empty output is a
+  valid state), installs the missing, prints one verdict per entry, and
+  fails once at the end naming every unresolved id. `upgrade` runs
+  `code --update-extensions` (`changed_when: false` — the CLI reports its
+  own changes at -v; parsing its wording would bake it in as a contract).
+  `remove` gained the gated teardown: `vscode_remove_extensions` (default
+  false, house pattern cf. `chrome_remove_browser`) uninstalls the claimed
+  ids BEFORE the cask, because the CLI dies with the cask. Isolation lives
+  in the topic's defaults; the catalogue holds the domain truth. **This
+  read is interim** — the subscription machinery queued in `TASKS.md`
+  § Planned replaces it with `topic_subscribes` + an injected var, and
+  that switch must be a no-op on a converged machine. Guarded by
+  `tests/config/test_editors_catalogue.py` (mutation-proven: a commented-out
+  `why` turns the schema test red). Check-mode note: the CLI probes and
+  list step cannot run under `--check`, so a dry run reports every slice
+  entry as would-install and the verdicts read "installed"; the real run's
+  no-op convergence is the author's apply.
+
 ### known_issues
 
 - **The manifest drifted because nothing consumed or refreshed it.** The
