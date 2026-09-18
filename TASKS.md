@@ -778,29 +778,25 @@ nothing is.
   resolution is tested, the playbook fails loudly on an unknown catalogue
   or an unresolvable verdict, and the injected-var contract is documented
   in `dotfiles/docs/TOPICS.md`. [me]
-- **Wire the visual-studio-code topic to the editors catalogue.** The first
-  consumer, on the machinery above: subscribes to `editors`, thin install
-  loop over the injected slice plus its own
-  `vscode_extra_extensions`/`vscode_ignored` isolation, gated teardown
-  (`vscode_remove_extensions: false` default — when enabled it uninstalls
-  claimed ids before the cask, because the CLI dies with the cask), and
-  `--update-extensions` under the upgrade tag. Convergence target: the 40
-  already installed — an install run must be a no-op with a clean drift
-  report. Done when `--check --tags provision/install/remove/upgrade` all
-  pass, a real run leaves the set converged (author applies), and the
-  topic's CHANGELOG records the contract. [me]
-- **Wire the cursor topic and retire the second truths.** Same contract as
-  vscode: subscribes to `editors`, thin loop, gated
-  `cursor_remove_extensions`, currency. The first real run settles the
-  pylance-class verdicts live and exercises the `substituted` tolerance for
-  `anysphere.cursorpyright` (probe evidence in the topic's CHANGELOG).
-  Retire `apps/visual-studio-code/vs_extensions.txt` and all four
-  `.manual` copies in the same change that makes the catalogue the only
-  truth — retirement requires both editor topics consuming the catalogue,
-  so this lands after the vscode wiring. Done when `run-role.sh cursor`
-  converges from the catalogue (author applies), verdict lines print per
-  entry, the retired files are gone, and nothing in the repo reads them.
-  [me]
+- **Switch the visual-studio-code topic from the interim direct read to
+  playbook injection.** The topic is already wired (2026-09-17, § Now):
+  install/remove/upgrade consume `config/editors.yaml` through a
+  role-relative direct read with the thin loop and gated teardown. When
+  the subscription machinery above lands, replace the direct read with
+  `topic_subscribes` + the injected slice — behavior must not change, and
+  the switch is proven by being a no-op on the converged machine. Done
+  when the direct read is gone, `--check --tags provision` still converges
+  (changed=0), and the topic's CHANGELOG records the switch. [me]
+- **Wire the cursor topic and align it with the catalogue contract.** Same
+  contract as vscode: thin loop, gated `cursor_remove_extensions`,
+  currency — wired interim by direct read like vscode, switching to
+  injection when the machinery lands. The first real run settles the
+  pylance-class verdicts live and exercises the `substituted` tolerance
+  for `anysphere.cursorpyright` (probe evidence in the topic's CHANGELOG;
+  its catalogue entry sits in `editor_extensions_ignored`). Done when
+  `run-role.sh cursor` converges from the catalogue (author applies),
+  verdict lines print per entry, and the topic's CHANGELOG records the
+  contract. [me]
 
 - **Decide whether to add the `opencode-sentry-monitor` plugin to the
   `apps/opencode` topic, and if so how.** Queued 2026-09-16 from the author's
