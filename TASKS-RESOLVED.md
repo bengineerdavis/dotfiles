@@ -150,3 +150,28 @@ deleted.
   invisible to the repo. Wiring a refresh in belongs to the downstream-IDE
   design item (still queued in § Now). Also recorded there: the `.manual`
   scripts exist twice (topic root and `files/`).
+- **Ran the downstream-IDE advisor council; its owner-topic design was NOT
+  adopted — superseded by the author's system-config subscription model.**
+  Three advisors (architect, pragmatist, skeptic), two rounds with
+  cross-questioning, converged on: a data-only owner topic owning the
+  shared manifest, per-entry `editors:` scoping, dated add-time verdicts,
+  collect-fail-once, consumers declaring `topic_downstream_of` and
+  importing one shared loop, gated teardown before the cask, report-only
+  GUI drift. Author rejected that shape (2026-09-17) and adopted instead:
+  **topics never read topics** — shared truth lives in
+  `dotfiles/config/<domain>.yaml` (file per domain, folder-isolated from
+  playbook.yaml), a topic declares `topic_subscribes: [<catalogue>]` in
+  topic.yml, the parent playbook validates the catalogue, resolves the
+  subscriber's slice, and injects it; topics carry only thin
+  install-and-report loops; unresolvable verdicts fail at the playbook
+  layer before anything installs. What survived from the council into the
+  adopted shape: the manifest schema (`id`/`why`/`editors:`), dated
+  add-time verdicts, collect-then-fail-once, gated teardown ordering
+  (extensions before the cask), `--update-extensions` currency, report-only
+  drift, retiring the `.manual` scripts and `vs_extensions.txt`. What died:
+  the owner topic, `topic_downstream_of`, cross-topic `import_role`.
+  Empirical evidence recorded in `apps/cursor/CHANGELOG.md` known_issues:
+  the Anysphere substitution probe (anysphere.cursorpyright installs
+  unrequested alongside ms-python.python; machine restored to zero) and
+  the CLI facts. Wiring queued on the adopted shape (config seed in § Now;
+  machinery and both consumers in § Planned, gated on the topic spec).

@@ -182,24 +182,6 @@ nothing is.
   spec exists, `skillet validate` passes on it, `TOPICS.md` cites it
   instead of restating its SHALLs, and the author's adopt call is
   recorded. [me]
-- **Design how VS Code and its downstream IDEs (cursor, windsurf) share
-  extensions without drift, via an advisor council.** Author requirements,
-  settled 2026-09-17: one shared truth, not per-editor manifests; VS Code
-  must be deletable entirely without losing the shared config; per-downstream
-  deltas must be expressible (cursor vs windsurf may want different sets);
-  cursor uses OpenVSX, not Microsoft's marketplace, so availability differs
-  per editor (pylance is the known risk class) — per-extension verdicts plus
-  an ignore list, failing loudly when the list does not resolve. The
-  author's instinct is a 'downstream'/'forked' relationship between IDEs
-  rather than a plain shared file. This extends
-  `apps/chrome/TODO-ide-extensions.md`, which parked exactly this (its open
-  questions 1–4); the parked doc's sequencing note — topic CLI and firefox
-  first — is overtaken by this request. Run as the house research pattern:
-  review-best-practices pass first, then an advisor council that questions
-  each other, then the author's adopt/adapt/reject call. Done when a written
-  recommendation answers the parked doc's open questions for the downstream
-  case, the survives-vscode-deletion requirement has a mechanism, and the
-  wiring lands as queued tasks. [me]
 - **Design the cadence by which topics pull in and refresh official
   upstream references, so topics track their tools proactively.** Queued
   2026-09-17 by the author: topics bind to external tools whose docs,
