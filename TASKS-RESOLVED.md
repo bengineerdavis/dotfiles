@@ -192,3 +192,28 @@ deleted.
   dates present, 404-entries scoped. Note for the machinery task: plain
   YAML scalars cannot contain `: ` — the review marker is "Review —" for
   that reason.
+- **Updated the visual-studio-code topic: conformance, retirement of the
+  superseded record, and the interim catalogue wiring.** Author direction
+  2026-09-17 ("update vscode topic while we're here" then "also wire
+  now"). Three commits: the retirement (vs_extensions.txt and all four
+  `.manual` copies deleted; `removed_features` entry records the why —
+  the scripts were the drift mechanism — and notes the `files/` copies
+  clear from the deployed tree on next apply); the wiring (install/
+  remove/upgrade carry the interim direct-read contract — role-relative
+  catalogue path, slice resolution with topic-local isolation, one
+  verdict line per entry, fail-once naming unresolved ids, gated
+  teardown before the cask, `--update-extensions` currency; guarded by
+  the new `tests/config/test_editors_catalogue.py`, mutation-proven);
+  the conformance (real README describing the wired topic, dead
+  `tasks.yaml` out). Done-conditions met: retired files gone and
+  unreferenced (grep-verified before deletion), `--syntax-check` clean,
+  `--check --tags provision/install/upgrade` and `--tags remove` with the
+  gate both off and on all `failed=0`, verdict lines print per entry,
+  schema test red under mutation and green restored. Two bugs caught by
+  the checks, fixed in the wiring commit: ansible's filter is `intersect`
+  (not `intersection`), and the ignore-filter's Jinja precedence (filters
+  bind tighter than `+`) needed the reject to wrap the whole sum. Queue
+  revisions in the same session: the planned vscode task became the
+  injection switch, and the cursor task notes the interim contract. The
+  real convergence run (install as a no-op against the 40 already
+  installed) is the author's apply.
