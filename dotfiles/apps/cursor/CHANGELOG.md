@@ -24,10 +24,21 @@ down the same way.
   own updater moves the app between brew runs, which is the same standing
   drift the two other self-updating casks already carry (noted in
   `TASKS.md` § Where things stand). Not excluded from the brew upgrade pass.
-- **This topic installs no extensions.** Cursor shares its extension set
-  with VS Code and the other downstream IDEs; that design is queued in
-  `TASKS.md` § Now (downstream-IDE extension sharing, advisor council) and
-  lands as its own wiring. Availability differs per editor — Cursor resolves
-  extensions through OpenVSX rather than Microsoft's marketplace, so
-  closed-source `ms-*` extensions (pylance is the known risk class) cannot
-  be assumed to install.
+- **Cursor pulls Anysphere tooling alongside an installed extension — measured
+  2026-09-17.** `cursor --install-extension ms-python.python` reported three
+  installs: the manifest id itself (`ms-python.python` v2025.6.1), a declared
+  dependency (`ms-python.debugpy` v2026.6.0), and **`anysphere.cursorpyright`
+  v1.0.12, requested by nobody** — Cursor substitutes its own Anysphere build
+  into the Python stack. The manifest id survives, so id-based bookkeeping
+  works for the entry; any id-diff drift report must expect Anysphere extras
+  or everything reads as drift. (Probe installed, recorded, and uninstalled —
+  machine returned to zero extensions, verified.)
+- **Cursor CLI facts, verified 2026-09-17 on this machine.** A bogus
+  `--install-extension` id exits 1 and names the cause ("Extension ... not
+  found. Make sure you use the full extension ID"); `--list-extensions` at
+  zero extensions prints nothing and exits 0 — empty is a valid state, not an
+  error; both `code` and `cursor` resolve through `/opt/homebrew/bin`
+  symlinks into the app bundles, so hand-deleting an app leaves a dangling
+  symlink where `command -v` still succeeds; and the CLI dies with the cask,
+  so any extension teardown must run before cask removal or it cannot run at
+  all.
