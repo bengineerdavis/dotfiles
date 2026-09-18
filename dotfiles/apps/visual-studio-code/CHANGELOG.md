@@ -11,18 +11,27 @@ Section names come from antsibull-changelog; see `docs/TOPICS.md`
   recorded 18 extensions against 40 actually installed (golang, jupyter,
   biome, claude-code, mise, bats and 17 more were missing).
 
+### removed_features
+
+- Retired the superseded extension record: `vs_extensions.txt` and all four
+  `executable_{export,import}.manual` copies (topic root and `files/`) are
+  gone, 2026-09-17. The hand-run scripts were the drift mechanism diagnosed
+  below — written by hand, consumed by hand, wired to nothing, which is how
+  the manifest silently fell 22 extensions behind. Their job is absorbed by
+  the shared catalogue `dotfiles/config/editors.yaml` (seeded `b4bc9db`),
+  which this topic now consumes directly — see the interim contract entry
+  the same day. The `files/` copies were chezmoi-deployed; the next apply
+  clears them from the deployed tree. `vs_settings.json` remains: live
+  settings sharing is a separate, still-open question.
+
 ### known_issues
 
-- **Nothing refreshes the manifest — it drifted for exactly that reason.**
-  The topic's install is cask-only; `vs_extensions.txt` is written only by
-  the hand-run `executable_export.manual` and consumed only by the hand-run
-  `executable_import.manual`, neither wired to `update.sh` or any upgrade
-  path. Any extension installed after the last manual export is invisible to
-  the repo until someone re-exports by hand. Wiring a refresh in belongs to
-  the downstream-IDE extension design queued in `TASKS.md` § Now, which
-  decides where the shared manifest lives and who updates it.
-
-- **The `.manual` scripts exist twice** — at the topic root and in `files/` —
-  and both are hand-run helpers, not lifecycle tasks. They are not wired to
-  anything, and `files/` is what chezmoi deploys; the topic-root copies are
-  the working set. Untangling them is part of the same queued design.
+- **The manifest drifted because nothing consumed or refreshed it.** The
+  historical diagnosis, kept because it is why the catalogue exists:
+  install was cask-only, `vs_extensions.txt` was written only by the
+  hand-run `executable_export.manual` and consumed only by the hand-run
+  `executable_import.manual`, and any extension installed after the last
+  manual export was invisible to the repo — 18 recorded against 40
+  installed when measured 2026-09-17. The subscription model closes this
+  structurally: the catalogue is the only input, and wiring a refresh in
+  belongs to the upstream-reference cadence design queued in `TASKS.md`.
