@@ -175,3 +175,20 @@ deleted.
   unrequested alongside ms-python.python; machine restored to zero) and
   the CLI facts. Wiring queued on the adopted shape (config seed in § Now;
   machinery and both consumers in § Planned, gated on the topic spec).
+- **Seeded `dotfiles/config/editors.yaml` — the shared editor-extension
+  catalogue.** The data half of the adopted model, first file under the
+  new `config/` directory, in b4bc9db. Header states the subscription model, the four-part threshold for
+  earning a new catalogue file, and the fold-back rule. 40 entries seeded
+  from the live set, whys drafted for review with suspected overlaps
+  flagged in place (two env managers, two Jinja, two TOML, and
+  ktiays.aicursor's purpose unconfirmed). Verdicts dated from the
+  2026-09-17 Open VSX sweep of all 40: 36 shared with cursor, 4
+  vscode-only (pylance and the two closed-source Intellicodes as
+  predicted; jinliming2.vscode-go-template the surprise 404 — flagged in
+  its why for a drop-or-scope decision). The expected Anysphere extra
+  (anysphere.cursorpyright, substituted) recorded under
+  `editor_extensions_ignored`. Verified by a schema check: parse, count,
+  id-set equal to the live manifest, why present on every entry, verdict
+  dates present, 404-entries scoped. Note for the machinery task: plain
+  YAML scalars cannot contain `: ` — the review marker is "Review —" for
+  that reason.
