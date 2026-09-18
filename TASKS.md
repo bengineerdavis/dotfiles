@@ -183,6 +183,40 @@ nothing is.
   instead of restating its SHALLs, and the author's adopt call is
   recorded. **In progress elsewhere** (author, 2026-09-17) — do not start
   from another session. [me]
+- **Bring the visual-studio-code topic to TOPICS.md conformance and retire
+  the superseded extension record.** Queued by the author 2026-09-17 ("also
+  wire now" widened this from cursor's conformance shape). Conformance: a
+  real README (still the template boilerplate), the dead pre-role
+  `tasks.yaml` out. Retirement: the catalogue seeded in `b4bc9db` is the
+  dated truth, so `vs_extensions.txt` and all four `.manual` copies (topic
+  root and `files/`, verified referenced by nothing else) go now — the
+  retirement clause moves out of the cursor-wiring task below, which
+  originally held it. The `files/` copies are chezmoi-deployed; the next
+  apply clears them from the deployed tree. Done when the retired files
+  are gone, the README describes the topic as wired (see the task below),
+  `--syntax-check` and `--check --tags provision` and `--tags remove` pass,
+  and the topic's CHANGELOG records the retirement. [me]
+- **Wire the visual-studio-code topic to the editors catalogue now — the
+  interim direct-read contract.** Author direction 2026-09-17: do not wait
+  for the subscription machinery. Install gains a thin loop: probe `code
+  --version` (dangling-symlink-safe), read `{{ role_path
+  }}/../../config/editors.yaml` (role-relative, so parent and standalone
+  runs resolve the same file — loud failure naming the path if missing),
+  filter to this editor (`editors` absent or containing the topic name,
+  plus `vscode_extra_extensions` from the topic's own defaults — isolation
+  stays topic-local), `--list-extensions` once (empty is a valid state),
+  install the missing with `failed_when: false`, one verdict line per
+  entry, and fail once at the end naming every unresolved id. Teardown:
+  `vscode_remove_extensions` (default false) uninstalls slice ∩ installed
+  before the cask, because the CLI dies with the cask. Currency:
+  `code --update-extensions` under the upgrade tag. A catalogue-schema
+  pytest guards the loop's input, mutation-proven per spec.md. This is the
+  interim contract: when the machinery lands, the direct read is replaced
+  (see the revised task in § Planned) and the switch must be a no-op on a
+  converged machine. Done when the topic's install/remove/upgrade carry the
+  loop, the schema test is red under mutation and green restored,
+  `--syntax-check` plus `--check --tags provision/install/remove/upgrade`
+  pass, and the CHANGELOG records the interim contract. [me]
 - **Design the cadence by which topics pull in and refresh official
   upstream references, so topics track their tools proactively.** Queued
   2026-09-17 by the author: topics bind to external tools whose docs,
