@@ -164,8 +164,8 @@
     herdr_preinstalled_ids: >-
       {{ herdr_install_status_read.stdout | default('')
          | trim | split('\n')
-         | select('match', '^[a-z0-9-]+( \(experimental\))?: (installed|current \\(v\\d+\\)) \\(.+\\)$')
-         | map('regex_replace', '^([a-z0-9-]+)(?: \(experimental\))?: (?:installed|current \\(v\\d+\\)) \\(.+\\)$', '\1')
+         | select('match', '^[a-z0-9-]+( \(experimental\))?: (installed|current \(v\d+\)) \(.+\)$')
+         | map('regex_replace', '^([a-z0-9-]+)(?: \(experimental\))?: (?:installed|current \(v\d+\)) \(.+\)$', '\1')
          | list
          if (herdr_install_status_read.rc | default(1)) == 0 else [] }}
 

@@ -820,6 +820,58 @@ def test_topic_tasks_never_pipe_rc_reads():
     )
 
 
+def test_yaml_status_regexes_match_the_measured_wire():
+    """The Jinja regex strings in the task YAML compile and match the real
+    status grammar — the gap static scans could not close, now closed by
+    executing the strings.
+
+    Dimension: contract/YAML divergence. Sources: the measured wire format
+    (contract module docstring), the golden fixture, and TWO real
+    double-escape incidents (2026-09-19): a folded-scalar `\\\\(` that the
+    regex engine read as literal-backslash-plus-group, so `systemctl`-side
+    installed-id extraction would never have matched, and the same class
+    re-introduced in the install pre-read — both invisible to every static
+    test until this one compiled the strings.
+    """
+    # mutation: re-double-escape either side (\\\\( in place of \\() — the
+    # compile-then-match here goes red, where the suite previously stayed
+    # green against a YAML regex that never matched.
+    files = he_topic_task_files()
+    select_re = re.compile(r"select\('match',\s*'([^']+)'")
+    extract_re = re.compile(r"regex_replace',\s*'([^']+)'")
+    found_select: list[str] = []
+    found_extract: list[str] = []
+    for path in files:
+        text = path.read_text(encoding="utf-8")
+        found_select += select_re.findall(text)
+        found_extract += extract_re.findall(text)
+    assert found_select, "no select('match', ...) regex found in the tasks"
+    assert found_extract, "no regex_replace id-extraction found in the tasks"
+    fixture = HE_GOLDEN_STATUS.read_text()
+    lines = [ln for ln in fixture.split("\n") if ln.strip()]
+    installed_lines = [ln for ln in lines if ": current (v" in ln]
+    assert installed_lines, "fixture must contain installed (current vN) lines"
+    for pattern in found_select:
+        compiled = re.compile(pattern)  # raises on malformed regex
+        for line in installed_lines:
+            assert compiled.match(line), (
+                f"task YAML regex {pattern!r} does not match the measured "
+                f"installed line {line!r} — the double-escape class"
+            )
+    for pattern in found_extract:
+        compiled = re.compile(pattern)
+        matches = [compiled.match(ln) for ln in installed_lines]
+        assert all(matches), (
+            f"task YAML extraction regex {pattern!r} fails on a measured "
+            "installed line"
+        )
+        ids = [m.group(1) for m in matches if m]
+        assert ids == ["claude", "opencode"], (
+            f"extraction must yield the installed ids from the fixture, "
+            f"got {ids}"
+        )
+
+
 # ══ 7. GOLDEN TRANSCRIPT — the contract module against the real binary ══════
 # Judge round 1 (dotfiles/docs/JUDGE-SELECTION.md), gap 2: the contract
 # module was self-consistent but unvalidated against the real herdr binary.

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- 2026-09-19: **Converge pass 1 (complete): server running; pre-read regex
+  double-escape caught by the recap and fixed.** Recap: ok=24 changed=2
+  failed=0. The launchd module task worked end to end (unloaded → started,
+  pid 55783; health check `status: running, v0.9.1`); the version-floor
+  check ran (empty `--outdated-only` → no raise). The `changed=2` was the
+  two integration installs reporting changed because the install pre-read's
+  Jinja regex carried the double-escape class AGAIN (`\\(v\\d+\\)` in the
+  folded scalar — the engine sees literal backslashes and never matches), so
+  `herdr_preinstalled_ids` resolved empty against a status read that
+  visibly showed `current (v10)`/`current (v12)`. Fixed in both task files,
+  execution-verified against the real output, and a new test now compiles
+  the task YAML's own regex strings against the golden fixture — the class
+  has bitten twice and static scans cannot see it; this test executes the
+  strings (mutation-checked in its comment). No static test can validate a
+  regex string's escaping; only compiling it does.
+
 - 2026-09-19: **Wire grammar grew with the fixture refresh; loop idempotence
   fixed before pass 2.** Re-capturing the golden fixture after the first
   converge showed the real installed-state form: `current (v12) (...)`, not
