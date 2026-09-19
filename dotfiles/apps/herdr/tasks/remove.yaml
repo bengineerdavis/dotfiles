@@ -54,36 +54,32 @@
   when: herdr_remove_gate_on
   changed_when: false
 
-- name: "Remove: parse the status output as JSON (garbage raises here — unknown is never read as a claim)"
+- name: "Remove: parse the status output — every non-empty line must match the measured grammar, or the run refuses"
   ansible.builtin.set_fact:
-    herdr_status_parsed: "{{ herdr_status_result.stdout | from_json }}"
+    herdr_status_bad_lines: >-
+      {{ herdr_status_result.stdout | default('')
+         | trim | split('\n') | reject('equalto', '')
+         | reject('match', '^[a-z0-9-]+: (installed|not installed) \(.+\)$')
+         | list }}
   when: herdr_remove_gate_on
 
-- name: "Remove: normalize the status wire shape (array or {integrations: [...]})"
-  ansible.builtin.set_fact:
-    herdr_status_records: >-
-      {{ herdr_status_parsed.integrations if herdr_status_parsed is mapping
-         else herdr_status_parsed }}
-  when: herdr_remove_gate_on
+- name: "Remove: unknown state refuses, never read as a claim"
+  ansible.builtin.fail:
+    msg: >-
+      herdr integration status returned lines outside the measured grammar
+      (`<id>: installed|not installed (<path>)`, measured on herdr 0.9.1,
+      2026-09-19) — refusing to plan a remove from unknown state. Offending
+      lines: {{ herdr_status_bad_lines | to_nice_json }}
+  when: herdr_remove_gate_on and herdr_status_bad_lines | length > 0
 
-- name: "Remove: the status records must be id+installed mappings — an unexpected shape refuses, never reads as empty"
-  ansible.builtin.assert:
-    that:
-      - herdr_status_records is sequence
-      - herdr_status_records | length == 0 or
-        (herdr_status_records[0] is mapping
-         and herdr_status_records[0].id is defined
-         and herdr_status_records[0].installed is defined)
-    fail_msg: >-
-      herdr integration status returned an unexpected shape — refusing to
-      plan a remove from unknown state (records:
-      {{ herdr_status_records | to_nice_json }})
-  when: herdr_remove_gate_on
-
-- name: "Remove: resolve the installed integration ids"
+- name: "Remove: resolve the installed integration ids from the status lines"
   ansible.builtin.set_fact:
     herdr_installed_ids: >-
-      {{ herdr_status_records | selectattr('installed') | map(attribute='id') | list }}
+      {{ herdr_status_result.stdout | default('')
+         | trim | split('\n')
+         | select('match', '^[a-z0-9-]+: installed \(.+\)$')
+         | map('regex_replace', '^([a-z0-9-]+): installed \(.+\)$', '\1')
+         | list }}
   when: herdr_remove_gate_on
 
 - name: "Remove: resolve the claimed ∩ installed set (never everything installed, never phantom claims)"

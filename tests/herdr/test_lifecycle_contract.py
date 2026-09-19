@@ -574,7 +574,7 @@ def test_remove_uninstall_set_is_the_claimed_intersection():
         "claimed ∩ installed intersection — TOPIC-RECIPES.md shared-catalogue "
         "recipe: never everything installed, never phantom claims"
     )
-    assert re.search(r"loop:\s*\{\{.*herdr_uninstall_ids", remove_text), (
+    assert re.search(r"loop:\s*\"?\s*\{\{.*herdr_uninstall_ids", remove_text), (
         "tasks/remove.yaml's uninstall loop does not consume the resolved "
         "intersection set (herdr_uninstall_ids)"
     )

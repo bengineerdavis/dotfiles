@@ -50,11 +50,13 @@ Required API of the contract module (the contract this file states):
     parse_integration_status(text: str) -> dict[str, dict]
         rc handling is the caller's job (see remove_plan). For rc==0 stdout:
         returns id -> record. Raises StatusUnknownError for empty/whitespace
-        text, truncated JSON, control characters, non-JSON prose, JSON not
-        matching the wire shape, per-entry records missing required keys, or
-        duplicated JSON keys — never returns a partial claim.
-        Wire shape (stated assumption): a JSON array (or {"integrations":
-        [...]}) of {"id": str, "installed": bool}.
+        text, control characters, non-status prose, truncated lines, lines
+        outside the measured grammar, an unknown state word, or an id
+        claimed twice — never returns a partial claim.
+        Wire format (MEASURED on the real binary 2026-09-19, herdr 0.9.1;
+        --json is a usage error): lines of
+        `<id>: installed (<absolute path>)` /
+        `<id>: not installed (<expected path>)`.
     install_loop(entries, probes, herdr_present, run_install) -> report
         entries: validated catalogue entries; probes: id -> (probe_present,
         config_dir_exists); run_install: id -> rc (injected command).
@@ -443,17 +445,17 @@ def test_real_catalogue_passes_validation():
     [
         "",  # empty stdout
         "   \n  ",  # whitespace only
-        "error: server unreachable\n",  # prose where JSON was promised
-        '{"integrations": [{"id": "opencode", "inst',  # truncated mid-token
-        '{"integrations": [{"id": "opencode", "installed": true}]}\x00',  # control char
-        '{"integrations": [{"id": "opencode"}]}',  # record missing required keys
-        '{"integrations": [{"id": "opencode", "installed": true}], '
-        '"integrations": [{"id": "claude", "installed": false}]}',  # duplicate keys
-        '{"integrations": "opencode and claude are installed"}',  # wrong shape
+        "error: server unreachable\n",  # prose where status was promised
+        "opencode: inst",  # truncated mid-token
+        "opencode: installed (/opt/homebrew/bin/opencode)\n\x00",  # control char
+        "opencode: installed",  # record missing the path section
+        "opencode: installed (/opt/homebrew/bin/opencode)\n"
+        "opencode: not installed (/opt/homebrew/bin/opencode)",  # id claimed twice
+        "opencode: maybe (/opt/homebrew/bin/opencode)",  # unknown state word
     ],
     ids=[
         "empty", "whitespace", "prose", "truncated",
-        "control-char", "record-missing-keys", "duplicated-keys", "wrong-shape",
+        "control-char", "record-missing-path", "duplicated-id", "unknown-state-word",
     ],
 )
 def test_status_garbage_is_unknown_never_a_claim(hostile):
@@ -461,18 +463,34 @@ def test_status_garbage_is_unknown_never_a_claim(hostile):
 
     EDGE/STRESS; the brief's unknown-becomes-a-claim clause + spec.md §
     Verification. Also asserts the relents direction: well-formed output
-    parses (empty list = genuinely nothing installed, NOT an error).
+    parses and claims exactly what it says. (Wire format MEASURED on the real
+    binary 2026-09-19, herdr 0.9.1: lines of `<id>: installed|not installed
+    (<path>)` — the earlier JSON-shape assumption was corrected against the
+    binary; `herdr integration status --json` is a usage error.)
     """
     # mutation: `try: parse except: return {}` around status parsing —
     # garbage state would be read as "nothing installed" and the remove loop
     # would report a clean no-op it did not verify.
     mod = he_contract()
-    # relents direction: well-formed wire shapes parse and claim exactly what
-    # they say — so the refusals below are proven to relent, not fail closed.
-    assert mod.parse_integration_status("[]") == {}
-    assert mod.parse_integration_status(
-        '{"integrations": [{"id": "opencode", "installed": true}]}'
-    ) == {"opencode": {"id": "opencode", "installed": True}}
+    # relents direction: the measured wire shape parses and claims exactly
+    # what it says — so the refusals below are proven to relent, not fail
+    # closed.
+    parsed = mod.parse_integration_status(
+        "opencode: installed (/opt/homebrew/bin/opencode)\n"
+        "claude: not installed (/Users/testuser/.claude/hooks/herdr-agent-state.sh)"
+    )
+    assert parsed == {
+        "opencode": {
+            "id": "opencode",
+            "installed": True,
+            "path": "/opt/homebrew/bin/opencode",
+        },
+        "claude": {
+            "id": "claude",
+            "installed": False,
+            "path": "/Users/testuser/.claude/hooks/herdr-agent-state.sh",
+        },
+    }, parsed
     # decline direction: hostile output raises UNKNOWN with a named message.
     with pytest.raises(ValueError) as excinfo:
         mod.parse_integration_status(hostile)
@@ -483,7 +501,7 @@ def test_status_garbage_is_unknown_never_a_claim(hostile):
 
 @pytest.mark.parametrize(
     "rc, stdout",
-    [(1, '{"error": "server not running"}'), (2, "")],
+    [(1, "herdr: server unreachable"), (2, "")],
     ids=["rc1-server-error", "rc2-usage-error"],
 )
 def test_remove_plan_refuses_nonzero_rc_and_garbage(rc, stdout):
@@ -492,7 +510,8 @@ def test_remove_plan_refuses_nonzero_rc_and_garbage(rc, stdout):
 
     EDGE/STRESS; exit-status doctrine from https://herdr.dev/docs/cli-reference/
     (usage errors exit 2, server errors exit 1) and the intersection rule from
-    the thin-loop recipe (TOPIC-RECIPES.md: never everything installed).
+    the thin-loop recipe (TOPIC-RECIPES.md: never everything installed). The
+    stdout is the measured wire format (see test_status_garbage above).
     """
     # mutation: rc read through a pipeline or ignored (branching on stdout
     # content instead of the command's own rc), or the intersection replaced
@@ -511,9 +530,9 @@ def test_remove_plan_refuses_nonzero_rc_and_garbage(rc, stdout):
     # only opencode is uninstalled; zed (not owned by the topic) is left alone.
     plan = mod.remove_plan(
         0,
-        '{"integrations": [{"id": "opencode", "installed": true}, '
-        '{"id": "zed-not-ours", "installed": true}, '
-        '{"id": "claude", "installed": false}]}',
+        "opencode: installed (/opt/homebrew/bin/opencode)\n"
+        "zed-not-ours: installed (/opt/zed/bin/zed)\n"
+        "claude: not installed (/Users/testuser/.claude/hooks/herdr-agent-state.sh)",
         ["opencode", "claude"],
         gate=True,
     )

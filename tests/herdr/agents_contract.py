@@ -21,7 +21,6 @@ No side effects, no I/O, no subprocess — everything is simulated by callers.
 
 from __future__ import annotations
 
-import json
 import re
 import string  # noqa: F401  (kept for future generators; harmless)
 
@@ -224,80 +223,58 @@ def planned_install_commands(data, source: str = "dotfiles/config/agents.yaml") 
 
 # ── status parsing (unknown never becomes a claim) ───────────────────────────
 
-# ASSUMPTION (stated in test_edge_stress.py too): `herdr integration status`
-# prints JSON — either a bare array or {"integrations": [...]} — of records
-# {"id": str, "installed": bool}. The real CLI's exact shape must be verified
-# against the installed binary on the author's converge pass.
+# Wire format, MEASURED on the real binary 2026-09-19 (herdr 0.9.1; the
+# upstream CLI-reference sentence "most commands print JSON" does not hold for
+# this subcommand, and `herdr integration status --json` is a usage error).
+# One line per agent:
+#
+#     <id>: installed (<absolute path>)
+#     <id>: not installed (<expected path>)
+#
+# The status subcommand works without a running server (measured same day),
+# which is what makes the remove-time state read possible.
+
+_STATUS_LINE_RE = re.compile(
+    r"^([a-z0-9-]+): (installed|not installed) \((.+)\)$"
+)
 
 
 def parse_integration_status(text: str) -> dict[str, dict]:
     """Parse rc==0 stdout of `herdr integration status` into id -> record.
 
     Raises StatusUnknownError for empty/whitespace text, control characters,
-    non-JSON prose, truncated JSON, duplicated JSON keys, a shape other than
-    the assumed wire shape, or per-entry records missing required keys —
-    never returns a partial claim.
+    prose, truncated lines, lines outside the measured grammar, a state word
+    other than installed/not installed, or an id claimed twice — never
+    returns a partial claim.
     """
     if not isinstance(text, str) or not text.strip():
         raise StatusUnknownError("empty status output")
-    if _CONTROL_RE.search(text):
+    if _CONTROL_RE.search(text.replace("\n", "").replace("\r", "").replace("\t", "")):
         raise StatusUnknownError("control characters in status output")
 
-    def _no_duplicate_keys(pairs):
-        seen: dict = {}
-        for key, value in pairs:
-            if key in seen:
-                raise StatusUnknownError(
-                    f"duplicated JSON key {key!r} in status output"
-                )
-            seen[key] = value
-        return seen
-
-    try:
-        parsed = json.loads(text, object_pairs_hook=_no_duplicate_keys)
-    except StatusUnknownError:
-        raise
-    except json.JSONDecodeError as exc:
-        raise StatusUnknownError(f"status output is not valid JSON: {exc}") from exc
-
-    if isinstance(parsed, dict):
-        records = parsed.get("integrations")
-        if not isinstance(records, list):
-            raise StatusUnknownError(
-                "status JSON mapping has no `integrations` array: "
-                f"got {type(records).__name__}"
-            )
-    elif isinstance(parsed, list):
-        records = parsed
-    else:
-        raise StatusUnknownError(
-            "status JSON must be an array or an object with `integrations`, "
-            f"got {type(parsed).__name__}"
-        )
-
     out: dict[str, dict] = {}
-    for index, record in enumerate(records):
-        if not isinstance(record, dict):
+    for raw_line in text.split("\n"):
+        line = raw_line.strip()
+        if not line:
+            continue
+        match = _STATUS_LINE_RE.match(line)
+        if not match:
             raise StatusUnknownError(
-                f"status record [{index}] is not a mapping, got "
-                + type(record).__name__
+                f"unparseable status line (expected `<id>: installed|not "
+                f"installed (<path>)`): {line!r}"
             )
-        record_id = record.get("id")
-        installed = record.get("installed")
-        if not isinstance(record_id, str) or not record_id:
-            raise StatusUnknownError(
-                f"status record [{index}] is missing a string `id`"
-            )
-        if not isinstance(installed, bool):
-            raise StatusUnknownError(
-                f"status record [{index}] ({record_id!r}) is missing a "
-                "boolean `installed`"
-            )
+        record_id = match.group(1)
+        installed = match.group(2) == "installed"
+        path = match.group(3)
         if record_id in out:
             raise StatusUnknownError(
                 f"status output claims id {record_id!r} twice"
             )
-        out[record_id] = {"id": record_id, "installed": installed}
+        out[record_id] = {
+            "id": record_id,
+            "installed": installed,
+            "path": path,
+        }
     return out
 
 
