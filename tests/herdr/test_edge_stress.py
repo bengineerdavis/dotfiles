@@ -452,10 +452,13 @@ def test_real_catalogue_passes_validation():
         "opencode: installed (/opt/homebrew/bin/opencode)\n"
         "opencode: not installed (/opt/homebrew/bin/opencode)",  # id claimed twice
         "opencode: maybe (/opt/homebrew/bin/opencode)",  # unknown state word
+        "opencode: current (/opt/homebrew/bin/opencode)",  # version missing
+        "opencode: outdated (v3) (/opt/homebrew/bin/opencode)",  # unmeasured state
     ],
     ids=[
         "empty", "whitespace", "prose", "truncated",
         "control-char", "record-missing-path", "duplicated-id", "unknown-state-word",
+        "current-missing-version", "outdated-unmeasured",
     ],
 )
 def test_status_garbage_is_unknown_never_a_claim(hostile):
@@ -476,14 +479,15 @@ def test_status_garbage_is_unknown_never_a_claim(hostile):
     # what it says — so the refusals below are proven to relent, not fail
     # closed.
     parsed = mod.parse_integration_status(
-        "opencode: installed (/opt/homebrew/bin/opencode)\n"
+        "opencode: current (v12) (/home/testuser/.config/opencode/plugins/herdr-agent-state.js)\n"
         "claude: not installed (/Users/testuser/.claude/hooks/herdr-agent-state.sh)"
     )
     assert parsed == {
         "opencode": {
             "id": "opencode",
             "installed": True,
-            "path": "/opt/homebrew/bin/opencode",
+            "version": 12,
+            "path": "/home/testuser/.config/opencode/plugins/herdr-agent-state.js",
         },
         "claude": {
             "id": "claude",
@@ -530,8 +534,8 @@ def test_remove_plan_refuses_nonzero_rc_and_garbage(rc, stdout):
     # only opencode is uninstalled; zed (not owned by the topic) is left alone.
     plan = mod.remove_plan(
         0,
-        "opencode: installed (/opt/homebrew/bin/opencode)\n"
-        "zed-not-ours: installed (/opt/zed/bin/zed)\n"
+        "opencode: current (v12) (/home/testuser/.config/opencode/plugins/herdr-agent-state.js)\n"
+        "zed-not-ours: current (v1) (/opt/zed/bin/zed)\n"
         "claude: not installed (/Users/testuser/.claude/hooks/herdr-agent-state.sh)",
         ["opencode", "claude"],
         gate=True,
@@ -856,9 +860,18 @@ def test_golden_transcript_parses_as_the_binary_wrote_it():
         f"golden transcript parsed to {sorted(parsed)}; expected exactly the "
         f"18 agents the binary lists: {sorted(expected_ids)}"
     )
-    assert all(record["installed"] is False for record in parsed.values()), (
-        "every agent was not-installed at capture time; a True record means "
-        "the fixture or the parser drifted"
+    # Installed map at re-capture (2026-09-19, post first converge): the
+    # topic wired opencode and claude; the rest stay not-installed.
+    expected_installed = {"opencode", "claude"}
+    actual_installed = {rid for rid, r in parsed.items() if r["installed"]}
+    assert actual_installed == expected_installed, (
+        f"installed set drifted from the fixture: {sorted(actual_installed)} "
+        f"vs expected {sorted(expected_installed)} — re-capture the fixture "
+        "after real converge changes (the test docstring has the recipe)"
+    )
+    assert parsed["opencode"]["version"] >= 5 and parsed["claude"]["version"] >= 6, (
+        "the wired integrations must be at or above the catalogue's "
+        "native-restore floors (opencode 5, claude 6)"
     )
     assert all(
         record["path"].startswith("/home/testuser/") for record in parsed.values()

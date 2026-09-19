@@ -12,5 +12,27 @@
   register: herdr_upgrade_result
   # mise prints `old -> new` when it upgrades something; a current install
   # prints no arrow, so the second run of an upgraded fleet reports changed=0.
-  # The author's idempotence pass is the proof this predicate holds.
+  # Verified on the 2026-09-19 converge pass: all up to date -> changed=false.
   changed_when: "'->' in (herdr_upgrade_result.stdout ~ herdr_upgrade_result.stderr)"
+
+- name: "Upgrade: enforce the catalogue's integration version floors (extension-after-adoption rule 2026-09-19)"
+  # `--outdated-only` lists integrations below the native-restore floors the
+  # catalogue records (measured serverless on 0.9.1: empty output = current).
+  # Non-empty output raises with the named fix — a stale integration breaks
+  # native session restore silently, which is the durability failure this
+  # topic exists to prevent. No module exists for a third-party CLI's
+  # version currency; this is the herdr CLI's own check.
+  ansible.builtin.command:
+    cmd: "{{ herdr_shims_dir }}/herdr integration status --outdated-only"
+  register: herdr_outdated_result
+  changed_when: false
+  failed_when: false
+
+- name: "Upgrade: outdated integrations raise with the named fix"
+  ansible.builtin.fail:
+    msg: >-
+      herdr reports outdated integrations (below the catalogue's native-restore
+      floors): {{ herdr_outdated_result.stdout_lines | default([]) | join('; ') }}.
+      Fix: re-run this topic's install (the integration loop re-wires current
+      integrations), then re-run the upgrade.
+  when: herdr_outdated_result.rc != 0 or (herdr_outdated_result.stdout | default('') | trim | length) > 0

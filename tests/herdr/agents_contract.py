@@ -226,19 +226,22 @@ def planned_install_commands(data, source: str = "dotfiles/config/agents.yaml") 
 # Wire format, MEASURED on the real binary 2026-09-19 (herdr 0.9.1; the
 # upstream CLI-reference sentence "most commands print JSON" does not hold for
 # this subcommand, and `herdr integration status --json` is a usage error).
-# One line per agent:
+# One line per agent; the state grammar grew with the first fixture refresh:
 #
-#     <id>: installed (<absolute path>)
 #     <id>: not installed (<expected path>)
+#     <id>: current (v<int>) (<absolute path>)      [installed at/above floor]
 #     <id> (experimental): not installed (<path>)   [measured: letta]
 #
-# The status subcommand works without a running server (measured same day),
-# which is what makes the remove-time state read possible. The annotation is
-# accepted ONLY as exactly `(experimental)` (herdr's own marker); any other
-# annotation is unknown state and refuses.
+# (`outdated (vN)` is the presumed stale state behind --outdated-only; it has
+# NOT been measured, so it is NOT in the grammar — unknown states refuse,
+# which is fail-closed.) The status subcommand works without a running
+# server (measured same day), which is what makes the remove-time state read
+# possible. The annotation is accepted ONLY as exactly `(experimental)`.
 
 _STATUS_LINE_RE = re.compile(
-    r"^([a-z0-9-]+)(?: \(experimental\))?: (installed|not installed) \((.+)\)$"
+    r"^([a-z0-9-]+)(?: \(experimental\))?: "
+    r"(not installed|current \(v(\d+)\)) "
+    r"\((.+)\)$"
 )
 
 
@@ -247,8 +250,10 @@ def parse_integration_status(text: str) -> dict[str, dict]:
 
     Raises StatusUnknownError for empty/whitespace text, control characters,
     prose, truncated lines, lines outside the measured grammar, a state word
-    other than installed/not installed, an annotation other than
+    other than `not installed`/`current (vN)`, an annotation other than
     (experimental), or an id claimed twice — never returns a partial claim.
+    Records carry `installed` (True for `current (vN)`), `version` (int, when
+    the state carries one), and `path`.
     """
     if not isinstance(text, str) or not text.strip():
         raise StatusUnknownError("empty status output")
@@ -264,12 +269,19 @@ def parse_integration_status(text: str) -> dict[str, dict]:
         if not match:
             raise StatusUnknownError(
                 f"unparseable status line (expected `<id>[( (experimental))]>: "
-                f"installed|not installed (<path>)`): {line!r}"
+                f"not installed|current (vN) (<path>)`): {line!r}"
             )
         record_id = match.group(1)
-        installed = match.group(2) == "installed"
-        path = match.group(3)
-        record = {"id": record_id, "installed": installed, "path": path}
+        installed = match.group(2) != "not installed"
+        version = int(match.group(3)) if match.group(3) else None
+        path = match.group(4)
+        record = {
+            "id": record_id,
+            "installed": installed,
+            "path": path,
+        }
+        if version is not None:
+            record["version"] = version
         if "(experimental)" in line:
             record["experimental"] = True
         if record_id in out:

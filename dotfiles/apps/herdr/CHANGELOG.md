@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- 2026-09-19: **Wire grammar grew with the fixture refresh; loop idempotence
+  fixed before pass 2.** Re-capturing the golden fixture after the first
+  converge showed the real installed-state form: `current (v12) (...)`, not
+  `installed (...)` — the remove-side regex would never have matched a real
+  installed integration. Grammar everywhere now accepts
+  `not installed` / `current (vN)` (+ the letta `(experimental)` annotation);
+  `outdated (vN)` stays OUT of the grammar (unmeasured → unknown → refuses,
+  fail-closed). The install loop now reads integration state BEFORE the loop
+  and keys changed_when per entry on that pre-read — measured: herdr's
+  re-install prints the same lines as a first install, so a bare
+  `changed_when: true` would report the loop changed on every converge and
+  break the changed=0 pass (mutation M8 proven). The upgrade pass now
+  enforces the catalogue's native-restore floors via
+  `herdr integration status --outdated-only`, raising with the named fix
+  (extension-after-adoption rule; the CLI's own currency check, no module
+  exists). Golden fixture now records the real post-converge map: opencode
+  and claude installed (v12, v10 — above their floors 5 and 6), the rest not.
+
 - 2026-09-19: **Support grade for `community.general.launchd`: A** — the
   four checks from the module-vs-shell ladder
   (`dotfiles/docs/TOPIC-RECIPES.md`): maintainer named + two launchd

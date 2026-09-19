@@ -727,6 +727,72 @@ def hl_code_lines_of_text(text: str) -> str:
     )
 
 
+def test_integration_loop_keys_changed_on_preinstall_status_read():
+    """The install loop reads integration state BEFORE installing, and
+    changed_when keys per entry on the pre-read — herdr's re-install prints
+    the same lines as a first install (measured on 0.9.1), so output cannot
+    distinguish a change; the second converge would otherwise report
+    integrations changed forever.
+
+    Dimension: lifecycle contract (idempotence). Sources: the post-report
+    CLI probe 2026-09-19 (`herdr integration install opencode` re-run:
+    identical stdout, rc 0).
+    """
+    # mutation (M8): revert changed_when to a bare true, or drop the
+    # pre-read — every converge then reports the integration loop changed,
+    # breaking the changed=0 idempotence pass.
+    install_text = hl_text("tasks/install.yaml")
+    status_read = re.search(
+        r"herdr integration status", install_text
+    )
+    assert status_read, (
+        "tasks/install.yaml never reads `herdr integration status` before "
+        "the loop — no pre-read, no honest changed_when"
+    )
+    assert re.search(
+        r"changed_when:.*item\.id not in herdr_preinstalled_ids", install_text
+    ), (
+        "the integration install loop's changed_when must key on the "
+        "pre-read (item.id not in herdr_preinstalled_ids)"
+    )
+    idx_read = install_text.index("herdr integration status")
+    idx_loop = install_text.index("herdr integration install")
+    assert idx_read < idx_loop, (
+        "the pre-read must precede the install loop"
+    )
+    # the pre-read is a probe: failed reads must not fail the run (additive
+    # phase), falling back to conservative changed=true
+    assert re.search(
+        r"failed_when:\s*false", install_text[idx_read: idx_read + 400]
+    ), "the pre-read must be a non-fatal probe (failed_when: false)"
+
+
+def test_upgrade_enforces_integration_version_floors():
+    """The upgrade pass checks `herdr integration status --outdated-only`
+    and raises naming the fix when an integration is below the catalogue's
+    native-restore floor — the floors the catalogue records are enforced,
+    not just recorded.
+
+    Dimension: lifecycle contract (currency). Sources: upstream CLI
+    (--outdated-only, measured serverless on 0.9.1, empty = current); the
+    extension-after-adoption rule (TOPIC-RECIPES.md, 2026-09-19).
+    """
+    # mutation: drop the outdated check, or downgrade the raise to a debug —
+    # a stale integration would silently break native session restore.
+    upgrade_text = hl_text("tasks/upgrade.yaml")
+    assert "--outdated-only" in upgrade_text, (
+        "tasks/upgrade.yaml never checks integration currency "
+        "(--outdated-only)"
+    )
+    assert re.search(r"ansible\.builtin\.fail", upgrade_text), (
+        "the outdated check must RAISE, not report — a stale integration "
+        "silently breaks native restore"
+    )
+    assert "install" in upgrade_text, (
+        "the raise must name the fix (re-run the topic's install)"
+    )
+
+
 def test_remove_integrations_gate_defaults_off():
     # mutation: flip the herdr_remove_integrations default to true so a
     # plain --tags remove uninstalls integrations the topic does not own

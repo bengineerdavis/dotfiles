@@ -147,14 +147,36 @@
     label: "{{ item.id }}"
   changed_when: false
 
-- name: "Install: wire herdr agent integrations (per-entry failures collected, raised once below)"
+- name: "Install: read installed integration state before the loop (serverless status read; extension-after-adoption rule 2026-09-19)"
+  # herdr's re-install prints the same lines as a first install (measured on
+  # 0.9.1), so the loop keys changed_when on this pre-read instead of on
+  # output. A failed read is not fatal for an additive phase: the ids default
+  # to empty and the loop conservatively reports changed (author-ratified
+  # fallback; the ladder's grep-floor analogue).
+  ansible.builtin.command:
+    cmd: "{{ herdr_shims_dir }}/herdr integration status"
+  register: herdr_install_status_read
+  changed_when: false
+  failed_when: false
+
+- name: "Install: resolve the already-installed ids from the pre-read"
+  ansible.builtin.set_fact:
+    herdr_preinstalled_ids: >-
+      {{ herdr_install_status_read.stdout | default('')
+         | trim | split('\n')
+         | select('match', '^[a-z0-9-]+( \(experimental\))?: (installed|current \\(v\\d+\\)) \\(.+\\)$')
+         | map('regex_replace', '^([a-z0-9-]+)(?: \(experimental\))?: (?:installed|current \\(v\\d+\\)) \\(.+\\)$', '\1')
+         | list
+         if (herdr_install_status_read.rc | default(1)) == 0 else [] }}
+
+- name: "Install: wire herdr agent integrations (changed only where the pre-read showed absent)"
   ansible.builtin.command:
     cmd: "{{ herdr_shims_dir }}/herdr integration install {{ item.id }}"
   loop: "{{ herdr_integration_state | selectattr('probe_ok') | selectattr('dir_ok') | list }}"
   loop_control:
     label: "{{ item.id }}"
   register: herdr_install_results
-  changed_when: true
+  changed_when: item.id not in herdr_preinstalled_ids
   failed_when: false
 
 - name: "Install: raise once, naming every failed integration id and rc"
