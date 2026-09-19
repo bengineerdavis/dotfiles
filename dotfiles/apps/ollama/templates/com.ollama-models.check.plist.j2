@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Managed by apps/ollama. Reports whether the model set has drifted from
+     upstream: tags a family gained, and optionally newer generations. Reads
+     only; never edits the manifest and never pulls. Adopting a newer tag is a
+     judgement, because the per-role notes in defaults/main.yaml carry measured
+     tok/s and eval results — so this reports and a human decides. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.ollama-models.check</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>{{ ansible_facts['env']['HOME'] }}/bin/ollama-models</string>
+    <string>check</string>
+{% if ollama_model_check_next_gen | default(false) | bool %}
+    <string>--next-gen</string>
+{% endif %}
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Weekday</key><integer>{{ ollama_model_check_weekday | default(1) }}</integer>
+    <key>Hour</key><integer>{{ ollama_model_check_hour | default(9) }}</integer>
+    <key>Minute</key><integer>{{ ollama_model_check_minute | default(30) }}</integer>
+  </dict>
+  <key>RunAtLoad</key><false/>
+  <key>StandardOutPath</key><string>{{ ansible_facts['env']['HOME'] }}/.local/share/ollama-models/check.log</string>
+  <key>StandardErrorPath</key><string>{{ ansible_facts['env']['HOME'] }}/.local/share/ollama-models/check.log</string>
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string>{{ ansible_facts['env']['HOME'] }}/bin:{{ ansible_facts['env']['HOME'] }}/.local/bin:/usr/bin:/bin</string></dict>
+</dict>
+</plist>

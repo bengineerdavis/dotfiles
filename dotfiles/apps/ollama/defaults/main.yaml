@@ -216,13 +216,21 @@ ollama_update_check_apply: false
 # results, so the timer reports and a human decides.
 #   _enabled    — install + enable the timer
 #   _oncalendar — weekly, not daily: probing every family costs minutes of
-#                 network and the answer rarely changes day to day
+#                 network and the answer rarely changes day to day. systemd
+#                 only; launchd has no OnCalendar, so macOS uses the
+#                 _weekday/_hour/_minute triple below, same split as
+#                 ollama_usage_snapshot_*
 #   _next_gen   — also probe for newer family GENERATIONS (`check --next-gen`).
 #                 Off by default: the match is a name heuristic, and it
 #                 currently reports qwen3.8 as a newer generation of qwen3-vl,
 #                 a different family. Noise here trains you to ignore the signal.
+# Output goes to ~/.local/share/ollama-models/check.log. There is no marker
+# file: the log IS the notification, and a marker nothing clears becomes stale.
 ollama_model_check_enabled: true
 ollama_model_check_oncalendar: weekly
+ollama_model_check_weekday: 1
+ollama_model_check_hour: 9
+ollama_model_check_minute: 30
 ollama_model_check_next_gen: false
 
 # What an ansible run may do about models once the check has reported.

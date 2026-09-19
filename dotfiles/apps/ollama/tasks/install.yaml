@@ -785,6 +785,75 @@
     - ollama_usage_snapshot_enabled | bool
   tags: [ollama_usage]
 
+# ── Model drift check: reports, never reconciles ─────────────────────────────
+# Same boundary as the analysis tooling above. `sync` pulls what the manifest
+# declares; deciding the manifest should declare something else is a judgement,
+# because the per-role notes carry measured tok/s and eval results. So this is
+# notify-only: it writes a log and stops. Weekly, because probing every family
+# costs minutes of network and the answer rarely changes day to day.
+- name: "Create the model-check log directory"
+  # launchd refuses to start an agent whose StandardOutPath directory is
+  # missing, so this is a prerequisite rather than housekeeping.
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/share/ollama-models"
+    state: directory
+    mode: "0755"
+  when: ollama_model_check_enabled | bool
+  tags: [ollama_models, ollama_model_check]
+
+- name: "macOS: install the model-check launchd agent"
+  ansible.builtin.template:
+    src: com.ollama-models.check.plist.j2
+    dest: "{{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents/com.ollama-models.check.plist"
+    mode: "0644"
+  when:
+    - ansible_facts['system'] == 'Darwin'
+    - ollama_model_check_enabled | bool
+  register: ollama_model_check_plist
+  tags: [ollama_models, ollama_model_check]
+
+- name: "macOS: (re)load the model-check agent"
+  # bootout is allowed to fail: it errors when nothing is loaded yet, which is
+  # the normal first-run case.
+  ansible.builtin.shell: |
+    launchctl bootout gui/$(id -u)/com.ollama-models.check 2>/dev/null || true
+    launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.ollama-models.check.plist"
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when:
+    - ansible_facts['system'] == 'Darwin'
+    - ollama_model_check_enabled | bool
+    - ollama_model_check_plist.changed
+  tags: [ollama_models, ollama_model_check]
+
+- name: "Debian: install the model-check user service + timer"
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/{{ item }}"
+    mode: "0644"
+  loop:
+    - ollama-models-check.service
+    - ollama-models-check.timer
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_model_check_enabled | bool
+  tags: [ollama_models, ollama_model_check]
+
+- name: "Debian: enable the model-check timer (user scope)"
+  # User scope, matching the usage snapshot: it reads the same per-user
+  # manifest and writes under ~/.local/share.
+  ansible.builtin.systemd_service:
+    name: ollama-models-check.timer
+    scope: user
+    daemon_reload: true
+    enabled: true
+    state: started
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_model_check_enabled | bool
+  tags: [ollama_models, ollama_model_check]
+
 # NOTE: the actual model pull (`ollama-models sync`) is intentionally NOT here.
 # Models are hundreds of GB, so they must download LAST — after every tier and
 # topic. That runs as a post_tasks step in the root playbook.yaml, gated on
