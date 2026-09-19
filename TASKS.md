@@ -731,6 +731,15 @@ nothing is.
 
 ## Planned
 
+- Reconcile `tests/permissions/test_permission_tiers.py` with the deliberate
+  settings change `9df508d`: history rewriting (`git filter-repo`) moved from
+  deny to ask in `.claude/settings.json`, but the tier test still asserts
+  deny — so the full suite reports 1 failed / 631 passed (observed 2026-09-19
+  during the herdr work; the failure is environmental, not new). Decide
+  whether the test follows the settings (policy intent: ask) or the settings
+  revert (policy intent: deny) — that is a PERMISSIONS.md decision, not a
+  test-side edit.
+
 - Migrate the mise `python.uv_venv_auto` setting before mise 2027.7.0 removes
   it — mise warned the deprecation during the herdr work (2026-09-19:
   `python.uv_venv_auto=true` must become `python.uv_venv_auto="create|source"`
