@@ -217,3 +217,40 @@ deleted.
   injection switch, and the cursor task notes the interim contract. The
   real convergence run (install as a no-op against the 40 already
   installed) is the author's apply.
+- **Created the `herdr` topic, test-first, per the locked design.** Author
+  design Q&A 2026-09-18/19; agent work 2026-09-19. Both OSes; the binary
+  installs through mise with the topic owning the entry (probe-first
+  `mise use -g herdr`, `mise unuse --global herdr` last; the entry is
+  committed in `apps/mise/files/config.toml` as the capture); shared catalogue
+  `dotfiles/config/agents.yaml` (opencode + claude wired, cursor
+  skip-and-report, all 18 upstream ids wired-or-ignored); launchd gui-domain
+  agent + systemd user unit at the stable shim path with health checks;
+  minimal `~/.config/herdr/config.toml`; topic-owned zsh completion into
+  `~/.zfunc/_herdr`; gated intersection-only teardown ordered integrations →
+  service → entry; upgrades route through `mise upgrade`, never the tool's
+  self-updater. **Done:** topic + catalogue exist and the swarm suite is green
+  (108 tests) with six mutations proven; the author's three real passes
+  (converge, second-run idempotence, remove) are QUEUED, not run — agents
+  never apply; the `mise upgrade` output predicate and `launchctl enable`
+  idempotence are recorded in the topic CHANGELOG as what those passes settle.
+  Collision event recorded: the shared symlinked mise config was rewritten by
+  another process mid-edit (entry removed and restored within a second) — the
+  hazard TASKS.md documents for that file, now observed live.
+- **Established the herdr test program: independent author-swarm + measured
+  judge loop.** Author request 2026-09-19. Four fresh-context agents deduced
+  the contract from written artifacts only and authored failing-first suites
+  along lifecycle / catalogue+loop / user-acceptance / edge-stress dimensions;
+  two test-fixture bugs and one suite regex bug were caught by first red runs
+  and fixed in place. Judges calibrated against an injected-defect set
+  (`tests/herdr/calibration/`, key kept out of the judge-facing dossier after
+  run-1 contamination — one judge caught the leak unprompted); mid-round judge
+  `~deepseek/deepseek-pro-latest` returned ITERATE (2 high, 3 medium, 1 low);
+  all six triaged (two resolved with measured fixes — a golden transcript
+  against the real binary caught the `letta (experimental)` wire variant, and
+  the YAML-side grammar wiring exposed a latent double-escaping bug; one
+  accepted with a named home in the repo-queued molecule adoption); final
+  fusion panel (opus-4.7 + deepseek-pro + local qwen3.6:35b-mlx) returned SHIP
+  unanimously, no new high-severity gaps. **Done:** rounds recorded in
+  `tests/herdr/calibration/ROUNDS.md`; method + pool recommendation in
+  `dotfiles/docs/JUDGE-SELECTION.md`; generalizations in
+  `dotfiles/docs/TOPIC-RECIPES.md` for the next topic.

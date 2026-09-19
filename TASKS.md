@@ -62,8 +62,6 @@ is exactly the collision it exists to prevent.
 
 Format: `- <UTC start> — <what> — <files or resource>`
 
-- 2026-09-19 00:19 — herdr topic build + swarm test program (task lines in § Now) — dotfiles/apps/mise/files/config.toml (herdr entry write reaches it via the deployed symlink), dotfiles/config/agents.yaml, dotfiles/apps/herdr/, tests/herdr/, TASKS.md
-
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
@@ -165,49 +163,6 @@ reversed earlier positions on purpose.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
-- **Create the `herdr` topic, test-first, per the locked design.** Queued
-  2026-09-19 by the author after the design Q&A; the design is settled and
-  recorded in `dotfiles/docs/TOPIC-RECIPES.md` (generalized tables) and
-  `dotfiles/apps/herdr/README.md` (the instance — read both before touching
-  the topic). Decisions: both OSes (`[Darwin, Debian]`); the binary installs
-  through **mise** with the topic owning the entry — idempotent
-  `mise use -g herdr` on install, `mise unuse --global herdr` on remove, writes
-  reaching the tracked `apps/mise/files/config.toml` through the deployed
-  symlink and committed as the capture (upgrade routes through `mise upgrade`;
-  the topic never calls `herdr update`, which is for self-installs only);
-  a shared catalogue `dotfiles/config/agents.yaml` (editors.yaml pattern,
-  interim role-relative direct read) mapping herdr integrations to the agent
-  topics — opencode, claude-code, cursor wired; codex and other herdr agents
-  listed as candidates; the integration loop installs per entry whose probe
-  binary and config dir exist, **skips-and-reports** when the agent is absent,
-  and **raises** when a required dependency is missing; remove uninstalls only
-  the installed intersection; the topic owns its daemon as a **launchd
-  per-user agent** on Darwin and a **systemd user unit** on Debian, with
-  teardown in the same change; a minimal `~/.config/herdr/` config captured as
-  a chezmoi template. Done when topic + catalogue exist, the swarm suite in
-  `tests/herdr/` is green with mutations proven, and the author's three real
-  passes (converge, second-run idempotence, remove) are queued for them to
-  run. [agent: chezmoi session]
-- **Establish the herdr test program: an independent author-swarm with a
-  measured judge loop.** Queued by the author 2026-09-19. Four fresh-context
-  agents deduce the topic and the repo **from the written artifacts only**
-  (spec.md, TOPICS.md, the task line above, TOPIC-RECIPES.md, herdr docs) and
-  author failing-first suites in `tests/herdr/` along four dimensions:
-  lifecycle contract (tags, CRUD/teardown invariant, topic.yml schema),
-  catalogue + integration-loop logic (slice resolution, skip-vs-raise in both
-  directions, property tests on pure helpers, fuzzed hand-edited YAML), user
-  acceptance (render under both OSes with StrictUndefined, the flows the
-  author runs), and edge/stress (malformed catalogue, herdr absent, partial
-  integrations, stale service state). Judging: a **single OpenRouter judge**
-  for mid-rounds and a **fusion panel for final sign-off**, ≤3 rounds total,
-  converged when two consecutive rounds surface no new high-severity gaps;
-  judges exclude the implementer's model family (z-ai/glm), GPT/Grok are
-  benchmark subjects only, judge quality is **measured by calibration against
-  injected defects** rather than asserted, local ollama tags serve as cheap
-  passes — method and the dated recommendation land in
-  `dotfiles/docs/JUDGE-SELECTION.md`. Done when the suite is green with
-  mutation evidence, judge rounds are recorded with dissent, and the merge
-  gates pass. [agent: chezmoi session]
 - **Input to the normative topic spec: lift the settled herdr decisions from
   `dotfiles/docs/TOPIC-RECIPES.md` and `dotfiles/apps/herdr/README.md`.**
   Queued 2026-09-19: the spec session should absorb the install-mechanism
@@ -775,6 +730,11 @@ nothing is.
   Until this is settled the changelog grows one section and is still readable.
 
 ## Planned
+
+- Migrate the mise `python.uv_venv_auto` setting before mise 2027.7.0 removes
+  it — mise warned the deprecation during the herdr work (2026-09-19:
+  `python.uv_venv_auto=true` must become `python.uv_venv_auto="create|source"`
+  or `"source"` in `apps/mise/files/config.toml`).
 
 - **Build the subscription machinery: `topic_subscribes` + playbook
   resolution + injection.** The mechanism half of the adopted system-config
