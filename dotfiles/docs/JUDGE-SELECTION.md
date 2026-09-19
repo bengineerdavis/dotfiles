@@ -89,6 +89,30 @@ conserved. Their rows stay absent rather than asserted.
   (missed the claim-class defect), z-ai/glm (implementer family, rule 1).
 - The author applies any pool change to `~/.binned/config.toml` by hand.
 
+## First live program: herdr (2026-09-19)
+
+The locked pool ran its first full loop on the herdr test program (rounds
+recorded in `tests/herdr/calibration/ROUNDS.md`):
+
+- Mid-round single judge (deepseek-pro) returned ITERATE with six gaps, two
+  high — both real: the contract module was unvalidated against the real
+  binary, and the CRUD invariant was one-way.
+- The fixes were measured, not narrated: a golden-transcript test against a
+  real captured status output immediately caught a wire variant the upstream
+  docs never showed (`letta (experimental)`), and wiring the measured grammar
+  into the YAML exposed a latent double-escaping bug the tests could never
+  execute.
+- Final fusion panel (opus-4.7 + deepseek-pro + local qwen3.6) returned SHIP
+  unanimously with no new high-severity gaps; the only variance was a labelling
+  nuance on one gap, recorded rather than averaged away.
+- The pool performed as calibrated: deepseek-pro as mid-round judge produced
+  the highest-value findings at mid cost; the local model's final-round role
+  (third voice, weighted low) matched its 2/4 calibration exactly — useful
+  agreement signal, no verdict weight.
+
+Method validation: the loop converged in two rounds inside the cap, and every
+ACCEPTED gap pointed at an existing queued home rather than being dropped.
+
 ## See also
 
 - `dotfiles/docs/TOPIC-RECIPES.md` — the process this methodology sits inside
