@@ -304,6 +304,17 @@ invisible on the other machine even though the commits arrive. Notes are also
 unversioned markup as far as forges are concerned — GitHub does not render
 them; only `git log`/`git notes show` do.
 
+**Notes are the machine channel** (author ruling, 2026-09-19, from the
+research-swarm report): notes are for machines to write and read — humans
+read them via `git log`/`git notes show` when needed, but nothing
+human-facing is built on them. Reconciled same day: origin's
+`refs/notes/commits` was a strict subset of local (5 shared shas, the 2
+2026-09-19 reword notes unpushed) — local is ahead, and the one push command
+above closes it. Origin also publishes `refs/notes/ai` — an AI-session
+provenance trail (61 notes, the git-ai tooling writing its own namespace);
+it is fetched locally as its own unowned ref and merged into nothing. One
+namespace per producer; never force-overwrite a notes ref.
+
     git commit -o <paths> -F -    # --only: commit exactly these, ignore the rest
     git show --stat HEAD          # verify before pushing
 
