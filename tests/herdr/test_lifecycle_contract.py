@@ -811,6 +811,43 @@ def test_remove_integrations_gate_defaults_off():
     ), f"tasks/remove.yaml never references '{GATE_VAR}' — the gate gates nothing"
 
 
+def test_every_gate_off_task_referencing_gate_derived_vars_is_gated():
+    # mutation (M10): drop the when-gate from any task that references facts
+    # only loaded under the gate (herdr_remove_catalogue etc.) — the real
+    # 2026-09-19 remove pass died exactly this way: the claimed-ids task
+    # referenced the unloaded catalogue and 'herdr_claimed_ids' failed with
+    # "'herdr_remove_catalogue' is undefined", killing the whole teardown
+    # before any state was touched.
+    remove_doc = hl_load_yaml("tasks/remove.yaml")
+    gated = hl_tasks_with_gates(remove_doc)
+    offenders = []
+    for task, gates in gated:
+        text = hl_task_text(task)
+        references_gate_derived = any(
+            marker in text
+            for marker in (
+                "herdr_remove_catalogue",
+                "herdr_status_result",
+                "herdr_status_bad_lines",
+                "herdr_claimed_ids",
+                "herdr_installed_ids",
+                "herdr_uninstall_ids",
+            )
+        )
+        gate_text = " ".join(gates)
+        # the tasks gate on the alias set once from the raw var
+        # (herdr_remove_gate_on = herdr_remove_integrations | bool); either
+        # spelling counts — the M10 failure had NEITHER
+        if references_gate_derived and not (
+            GATE_VAR in gate_text or "herdr_remove_gate_on" in gate_text
+        ):
+            offenders.append(task.get("name", "<unnamed>"))
+    assert not offenders, (
+        f"tasks referencing gate-derived facts must be gated by '{GATE_VAR}' "
+        f"— the real remove pass failed exactly this way: {offenders}"
+    )
+
+
 def test_every_integration_uninstall_task_relents_through_the_gate():
     # mutation: add an ungated herdr integration uninstall task to
     # remove.yaml (or hardcode its when to false so the gate can never relent)

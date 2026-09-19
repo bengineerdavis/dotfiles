@@ -51,6 +51,7 @@
          + (herdr_remove_catalogue.agent_integrations
             | rejectattr('topics', 'defined')
             | map(attribute='id') | list)) }}
+  when: herdr_remove_gate_on
 
 - name: "Remove: read installed integration state from herdr (nonzero rc fails the run — unknown state refuses)"
   ansible.builtin.command:
