@@ -208,6 +208,37 @@ ollama_update_check_enabled: true
 ollama_update_check_oncalendar: daily
 ollama_update_check_apply: false
 
+# Periodic "has the model set drifted from upstream?" check — the analogue of
+# ollama_update_check_* above, but for the MANIFEST rather than the binary.
+# Notify-only, and for a structural reason: `sync` pulls what the manifest
+# declares, and nothing edits the manifest. Adopting a newer generation is a
+# judgement, since the per-role notes here carry measured tok/s and eval
+# results, so the timer reports and a human decides.
+#   _enabled    — install + enable the timer
+#   _oncalendar — weekly, not daily: probing every family costs minutes of
+#                 network and the answer rarely changes day to day
+#   _next_gen   — also probe for newer family GENERATIONS (`check --next-gen`).
+#                 Off by default: the match is a name heuristic, and it
+#                 currently reports qwen3.8 as a newer generation of qwen3-vl,
+#                 a different family. Noise here trains you to ignore the signal.
+ollama_model_check_enabled: true
+ollama_model_check_oncalendar: weekly
+ollama_model_check_next_gen: false
+
+# What an ansible run may do about models once the check has reported.
+#   skip    touch nothing
+#   report  print what would change, change nothing — the unattended-safe answer
+#   prompt  print it, then ask before pulling. Degrades to `report` when there
+#           is no TTY, so an upgrade stays safe under cron and CI
+#   auto    pull without asking — the "I have the bandwidth and I trust the
+#           manifest" position. Set it deliberately; it can pull tens of GB
+#
+# This governs WEIGHTS only. Rewriting the manifest to adopt a newer tag is NOT
+# implemented: it needs a comment-preserving YAML round-trip (ruamel), because
+# pyyaml discards comments and the measured rationale on every role lives in
+# them. Until then, `check` tells you what to change and you edit this file.
+ollama_model_update_policy: prompt
+
 # Installed tags that are intentionally NOT manifest members: `prune` never
 # lists them and `sync` never pulls them. Use this for bare `:latest` aliases
 # and hand-pinned experiments you want to survive `prune --remove`.
