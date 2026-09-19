@@ -295,6 +295,15 @@ one real consumer; it is not the standing answer. Prevention below is cheaper
 than a rewrite every time, and a rewrite stops being available as soon as anyone
 else has built on the history.
 
+**Notes do not travel with `git push` by default.** Provenance notes live on
+`refs/notes/commits`, which the default refspec does not push or fetch — push
+them explicitly alongside the branch:
+`git push origin main refs/notes/commits` (fetch side: the reset procedure
+above already fetches `refs/notes/*`). Without this, a reword's provenance is
+invisible on the other machine even though the commits arrive. Notes are also
+unversioned markup as far as forges are concerned — GitHub does not render
+them; only `git log`/`git notes show` do.
+
     git commit -o <paths> -F -    # --only: commit exactly these, ignore the rest
     git show --stat HEAD          # verify before pushing
 
