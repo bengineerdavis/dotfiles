@@ -9,6 +9,31 @@ restating. Settled 2026-09-18/19, instance: the `herdr` topic
 This file is queued as input to the normative topic spec (TASKS.md § Now): the
 spec session lifts what belongs in spec terms and records any reasoned rejection.
 
+## Recipe: docs and galaxy first — the module-vs-shell ladder
+
+Standing rule (author, 2026-09-19): check the docs and the galaxy for an
+established solution before hand-rolling anything, and the decision ladder is:
+
+1. **A well-supported module exists** — use it. Well-supported means: in
+   ansible-core, or in a collection the repo already declares (for this repo,
+   `community.general` is the standing collection — homebrew/cask/launchd),
+   with no "unsupported"/orphaned marker, and semantics verified at source
+   level (read the installed module before trusting the docstring — the
+   launchd "privileged" note hid that the module runs unprivileged and finds
+   per-user plists first).
+2. **A module exists in a collection the repo does NOT declare** — stop and
+   ask the author before adding a galaxy dependency. Never add one silently.
+3. **No module exists** and a shell/command fallback is needed — ask the
+   author before falling back, naming the module search that came up empty.
+   When the fallback is ratified, prefer `command` over `shell` (no shell
+   metacharacters), read rc directly (never through a pipe), and record in a
+   comment why no module fits.
+
+Justified-by-construction fallbacks in existing topics (no module can exist):
+third-party/first-party CLI invocations (`herdr`, `mise use`/`mise unuse`,
+`mise upgrade`). Probes are the grey zone — a `stat` beats a `systemctl cat`;
+a content probe has no module (`grep -q` is the honest floor).
+
 ## Recipe: choosing an install mechanism
 
 Two questions decide it: **which machines run it** and **who upgrades it**.
