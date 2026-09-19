@@ -62,6 +62,8 @@ is exactly the collision it exists to prevent.
 
 Format: `- <UTC start> — <what> — <files or resource>`
 
+- 2026-09-19 ~08:40 UTC — herdr machine passes (apply + converge + remove + re-converge) and golden-fixture reconciliation — chezmoi apply (author-directed override of the agents-never-apply rule, stated 2026-09-19 "1 & 2 are yours"), ~/dotfiles/run-role.sh herdr, dotfiles/apps/herdr/, tests/herdr/
+
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
