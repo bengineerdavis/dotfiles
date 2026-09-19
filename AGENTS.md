@@ -607,8 +607,8 @@ that a pattern across months stays visible.
 ## Commands
 
 ```bash
-# Tests — pytest is primary. Needs all six, or parts of the suite skip or ERROR.
-uv run --with pytest --with hypothesis --with typer --with questionary --with pyyaml --with pillow pytest tests -q
+# Tests — pytest is primary. Needs all seven, or parts of the suite skip or ERROR.
+uv run --with pytest --with hypothesis --with typer --with questionary --with pyyaml --with pillow --with jinja2 pytest tests -q
 uv run --with pytest pytest tests -m "not llm_judge" -q   # skip real-model tests
 uv run --with pytest pytest tests -m llm_judge -q         # only real-model tests
 
