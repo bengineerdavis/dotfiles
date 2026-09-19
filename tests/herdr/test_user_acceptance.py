@@ -33,9 +33,15 @@ import pathlib
 import re
 import subprocess
 
-import jinja2
 import pytest
 import yaml
+
+# jinja2 is a run-env dependency, not an artifact gate: importorskip so the
+# documented six-dep suite command skips this module instead of erroring at
+# collection (the queued conftest-resilience doctrine). Run the herdr suite
+# with --with jinja2 to exercise it.
+pytest.importorskip("jinja2", reason="jinja2 not installed")
+import jinja2  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 TOPIC = REPO / "dotfiles" / "apps" / "herdr"
