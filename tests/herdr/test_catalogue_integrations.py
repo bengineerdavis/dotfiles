@@ -869,8 +869,10 @@ def test_remove_defaults_to_no_uninstall():
     vscode_remove_extensions) and the shared-catalogue recipe (teardown is
     gated, default-off opt-out).
     """
-    # mutation: the gate defaulting on (or the gate ignored) — a plain remove
-    # would strip integrations the user installed deliberately.
+    # mutation subject: THIS test pins the contract module's gate semantics
+    # (gate False -> []). The defaults VAR is pinned by the lifecycle and
+    # edge tests (test_remove_integrations_gate_defaults_off reads
+    # defaults/main.yaml) — mutation M1's log records exactly this split.
     doc = hc_require_catalogue()
     claimed = list(HC_WIRED_IDS)
     installed = list(HC_WIRED_IDS)

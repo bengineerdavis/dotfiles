@@ -100,10 +100,25 @@ and a runtime-manager-tier topic, so tier ordering brings it up first.
 The swarm-built suite lives in `tests/herdr/` (test-first: it was authored
 against this README before the topic existed, then the topic was implemented
 to green, with mutations recorded per spec.md § Verification). Renders are
-checked under both `os_family` values with `StrictUndefined`. What has **not**
-been exercised: a real converge on either machine — agents never run
-`chezmoi apply`/`run-role.sh`. The author's three passes: converge, second-run
-idempotence, remove.
+checked under both `os_family` values with `StrictUndefined`.
+
+Nothing runs from this repository: chezmoi copies `dotfiles/` into the
+environment and Ansible executes the **deployed** tree, so the static suite
+proves the source and the author's passes prove the deployed copy (after a
+clean `chezmoi status`). Judge round 1 (2026-09-19, see
+`dotfiles/docs/JUDGE-SELECTION.md`) surfaced three accepted gaps with homes:
+
+- no automated converge (molecule/CI) — owned by the repo-queued molecule
+  adoption (TASKS.md § Now); herdr is a candidate consumer, not the owner;
+- the `mise upgrade` changed_when predicate and `launchctl enable`
+  changed_when false — settled by the author's idempotence pass (CHANGELOG);
+- static scans do not expand Jinja loops — mitigated by the real
+  `ansible-playbook --syntax-check` test; full task-graph expansion lands
+  with molecule.
+
+What has **not** been exercised: a real converge on either machine — agents
+never run `chezmoi apply`/`run-role.sh`. The author's three passes: converge,
+second-run idempotence, remove.
 
 ## Upstream references
 

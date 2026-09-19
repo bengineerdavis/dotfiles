@@ -580,6 +580,71 @@ def test_remove_uninstall_set_is_the_claimed_intersection():
     )
 
 
+def test_no_orphan_teardown_state_in_remove():
+    # mutation: add a remove.yaml teardown for state install.yaml never
+    # creates (e.g. deleting a config file the topic does not own) — the
+    # reverse direction of the CRUD invariant, added after judge round 1
+    # (dotfiles/docs/JUDGE-SELECTION.md) flagged the check as one-way.
+    install_text = hl_text("tasks/install.yaml")
+    remove_tasks = hl_tasks(hl_load_yaml("tasks/remove.yaml"))
+    removed_paths = []
+    for task in remove_tasks:
+        mod = hl_module(task)
+        module_args = task.get(mod)
+        args = module_args if isinstance(module_args, dict) else {}
+        raw = task.get("dest") or task.get("path") or args.get("dest") or args.get("path")
+        if not raw:
+            continue
+        raw = str(raw)
+        if "/" not in raw:
+            continue
+        name = Path(raw.split("}}")[-1] if "{{" in raw else raw).name
+        if name and "{{" not in name:
+            removed_paths.append(name)
+    orphans = [name for name in sorted(set(removed_paths)) if name not in install_text]
+    assert not orphans, (
+        f"remove.yaml tears down {orphans} but install.yaml never creates "
+        "them — orphaned teardown state (CRUD invariant, reverse direction)"
+    )
+
+
+def test_playbook_passes_ansible_syntax_check():
+    # mutation: a task-structure error (bad module arg, malformed block, a
+    # Jinja block left unclosed at the YAML level) — static greps do not
+    # execute Ansible, so the real syntax checker is the only structural
+    # proof. Needs ansible-core in the run env:
+    #   uv run --with pytest --with pyyaml --with jinja2 --with ansible-core \
+    #     pytest tests/herdr -q
+    # (Judge round 1, gap 3 — the cheap, real half of "expand the task graph".
+    # Scope note: this validates the SOURCE tree. Nothing runs from the repo —
+    # chezmoi copies dotfiles/ into the environment and ansible executes the
+    # DEPLOYED tree, so the author's converge pass is the deployed-tree proof
+    # (and `chezmoi status` must be clean first).)
+    import subprocess
+
+    ansible = None
+    for candidate in ("ansible-playbook", "ansible"):
+        probe = subprocess.run(["uv", "run", "--with", "ansible-core", candidate,
+                                "--version"], capture_output=True, text=True)
+        if probe.returncode == 0:
+            ansible = candidate
+            break
+    assert ansible == "ansible-playbook", (
+        "ansible-playbook unavailable via `uv run --with ansible-core` — the "
+        "syntax check cannot run; run the suite with --with ansible-core"
+    )
+    proc = subprocess.run(
+        ["uv", "run", "--with", "ansible-core", "ansible-playbook",
+         "--syntax-check", "apps/herdr/playbook.yaml"],
+        cwd=REPO / "dotfiles",  # roles path is the dotfiles root, as run-role.sh
+        capture_output=True, text=True,
+    )
+    assert proc.returncode == 0, (
+        f"ansible-playbook --syntax-check failed (rc={proc.returncode}, read "
+        f"directly): {proc.stderr.strip() or proc.stdout.strip()}"
+    )
+
+
 def test_remove_integrations_gate_defaults_off():
     # mutation: flip the herdr_remove_integrations default to true so a
     # plain --tags remove uninstalls integrations the topic does not own

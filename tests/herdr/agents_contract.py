@@ -230,12 +230,15 @@ def planned_install_commands(data, source: str = "dotfiles/config/agents.yaml") 
 #
 #     <id>: installed (<absolute path>)
 #     <id>: not installed (<expected path>)
+#     <id> (experimental): not installed (<path>)   [measured: letta]
 #
 # The status subcommand works without a running server (measured same day),
-# which is what makes the remove-time state read possible.
+# which is what makes the remove-time state read possible. The annotation is
+# accepted ONLY as exactly `(experimental)` (herdr's own marker); any other
+# annotation is unknown state and refuses.
 
 _STATUS_LINE_RE = re.compile(
-    r"^([a-z0-9-]+): (installed|not installed) \((.+)\)$"
+    r"^([a-z0-9-]+)(?: \(experimental\))?: (installed|not installed) \((.+)\)$"
 )
 
 
@@ -244,8 +247,8 @@ def parse_integration_status(text: str) -> dict[str, dict]:
 
     Raises StatusUnknownError for empty/whitespace text, control characters,
     prose, truncated lines, lines outside the measured grammar, a state word
-    other than installed/not installed, or an id claimed twice — never
-    returns a partial claim.
+    other than installed/not installed, an annotation other than
+    (experimental), or an id claimed twice — never returns a partial claim.
     """
     if not isinstance(text, str) or not text.strip():
         raise StatusUnknownError("empty status output")
@@ -260,21 +263,20 @@ def parse_integration_status(text: str) -> dict[str, dict]:
         match = _STATUS_LINE_RE.match(line)
         if not match:
             raise StatusUnknownError(
-                f"unparseable status line (expected `<id>: installed|not "
-                f"installed (<path>)`): {line!r}"
+                f"unparseable status line (expected `<id>[( (experimental))]>: "
+                f"installed|not installed (<path>)`): {line!r}"
             )
         record_id = match.group(1)
         installed = match.group(2) == "installed"
         path = match.group(3)
+        record = {"id": record_id, "installed": installed, "path": path}
+        if "(experimental)" in line:
+            record["experimental"] = True
         if record_id in out:
             raise StatusUnknownError(
                 f"status output claims id {record_id!r} twice"
             )
-        out[record_id] = {
-            "id": record_id,
-            "installed": installed,
-            "path": path,
-        }
+        out[record_id] = record
     return out
 
 
