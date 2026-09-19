@@ -121,10 +121,15 @@ def hu_topic_vars() -> dict:
             f"{TOPIC} — no variable set to feed the templates",
             pytrace=False,
         )
+    # ansible_facts semantics MEASURED on the deployed run 2026-09-19: user_id
+    # is the USERNAME (the converge pass resolved gui/<user_id> to
+    # gui/ben.davis, which launchd rejects — the bug that moved launchd
+    # management to community.general.launchd); user_uid is the numeric id.
     facts = {
         "os_family": "stub",
         "env": {"HOME": "/Users/testuser", "PATH": "/usr/bin:/bin"},
-        "user_id": 501,
+        "user_id": "testuser",
+        "user_uid": 501,
         "user_dir": "/Users/testuser",
         "username": "testuser",
         "architecture": "arm64",
@@ -418,7 +423,7 @@ def test_remove_ordered_and_gated():
     # herdr_remove_integrations gate — either must go red here.
     code = hu_code_lines(hu_remove_text())
     integ_i = hu_line_index(code, r"herdr_remove_integrations|integration\s+uninstall")
-    service_i = hu_line_index(code, r"bootout|launchctl|systemctl|herdr-server")
+    service_i = hu_line_index(code, r"bootout|launchctl|launchd|systemctl|herdr-server")
     entry_i = hu_line_index(code, r"\bmise\s+unuse\b")
     assert integ_i != -1, "remove.yaml: no integration teardown step"
     assert service_i != -1, "remove.yaml: no service teardown (bootout/systemctl)"

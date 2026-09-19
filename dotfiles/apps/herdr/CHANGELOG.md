@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- 2026-09-19: **Converge pass 1 (author-run, partial): launchd management
+  switched to the native module.** The pass verified: the `mise upgrade`
+  changed_when predicate (all up to date → changed=false), entry-probe
+  idempotence, slice resolution, the cursor skip-and-report verdict line
+  (naming both conditions), and real integration installs (opencode plugin +
+  tui.jsonc; claude hook + settings.json). It then failed at the launchd
+  step: `ansible_facts['user_id']` resolves to the USERNAME, so
+  `launchctl print gui/<user_id>/...` was an unrecognized target. The raw
+  probe/bootout/bootstrap/enable chain is replaced by
+  `community.general.launchd` (restarted + enabled on install; stopped +
+  force_stop + enabled=false on remove behind a plist stat guard) — the
+  module needs no domain targeting, restarts on plist change, and flips
+  KeepAlive before stop. Stated tradeoff: the module uses the legacy
+  load/unload verbs (deprecated upstream); ollama's raw modern verbs are
+  unaffected. Also fixed: the classification reason no longer says
+  "skipped" on installable rows. Honest gap: `--syntax-check` validates
+  task structure, not module-arg names — the remove pass would have caught
+  a stray invalid arg (none remains); module-arg validation is runtime
+  territory, which is the molecule case.
+
 - 2026-09-19: **Completion path corrected post-report**: `~/.zfunc` is on
   nobody's fpath in this repo (`dot_zshrc.tmpl:96` puts
   `~/.local/share/zsh/completions` on fpath), so the generated completion

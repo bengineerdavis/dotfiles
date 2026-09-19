@@ -116,11 +116,12 @@
             | selectattr('item.id', 'equalto', entry.id) | list | first) -%}
       {%- set probe_ok = (probe_result.rc is defined and probe_result.rc == 0) -%}
       {%- set dir_ok = dir_result.stat.exists -%}
+      {%- set verdict = ('skipped' if not (probe_ok and dir_ok) else 'wired') -%}
       {%- set _ = out.append({
             'id': entry.id,
             'probe_ok': probe_ok,
             'dir_ok': dir_ok,
-            'reason': entry.id ~ ': skipped — probe `' ~ entry.probe ~ '` '
+            'reason': entry.id ~ ': ' ~ verdict ~ ' — probe `' ~ entry.probe ~ '` '
                       ~ ('on PATH' if probe_ok else 'not on PATH')
                       ~ '; config dir ' ~ entry.config_dir ~ ' '
                       ~ ('exists' if dir_ok else 'does not exist'),
@@ -192,35 +193,22 @@
   when: ansible_facts['os_family'] == 'Darwin'
   register: herdr_plist_result
 
-- name: "Install: probe whether the launchd agent is loaded (Darwin)"
-  ansible.builtin.command:
-    cmd: launchctl print gui/{{ ansible_facts['user_id'] }}/{{ herdr_launchd_label }}
-  register: herdr_launchd_loaded
+- name: "Install: manage the launchd agent through the native module (Darwin)"
+  # community.general.launchd handles the whole lifecycle idempotently:
+  # an UNLOADED service is loaded+started (first install); a changed plist
+  # triggers unload+load+start (no stale-definition restarts); a running
+  # service is left alone. check_mode support is full. (Replaced the raw
+  # bootout/bootstrap/enable chain 2026-09-19 after a real converge pass
+  # showed ansible_facts['user_id'] resolves to the USERNAME, not the uid,
+  # so `gui/<user_id>` was an unrecognized launchd target — the module needs
+  # no domain targeting at all. Tradeoff stated: the module uses the legacy
+  # load/unload verbs, deprecated upstream; revisit if macOS removes them.)
+  community.general.launchd:
+    name: "{{ herdr_launchd_label }}"
+    state: restarted
+    enabled: true
   when: ansible_facts['os_family'] == 'Darwin'
-  changed_when: false
-  failed_when: false
-
-- name: "Install: bootout a stale agent before re-bootstrapping (Darwin)"
-  ansible.builtin.command:
-    cmd: launchctl bootout gui/{{ ansible_facts['user_id'] }}/{{ herdr_launchd_label }}
-  register: herdr_bootout_result
-  when: ansible_facts['os_family'] == 'Darwin' and herdr_launchd_loaded.rc == 0
-  changed_when: true
-
-- name: "Install: bootstrap the agent (Darwin)"
-  ansible.builtin.command:
-    cmd: >-
-      launchctl bootstrap gui/{{ ansible_facts['user_id'] }}
-      {{ ansible_facts['user_dir'] }}/Library/LaunchAgents/com.herdr.server.plist
-  when: ansible_facts['os_family'] == 'Darwin' and herdr_launchd_loaded.rc != 0
-  register: herdr_bootstrap_result
-  changed_when: true
-
-- name: "Install: enable the agent (Darwin; idempotent)"
-  ansible.builtin.command:
-    cmd: launchctl enable gui/{{ ansible_facts['user_id'] }}/{{ herdr_launchd_label }}
-  when: ansible_facts['os_family'] == 'Darwin'
-  changed_when: false
+  register: herdr_launchd_result
 
 - name: "Install: health-check the server (Darwin; retries tolerate a slow boot)"
   ansible.builtin.command:

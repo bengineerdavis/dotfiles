@@ -102,19 +102,25 @@
 
 # ── service (topic-owned, ungated) ───────────────────────────────────────────
 
-- name: "Remove: probe whether the launchd agent is loaded (Darwin)"
-  ansible.builtin.command:
-    cmd: launchctl print gui/{{ ansible_facts['user_id'] }}/{{ herdr_launchd_label }}
-  register: herdr_remove_launchd_loaded
+- name: "Remove: stat the launchd plist (Darwin)"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['user_dir'] }}/Library/LaunchAgents/com.herdr.server.plist"
+  register: herdr_remove_plist_stat
   when: ansible_facts['os_family'] == 'Darwin'
-  changed_when: false
-  failed_when: false
 
-- name: "Remove: bootout the launchd agent (Darwin, only when loaded)"
-  ansible.builtin.command:
-    cmd: launchctl bootout gui/{{ ansible_facts['user_id'] }}/{{ herdr_launchd_label }}
-  when: ansible_facts['os_family'] == 'Darwin' and herdr_remove_launchd_loaded.rc == 0
-  changed_when: true
+- name: "Remove: stop the launchd agent through the native module (Darwin, only when the plist exists)"
+  # force_stop flips the plist's KeepAlive to false before stopping — without
+  # it launchd would restart the KeepAlive server forever. Skipped when the
+  # plist is already gone (fresh machine or stale teardown) so remove stays a
+  # clean no-op there. (Replaced the raw probe+bootout chain 2026-09-19; see
+  # install.yaml for the module-switch rationale.)
+  community.general.launchd:
+    name: "{{ herdr_launchd_label }}"
+    state: stopped
+    enabled: false
+    force_stop: true
+  when: ansible_facts['os_family'] == 'Darwin' and herdr_remove_plist_stat.stat.exists
+  register: herdr_launchd_stop
 
 - name: "Remove: probe whether the user manager knows the unit (Debian)"
   ansible.builtin.command:

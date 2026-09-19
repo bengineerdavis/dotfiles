@@ -87,6 +87,11 @@ FILE_CREATING_MODULES = {
     "ansible.builtin.file",
 }
 
+# The launchd service module (native; replaced the raw bootout/bootstrap
+# chain after the 2026-09-19 converge pass showed the fact-semantics bug —
+# tests/herdr/test_lifecycle_contract.py pins the module shape here).
+LAUNCHD_MODULE = "community.general.launchd"
+
 _RESERVED_KEYS = {
     "name", "when", "tags", "register", "vars", "loop", "become",
     "become_user", "become_method", "become_flags", "changed_when",
@@ -654,6 +659,71 @@ def test_playbook_passes_ansible_syntax_check():
     assert proc.returncode == 0, (
         f"ansible-playbook --syntax-check failed (rc={proc.returncode}, read "
         f"directly): {proc.stderr.strip() or proc.stdout.strip()}"
+    )
+
+
+def test_darwin_service_managed_by_the_launchd_module():
+    """The launchd agent is managed through the native module, both directions.
+
+    Dimension: lifecycle contract. Sources: the 2026-09-19 converge pass
+    (the raw bootout/bootstrap chain failed on ansible_facts['user_id']
+    resolving to the username — launchd rejects `gui/<name>`); the module
+    source (community.general.launchd): restarted loads+starts an unloaded
+    service and reloads on plist change; force_stop flips KeepAlive before
+    stop, without which launchd restarts the server forever.
+    """
+    # mutation: drop force_stop from the remove-side module task (M7) —
+    # the KeepAlive server would restart forever after remove; or swap the
+    # module back for raw bootout/bootstrap (the fact-semantics bug class).
+    install_text = hl_text("tasks/install.yaml")
+    assert LAUNCHD_MODULE in install_text, (
+        "tasks/install.yaml does not manage the launchd agent through "
+        f"{LAUNCHD_MODULE}"
+    )
+    install_block = re.search(
+        r"- name:.*launchd agent.*?\n(.*?)(?=\n- name:|\Z)",
+        install_text, re.S,
+    )
+    assert install_block, "install.yaml launchd agent task not found"
+    block = install_block.group(1)
+    assert re.search(r"state:\s*restarted", block), (
+        "install.yaml launchd task must use state: restarted (loads+starts an "
+        "unloaded service and reloads on plist change)"
+    )
+    assert re.search(r"enabled:\s*true", block), (
+        "install.yaml launchd task must enable the agent (starts on boot)"
+    )
+    assert "launchctl" not in hl_code_lines_of_text(install_text), (
+        "install.yaml still shells out to raw launchctl — the fact-semantics "
+        "bug class the module switch removed"
+    )
+
+    remove_text = hl_text("tasks/remove.yaml")
+    remove_block = re.search(
+        r"- name:.*native module.*?\n(.*?)(?=\n- name:|\Z)",
+        remove_text, re.S,
+    )
+    assert remove_block, "remove.yaml launchd stop task not found"
+    block = remove_block.group(1)
+    assert re.search(r"state:\s*stopped", block), (
+        "remove.yaml launchd task must use state: stopped"
+    )
+    assert re.search(r"force_stop:\s*true", block), (
+        "remove.yaml launchd task must set force_stop: true — the plist has "
+        "KeepAlive true, so a plain stop would be immediately restarted by "
+        "launchd and remove would never converge"
+    )
+    assert re.search(r"enabled:\s*false", block), (
+        "remove.yaml launchd task must disable the agent"
+    )
+    assert "launchctl" not in hl_code_lines_of_text(remove_text), (
+        "remove.yaml still shells out to raw launchctl"
+    )
+
+
+def hl_code_lines_of_text(text: str) -> str:
+    return "\n".join(
+        line for line in text.splitlines() if not line.lstrip().startswith("#")
     )
 
 
