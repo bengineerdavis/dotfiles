@@ -793,6 +793,44 @@ def test_upgrade_enforces_integration_version_floors():
     )
 
 
+def test_upgrade_tolerates_the_removed_state_and_splits_the_raise():
+    # mutation (M11): revert to the conflated raise — no presence probe, one
+    # condition `rc != 0 or stdout non-empty` — the real 2026-09-19
+    # re-converge died exactly that way: after --tags remove the shim
+    # dangles, the upgrade phase's herdr calls error, and the raise misreads
+    # the broken environment as "outdated integrations: ." while its own fix
+    # (run install) is unreachable, because install runs after upgrade.
+    upgrade_text = hl_text("tasks/upgrade.yaml")
+    presence = upgrade_text.find("herdr_upgrade_presence")
+    assert presence != -1, (
+        "tasks/upgrade.yaml never probes herdr presence — the removed state "
+        "(install pruned, shim dangling) is legitimate after --tags remove, "
+        "and the upgrade phase must relent, not fail"
+    )
+    first_currency = upgrade_text.find("mise upgrade herdr")
+    assert presence < first_currency, (
+        "the presence probe must precede the upgrade currency check"
+    )
+    assert re.search(
+        r"when: herdr_upgrade_presence\.rc == 0", upgrade_text
+    ), "the currency tasks must be gated on the presence probe"
+    assert "skipping the upgrade-phase currency checks" in upgrade_text, (
+        "the absent case must be a report line, not a failure"
+    )
+    # the raises are split: broken-environment (rc != 0, EMPTY output) vs
+    # genuinely outdated (output present) — the conflated form misread the
+    # first as the second
+    assert re.search(
+        r"herdr_outdated_result\.rc != 0\s+and\s+\(herdr_outdated_result\.stdout"
+        r" \| default\(''\) \| trim \| length\) == 0",
+        upgrade_text,
+    ), "the broken-environment raise must key on rc != 0 with EMPTY output"
+    assert re.search(
+        r"herdr_outdated_result\.stdout \| default\(''\) \| trim \| length\) > 0",
+        upgrade_text,
+    ), "the outdated raise must key on output present — the two never share a condition"
+
+
 def test_remove_integrations_gate_defaults_off():
     # mutation: flip the herdr_remove_integrations default to true so a
     # plain --tags remove uninstalls integrations the topic does not own
