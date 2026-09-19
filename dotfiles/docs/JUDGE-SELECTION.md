@@ -55,16 +55,39 @@ It feeds the queued panel-of-judges measurement item in TASKS.md § Planned.
 
 ## Results
 
-*(pending — filled by the calibration run, 2026-09-19; candidates:
-`openrouter/anthropic/claude-opus-4.7`, `openrouter/anthropic/claude-fable-5.1`,
-`openrouter/google/gemini-pro-latest`, `openrouter/deepseek/deepseek-pro-latest`,
-`openrouter/moonshotai/kimi-latest`, local `qwen3.6:35b-mlx`,
-`gemma4:31b-mlx`; GPT/Grok rows measured as subjects only.)*
+Calibrated 2026-09-19 against `tests/herdr/calibration/defect-set-v1.md`
+(key: `answer-key-v1.md` — 4 defects, 2 sound items; run 1 was discarded: the
+dossier leaked the key and one judge noticed, which is why the committed
+dossier ships without it).
 
-## Recommendation
+| Judge | Catch | False positives | Notes | Cost class |
+|---|---|---|---|---|
+| `openrouter/anthropic/claude-opus-4.7` | 4/4 | 0/2 | clean, terse, correctly calibrated severities | highest |
+| `openrouter/anthropic/claude-fable-5.1` | 4/4 | 1/2 (D) | caught the run-1 key leak unprompted — a thoroughness signal; wavered on D before landing DEFECT | high |
+| `openrouter/~deepseek/deepseek-pro-latest` | 4/4 | 1/2 (D) | long chain-of-thought, strong precision | mid |
+| `openrouter/~google/gemini-pro-latest` | 4/4 | 2/2 (A, D) | high recall, low precision — flags sound items; useful as a suspicion voice, not a verdict | mid |
+| `openrouter/~moonshotai/kimi-latest` | 3/4 | 0/2 | missed F (unknown-becomes-a-claim) | mid |
+| `qwen3.6:35b-mlx` (local) | 2/4 | 0/2 | missed the tautology and unknown-becomes-a-claim classes; free | free |
 
-*(pending — same run; updates land here with a date, and the author applies
-any pool change to `~/.binned/config.toml` by hand.)*
+Item D's soundness drew genuine dissent (fable, deepseek, gemini all flagged
+it; the key says SOUND because the excerpt asserts a true, falsifiable
+ordering) — recorded, not averaged away; it feeds the panel-of-judges item.
+
+GPT/Grok candidates were **not** run this round: subjects-only policy, spend
+conserved. Their rows stay absent rather than asserted.
+
+## Recommendation (2026-09-19, defect-set v1)
+
+- **Mid-round single judge: `openrouter/~deepseek/deepseek-pro-latest`** —
+  4/4 catch with one dissent-flagged FP, at mid cost.
+- **Final fusion panel: opus-4.7 (anchor) + deepseek-pro (challenger) +
+  local `qwen3.6:35b-mlx` (free third voice, weighted low, dissent
+  recorded).** Majority verdict; a lone dissent against both paid judges is
+  investigated, not dismissed.
+- **Reserve: `claude-fable-5.1`** if deepseek-pro is unavailable or regresses.
+- **Do not use**: gemini-pro as a verdict judge (precision too low), kimi
+  (missed the claim-class defect), z-ai/glm (implementer family, rule 1).
+- The author applies any pool change to `~/.binned/config.toml` by hand.
 
 ## See also
 
