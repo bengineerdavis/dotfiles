@@ -11,28 +11,52 @@ spec session lifts what belongs in spec terms and records any reasoned rejection
 
 ## Recipe: docs and galaxy first — the module-vs-shell ladder
 
-Standing rule (author, 2026-09-19): check the docs and the galaxy for an
-established solution before hand-rolling anything, and the decision ladder is:
+Standing rules (author, 2026-09-19): check the docs and the galaxy for an
+established solution before hand-rolling anything; third-party collections
+and roles ARE allowed — gated by the **support grade** below, never by vibes;
+always record the grade when adding a dependency; always ask before adopting
+anything below grade A; always ask before falling back to shell/cmd, naming
+the module search that came up empty.
 
-1. **A well-supported module exists** — use it. Well-supported means: in
-   ansible-core, or in a collection the repo already declares (for this repo,
-   `community.general` is the standing collection — homebrew/cask/launchd),
-   with no "unsupported"/orphaned marker, and semantics verified at source
-   level (read the installed module before trusting the docstring — the
-   launchd "privileged" note hid that the module runs unprivileged and finds
-   per-user plists first).
-2. **A module exists in a collection the repo does NOT declare** — stop and
-   ask the author before adding a galaxy dependency. Never add one silently.
-3. **No module exists** and a shell/command fallback is needed — ask the
-   author before falling back, naming the module search that came up empty.
-   When the fallback is ratified, prefer `command` over `shell` (no shell
-   metacharacters), read rc directly (never through a pipe), and record in a
-   comment why no module fits.
+### The support grade (four checks, all verifiable offline from the installed copy)
 
-Justified-by-construction fallbacks in existing topics (no module can exist):
-third-party/first-party CLI invocations (`herdr`, `mise use`/`mise unuse`,
-`mise upgrade`). Probes are the grey zone — a `stat` beats a `systemctl cat`;
-a content probe has no module (`grep -q` is the honest floor).
+| # | Check | How to verify |
+|---|---|---|
+| 1 | **Maintained** | Named maintainer(s) in the module docstring, and recent upstream activity touching the module or its utils — changelog entries in the collection's `changelogs/changelog.yaml` within ~12 months |
+| 2 | **Tested** | The collection ships an integration target: `tests/integration/targets/<module>/` exists in the installed tree |
+| 3 | **Supported tier** | Not marked for removal or orphaned: no entry in the collection's `meta/runtime.yml` removals/redirects, no "unsupported" note in `ansible-doc` output |
+| 4 | **Interface honesty** | `check_mode` documented in the module's ATTRIBUTES, and a source read of what it actually runs and mutates (docstrings lie; the launchd "privileged" note hid that it runs unprivileged and finds per-user plists first) |
+
+For **roles** (vendored playbook code — weigh heavier than modules): the same
+four minus #2, substituted with "the role carries its own tests or is
+trivially thin", plus a **license check** and a bias toward collections — a
+role is vendored into every run.
+
+### Adoption matrix
+
+- **Grade A — all four pass.** Adopt. If it is a NEW collection/role for this
+  repo, record the grade with the evidence lines (the four checks' results)
+  in the adopting topic's CHANGELOG — the record is the gate, nothing silent.
+  Already-declared collections (`community.general` here) with a module
+  passing all four need no ceremony.
+- **Grade B — three of four, or a check is unverifiable offline.** Ask the
+  author, citing which check failed and the evidence you do have.
+- **Grade C — two or fewer, or marked unsupported.** Do not adopt; use a
+  ratified shell fallback or route the need elsewhere.
+
+Worked example (2026-09-19): `community.general.launchd` — maintainer named,
+two launchd changelog entries in the current release, integration target
+present, no removal entry, check_mode full → grade A; adopted for the herdr
+topic with no new galaxy dependency (the collection was already declared).
+
+### When no module fits
+
+Justified-by-construction fallbacks: third-party/first-party CLI invocations
+(`herdr`, `mise use`/`mise unuse`, `mise upgrade`) — a wrapper module would
+exec the same binary with less transparency. Probes are the grey zone — a
+`stat` beats a `systemctl cat`; a content probe has no module (`grep -q` is
+the honest floor). Ratified fallbacks get a one-line comment citing the
+author's ruling and date.
 
 ## Recipe: choosing an install mechanism
 

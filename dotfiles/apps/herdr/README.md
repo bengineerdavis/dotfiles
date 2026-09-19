@@ -13,6 +13,13 @@ binding topic rules this topic follows.
 
 ## Decisions
 
+**Module discipline.** Services are managed through native modules
+(`community.general.launchd`, `ansible.builtin.systemd_service`); shell/cmd
+fallbacks exist only for the tool CLIs themselves and probe floors, each
+author-ratified 2026-09-19 under the docs-and-galaxy-first ladder
+(`dotfiles/docs/TOPIC-RECIPES.md`) with its support grade recorded for the
+launchd module there.
+
 **Both OSes.** `topic_os: [Darwin, Debian]`, `topic_tier: app`. Per-OS
 branching is guarded in-task (CONTRIBUTING.md rule 2 pattern); nothing here
 declares `homebrew` in `topic_requires`, so Debian stays schedulable.

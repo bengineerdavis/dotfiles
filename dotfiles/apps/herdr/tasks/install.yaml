@@ -7,6 +7,13 @@
 # command is a no-op once converged); the presence check and integration loop
 # follow the entry (integrations need the binary it installs).
 #
+# Shell/cmd fallbacks in this file are author-ratified 2026-09-19
+# (module-vs-shell ladder, dotfiles/docs/TOPIC-RECIPES.md): third-party/
+# first-party CLI invocations (mise, herdr) and probe floors (grep -q
+# content check, `command -v` PATH probe, `systemctl --user is-active`
+# health read) — no module exists for any of them; rc is always read
+# directly, never through a pipe.
+#
 # NOTE on the mise entry: `mise use -g` writes through the deployed symlink
 # into the tracked apps/mise/files/config.toml. That is the design: the run
 # leaves the repo dirty by design and the entry change is committed as the

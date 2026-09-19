@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- 2026-09-19: **Support grade for `community.general.launchd`: A** — the
+  four checks from the module-vs-shell ladder
+  (`dotfiles/docs/TOPIC-RECIPES.md`): maintainer named + two launchd
+  changelog entries in the current release (PRs #11049, #11774);
+  integration target present; no removal/redirect in `meta/runtime.yml`;
+  check_mode full and source-read verified. No new galaxy dependency — the
+  collection was already declared. Shell/cmd fallbacks ratified the same
+  day (CLI invocations, grep -q, command -v, systemctl is-active);
+  `systemctl --user cat` swapped to `ansible.builtin.stat` as the one
+  module upgrade the ladder found.
+
 - 2026-09-19: **Converge pass 1 (author-run, partial): launchd management
   switched to the native module.** The pass verified: the `mise upgrade`
   changed_when predicate (all up to date → changed=false), entry-probe

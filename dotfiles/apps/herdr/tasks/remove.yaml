@@ -10,6 +10,11 @@
 # `mise unuse` (first-party command; it writes the tracked mise config, which
 # is committed after the run as the capture).
 
+# Shell/cmd fallbacks in this file are author-ratified 2026-09-19
+# (module-vs-shell ladder, dotfiles/docs/TOPIC-RECIPES.md): herdr CLI
+# invocations, the grep -q mise-config probe, and the mise unuse entry
+# removal — no module exists; rc is read directly, never through a pipe.
+#
 # ── integrations (gated) ─────────────────────────────────────────────────────
 
 - name: "Remove: read the integrations gate"
@@ -122,13 +127,15 @@
   when: ansible_facts['os_family'] == 'Darwin' and herdr_remove_plist_stat.stat.exists
   register: herdr_launchd_stop
 
-- name: "Remove: probe whether the user manager knows the unit (Debian)"
-  ansible.builtin.command:
-    cmd: systemctl --user cat {{ herdr_systemd_unit }}
+- name: "Remove: stat the systemd user unit (Debian)"
+  # Author-ratified probe swap 2026-09-19 (module-vs-shell ladder,
+  # dotfiles/docs/TOPIC-RECIPES.md): a stat on the unit file replaces
+  # `systemctl --user cat` — the file present is what tells the manager the
+  # unit exists, and stat is the module-native read.
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['user_dir'] }}/.config/systemd/user/herdr-server.service"
   register: herdr_remove_unit_known
   when: ansible_facts['os_family'] == 'Debian'
-  changed_when: false
-  failed_when: false
 
 - name: "Remove: stop and disable the server unit (Debian, only when known)"
   ansible.builtin.systemd_service:
