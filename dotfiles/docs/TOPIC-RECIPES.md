@@ -58,6 +58,24 @@ exec the same binary with less transparency. Probes are the grey zone — a
 the honest floor). Ratified fallbacks get a one-line comment citing the
 author's ruling and date.
 
+### Extension after adoption
+
+Once a topic is adopted, extending it with additional shell commands is
+allowed **without a fresh ask per command**, when both hold:
+
+1. **No module support exists** for the task — the ladder above is still
+   checked first, and the new command gets the same one-line comment citing
+   this rule.
+2. **It makes the topic durable** — it serves the topic's ability to do its
+   job reliably: converge, stay idempotent, survive upgrades and removals.
+   Durability is the gate, not convenience: an extension that adds state
+   still owes its teardown counterpart in the same change (spec.md §
+   Layering), and an extension a module already covers is not durable, it is
+   a regression to hand-rolled.
+
+The ask-per-command rule keeps its force for anything before adoption and
+for any new galaxy dependency at any time.
+
 ## Recipe: choosing an install mechanism
 
 Two questions decide it: **which machines run it** and **who upgrades it**.

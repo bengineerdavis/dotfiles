@@ -18,7 +18,9 @@ binding topic rules this topic follows.
 fallbacks exist only for the tool CLIs themselves and probe floors, each
 author-ratified 2026-09-19 under the docs-and-galaxy-first ladder
 (`dotfiles/docs/TOPIC-RECIPES.md`) with its support grade recorded for the
-launchd module there.
+launchd module there; after adoption, topic extensions may add shell
+commands without a fresh ask when no module exists and the extension serves
+durability (the extension-after-adoption clause in that ladder).
 
 **Both OSes.** `topic_os: [Darwin, Debian]`, `topic_tier: app`. Per-OS
 branching is guarded in-task (CONTRIBUTING.md rule 2 pattern); nothing here
