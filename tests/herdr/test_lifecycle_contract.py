@@ -559,6 +559,27 @@ def test_service_stopped_before_unit_files_removed():
     )
 
 
+def test_remove_uninstall_set_is_the_claimed_intersection():
+    # mutation: replace the intersection with the whole installed set (or the
+    # whole claimed list) — remove would then uninstall integrations the
+    # topic does not own, or phantom-call uninstalls for absent claims. The
+    # contract module pins the RULE; this pins the YAML to compute it.
+    remove_text = hl_text("tasks/remove.yaml")
+    intersection = re.search(
+        r"herdr_claimed_ids\s*\|\s*select\('in',\s*herdr_installed_ids\)",
+        remove_text,
+    )
+    assert intersection, (
+        "tasks/remove.yaml does not compute the uninstall set as the "
+        "claimed ∩ installed intersection — TOPIC-RECIPES.md shared-catalogue "
+        "recipe: never everything installed, never phantom claims"
+    )
+    assert re.search(r"loop:\s*\{\{.*herdr_uninstall_ids", remove_text), (
+        "tasks/remove.yaml's uninstall loop does not consume the resolved "
+        "intersection set (herdr_uninstall_ids)"
+    )
+
+
 def test_remove_integrations_gate_defaults_off():
     # mutation: flip the herdr_remove_integrations default to true so a
     # plain --tags remove uninstalls integrations the topic does not own
