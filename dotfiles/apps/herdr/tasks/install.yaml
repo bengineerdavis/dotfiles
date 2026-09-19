@@ -164,17 +164,17 @@
 # ── the zsh completion (topic-owned, never vendored into the zsh tree —
 # the _ollama_zsh_completion dual-ownership lesson) ──────────────────────────
 
-- name: "Install: ensure ~/.zfunc exists"
+- name: "Install: ensure ~/.local/share/zsh/completions exists"
   ansible.builtin.file:
-    path: "{{ ansible_facts['user_dir'] }}/.zfunc"
+    path: "{{ herdr_completion_path | dirname }}"
     state: directory
     mode: "0755"
 
-- name: "Install: generate the herdr zsh completion into ~/.zfunc/_herdr"
+- name: "Install: generate the herdr zsh completion into ~/.local/share/zsh/completions/_herdr"
   ansible.builtin.shell:
-    cmd: "{{ herdr_shims_dir }}/herdr completion zsh > {{ ansible_facts['user_dir'] }}/.zfunc/_herdr"
+    cmd: "{{ herdr_shims_dir }}/herdr completion zsh > {{ herdr_completion_path }}"
   args:
-    creates: "{{ ansible_facts['user_dir'] }}/.zfunc/_herdr"
+    creates: "{{ herdr_completion_path }}"
 
 # ── the server service (topic-owned daemon; teardown in remove.yaml) ────────
 

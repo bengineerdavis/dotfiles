@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- 2026-09-19: **Completion path corrected post-report**: `~/.zfunc` is on
+  nobody's fpath in this repo (`dot_zshrc.tmpl:96` puts
+  `~/.local/share/zsh/completions` on fpath), so the generated completion
+  would have been written and never loaded. The topic now generates to
+  `~/.local/share/zsh/completions/_herdr` (`herdr_completion_path` in
+  defaults), and the tests pin the var chain + the fpath fact. Found by
+  checking the zsh runtime after the report; README decision updated with
+  the same evidence.
+
 - 2026-09-19: **Mutation log** (spec.md § Verification — every mutation
   injected, watched going red, and restored; suite back to 105 passed after
   each):

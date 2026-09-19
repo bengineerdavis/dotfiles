@@ -26,5 +26,10 @@ herdr_systemd_unit: herdr-server.service
 # (never a version-pinned mise/installs/ path, which changes on upgrade).
 herdr_shims_dir: "{{ ansible_facts['user_dir'] }}/.local/share/mise/shims"
 
+# The generated completion lands on the completions dir the zsh runtime
+# already puts on fpath (dot_zshrc.tmpl:96) — never ~/.zfunc (on nobody's
+# fpath here) and never the chezmoi-managed zsh tree.
+herdr_completion_path: "{{ ansible_facts['user_dir'] }}/.local/share/zsh/completions/_herdr"
+
 # Server logs, topic-owned state under the XDG data dir.
 herdr_log_dir: "{{ ansible_facts['user_dir'] }}/.local/share/herdr/logs"

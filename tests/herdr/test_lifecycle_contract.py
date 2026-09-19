@@ -492,9 +492,21 @@ def test_every_created_state_has_a_teardown_counterpart():
         (ENTRY_INSTALL, ENTRY_REMOVE, "mise use -g herdr", "mise unuse --global herdr"),
         (INTEGRATION_INSTALL, INTEGRATION_UNINSTALL,
          "herdr integration install", "herdr integration uninstall"),
-        (COMPLETION_INSTALL, COMPLETION_TOKEN,
-         "herdr completion zsh", "removal of the ~/.zfunc/_herdr file"),
+        (COMPLETION_INSTALL, r"herdr_completion_path",
+         "herdr completion zsh",
+         "removal via the herdr_completion_path var (post-report 2026-09-19: "
+         "the path moved from ~/.zfunc — on nobody's fpath here — to "
+         "~/.local/share/zsh/completions, which dot_zshrc.tmpl:96 puts on "
+         "fpath; defaults must point it at completions/_herdr)"),
     ]
+    defaults = hl_load_yaml("defaults/main.yaml")
+    assert str(defaults.get("herdr_completion_path", "")).endswith(
+        "completions/_herdr"
+    ), (
+        "defaults/herdr_completion_path must point at the on-fpath "
+        "completions dir (…/completions/_herdr); got "
+        + repr(defaults.get("herdr_completion_path"))
+    )
     for install_pat, remove_pat, what, counterpart in counterpart_of:
         assert re.search(install_pat, hl_task_texts_join(install_tasks)), (
             f"tasks/install.yaml does not run {what} — README names it as "

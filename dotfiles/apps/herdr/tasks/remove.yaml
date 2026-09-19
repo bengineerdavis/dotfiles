@@ -157,7 +157,7 @@
 
 - name: "Remove: delete the topic-owned zsh completion"
   ansible.builtin.file:
-    path: "{{ ansible_facts['user_dir'] }}/.zfunc/_herdr"
+    path: "{{ herdr_completion_path }}"
     state: absent
 
 - name: "Remove: probe whether the global mise config declares herdr"

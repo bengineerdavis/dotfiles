@@ -71,10 +71,16 @@ commented set (208 keys) when an opinion forms. Machine-specific values
 resolve via `{{ .chezmoi.* }}` per the AGENTS.md resolved-never-written rule.
 
 **Zsh completion is topic-owned, not chezmoi-owned.** `herdr completion zsh`
-is generated at install time to `~/.zfunc/_herdr` (herdr's documented fpath
-recipe) and removed under `--tags remove`. Deliberately not vendored into the
-zsh tree: that is how the `_ollama_zsh_completion` dual-ownership trap was
-created (TASKS-RESOLVED § [5]).
+is generated at install time to
+`~/.local/share/zsh/completions/_herdr` — the one completions dir this
+repo's zsh runtime already puts on `fpath` (`dot_zshrc.tmpl:96`) — and is
+removed under `--tags remove`. Deliberately NOT herdr's documented
+`~/.zfunc` recipe: nothing here puts `~/.zfunc` on fpath, so that completion
+would be generated and never loaded (the silent dead-state failure class).
+And deliberately not vendored into the zsh tree: that is how the
+`_ollama_zsh_completion` dual-ownership trap was created (TASKS-RESOLVED §
+[5]). Found during the post-report check; the swarm pinned the README's
+original path, so both the topic and the test moved together.
 
 ## Structure
 

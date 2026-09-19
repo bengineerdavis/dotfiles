@@ -467,22 +467,36 @@ def test_config_template_minimal_and_clean():
 
 
 def test_zsh_completion_topic_owned_not_zsh_tree_owned():
-    """install writes `herdr completion zsh` output to ~/.zfunc/_herdr and
-    nothing lands in the chezmoi-managed zsh tree (the _ollama_zsh_completion
-    dual-ownership trap); remove takes ~/.zfunc/_herdr back out."""
-    # mutation: write the completion into dotfiles/zsh/ instead of ~/.zfunc,
-    # or drop the remove-side cleanup — either must go red.
+    """install writes `herdr completion zsh` output to the completions dir the
+    repo's zsh runtime already puts on fpath
+    (~/.local/share/zsh/completions/_herdr, dot_zshrc.tmpl:96) and nothing
+    lands in the chezmoi-managed zsh tree (the _ollama_zsh_completion
+    dual-ownership trap); remove takes the file back out. Deliberately NOT
+    herdr's documented ~/.zfunc recipe — nothing here puts ~/.zfunc on
+    fpath, so that completion would be generated and never loaded (found
+    post-report 2026-09-19; the README and the topic moved together)."""
+    # mutation: write the completion into dotfiles/zsh/ instead of the
+    # on-fpath completions dir, or drop the remove-side cleanup — either
+    # must go red.
     install = hu_install_text()
     assert re.search(r"completion\s+zsh", install), (
         "install.yaml never runs `herdr completion zsh`"
     )
-    assert re.search(r"\.zfunc/_herdr\b", install), (
-        "install.yaml does not write the completion to ~/.zfunc/_herdr"
+    assert re.search(r"\.local/share/zsh/completions", install), (
+        "install.yaml does not write the completion to the on-fpath "
+        "completions dir (~/.local/share/zsh/completions)"
+    )
+    assert ".zfunc" not in install, (
+        "install.yaml still targets ~/.zfunc — on nobody's fpath in this "
+        "repo; the completion would be generated and never loaded"
     )
     remove = hu_remove_text()
-    assert re.search(r"\.zfunc/_herdr\b", remove), (
-        "remove.yaml does not remove ~/.zfunc/_herdr"
+    assert re.search(r"herdr_completion_path", remove), (
+        "remove.yaml does not remove the generated completion (it must tear "
+        "down herdr_completion_path; the lifecycle test pins defaults to "
+        "completions/_herdr)"
     )
+    assert ".zfunc" not in remove, "remove.yaml still references ~/.zfunc"
     stray = [p for p in ZSH_TREE.rglob("*") if p.is_file() and "herdr" in p.name]
     assert not stray, (
         f"completion leaked into the chezmoi zsh tree: {stray} — it is "
