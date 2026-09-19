@@ -475,7 +475,10 @@ nothing is.
   Apple Silicon (tart, UTM, Parallels — VirtualBox does not), image size, and
   Apple's licensing limit of two macOS VMs per host. Do not convert all 27 at
   once. Done when one Debian topic and one Darwin topic each have a scenario
-  that converges and passes `molecule test`'s idempotence step, the per-driver
+  that converges and passes `molecule test`'s idempotence step. **herdr is
+  the named first consumer** (judge round 1's accepted high gap: no
+  automated converge; its pytest suite already covers everything molecule
+  does not), the per-driver
   choice is written into `docs/TOPICS.md`, and the pytest suite still owns
   everything molecule does not — molecule tests convergence on a machine, not
   the repo's own logic. [blocked: needs the `--check` fix above, since a run
@@ -519,7 +522,11 @@ nothing is.
   itself; and `dotfiles/template_dir/` has no `tests/`, so the scaffold must
   grow one or topic 28 starts untested by default. Tests first on the next topic
   changed, per the pytest doctrine in `AGENTS.md` and `docs/PYTHON.md`, then
-  backfill rather than pausing to write 27 suites up front. Done when a
+  backfill rather than pausing to write 27 suites up front. **herdr is the
+  proven instance** (2026-09-19): full test-first via the author-swarm +
+  judge loop, 114 tests in central `tests/herdr/` — the destination stays
+  topic-local suites over a shared harness, and the enforcement gate (a
+  topic edit forces its tests) is the unlanded half. Done when a
   per-topic suite lives beside its topic over a shared harness (so topic 28
   inherits it instead of re-inventing it), collection reaches those suites, a
   staged change under `dotfiles/apps/<topic>/` runs that topic's tests and fails
@@ -730,6 +737,14 @@ nothing is.
   Until this is settled the changelog grows one section and is still readable.
 
 ## Planned
+
+- Pin `community.general` (and `community.docker`) in
+  `dotfiles/requirements.yml` — declared but unpinned today, so a fresh
+  machine may install a different collection than the one a support grade
+  was recorded against (`dotfiles/docs/TOPIC-RECIPES.md`, module-vs-shell
+  ladder). Decide the pin policy: exact version vs minor-floating; the
+  launchd grade (A, 2026-09-19) is the record to pin against. Pinning
+  changes fleet-wide upgrade behavior, hence queued.
 
 - Reconcile `tests/permissions/test_permission_tiers.py` with the deliberate
   settings change `9df508d`: history rewriting (`git filter-repo`) moved from
