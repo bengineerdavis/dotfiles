@@ -1,0 +1,17 @@
+[Unit]
+Description=herdr agent-runtime server (headless)
+# A per-user unit: same ownership as a macOS launchd agent, no root. It only
+# fires while the user has a session; with-linger is the author's call, never
+# a silent behaviour change from this topic.
+After=network-online.target
+
+[Service]
+# %h is systemd's home token — resolved at runtime, never written out.
+# The shim path is stable across mise upgrades; a version-pinned
+# mise/installs/herdr/<version>/herdr path would break on the first upgrade.
+ExecStart=%h/.local/share/mise/shims/herdr server
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

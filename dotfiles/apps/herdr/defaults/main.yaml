@@ -1,0 +1,30 @@
+# defaults/main.yaml — topic-local knobs for herdr.
+#
+# herdr_catalogue_path resolves from the ROLE path, not the playbook path, so
+# the parent playbook and run-role.sh land on the same file (the interim
+# direct-read contract; TOPIC-RECIPES.md shared-catalogue recipe). Two levels
+# up from apps/herdr is the dotfiles root; config/agents.yaml sits beside
+# playbook.yaml's tree, not inside any topic.
+herdr_catalogue_path: "{{ role_path }}/../../config/agents.yaml"
+
+# Teardown gate: --tags remove preserves agent integration state by default
+# (house pattern, cf. vscode_remove_extensions). When true, the claimed AND
+# installed integrations are uninstalled BEFORE the service stops and the mise
+# entry is pruned — integrations first, service second, entry last (the entry
+# removal is the only step that needs nothing else; everything above it runs
+# while the binary still exists).
+herdr_remove_integrations: false
+
+# The launchd label (Darwin) and systemd unit name (Debian). One name each,
+# shared by install and remove — derive teardown from these, never from a
+# hand-copied list (spec.md § Layering — teardown changes with the thing it
+# creates; the ollama launchctl-unsetenv lesson).
+herdr_launchd_label: com.herdr.server
+herdr_systemd_unit: herdr-server.service
+
+# mise shims path — the stable binary path the service units point at
+# (never a version-pinned mise/installs/ path, which changes on upgrade).
+herdr_shims_dir: "{{ ansible_facts['user_dir'] }}/.local/share/mise/shims"
+
+# Server logs, topic-owned state under the XDG data dir.
+herdr_log_dir: "{{ ansible_facts['user_dir'] }}/.local/share/herdr/logs"

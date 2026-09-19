@@ -83,8 +83,10 @@ created (TASKS-RESOLVED § [5]).
     ├── README.md            # this file — the design record
     ├── CHANGELOG.md
     ├── playbook.yaml        # standalone runner
-    ├── defaults/main.yaml   # gate vars, catalogue path
+    ├── defaults/main.yaml   # gate vars, catalogue path, service names
     ├── tasks/main.yaml      # tag router [bootstrap|prerequisites|upgrade|install|remove(,never)]
+    ├── tasks/bootstrap.yaml     # app-tier stub (router keeps all five files wired)
+    ├── tasks/prerequisites.yaml # app-tier stub (mise arrives via topic_requires)
     ├── tasks/install.yaml   # mise entry, integrations, service, completion
     ├── tasks/upgrade.yaml   # mise upgrade; never herdr update
     ├── tasks/remove.yaml    # gated, ordered: integrations → service → entry

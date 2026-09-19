@@ -1,0 +1,178 @@
+# tasks/remove.yaml — gated, ordered teardown: integrations → service → entry.
+#
+# The gate herdr_remove_integrations defaults false (house pattern, cf.
+# vscode_remove_extensions): a plain --tags remove preserves agent
+# integration state. The service and the mise entry are topic-owned
+# regardless. The entry removal is LAST — everything above it runs while the
+# herdr binary still exists, and only state the topic owns is touched:
+# integrations uninstall only the claimed ∩ installed intersection, the
+# service steps probe before they act, and the mise entry is probed before
+# `mise unuse` (first-party command; it writes the tracked mise config, which
+# is committed after the run as the capture).
+
+# ── integrations (gated) ─────────────────────────────────────────────────────
+
+- name: "Remove: read the integrations gate"
+  ansible.builtin.set_fact:
+    herdr_remove_gate_on: "{{ herdr_remove_integrations | bool }}"
+
+- name: "Remove: stat the agents catalogue (needed only when the gate is on)"
+  ansible.builtin.stat:
+    path: "{{ herdr_catalogue_path }}"
+  register: herdr_remove_catalogue_stat
+  when: herdr_remove_gate_on
+
+- name: "Remove: the catalogue must exist when the gate is on — the claimed set cannot be derived without it"
+  ansible.builtin.fail:
+    msg: >-
+      herdr_remove_integrations is on but the shared catalogue
+      {{ herdr_catalogue_path }} is missing — the claimed set cannot be
+      derived. Fix: restore dotfiles/config/agents.yaml.
+  when: herdr_remove_gate_on and not herdr_remove_catalogue_stat.stat.exists
+
+- name: "Remove: load the shared agents catalogue"
+  ansible.builtin.include_vars:
+    file: "{{ herdr_catalogue_path }}"
+    name: herdr_remove_catalogue
+  when: herdr_remove_gate_on
+
+- name: "Remove: resolve the claimed integration ids"
+  ansible.builtin.set_fact:
+    herdr_claimed_ids: >-
+      {{ (herdr_remove_catalogue.agent_integrations
+          | selectattr('topics', 'defined')
+          | selectattr('topics', 'contains', 'herdr')
+          | map(attribute='id') | list
+         + (herdr_remove_catalogue.agent_integrations
+            | rejectattr('topics', 'defined')
+            | map(attribute='id') | list)) }}
+
+- name: "Remove: read installed integration state from herdr (nonzero rc fails the run — unknown state refuses)"
+  ansible.builtin.command:
+    cmd: "{{ herdr_shims_dir }}/herdr integration status"
+  register: herdr_status_result
+  when: herdr_remove_gate_on
+  changed_when: false
+
+- name: "Remove: parse the status output as JSON (garbage raises here — unknown is never read as a claim)"
+  ansible.builtin.set_fact:
+    herdr_status_parsed: "{{ herdr_status_result.stdout | from_json }}"
+  when: herdr_remove_gate_on
+
+- name: "Remove: normalize the status wire shape (array or {integrations: [...]})"
+  ansible.builtin.set_fact:
+    herdr_status_records: >-
+      {{ herdr_status_parsed.integrations if herdr_status_parsed is mapping
+         else herdr_status_parsed }}
+  when: herdr_remove_gate_on
+
+- name: "Remove: the status records must be id+installed mappings — an unexpected shape refuses, never reads as empty"
+  ansible.builtin.assert:
+    that:
+      - herdr_status_records is sequence
+      - herdr_status_records | length == 0 or
+        (herdr_status_records[0] is mapping
+         and herdr_status_records[0].id is defined
+         and herdr_status_records[0].installed is defined)
+    fail_msg: >-
+      herdr integration status returned an unexpected shape — refusing to
+      plan a remove from unknown state (records:
+      {{ herdr_status_records | to_nice_json }})
+  when: herdr_remove_gate_on
+
+- name: "Remove: resolve the installed integration ids"
+  ansible.builtin.set_fact:
+    herdr_installed_ids: >-
+      {{ herdr_status_records | selectattr('installed') | map(attribute='id') | list }}
+  when: herdr_remove_gate_on
+
+- name: "Remove: resolve the claimed ∩ installed set (never everything installed, never phantom claims)"
+  ansible.builtin.set_fact:
+    herdr_uninstall_ids: >-
+      {{ herdr_claimed_ids | select('in', herdr_installed_ids) | list }}
+  when: herdr_remove_gate_on
+
+- name: "Remove: uninstall claimed and installed integrations (gated)"
+  ansible.builtin.command:
+    cmd: "{{ herdr_shims_dir }}/herdr integration uninstall {{ item }}"
+  loop: "{{ herdr_uninstall_ids | default([]) }}"
+  loop_control:
+    label: "{{ item }}"
+  when:
+    - herdr_remove_integrations | bool
+    - herdr_uninstall_ids | length > 0
+  register: herdr_uninstall_results
+  changed_when: true
+
+# ── service (topic-owned, ungated) ───────────────────────────────────────────
+
+- name: "Remove: probe whether the launchd agent is loaded (Darwin)"
+  ansible.builtin.command:
+    cmd: launchctl print gui/{{ ansible_facts['user_id'] }}/{{ herdr_launchd_label }}
+  register: herdr_remove_launchd_loaded
+  when: ansible_facts['os_family'] == 'Darwin'
+  changed_when: false
+  failed_when: false
+
+- name: "Remove: bootout the launchd agent (Darwin, only when loaded)"
+  ansible.builtin.command:
+    cmd: launchctl bootout gui/{{ ansible_facts['user_id'] }}/{{ herdr_launchd_label }}
+  when: ansible_facts['os_family'] == 'Darwin' and herdr_remove_launchd_loaded.rc == 0
+  changed_when: true
+
+- name: "Remove: probe whether the user manager knows the unit (Debian)"
+  ansible.builtin.command:
+    cmd: systemctl --user cat {{ herdr_systemd_unit }}
+  register: herdr_remove_unit_known
+  when: ansible_facts['os_family'] == 'Debian'
+  changed_when: false
+  failed_when: false
+
+- name: "Remove: stop and disable the server unit (Debian, only when known)"
+  ansible.builtin.systemd_service:
+    name: "{{ herdr_systemd_unit }}"
+    scope: user
+    state: stopped
+    enabled: false
+  when: ansible_facts['os_family'] == 'Debian' and herdr_remove_unit_known.rc == 0
+  changed_when: true
+
+- name: "Remove: delete the launchd plist (Darwin)"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/Library/LaunchAgents/com.herdr.server.plist"
+    state: absent
+  when: ansible_facts['os_family'] == 'Darwin'
+  register: herdr_remove_plist_result
+
+- name: "Remove: delete the systemd user unit (Debian)"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config/systemd/user/herdr-server.service"
+    state: absent
+  when: ansible_facts['os_family'] == 'Debian'
+  register: herdr_remove_unit_result
+
+- name: "Remove: reload the user manager after the unit removal (Debian)"
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+    scope: user
+  when: ansible_facts['os_family'] == 'Debian' and herdr_remove_unit_result.changed
+
+# ── topic-owned completion, then the mise entry (LAST) ───────────────────────
+
+- name: "Remove: delete the topic-owned zsh completion"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.zfunc/_herdr"
+    state: absent
+
+- name: "Remove: probe whether the global mise config declares herdr"
+  ansible.builtin.shell:
+    cmd: grep -q -e ^herdr {{ ansible_facts['user_dir'] }}/.config/mise/config.toml
+  register: herdr_remove_entry_probe
+  changed_when: false
+  failed_when: false
+
+- name: "Remove: unuse the herdr entry through mise (first-party command; commit the captured change after the run)"
+  ansible.builtin.command:
+    cmd: mise unuse --global herdr
+  when: herdr_remove_entry_probe.rc == 0
+  changed_when: true

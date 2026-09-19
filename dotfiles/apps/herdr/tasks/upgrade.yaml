@@ -1,0 +1,16 @@
+# tasks/upgrade.yaml — currency for a mise-managed install.
+#
+# mise owns upgrades for the tools it installs (TOPICS.md § Presence vs
+# currency; TOPIC-RECIPES.md: never self-update a manager-installed tool).
+# `herdr update` is valid for direct installs only and this topic must never
+# call it — that rule is enforced by tests/herdr/test_user_acceptance.py and
+# test_lifecycle_contract.py.
+
+- name: "Upgrade: herdr through mise, its owning manager"
+  ansible.builtin.command:
+    cmd: mise upgrade herdr --yes
+  register: herdr_upgrade_result
+  # mise prints `old -> new` when it upgrades something; a current install
+  # prints no arrow, so the second run of an upgraded fleet reports changed=0.
+  # The author's idempotence pass is the proof this predicate holds.
+  changed_when: "'->' in (herdr_upgrade_result.stdout ~ herdr_upgrade_result.stderr)"
