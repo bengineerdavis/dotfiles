@@ -43,6 +43,7 @@ defaults/main.yaml two dirs up from this script.
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import os
 import platform
@@ -707,6 +708,216 @@ def next_gen_candidates(family: str) -> list[str]:
             out.append(s)          # …and drop it: glm-5 (how glm-5.2 is named)
     seen = set()
     return [c for c in out if not (c in seen or seen.add(c))]
+
+
+# ── rewriting the manifest ──────────────────────────────────────────────────
+# Adopting a newer generation is a MANIFEST edit, and the manifest is more
+# comment than data: 499 of its 759 lines carry the measured rationale — tok/s
+# figures, eval scores, why deepseek-r1:32b was demoted, why glm-4.7-flash left
+# the `think` role, PROVISIONAL notes with dates. Those comments are the reason
+# the file is trustworthy, so the edit mechanism was chosen by measuring the
+# damage each one does to THIS file, not by reputation:
+#
+#   yaml.safe_load + yaml.dump   deletes all 499 comment lines. Disqualified.
+#   ruamel.yaml round-trip       keeps all 499 comment lines, and still rewrites
+#                                110 DATA lines on a no-op load-and-dump, tuned
+#                                as far as its knobs go (indent(2,4,2), a null
+#                                representer, preserve_quotes, width=4096). It
+#                                re-emits every flow mapping from the parsed
+#                                structure, so `{ gen_tok_s: 103.0, gb: 2.6 }`
+#                                loses the column alignment that makes
+#                                ollama_model_perf and ollama_remote_cost
+#                                readable as tables. 110 lines of collateral to
+#                                change 4 is the wrong trade.
+#   targeted line surgery        touches the family's own block and nothing
+#                                else. Costs no new dependency and reuses the
+#                                choice `browser-ext` already made for the same
+#                                reason — that file, too, is mostly comments.
+#
+# The catch with line surgery is that a regex is easy to get subtly wrong, and a
+# subtle wrong answer here silently corrupts the one file nobody re-derives. So
+# the write is gated: verify_rewrite() has to prove the result is the intended
+# one by three independent means before a byte is written, and refuses
+# otherwise. Measurements are reproducible — see tests/ollama_models/.
+def split_code_comment(line: str) -> tuple[str, str]:
+    """Split a YAML line into (code, comment). A `#` inside quotes is data.
+
+    Comments are never rewritten — they hold the rationale, and a family name
+    appears in plenty of them (the qwen3-vl note explains itself by comparison
+    with qwen3.6). Substitution applies to the code half only.
+    """
+    quote = ""
+    for i, ch in enumerate(line):
+        if quote:
+            if ch == quote:
+                quote = ""
+        elif ch in "\"'":
+            quote = ch
+        elif ch == "#" and (i == 0 or line[i - 1] in " \t"):
+            return line[:i], line[i:]
+    return line, ""
+
+
+def family_block(lines: list[str], family: str) -> tuple[int, int] | None:
+    """(start, end) line indices of `family:` within ollama_models, or None.
+
+    Members are indented four spaces or more; a sibling family key is indented
+    two, and a new section is indented none. So the block ends at the first line
+    whose CODE is non-empty and not four-space indented — which leaves blank
+    lines and comments inside the span, harmlessly, since neither is rewritten.
+    """
+    top = next((i for i, ln in enumerate(lines) if ln.startswith("ollama_models:")), None)
+    if top is None:
+        return None
+    head = re.compile(r"^  " + re.escape(family) + r":\s*($|#)")
+    start = next((i for i in range(top + 1, len(lines)) if head.match(lines[i])), None)
+    if start is None:
+        return None
+    end = len(lines)
+    for i in range(start + 1, len(lines)):
+        code = split_code_comment(lines[i])[0]
+        if code.strip() and not code.startswith("    "):
+            end = i
+            break
+    return start, end
+
+
+def retag_plan(members, family: str, new_family: str) -> list[tuple[str, str]]:
+    """[(old_tag, new_tag)] for every OS-keyed tag in the family, de-duplicated.
+
+    Only tags actually prefixed by the family are touched. The manifest states
+    that invariant ("every member's tag starts with it"); this enforces it
+    rather than assuming it, so a stray tag is left alone and then shows up as
+    a leftover in the diff the human reads.
+    """
+    pairs: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for m in members or []:
+        for key in OS_KEYS:
+            tag = m.get(key)
+            if not tag or not tag.startswith(family + ":") or tag in seen:
+                continue
+            seen.add(tag)
+            pairs.append((tag, new_family + tag[len(family):]))
+    return pairs
+
+
+def rewrite_family(text: str, family: str, new_family: str,
+                   pairs: list[tuple[str, str]]) -> str:
+    """Return `text` with the family key and its member tags renamed in place."""
+    lines = text.splitlines(keepends=True)
+    span = family_block(lines, family)
+    if span is None:
+        sys.exit(f"error: no `{family}:` family under ollama_models")
+    start, end = span
+    for i in range(start, end):
+        code, comment = split_code_comment(lines[i])
+        if not code.strip():
+            continue
+        if i == start:
+            # The family key only. Its trailing padding is left as-is, so a
+            # name of a different length shifts that ONE line's inline comment
+            # by the difference. Re-padding was considered and dropped: it
+            # would break the `code.replace(family, new_family) == result`
+            # oracle in verify_rewrite(), and trading the strongest integrity
+            # check for a column of whitespace is the wrong way round. Realign
+            # by hand in the same edit if it matters.
+            code = re.sub(r"^(\s*)" + re.escape(family) + r":",
+                          lambda m: m.group(1) + new_family + ":", code)
+        for old, new in pairs:
+            # `:` and `-` are in the boundary class, so `qwen3.6:27b-mlx`
+            # cannot match inside `qwen3.6:27b-mlx-bf16`.
+            #
+            # Honest note: mutation testing says this boundary is currently
+            # INERT. Deleting either half leaves all 41 tests passing, and not
+            # for want of a case — the mutants are equivalent. Every planned
+            # substitution is the same `family:` -> `newfamily:` prefix swap,
+            # so a match at the wrong offset produces the right answer anyway.
+            # It is kept as a guard against a future schema that plans two
+            # unrelated substitutions at once, and it is documented as
+            # defensive rather than proven, because claiming otherwise would
+            # be claiming a test that does not exist. The gate that IS proven
+            # is verify_rewrite(), which refuses the write.
+            #
+            # An earlier draft ALSO sorted the pairs longest-first. That was
+            # removed: two mechanisms for one invariant, both untestable
+            # because each hid the other.
+            code = re.sub(r"(?<![0-9A-Za-z._:/-])" + re.escape(old)
+                          + r"(?![0-9A-Za-z._:/-])", lambda m, n=new: n, code)
+        lines[i] = code + comment
+    return "".join(lines)
+
+
+def _intended_doc(doc: dict, family: str, new_family: str, mapping: dict) -> dict:
+    """`doc` with the family key renamed in place and its member tags mapped.
+
+    Built from the PARSED document rather than from text, so it is an oracle
+    independent of the line surgery it is checking.
+    """
+    out = copy.deepcopy(doc)
+    renamed = {}
+    for key, members in (out.get("ollama_models") or {}).items():
+        if key == family:
+            for m in members or []:
+                for os_key in OS_KEYS:
+                    if m.get(os_key) in mapping:
+                        m[os_key] = mapping[m[os_key]]
+            renamed[new_family] = members
+        else:
+            renamed[key] = members
+    out["ollama_models"] = renamed
+    return out
+
+
+def verify_rewrite(before: str, after: str, family: str, new_family: str,
+                   pairs: list[tuple[str, str]]) -> list[str]:
+    """Problems that must stop the write. Empty means the rewrite is clean.
+
+    Three independent checks, because any one of them can be satisfied by a
+    wrong answer:
+
+      TEXT       every comment line, and every untouched line, byte-identical;
+                 line count unchanged.
+      LINE       each changed line is reproduced by a naive whole-string family
+                 substitution on its code half — a different implementation
+                 from the boundary-aware regex that produced it, so the two
+                 disagreeing is a signal rather than a shared blind spot.
+      STRUCTURE  the reparsed document equals the intended document computed
+                 from the parse, with the family keys still in their original
+                 order (dict equality alone would not notice a reordering, and
+                 order is what `status` prints in).
+    """
+    problems: list[str] = []
+    b, a = before.splitlines(), after.splitlines()
+    if len(b) != len(a):
+        return [f"line count changed: {len(b)} -> {len(a)}"]
+
+    cb = [ln for ln in b if ln.lstrip().startswith("#")]
+    ca = [ln for ln in a if ln.lstrip().startswith("#")]
+    if cb != ca:
+        problems.append(f"comment lines changed: {len(cb)} -> {len(ca)}")
+
+    for n, (lb, la) in enumerate(zip(b, a), start=1):
+        if lb == la:
+            continue
+        code_b, com_b = split_code_comment(lb)
+        code_a, com_a = split_code_comment(la)
+        if com_b != com_a:
+            problems.append(f"line {n}: inline comment changed")
+        if code_b.replace(family, new_family) != code_a:
+            problems.append(f"line {n}: changed by something other than the retag")
+
+    try:
+        doc_b, doc_a = yaml.safe_load(before), yaml.safe_load(after)
+    except yaml.YAMLError as e:
+        problems.append(f"result is not valid YAML: {e}")
+        return problems
+    want = _intended_doc(doc_b, family, new_family, dict(pairs))
+    if doc_a != want:
+        problems.append("the reparsed document is not the intended one")
+    if list(doc_a.get("ollama_models") or {}) != list(want.get("ollama_models") or {}):
+        problems.append("family order changed")
+    return problems
 
 
 def cmd_prune(args, reserve, families, keep, ctx, roles):
