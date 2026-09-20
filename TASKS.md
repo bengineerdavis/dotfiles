@@ -525,7 +525,7 @@ nothing is.
   changed, per the pytest doctrine in `AGENTS.md` and `docs/PYTHON.md`, then
   backfill rather than pausing to write 27 suites up front. **herdr is the
   proven instance** (2026-09-19): full test-first via the author-swarm +
-  judge loop, 114 tests in central `tests/herdr/` — the destination stays
+  judge loop, 116 tests in central `tests/herdr/` — the destination stays
   topic-local suites over a shared harness, and the enforcement gate (a
   topic edit forces its tests) is the unlanded half. Done when a
   per-topic suite lives beside its topic over a shared harness (so topic 28

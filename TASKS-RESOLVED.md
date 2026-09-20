@@ -225,17 +225,29 @@ deleted.
   `dotfiles/config/agents.yaml` (opencode + claude wired, cursor
   skip-and-report, all 18 upstream ids wired-or-ignored); launchd gui-domain
   agent + systemd user unit at the stable shim path with health checks;
-  minimal `~/.config/herdr/config.toml`; topic-owned zsh completion into
-  `~/.zfunc/_herdr`; gated intersection-only teardown ordered integrations →
-  service → entry; upgrades route through `mise upgrade`, never the tool's
-  self-updater. **Done:** topic + catalogue exist and the swarm suite is green
-  (108 tests) with six mutations proven; the author's three real passes
-  (converge, second-run idempotence, remove) are QUEUED, not run — agents
-  never apply; the `mise upgrade` output predicate and `launchctl enable`
-  idempotence are recorded in the topic CHANGELOG as what those passes settle.
-  Collision event recorded: the shared symlinked mise config was rewritten by
-  another process mid-edit (entry removed and restored within a second) — the
-  hazard TASKS.md documents for that file, now observed live.
+   minimal `~/.config/herdr/config.toml`; topic-owned zsh completion into
+   `~/.local/share/zsh/completions/_herdr` (corrected post-entry:
+   `~/.zfunc` — herdr's documented recipe — is on nobody's fpath here, see
+   the topic CHANGELOG); gated intersection-only teardown ordered integrations →
+   service → entry; upgrades route through `mise upgrade`, never the tool's
+   self-updater. **Done:** topic + catalogue exist and the swarm suite is green
+   (116 tests as of the same-day close, from 108 at this entry's writing)
+   with mutations proven. The three passes RAN the same day under an
+   author-directed apply override (`78c9e55`): pass 1 green — the
+   `mise upgrade` predicate verified live and the launchd management moved
+   to `community.general.launchd` after a converge-pass fact-semantics bug
+   (`ansible_facts['user_id']` is the username); the remove pass died once
+   on an ungated claimed-ids reference (fixed, `9646f0f`) and the
+   re-converge died once on a misleading outdated raise over removed state
+   (fixed — upgrade now probes and relents, `1336766`); then the topic was
+   proven on this Mac (`20c7d20`). Post-entry corrections, all recorded in
+   the topic CHANGELOG: raw launchctl → the launchd module; `systemctl cat`
+   → `stat` (author-ratified ladder); the status grammar grew to
+   `current (vN)`; a test now compiles the task YAML's own regex strings
+   against the golden fixture (the double-escape class bit twice).
+   Collision event recorded: the shared symlinked mise config was rewritten by
+   another process mid-edit (entry removed and restored within a second) — the
+   hazard TASKS.md documents for that file, now observed live.
 - **Established the herdr test program: independent author-swarm + measured
   judge loop.** Author request 2026-09-19. Four fresh-context agents deduced
   the contract from written artifacts only and authored failing-first suites
