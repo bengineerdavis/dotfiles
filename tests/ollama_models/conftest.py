@@ -37,3 +37,10 @@ def om():
 def real_manifest() -> str:
     return MANIFEST.read_text()
 
+
+@pytest.fixture
+def manifest_copy(tmp_path) -> pathlib.Path:
+    """A writable copy of the real manifest, so no test can touch the original."""
+    dest = tmp_path / "main.yaml"
+    dest.write_text(MANIFEST.read_text())
+    return dest

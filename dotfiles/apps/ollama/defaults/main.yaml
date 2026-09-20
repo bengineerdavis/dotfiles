@@ -12,6 +12,9 @@
 #                         `ollama-models prune` to list orphans, then `ollama rm`)
 #   • check upstream    → `ollama-models check`  (new tags, new precision formats,
 #                         `--next-gen` probes for newer family generations)
+#   • adopt a newer gen → `ollama-models adopt <family> --to <newer> --dry-run`
+#                         retags one family in place, comments intact, pulling
+#                         nothing. Off unless ollama_model_update_scope allows it
 #
 # Organized by category → model family (name + generation, e.g. `qwen3.6`).
 # Each family key maps to a list of its members; the family key is the model
@@ -210,10 +213,11 @@ ollama_update_check_apply: false
 
 # Periodic "has the model set drifted from upstream?" check — the analogue of
 # ollama_update_check_* above, but for the MANIFEST rather than the binary.
-# Notify-only, and for a structural reason: `sync` pulls what the manifest
-# declares, and nothing edits the manifest. Adopting a newer generation is a
-# judgement, since the per-role notes here carry measured tok/s and eval
-# results, so the timer reports and a human decides.
+# Notify-only, and it stays that way: the timer never writes. `adopt` can edit
+# this file, but only when a human runs it and only within the scope set below.
+# Adopting a newer generation is a judgement, since the per-role notes here
+# carry measured tok/s and eval results, so the timer reports and a human
+# decides.
 #   _enabled    — install + enable the timer
 #   _oncalendar — weekly, not daily: probing every family costs minutes of
 #                 network and the answer rarely changes day to day. systemd
@@ -240,12 +244,42 @@ ollama_model_check_next_gen: false
 #           is no TTY, so an upgrade stays safe under cron and CI
 #   auto    pull without asking — the "I have the bandwidth and I trust the
 #           manifest" position. Set it deliberately; it can pull tens of GB
-#
-# This governs WEIGHTS only. Rewriting the manifest to adopt a newer tag is NOT
-# implemented: it needs a comment-preserving YAML round-trip (ruamel), because
-# pyyaml discards comments and the measured rationale on every role lives in
-# them. Until then, `check` tells you what to change and you edit this file.
 ollama_model_update_policy: prompt
+
+# WHAT the policy above may act on. Policy is how much say you want; scope is
+# over what. They are separate because the two answers are independent: "ask me
+# first" is a different statement from "you may edit this file".
+#   weights   pull weights only — what the policy governed before `adopt`
+#             existed, and still the default, so a manifest that says nothing
+#             keeps the behaviour it had
+#   manifest  `ollama-models adopt <family> --to <newer>` may rewrite THIS FILE
+#             to a newer generation. It pulls nothing; the new tags simply read
+#             MISSING until the next `sync`
+#   both      either
+#
+# Rewriting is now implemented, and the comment-preservation problem that held
+# it back was solved by measuring rather than by trusting a library. Both
+# candidates were round-tripped against this file with NO edit at all, so every
+# difference is gratuitous (2026-09-19, at 789 lines / 527 comments):
+#   pyyaml   deletes every comment line and reflows the whole file
+#   ruamel   tuned as far as its knobs go, keeps every comment line and still
+#            rewrites 110 DATA lines, because it re-emits flow mappings from
+#            the parsed structure and the aligned columns in ollama_model_perf
+#            below are whitespace it does not model
+#   shipped  targeted line surgery inside one family's block: 0 lines of
+#            collateral. A real `adopt granite4.1 --to granite4.2` moves 4.
+# So `adopt` edits lines, and refuses to write unless it can prove, three
+# independent ways, that nothing else moved. Neither library became a
+# dependency; the tool still declares only pyyaml, for reading.
+#
+# What `adopt` deliberately will NOT do, because each is a judgement and not a
+# mechanism: keep the previous generation alongside the new one for A/B (the
+# pattern several families below follow); repoint a role at the new tag; or
+# carry the measured figures in ollama_model_perf across. A measurement belongs
+# to the model it was taken on, so the numbers keep naming the old tag and the
+# roles keep naming the old pick — `status` and `check` report the resulting
+# role drift until a human resolves it.
+ollama_model_update_scope: weights
 
 # Installed tags that are intentionally NOT manifest members: `prune` never
 # lists them and `sync` never pulls them. Use this for bare `:latest` aliases

@@ -38,7 +38,17 @@ ollama-models check --next-gen    # additionally probe for newer family generati
                                   #   flagging any that are cloud-only (no local weights)
 ollama-models prune               # list installed models NOT in the manifest (orphans)
 ollama-models prune --remove      # delete those orphans (confirmed)
+ollama-models adopt <fam> --to <newer> --dry-run
+                                  # show the manifest edit that retags a family to
+                                  #   a newer generation; write nothing
+ollama-models adopt <fam> --to <newer>
+                                  # do it, after confirming. Pulls no weights
 ```
+
+Exit codes: `0` did it, or there was nothing to do · `1` error · `2` usage
+error (argparse's own, not ours to reuse) · `3` refused, by policy, by scope,
+or because nobody was there to confirm. A refusal is deliberately neither an
+error nor a success, so a caller can tell all three apart.
 
 `status` and `check` also report **role drift** — any tag named in `ollama_roles`
 that no family declares. Such a pick is unpullable by `sync` on a fresh host and
@@ -52,6 +62,73 @@ These map onto the lifecycle: `install`/`provision` runs `sync` (pull missing),
 `attachments` tag). The profile is resolved by `bootstrap/profile.sh`
 (`update.sh full` / `update.sh minimal`) and gated in `playbook.yaml` via
 `ansible_run_tags`.
+
+### Rewriting the manifest: `adopt`, and what guards it
+
+`sync` makes the machine match the manifest. `adopt` is the only thing that
+changes the manifest itself, and it pulls nothing — after it runs, the new tags
+read `MISSING` until you `sync`. That seam is the point: adopting a generation
+and downloading 60 GB are separate decisions.
+
+Two declarative knobs in `defaults/main.yaml` govern it, and they are separate
+because they answer different questions:
+
+| | | |
+|---|---|---|
+| `ollama_model_update_policy` | how much say you want | `skip` · `report` · `prompt` · `auto` |
+| `ollama_model_update_scope` | what that applies to | `weights` · `manifest` · `both` |
+
+`scope` defaults to **`weights`** — the behaviour the policy governed before
+`adopt` existed — so `adopt` refuses on a fresh checkout and names the one-line
+edit that enables it. `prompt` degrades to `report` with no TTY, the same
+degradation `playbook.yaml` applies, so the CLI and an Ansible run cannot reach
+different answers.
+
+**Why it does not use a YAML library.** This manifest is mostly comments, and
+those comments are the measured rationale — tok/s figures, eval scores, why
+`deepseek-r1:32b` was demoted. Both candidates were round-tripped against this
+exact file with **no edit at all**, so every difference below is gratuitous
+(measured 2026-09-19, at 789 lines / 527 comments):
+
+| approach | comment lines | data lines moved |
+|---|---|---|
+| `pyyaml` dump | 527 → **0** | whole file reflowed, 789 → 390 lines |
+| `ruamel.yaml`, tuned as far as its knobs go | 527 → 527 | **110** |
+| targeted line surgery (what ships) | 527 → 527 | **0** |
+
+ruamel keeps the comments and still re-emits every flow mapping from the parsed
+structure, so the aligned columns in `ollama_model_perf` and
+`ollama_remote_cost` collapse. A real `adopt granite4.1 --to granite4.2`
+changed **4 lines of 789**, all four of them tag lines. Neither library became
+a dependency as a result — the script still declares only `pyyaml`, which it
+already used for reading.
+
+Because a regex is easy to get subtly wrong, the write is gated: `verify_rewrite`
+must prove three independent ways that nothing else moved — every comment byte
+identical, each changed line reproduced by a naive substitution computed a
+different way, and the reparsed document equal to the intended one with the
+family order intact — or nothing is written at all.
+
+**What `adopt` refuses to do**, each because it is a judgement rather than a
+mechanism:
+
+- **Adopt a family only partly.** If any member has no build under the new
+  generation, the whole family is refused. Real example: `granite4.2:3b` exists
+  and `granite4.2:32b-a9b-h` does not, so `adopt granite4 --to granite4.2`
+  declines rather than half-migrating
+- **Guess.** The destination is verified against the registry first; an
+  unreachable registry is a refusal, not a reason to proceed
+- **Repoint a role.** Roles keep naming the old pick, and `status`/`check`
+  report the resulting role drift until a human resolves it
+- **Carry `ollama_model_perf` across.** A measurement belongs to the model it
+  was taken on
+- **Keep the old generation alongside the new one** for A/B, the pattern several
+  families here follow. That needs a rationale comment written by someone who
+  knows why
+
+One cosmetic caveat: a new family name of a different length shifts the inline
+comment on that one family-key line. Re-padding was rejected because it would
+break the strongest of the three integrity checks; realign by hand if it matters.
 
 ### Teardown is manual, on purpose (settled 2026-08-28)
 
@@ -228,12 +305,14 @@ without touching provisioning, and re-provision without re-litigating models.
 
 | | who | when |
 |---|---|---|
-| Which models are declared | **you**, editing `defaults/main.yaml` | whenever |
+| Which models are declared | **you**, editing `defaults/main.yaml` — by hand, or via `ollama-models adopt` | whenever |
 | Which models exist on a host | ansible → `ollama-models sync` | every provision/upgrade |
 | Evidence for the decision | `ollama-usage`, `ollama-bench`, `ollama-evals`, `ollama-models check` | on demand |
 
 Ansible **installs** the analysis tools and schedules exactly one of them; it
-never runs a benchmark, never reads a result, and never edits the manifest.
+never runs a benchmark, never reads a result, and never edits the manifest. The
+manifest can now be edited by `ollama-models adopt`, but only when a human runs
+it and only within `ollama_model_update_scope` — no scheduled job writes.
 
 ### `ollama-usage` — what actually gets used
 
@@ -339,7 +418,12 @@ regression", which is what a swap decision needs, not "answers better". See
 5. Edit `defaults/main.yaml` — **this is the only step that changes the set**.
    Add the tag to its family, not just to a role: a role pick no family declares
    is unpullable by `sync` and looks like an orphan to `prune` (`status` and
-   `check` report this as role drift)
+   `check` report this as role drift).
+
+   For a whole-family generation bump, `ollama-models adopt <family> --to
+   <newer> --dry-run` does step 5 mechanically and shows the diff first. It
+   deliberately does **not** do the role repoint or the A/B keep — those carry
+   the rationale that makes this file worth trusting, and stay hand-written
 6. `ollama-models sync`, then `prune` to reclaim the old weights
 
 ### Dependency contract
