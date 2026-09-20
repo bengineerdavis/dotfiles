@@ -254,3 +254,15 @@ deleted.
   `tests/herdr/calibration/ROUNDS.md`; method + pool recommendation in
   `dotfiles/docs/JUDGE-SELECTION.md`; generalizations in
   `dotfiles/docs/TOPIC-RECIPES.md` for the next topic.
+
+- **Pinned the ansible collections (O1 exact) — resolved via the research-swarm pilot.**
+(ai-prompt-library
+  `skills/research/pilots/2026-09-19-requirements-pin.md`): **O1 — exact
+  pins** (`community.general 13.0.1`, `community.docker 5.2.1`, the graded
+  versions) with the bump signal wired into `docs/REFERENCES.md`'s
+  quarter-boundary habit; a bump is a deliberate re-grade (edit, commit,
+  reinstall, re-run affected suites, re-stamp grades). **O4 (Renovate
+  automation) deferred with a reopen trigger**: adopt when the collection
+  set grows past a handful, a missed-update incident occurs, or the queued
+  scheduled-runner service lands and wants a job. Landed in
+  `dotfiles/requirements.yml` + the REFERENCES row.
