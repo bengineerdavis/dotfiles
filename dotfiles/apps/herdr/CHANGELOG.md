@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- 2026-09-19: **Machine passes complete — the topic is proven on this Mac.**
+  Converge after the upgrade-relent fix: `ok=25 changed=5 failed=0` (entry
+  re-added, plist/launchd/completion/log-dir recreated, health check green,
+  integrations pre-read as current). Remove: `ok=8 changed=4 failed=0` —
+  the gate-off teardown proven live (integrations stay, service stops,
+  plist/completion removed, mise entry pruned). The upgrade-relent fix was
+  exercised for real: the post-remove re-converge hit the dangling shim and
+  skipped-with-report instead of dying (that first attempt's failure
+  produced the fix). Recorded corrections: 1336766 accidentally committed
+  the entry removal (staging verified the diff existed, not its content) —
+  corrected in abfb799; the earlier `ok=1` converge recap attributed to
+  running the runner from the wrong cwd (no such topic playbook). Golden
+  fixture matches the live state (opencode v12, claude v10) — no
+  reconciliation needed.
+
 - 2026-09-19: **Converge pass 1 (complete): server running; pre-read regex
   double-escape caught by the recap and fixed.** Recap: ok=24 changed=2
   failed=0. The launchd module task worked end to end (unloaded → started,
