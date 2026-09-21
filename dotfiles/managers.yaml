@@ -64,13 +64,13 @@ managers:
 
   apt:
     module: ansible.builtin.apt
-    used_by: 5           # docker, clamav, lynis, mise, ollama
+    used_by: 6           # docker, clamav, lynis, mise, ollama, deb-get
     playbook_vars: []
     become: true         # the only manager here that needs it
     upgraded_by: system_role   # apps/apt
     os: [Debian]
     notes: >-
-      become: true appears in exactly the five apt-using topics and nowhere
+      become: true appears in exactly the six apt-using topics and nowhere
       else — the correlation is total, which is why a scaffold can infer it.
       `deb:` accepts a URL and downloads it, so installing a published .deb
       needs no separate get_url step.

@@ -6,5 +6,5 @@
 # Run the parent playbook only after these are installed.
 
 collections:
-  - name: community.general    # homebrew, homebrew_cask, snap modules
+  - name: community.general    # homebrew, homebrew_cask, snap modules; bitwarden/onepassword lookups
   - name: community.docker     # docker_image module
