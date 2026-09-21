@@ -62,8 +62,6 @@ is exactly the collision it exists to prevent.
 
 Format: `- <UTC start> — <what> — <files or resource>`
 
-- 2026-09-17 03:58 UTC — governance-docs consolidation (#1) — TASKS.md now; spec.md, PRD.md, AGENTS.md, docs/, dotfiles/docs/ next
-
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
