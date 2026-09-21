@@ -1,0 +1,11 @@
+# tasks/prerequisites.yaml — app-tier stub.
+#
+# herdr's prerequisite is mise, declared in topic_requires and resolved by
+# roles/topic-resolution against apps/mise's topic_provides — nothing to
+# install here. The import stays so the router keeps all five lifecycle files
+# wired (tests/herdr/test_lifecycle_contract.py).
+- name: "Prerequisites: nothing to install for herdr (app-tier stub)"
+  ansible.builtin.debug:
+    msg: >-
+      mise is herdr's only prerequisite (topic_requires: [mise]); the
+      topic-resolution role guarantees it before this topic runs.

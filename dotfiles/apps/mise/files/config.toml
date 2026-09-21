@@ -8,6 +8,12 @@ pipx.uvx = true
 # mise 2027.1.0). For GitHub release binaries use "github:owner/repo". Any ubi:
 # entry still here is legacy and migrates to github: when touched.
 "cargo:https://github.com/sondr3/git-ignore" = { version = "branch:main", crate = "git-ignore-generator" }
+# herdr — the agent-runtime server (apps/herdr). The entry is owned by that
+# topic through mise's first-party commands: `mise use -g herdr` on install,
+# `mise unuse --global herdr` on remove, probe-first so both are no-ops once
+# converged. This line is the capture those commands write through the
+# deployed symlink; upgrades come from `mise upgrade`, never `herdr update`.
+herdr = "latest"
 # Encryption for bin/quarantine. aqua: resolves upstream's own release binaries
 # rather than a third-party plugin. age is a single static binary with no
 # network behaviour, and its file format is documented and stable — which is

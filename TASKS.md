@@ -344,6 +344,56 @@ nothing is.
   the mechanism was verified against `master`, not the installed 0.5.3, so
   that check is the confirmation. [me]
 
+- **Input to the normative topic spec: lift the settled herdr decisions from
+  `dotfiles/docs/TOPIC-RECIPES.md` and `dotfiles/apps/herdr/README.md`.**
+  Queued 2026-09-19: the spec session should absorb the install-mechanism
+  chooser, the catalogue pattern (with its skip-vs-raise doctrine), the
+  service-ownership rules and the test-first swarm recipe from those two docs
+  rather than re-deriving them; `dotfiles/docs/JUDGE-SELECTION.md` feeds the
+  panel-of-judges measurement item. Done when the spec either expresses these
+  or records a reasoned rejection. [me]
+
+- **Write the normative spec for topics — a `spec.md` for the topic unit.
+  More urgent than the design work below it.** Queued 2026-09-17 ahead of
+  the downstream-IDE wiring so that work lands against a settled constraint
+  layer rather than after it. House spec form (SHALL/MUST with BDD
+  scenarios, skillet-validatable, carrying its `skillet-version` comment),
+  a sibling to the root `spec.md`: what a topic is and must remain — the
+  lifecycle contract, the CRUD ownership invariant, `topic.yml` as the
+  schema of record, template conformance, shared-dep teardown rules, the
+  guard doctrine. `TOPICS.md` then reduces to plain explanation that links
+  to the spec for binding wording — two normative statements of one rule
+  drift; an explanation plus a link does not. **Input to the spec, by the
+  author 2026-09-17:** the vscode↔cursor downstream-IDE design below is a
+  deliberate probe of how upstream/downstream relationships between topics
+  should be declared and governed — its settled outcome normalizes "topics
+  as a format" and must be expressible in the spec's terms. Done when the
+  spec exists, `skillet validate` passes on it, `TOPICS.md` cites it
+  instead of restating its SHALLs, and the author's adopt call is
+  recorded. **In progress elsewhere** (author, 2026-09-17) — do not start
+  from another session. [me]
+- **Design the cadence by which topics pull in and refresh official
+  upstream references, so topics track their tools proactively.** Queued
+  2026-09-17 by the author: topics bind to external tools whose docs,
+  changelogs and release feeds move, and today the repo learns of upstream
+  change only reactively — the skillet pin needed a changelog read before
+  moving, `docs/REFERENCES.md` records "when last checked" by hand, and
+  cursor/vscode extension availability is being verified per editor only
+  because something broke. The design must settle: what each topic declares
+  about its upstream (a source list in the topic — docs URL, changelog or
+  release feed, the `REFERENCES.md` row it feeds); what cadence means here
+  (per-topic intervals, one repo-level sweep tied to `--tags upgrade`, or a
+  machine timer — noting launchd on macOS and the systemd *user* timer rule
+  on Debian); where fetched deltas land so they become work (a queue line,
+  a report, a drift subcommand in the topical CLI) rather than vanishing;
+  and how it composes with the extension-manifest design above, whose
+  per-extension availability verdicts are the first instance of this same
+  problem. **The cadence fetcher is a build** — the AGENTS.md ladder
+  applies: route it (ai-prompt-library, llocallabs, or the topical CLI
+  work) before any code is written here; machine-side wiring such as a
+  timer is the only part that provisions. Done when a written design
+  answers those questions with the destination decided through the ladder,
+  and the wiring lands as queued tasks. [me]
 - **Spec the zsh tooling standard — author interview first, then a
   review-best-practices pass, then council critique.** Queued by the author
   2026-09-16, from the LANGUAGES.md zsh row: ~90 `.zsh` files are zsh
@@ -606,7 +656,10 @@ nothing is.
   Apple Silicon (tart, UTM, Parallels — VirtualBox does not), image size, and
   Apple's licensing limit of two macOS VMs per host. Do not convert all 27 at
   once. Done when one Debian topic and one Darwin topic each have a scenario
-  that converges and passes `molecule test`'s idempotence step, the per-driver
+  that converges and passes `molecule test`'s idempotence step. **herdr is
+  the named first consumer** (judge round 1's accepted high gap: no
+  automated converge; its pytest suite already covers everything molecule
+  does not), the per-driver
   choice is written into `docs/TOPICS.md`, and the pytest suite still owns
   everything molecule does not — molecule tests convergence on a machine, not
   the repo's own logic. [blocked: needs the `--check` fix above, since a run
@@ -650,7 +703,11 @@ nothing is.
   itself; and `dotfiles/template_dir/` has no `tests/`, so the scaffold must
   grow one or topic 28 starts untested by default. Tests first on the next topic
   changed, per the pytest doctrine in `AGENTS.md` and `docs/PYTHON.md`, then
-  backfill rather than pausing to write 27 suites up front. Done when a
+  backfill rather than pausing to write 27 suites up front. **herdr is the
+  proven instance** (2026-09-19): full test-first via the author-swarm +
+  judge loop, 116 tests in central `tests/herdr/` — the destination stays
+  topic-local suites over a shared harness, and the enforcement gate (a
+  topic edit forces its tests) is the unlanded half. Done when a
   per-topic suite lives beside its topic over a shared harness (so topic 28
   inherits it instead of re-inventing it), collection reaches those suites, a
   staged change under `dotfiles/apps/<topic>/` runs that topic's tests and fails
@@ -862,6 +919,108 @@ nothing is.
 
 ## Planned
 
+
+- Reconcile `tests/permissions/test_permission_tiers.py` with the deliberate
+  settings change `9df508d`: history rewriting (`git filter-repo`) moved from
+  deny to ask in `.claude/settings.json`, but the tier test still asserts
+  deny — so the full suite reports 1 failed / 631 passed (observed 2026-09-19
+  during the herdr work; the failure is environmental, not new). Decide
+  whether the test follows the settings (policy intent: ask) or the settings
+  revert (policy intent: deny) — that is a PERMISSIONS.md decision, not a
+  test-side edit.
+
+- Migrate the mise `python.uv_venv_auto` setting before mise 2027.7.0 removes
+  it — mise warned the deprecation during the herdr work (2026-09-19:
+  `python.uv_venv_auto=true` must become `python.uv_venv_auto="create|source"`
+  or `"source"` in `apps/mise/files/config.toml`).
+
+- **Build the subscription machinery: `topic_subscribes` + playbook
+  resolution + injection.** The mechanism half of the adopted system-config
+  model (resolved council entry, `TASKS-RESOLVED.md` 2026-09-17): a topic
+  declares `topic_subscribes: [<catalogue>]` in `topic.yml`; the parent
+  playbook validates each subscribed catalogue exists as
+  `dotfiles/config/<catalogue>.yaml` (unknown catalogue fails loudly naming
+  both sides), resolves each subscriber's slice — entries matching that
+  consumer, availability verdicts applied — and injects it as a var;
+  topics carry only a thin install-and-report loop over the list they were
+  handed, so unresolvable verdicts fail at the playbook layer before
+  anything installs. Resolution lives in `roles/`, per the
+  `roles/topic-resolution` precedent (playbook pre_task logic extracted
+  2026-09-15 so the playbook stays readable and the logic is testable —
+  `tests/topic_resolution/` is the shape to follow). **Gated on the
+  normative topic spec landing first** — the subscribes key is `topic.yml`
+  schema the spec governs — and on the catalogue seed in § Now. Tests
+  first and mutation-proven per `spec.md` § Verification; the resolution
+  filter is pure set/merge logic, so it takes a property test. Done when
+  resolution is tested, the playbook fails loudly on an unknown catalogue
+  or an unresolvable verdict, and the injected-var contract is documented
+  in `dotfiles/docs/TOPICS.md`. [me]
+- **Switch the visual-studio-code topic from the interim direct read to
+  playbook injection.** The topic is already wired (2026-09-17, § Now):
+  install/remove/upgrade consume `config/editors.yaml` through a
+  role-relative direct read with the thin loop and gated teardown. When
+  the subscription machinery above lands, replace the direct read with
+  `topic_subscribes` + the injected slice — behavior must not change, and
+  the switch is proven by being a no-op on the converged machine. Done
+  when the direct read is gone, `--check --tags provision` still converges
+  (changed=0), and the topic's CHANGELOG records the switch. [me]
+- **Wire the cursor topic and align it with the catalogue contract.** Same
+  contract as vscode: thin loop, gated `cursor_remove_extensions`,
+  currency — wired interim by direct read like vscode, switching to
+  injection when the machinery lands. The first real run settles the
+  pylance-class verdicts live and exercises the `substituted` tolerance
+  for `anysphere.cursorpyright` (probe evidence in the topic's CHANGELOG;
+  its catalogue entry sits in `editor_extensions_ignored`). Done when
+  `run-role.sh cursor` converges from the catalogue (author applies),
+  verdict lines print per entry, and the topic's CHANGELOG records the
+  contract. [me]
+
+- **Decide whether to add the `opencode-sentry-monitor` plugin to the
+  `apps/opencode` topic, and if so how.** Queued 2026-09-16 from the author's
+  request, which the agent stopped on. The npm package (MIT, v0.1.7,
+  `opencode-sentry-monitor`, by Scott Tolinski) is an OpenCode plugin that
+  captures session lifecycle, tool-execution spans, and token usage, and by
+  default also tool inputs/outputs and model request/response text
+  (`recordInputs`/`recordOutputs` default `true`), then ships them to a Sentry
+  project. That is an egress path, and `dotfiles/policy/ethics.yaml` forbids
+  egress that is automated end-to-end or bypasses human review
+  (`egress.may_be_automated_end_to_end: false`,
+  `egress.may_bypass_human_review: false`) while `spec.md` § Policy requires
+  every sending tool to consult `policy check` and treat unknown as denied. A
+  third-party plugin cannot call the resolver. **Do not add it without the
+  author's explicit decision — the telemetry is the whole question.** If
+  approved, the shape is an npm entry in `apps/mise/files/config.toml` plus a
+  `plugin` entry in `dot_config/opencode/opencode.jsonc.tmpl`, with the egress
+  override recorded as an author decision and the recording flags settled.
+  Done when the author has answered and the answer is recorded or the plugin
+  is wired. [me]
+- **Make opencode permission rules deterministically editable, per config
+  (project or global).** Queued 2026-09-16 as the other half of the
+  permission fix. Hand-editing the JSONC is error-prone in a specific,
+  demonstrated way: opencode matches the **last** rule (`evaluate` uses
+  `findLast`; `fromConfig` keeps declaration order), so a trailing
+  `"*": "ask"` silently shadows every allow above it and every `deny`
+  carve-out anchored below it. The global config shipped that bug until
+  2026-09-16 — `git`, `find`, `wc` and `echo` were declared but inert, and
+  `find . -delete` fell through to `ask` instead of the intended `deny`. The
+  tool must read and write JSONC without dropping comments or reordering
+  keys; set or update a rule in a named config (a project `opencode.json`, or
+  the global `~/.config/opencode/opencode.jsonc`, which here is a chezmoi
+  templated source); normalise the ordering invariant (catch-all first,
+  carve-outs after the allow they narrow); and report the merged effect of
+  global + project rules for a command, since the scopes deep-merge and the
+  project scope wins. **Not the right place to build this now.** It is a tool
+  build (AGENTS.md ladder, so route before writing code), it belongs with
+  `topical` — the CLI the ROADMAP gives the "abstracts configuration
+  management and updates" job, itself scheduled A1–A7 and unlanded — and it
+  depends on `apps/opencode` owning its own config (the integrations-phase
+  task in § Now) and on the tooling destination (ai-prompt-library /
+  llocallabs, per the move manifest). If that route is declined, say so in
+  this line rather than starting a script here. Done when the destination is
+  decided and a command idempotently updates a named opencode config's
+  permission rules, preserves the file's comments and key order, enforces the
+  ordering invariant, and is proven by a test that catches a reintroduced
+  trailing catch-all. [me]
 - **Design the replacement for the TASKS.md state-and-handoff process.** The
   queue has become a second codebase: a handoff snapshot two machines rewrite
   under each other (the 2026-09-14 merge conflict was predicted and then real),

@@ -170,6 +170,55 @@
         - attachments_enabled | default(false) | bool
       tags: [install, provision]
 
+    - name: "ollama: resolve the model update policy (prompt needs a TTY)"
+      ansible.builtin.set_fact:
+        ollama_model_policy_effective: >-
+          {{ 'report'
+             if (ollama_model_update_policy | default('prompt') == 'prompt'
+                 and (ansible_facts['env']['TERM'] | default('dumb')) in ['', 'dumb'])
+             else (ollama_model_update_policy | default('prompt')) }}
+      when: "'ollama' in provides_map_run"
+      tags: [always]
+
+    - name: "ollama: preview what a refresh would re-pull (no downloads)"
+      ansible.builtin.command:
+        cmd: "{{ ansible_facts['env']['HOME'] }}/bin/ollama-models sync --refresh --dry-run"
+      environment:
+        PATH: "{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ homebrew_prefix }}/bin:/usr/local/bin:/usr/bin:{{ ansible_facts['env']['PATH'] }}"
+      register: ollama_models_preview
+      changed_when: false
+      when:
+        - "'ollama' in provides_map_run"
+        - attachments_enabled | default(false) | bool
+        - ollama_model_policy_effective | default('skip') != 'skip'
+      tags: [upgrade, attachments]
+
+    - name: "ollama: the proposed model change"
+      ansible.builtin.debug:
+        var: ollama_models_preview.stdout_lines
+      when: not (ollama_models_preview is skipped)
+      tags: [upgrade, attachments]
+
+    - name: "ollama: approve re-pulling the models listed above"
+      ansible.builtin.pause:
+        prompt: "Re-pull these models? tens of GB is possible. [y/N]"
+      register: ollama_models_answer
+      when:
+        - not (ollama_models_preview is skipped)
+        - ollama_model_policy_effective | default('skip') == 'prompt'
+      tags: [upgrade, attachments]
+
+    # `auto` is the saved "yes, always" — set ollama_model_update_policy: auto
+    # once and this stops asking. `report` never reaches the refresh below.
+    - name: "ollama: record whether the refresh is approved"
+      ansible.builtin.set_fact:
+        ollama_models_approved: >-
+          {{ (ollama_model_policy_effective | default('skip') == 'auto')
+             or ((ollama_models_answer.user_input | default('') | trim | lower)
+                 in ['y', 'yes']) }}
+      when: "'ollama' in provides_map_run"
+      tags: [upgrade, attachments]
+
     - name: "ollama: refresh changed manifest models to latest (upgrade + full — runs last)"
       ansible.builtin.command:
         cmd: "{{ ansible_facts['env']['HOME'] }}/bin/ollama-models sync --refresh"
@@ -180,4 +229,5 @@
       when:
         - "'ollama' in provides_map_run"
         - attachments_enabled | default(false) | bool
+        - ollama_models_approved | default(false) | bool
       tags: [upgrade, attachments]

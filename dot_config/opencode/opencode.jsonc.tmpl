@@ -22,9 +22,13 @@
     "grep": "allow",
     "list": "allow",
     "edit": "allow",
-    // Text transformers and read-only inspection are free; the find carve-outs
-    // sit after `find *` because the last matching rule wins. Deliberately NOT
-    // allowed (docs/PERMISSIONS.md tiers): xargs (executes piped input that the
+    // Read-only inspection and text transforms are free. The catch-all comes
+    // FIRST because opencode evaluates the LAST matching rule: a trailing
+    // `"*": "ask"` shadows every allow above it. That is exactly what this
+    // block did until 2026-09-16, so `git`, `find`, `wc`, `echo` and the rest
+    // were declared but never in force. The find carve-outs sit after
+    // `find *` for the same reason. Deliberately NOT allowed
+    // (docs/PERMISSIONS.md tiers): xargs (executes piped input that the
     // external_directory scan cannot see) and gita's mutating subcommands
     // (mass pull/push/checkout across every repo is the ask tier's job).
     "bash": {
@@ -34,17 +38,27 @@
       // this map was the reverse and never got a clean restart to show it).
       "*": "ask",
       "git *": "allow",
+      // `mise *` reaches arbitrary execution through `mise exec`/`mise run`,
+      // so this is a wide allow. Kept because mise is the machine's tool
+      // front-end; the repo config keeps `mise install`/`mise run setup` at
+      // ask, and edit that pairing together if this widens further.
+      "mise *": "allow",
+      "cat *": "allow",
+      "head *": "allow",
       "wc *": "allow",
       "sort *": "allow",
       "comm *": "allow",
       "uniq *": "allow",
       "echo *": "allow",
+      "printf *": "allow",
+      "grep *": "allow",
       "gita ls*": "allow",
       "gita status*": "allow",
       "find *": "allow",
       "find *-delete*": "deny",
       "find *-exec*": "deny",
-      "find *-execdir*": "deny"
+      "find *-execdir*": "deny",
+      "*": "ask"
     },
     "webfetch": "ask",
     "websearch": "ask",

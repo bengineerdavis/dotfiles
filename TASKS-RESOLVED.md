@@ -125,3 +125,156 @@ deleted.
   `os_family` branch, no hard-coded brew prefix, and install/remove via
   `community.general.homebrew` from the pinned tap, with a counterweight so
   it cannot pass vacuously. Mutation-proven.
+
+## 2026-09-17
+
+- **Brought the cursor topic to TOPICS.md conformance and verified it.**
+  The topic already existed and was live (installed on this Mac, parent
+  playbook discovers it); the residue was missing CHANGELOG.md, a
+  template-boilerplate README, and a dead pre-role `tasks.yaml`. Added the
+  dated CHANGELOG.md (antsibull categories; known-issues record the
+  auto_updates cask drift, the not-yet-designed extension gap, and the
+  OpenVSX marketplace difference), rewrote the README, removed `tasks.yaml`
+  (grep-verified unreferenced) in b117f86. Evidence:
+  `--syntax-check` clean; `--check --tags provision` converged
+  (ok=2 changed=0 failed=0); `--check --tags remove` reported the expected
+  would-change (changed=1 failed=0). Residue noted for others: `meld` and
+  `rectangle` still carry their `tasks.yaml`; the queued per-topic-suite
+  item owns cursor's tests when it lands.
+- **Refreshed `vs_extensions.txt` and recorded why nothing kept it
+  current.** Manifest was 18 entries against 40 actually installed
+  (`code --list-extensions`, 2026-09-17). Captured the live list (verified
+  identical by diff) in 8e25e32 and recorded the diagnosis in the vscode
+  topic's new CHANGELOG.md: the topic installs cask-only, export/import are
+  hand-run `.manual` scripts wired to nothing, so post-export installs stay
+  invisible to the repo. Wiring a refresh in belongs to the downstream-IDE
+  design item (still queued in § Now). Also recorded there: the `.manual`
+  scripts exist twice (topic root and `files/`).
+- **Ran the downstream-IDE advisor council; its owner-topic design was NOT
+  adopted — superseded by the author's system-config subscription model.**
+  Three advisors (architect, pragmatist, skeptic), two rounds with
+  cross-questioning, converged on: a data-only owner topic owning the
+  shared manifest, per-entry `editors:` scoping, dated add-time verdicts,
+  collect-fail-once, consumers declaring `topic_downstream_of` and
+  importing one shared loop, gated teardown before the cask, report-only
+  GUI drift. Author rejected that shape (2026-09-17) and adopted instead:
+  **topics never read topics** — shared truth lives in
+  `dotfiles/config/<domain>.yaml` (file per domain, folder-isolated from
+  playbook.yaml), a topic declares `topic_subscribes: [<catalogue>]` in
+  topic.yml, the parent playbook validates the catalogue, resolves the
+  subscriber's slice, and injects it; topics carry only thin
+  install-and-report loops; unresolvable verdicts fail at the playbook
+  layer before anything installs. What survived from the council into the
+  adopted shape: the manifest schema (`id`/`why`/`editors:`), dated
+  add-time verdicts, collect-then-fail-once, gated teardown ordering
+  (extensions before the cask), `--update-extensions` currency, report-only
+  drift, retiring the `.manual` scripts and `vs_extensions.txt`. What died:
+  the owner topic, `topic_downstream_of`, cross-topic `import_role`.
+  Empirical evidence recorded in `apps/cursor/CHANGELOG.md` known_issues:
+  the Anysphere substitution probe (anysphere.cursorpyright installs
+  unrequested alongside ms-python.python; machine restored to zero) and
+  the CLI facts. Wiring queued on the adopted shape (config seed in § Now;
+  machinery and both consumers in § Planned, gated on the topic spec).
+- **Seeded `dotfiles/config/editors.yaml` — the shared editor-extension
+  catalogue.** The data half of the adopted model, first file under the
+  new `config/` directory, in b4bc9db. Header states the subscription model, the four-part threshold for
+  earning a new catalogue file, and the fold-back rule. 40 entries seeded
+  from the live set, whys drafted for review with suspected overlaps
+  flagged in place (two env managers, two Jinja, two TOML, and
+  ktiays.aicursor's purpose unconfirmed). Verdicts dated from the
+  2026-09-17 Open VSX sweep of all 40: 36 shared with cursor, 4
+  vscode-only (pylance and the two closed-source Intellicodes as
+  predicted; jinliming2.vscode-go-template the surprise 404 — flagged in
+  its why for a drop-or-scope decision). The expected Anysphere extra
+  (anysphere.cursorpyright, substituted) recorded under
+  `editor_extensions_ignored`. Verified by a schema check: parse, count,
+  id-set equal to the live manifest, why present on every entry, verdict
+  dates present, 404-entries scoped. Note for the machinery task: plain
+  YAML scalars cannot contain `: ` — the review marker is "Review —" for
+  that reason.
+- **Updated the visual-studio-code topic: conformance, retirement of the
+  superseded record, and the interim catalogue wiring.** Author direction
+  2026-09-17 ("update vscode topic while we're here" then "also wire
+  now"). Three commits: the retirement (vs_extensions.txt and all four
+  `.manual` copies deleted; `removed_features` entry records the why —
+  the scripts were the drift mechanism — and notes the `files/` copies
+  clear from the deployed tree on next apply); the wiring (install/
+  remove/upgrade carry the interim direct-read contract — role-relative
+  catalogue path, slice resolution with topic-local isolation, one
+  verdict line per entry, fail-once naming unresolved ids, gated
+  teardown before the cask, `--update-extensions` currency; guarded by
+  the new `tests/config/test_editors_catalogue.py`, mutation-proven);
+  the conformance (real README describing the wired topic, dead
+  `tasks.yaml` out). Done-conditions met: retired files gone and
+  unreferenced (grep-verified before deletion), `--syntax-check` clean,
+  `--check --tags provision/install/upgrade` and `--tags remove` with the
+  gate both off and on all `failed=0`, verdict lines print per entry,
+  schema test red under mutation and green restored. Two bugs caught by
+  the checks, fixed in the wiring commit: ansible's filter is `intersect`
+  (not `intersection`), and the ignore-filter's Jinja precedence (filters
+  bind tighter than `+`) needed the reject to wrap the whole sum. Queue
+  revisions in the same session: the planned vscode task became the
+  injection switch, and the cursor task notes the interim contract. The
+  real convergence run (install as a no-op against the 40 already
+  installed) is the author's apply.
+- **Created the `herdr` topic, test-first, per the locked design.** Author
+  design Q&A 2026-09-18/19; agent work 2026-09-19. Both OSes; the binary
+  installs through mise with the topic owning the entry (probe-first
+  `mise use -g herdr`, `mise unuse --global herdr` last; the entry is
+  committed in `apps/mise/files/config.toml` as the capture); shared catalogue
+  `dotfiles/config/agents.yaml` (opencode + claude wired, cursor
+  skip-and-report, all 18 upstream ids wired-or-ignored); launchd gui-domain
+  agent + systemd user unit at the stable shim path with health checks;
+   minimal `~/.config/herdr/config.toml`; topic-owned zsh completion into
+   `~/.local/share/zsh/completions/_herdr` (corrected post-entry:
+   `~/.zfunc` — herdr's documented recipe — is on nobody's fpath here, see
+   the topic CHANGELOG); gated intersection-only teardown ordered integrations →
+   service → entry; upgrades route through `mise upgrade`, never the tool's
+   self-updater. **Done:** topic + catalogue exist and the swarm suite is green
+   (116 tests as of the same-day close, from 108 at this entry's writing)
+   with mutations proven. The three passes RAN the same day under an
+   author-directed apply override (`78c9e55`): pass 1 green — the
+   `mise upgrade` predicate verified live and the launchd management moved
+   to `community.general.launchd` after a converge-pass fact-semantics bug
+   (`ansible_facts['user_id']` is the username); the remove pass died once
+   on an ungated claimed-ids reference (fixed, `9646f0f`) and the
+   re-converge died once on a misleading outdated raise over removed state
+   (fixed — upgrade now probes and relents, `1336766`); then the topic was
+   proven on this Mac (`20c7d20`). Post-entry corrections, all recorded in
+   the topic CHANGELOG: raw launchctl → the launchd module; `systemctl cat`
+   → `stat` (author-ratified ladder); the status grammar grew to
+   `current (vN)`; a test now compiles the task YAML's own regex strings
+   against the golden fixture (the double-escape class bit twice).
+   Collision event recorded: the shared symlinked mise config was rewritten by
+   another process mid-edit (entry removed and restored within a second) — the
+   hazard TASKS.md documents for that file, now observed live.
+- **Established the herdr test program: independent author-swarm + measured
+  judge loop.** Author request 2026-09-19. Four fresh-context agents deduced
+  the contract from written artifacts only and authored failing-first suites
+  along lifecycle / catalogue+loop / user-acceptance / edge-stress dimensions;
+  two test-fixture bugs and one suite regex bug were caught by first red runs
+  and fixed in place. Judges calibrated against an injected-defect set
+  (`tests/herdr/calibration/`, key kept out of the judge-facing dossier after
+  run-1 contamination — one judge caught the leak unprompted); mid-round judge
+  `~deepseek/deepseek-pro-latest` returned ITERATE (2 high, 3 medium, 1 low);
+  all six triaged (two resolved with measured fixes — a golden transcript
+  against the real binary caught the `letta (experimental)` wire variant, and
+  the YAML-side grammar wiring exposed a latent double-escaping bug; one
+  accepted with a named home in the repo-queued molecule adoption); final
+  fusion panel (opus-4.7 + deepseek-pro + local qwen3.6:35b-mlx) returned SHIP
+  unanimously, no new high-severity gaps. **Done:** rounds recorded in
+  `tests/herdr/calibration/ROUNDS.md`; method + pool recommendation in
+  `dotfiles/docs/JUDGE-SELECTION.md`; generalizations in
+  `dotfiles/docs/TOPIC-RECIPES.md` for the next topic.
+
+- **Pinned the ansible collections (O1 exact) — resolved via the research-swarm pilot.**
+(ai-prompt-library
+  `skills/research/pilots/2026-09-19-requirements-pin.md`): **O1 — exact
+  pins** (`community.general 13.0.1`, `community.docker 5.2.1`, the graded
+  versions) with the bump signal wired into `docs/REFERENCES.md`'s
+  quarter-boundary habit; a bump is a deliberate re-grade (edit, commit,
+  reinstall, re-run affected suites, re-stamp grades). **O4 (Renovate
+  automation) deferred with a reopen trigger**: adopt when the collection
+  set grows past a handful, a missed-update incident occurs, or the queued
+  scheduled-runner service lands and wants a job. Landed in
+  `dotfiles/requirements.yml` + the REFERENCES row.

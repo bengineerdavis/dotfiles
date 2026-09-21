@@ -1,0 +1,283 @@
+# tasks/install.yaml — install herdr through mise, wire agent integrations
+# from the shared catalogue, own the server service, capture the zsh
+# completion. See dotfiles/apps/herdr/README.md and
+# dotfiles/docs/TOPIC-RECIPES.md (skip-vs-raise, tool-entry ownership).
+#
+# Ordering is load-bearing: the mise entry probe precedes `mise use` (so the
+# command is a no-op once converged); the presence check and integration loop
+# follow the entry (integrations need the binary it installs).
+#
+# Shell/cmd fallbacks in this file are author-ratified 2026-09-19
+# (module-vs-shell ladder, dotfiles/docs/TOPIC-RECIPES.md): third-party/
+# first-party CLI invocations (mise, herdr) and probe floors (grep -q
+# content check, `command -v` PATH probe, `systemctl --user is-active`
+# health read) — no module exists for any of them; rc is always read
+# directly, never through a pipe.
+#
+# NOTE on the mise entry: `mise use -g` writes through the deployed symlink
+# into the tracked apps/mise/files/config.toml. That is the design: the run
+# leaves the repo dirty by design and the entry change is committed as the
+# capture (TASKS.md § Cross-session hazards). This topic never writes that
+# file directly — only mise's own first-party commands touch it.
+
+- name: "Install: probe whether the global mise config already declares herdr"
+  ansible.builtin.command:
+    cmd: grep -q -e ^herdr {{ ansible_facts['user_dir'] }}/.config/mise/config.toml
+  register: herdr_mise_entry_probe
+  changed_when: false
+  failed_when: false
+
+- name: "Install: claim the herdr entry in the global mise config (first-party command; commit the captured change after the run)"
+  ansible.builtin.command:
+    cmd: mise use -g herdr
+  register: herdr_mise_use
+  when: herdr_mise_entry_probe.rc != 0
+  changed_when: true
+
+- name: "Install: confirm herdr resolves through the mise shim"
+  ansible.builtin.command:
+    cmd: "{{ herdr_shims_dir }}/herdr --version"
+  register: herdr_version_probe
+  changed_when: false
+  failed_when: false
+
+- name: "Install: herdr must be present after the entry — raise with the named fix"
+  ansible.builtin.fail:
+    msg: >-
+      herdr is not installed after the mise entry ran (probe rc
+      {{ herdr_version_probe.rc }}). Fix: run `mise use -g herdr` manually and
+      re-run this topic. Never use the tool's own self-updater — it is valid
+      for direct installs only; a mise-managed install is upgraded by
+      `mise upgrade`.
+  when: herdr_version_probe.rc != 0
+
+# ── the shared agents catalogue (interim role-relative direct read) ─────────
+
+- name: "Install: stat the shared agents catalogue"
+  ansible.builtin.stat:
+    path: "{{ herdr_catalogue_path }}"
+  register: herdr_catalogue_stat
+
+- name: "Install: the catalogue must exist — the slice cannot be derived without it"
+  ansible.builtin.fail:
+    msg: >-
+      The shared catalogue {{ herdr_catalogue_path }} is missing. Fix: create
+      it (dotfiles/config/agents.yaml, editors.yaml pattern — see
+      dotfiles/docs/TOPIC-RECIPES.md, shared-catalogue recipe).
+  when: not herdr_catalogue_stat.stat.exists
+
+- name: "Install: load the shared agents catalogue"
+  ansible.builtin.include_vars:
+    file: "{{ herdr_catalogue_path }}"
+    name: herdr_agents_catalogue
+
+- name: "Install: resolve the ignored ids (never delivered to a subscriber)"
+  ansible.builtin.set_fact:
+    herdr_ignored_ids: >-
+      {{ herdr_agents_catalogue.agent_integrations_ignored
+         | map(attribute='id') | list }}
+
+- name: "Install: resolve this subscriber's slice (shared by default, minus ignored)"
+  ansible.builtin.set_fact:
+    herdr_slice_entries: >-
+      {{ (herdr_agents_catalogue.agent_integrations
+          | selectattr('topics', 'defined')
+          | selectattr('topics', 'contains', 'herdr')
+          | list
+         + (herdr_agents_catalogue.agent_integrations
+            | rejectattr('topics', 'defined')
+            | list))
+         | rejectattr('id', 'in', herdr_ignored_ids) | list }}
+
+# ── the skip-vs-raise integration loop ──────────────────────────────────────
+# Per entry: install runs only when the probe binary resolves AND the agent's
+# config dir exists (herdr itself refuses a missing config dir, so the topic
+# declines first). Either condition missing = skipped with a report naming
+# BOTH conditions; an absent agent never fails the run. herdr failing is the
+# raise, handled above.
+
+- name: "Install: resolve each integration's probe binary on PATH (mise shims first)"
+  ansible.builtin.shell:
+    cmd: command -v {{ item.probe | quote }} >/dev/null 2>&1
+  environment:
+    PATH: "{{ herdr_shims_dir }}:{{ ansible_facts['env']['PATH'] }}"
+  loop: "{{ herdr_slice_entries }}"
+  register: herdr_probe_results
+  changed_when: false
+  failed_when: false
+
+- name: "Install: check each integration's agent config dir"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['user_dir'] }}/{{ item.config_dir | regex_replace('^~/', '') }}"
+  loop: "{{ herdr_slice_entries }}"
+  register: herdr_dir_results
+
+- name: "Install: classify entries into installable and skipped"
+  ansible.builtin.set_fact:
+    herdr_integration_state: >-
+      {%- set out = [] -%}
+      {%- for entry in herdr_slice_entries -%}
+      {%- set probe_result = (herdr_probe_results.results
+            | selectattr('item.id', 'equalto', entry.id) | list | first) -%}
+      {%- set dir_result = (herdr_dir_results.results
+            | selectattr('item.id', 'equalto', entry.id) | list | first) -%}
+      {%- set probe_ok = (probe_result.rc is defined and probe_result.rc == 0) -%}
+      {%- set dir_ok = dir_result.stat.exists -%}
+      {%- set verdict = ('skipped' if not (probe_ok and dir_ok) else 'wired') -%}
+      {%- set _ = out.append({
+            'id': entry.id,
+            'probe_ok': probe_ok,
+            'dir_ok': dir_ok,
+            'reason': entry.id ~ ': ' ~ verdict ~ ' — probe `' ~ entry.probe ~ '` '
+                      ~ ('on PATH' if probe_ok else 'not on PATH')
+                      ~ '; config dir ' ~ entry.config_dir ~ ' '
+                      ~ ('exists' if dir_ok else 'does not exist'),
+          }) -%}
+      {%- endfor -%}
+      {{ out }}
+
+- name: "Install: report skipped integrations (the decline direction; the run stays green)"
+  ansible.builtin.debug:
+    msg: "{{ item.reason }}"
+  loop: "{{ herdr_integration_state
+            | selectattr('probe_ok', 'equalto', false) | list
+            + herdr_integration_state
+              | selectattr('probe_ok') | rejectattr('dir_ok') | list }}"
+  loop_control:
+    label: "{{ item.id }}"
+  changed_when: false
+
+- name: "Install: read installed integration state before the loop (serverless status read; extension-after-adoption rule 2026-09-19)"
+  # herdr's re-install prints the same lines as a first install (measured on
+  # 0.9.1), so the loop keys changed_when on this pre-read instead of on
+  # output. A failed read is not fatal for an additive phase: the ids default
+  # to empty and the loop conservatively reports changed (author-ratified
+  # fallback; the ladder's grep-floor analogue).
+  ansible.builtin.command:
+    cmd: "{{ herdr_shims_dir }}/herdr integration status"
+  register: herdr_install_status_read
+  changed_when: false
+  failed_when: false
+
+- name: "Install: resolve the already-installed ids from the pre-read"
+  ansible.builtin.set_fact:
+    herdr_preinstalled_ids: >-
+      {{ herdr_install_status_read.stdout | default('')
+         | trim | split('\n')
+         | select('match', '^[a-z0-9-]+( \(experimental\))?: (installed|current \(v\d+\)) \(.+\)$')
+         | map('regex_replace', '^([a-z0-9-]+)(?: \(experimental\))?: (?:installed|current \(v\d+\)) \(.+\)$', '\1')
+         | list
+         if (herdr_install_status_read.rc | default(1)) == 0 else [] }}
+
+- name: "Install: wire herdr agent integrations (changed only where the pre-read showed absent)"
+  ansible.builtin.command:
+    cmd: "{{ herdr_shims_dir }}/herdr integration install {{ item.id }}"
+  loop: "{{ herdr_integration_state | selectattr('probe_ok') | selectattr('dir_ok') | list }}"
+  loop_control:
+    label: "{{ item.id }}"
+  register: herdr_install_results
+  changed_when: item.id not in herdr_preinstalled_ids
+  failed_when: false
+
+- name: "Install: raise once, naming every failed integration id and rc"
+  ansible.builtin.fail:
+    msg: >-
+      herdr integration install failed for:
+      {{ herdr_install_results.results | selectattr('rc', 'ne', 0)
+         | map(attribute='item.id') | join(', ') }}
+      (rcs: {{ herdr_install_results.results | selectattr('rc', 'ne', 0)
+              | map(attribute='rc') | join(', ') }})
+      — fix the named entries and re-run this topic.
+  when: herdr_install_results.results is defined
+        and (herdr_install_results.results | selectattr('rc', 'ne', 0) | list | length) > 0
+
+# ── the zsh completion (topic-owned, never vendored into the zsh tree —
+# the _ollama_zsh_completion dual-ownership lesson) ──────────────────────────
+
+- name: "Install: ensure ~/.local/share/zsh/completions exists"
+  ansible.builtin.file:
+    path: "{{ herdr_completion_path | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: "Install: generate the herdr zsh completion into ~/.local/share/zsh/completions/_herdr"
+  ansible.builtin.shell:
+    cmd: "{{ herdr_shims_dir }}/herdr completion zsh > {{ herdr_completion_path }}"
+  args:
+    creates: "{{ herdr_completion_path }}"
+
+# ── the server service (topic-owned daemon; teardown in remove.yaml) ────────
+
+- name: "Install: create the herdr log dir"
+  ansible.builtin.file:
+    path: "{{ herdr_log_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: "Install: deploy the launchd agent (Darwin)"
+  ansible.builtin.template:
+    src: com.herdr.server.plist.j2
+    dest: "{{ ansible_facts['user_dir'] }}/Library/LaunchAgents/com.herdr.server.plist"
+    mode: "0644"
+  when: ansible_facts['os_family'] == 'Darwin'
+  register: herdr_plist_result
+
+- name: "Install: manage the launchd agent through the native module (Darwin)"
+  # community.general.launchd handles the whole lifecycle idempotently:
+  # an UNLOADED service is loaded+started (first install); a changed plist
+  # triggers unload+load+start (no stale-definition restarts); a running
+  # service is left alone. check_mode support is full. (Replaced the raw
+  # bootout/bootstrap/enable chain 2026-09-19 after a real converge pass
+  # showed ansible_facts['user_id'] resolves to the USERNAME, not the uid,
+  # so `gui/<user_id>` was an unrecognized launchd target — the module needs
+  # no domain targeting at all. Tradeoff stated: the module uses the legacy
+  # load/unload verbs, deprecated upstream; revisit if macOS removes them.)
+  community.general.launchd:
+    name: "{{ herdr_launchd_label }}"
+    state: restarted
+    enabled: true
+  when: ansible_facts['os_family'] == 'Darwin'
+  register: herdr_launchd_result
+
+- name: "Install: health-check the server (Darwin; retries tolerate a slow boot)"
+  ansible.builtin.command:
+    cmd: "{{ herdr_shims_dir }}/herdr status server"
+  register: herdr_health_darwin
+  when: ansible_facts['os_family'] == 'Darwin'
+  until: herdr_health_darwin.rc == 0
+  retries: 3
+  delay: 5
+  changed_when: false
+
+- name: "Install: deploy the systemd user unit (Debian)"
+  ansible.builtin.template:
+    src: herdr-server.service.j2
+    dest: "{{ ansible_facts['user_dir'] }}/.config/systemd/user/herdr-server.service"
+    mode: "0644"
+  when: ansible_facts['os_family'] == 'Debian'
+  register: herdr_unit_result
+
+- name: "Install: reload the user manager after a unit change (Debian)"
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+    scope: user
+  when: ansible_facts['os_family'] == 'Debian' and herdr_unit_result.changed
+
+- name: "Install: enable and start the server unit (Debian)"
+  ansible.builtin.systemd_service:
+    name: "{{ herdr_systemd_unit }}"
+    scope: user
+    enabled: true
+    state: started
+  when: ansible_facts['os_family'] == 'Debian'
+  register: herdr_service_start
+
+- name: "Install: health-check the server unit (Debian; retries tolerate a slow boot)"
+  ansible.builtin.command:
+    cmd: systemctl --user is-active {{ herdr_systemd_unit }}
+  register: herdr_health_debian
+  when: ansible_facts['os_family'] == 'Debian'
+  until: herdr_health_debian.rc == 0
+  retries: 3
+  delay: 5
+  changed_when: false

@@ -22,6 +22,7 @@ nothing changed — a stale date is the signal, not the version number.
 | [PEP 723](https://peps.python.org/pep-0723/) | approval record only — **not** the current spec | historical; cite PyPA instead | 2026-09-11 |
 | [PEP 508](https://peps.python.org/pep-0508/) — dependency specifiers | Final | the `dependencies` list inside PEP 723 blocks | 2026-09-11 (via 723) |
 | [skillet](https://www.npmjs.com/package/@sentry/skillet) | **1.7.0** pinned in `spec.md` footer | `spec.md`, every skill spec | 2026-09-11 |
+| [Ansible collections](https://docs.ansible.com/ansible/latest/galaxy/user_guide.html) (`community.general`, `community.docker`) | **13.0.1 / 5.2.1** exact-pinned in `dotfiles/requirements.yml` (O1, 2026-09-19) | every topic task invoking `community.general.*` / docker; the support-grade records pin to these | 2026-09-19 |
 | [copier](https://copier.readthedocs.io/) | 9.17.2 installed | planned templates; no inheritance, composition only | 2026-09-11 |
 | [GitHub community health files](https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/setting-guidelines-for-repository-contributors) | current docs | `CONTRIBUTING.md` placement | 2026-09-11 |
 | [no-ai-slop](https://github.com/petergyang/no-ai-slop) | vendored MIT @ 2026-09-02 | `~/.claude/skills/no-ai-slop/` | 2026-09-11 |

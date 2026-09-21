@@ -12,6 +12,6 @@ alias unlock-apt='sudo service packagekit restart'
 alias pull-attached='fetchurl -i attachments/conversation-*.txt -o attachments'
 alias openmail='mailbox "attachments/**" && support-summarized'
 alias anonymize='pii-redactor --assume-reviewed -i mail.md -o mail.redacted.md'
-alias extract='cat mail.md | triage --model qwen3.6:27b-mlx --platform "Sentry.io" --docs "https://docs.sentry.io" > triage.md'
+alias triage-mail='cat mail.md | triage --model qwen3.6:27b-mlx --platform "Sentry.io" --docs "https://docs.sentry.io" > triage.md'
 # top alias
-alias investigate='pull-attached && openmail && anonymize && extract && investigate'
+alias investigate='pull-attached && openmail && anonymize && triage-mail && investigate'

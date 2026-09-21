@@ -1,1 +1,20 @@
-# defaults/main.yaml
+# defaults/main.yaml — topic-local knobs for visual-studio-code.
+#
+# vscode_catalogue_path resolves from the ROLE path, not the playbook path,
+# so the parent playbook and run-role.sh land on the same file. Two levels
+# up from apps/visual-studio-code is the dotfiles root; config/editors.yaml
+# sits beside playbook.yaml's tree, not inside any topic.
+
+vscode_catalogue_path: "{{ role_path }}/../../config/editors.yaml"
+
+# Teardown gate: --tags remove preserves extension state by default (house
+# pattern, cf. chrome_remove_browser). When true, the claimed extensions
+# are uninstalled BEFORE the cask — the code CLI dies with the cask, so the
+# ordering is load-bearing.
+vscode_remove_extensions: false
+
+# Topic-local isolation. Extras are entries with id + why (same shape as
+# the catalogue's entries) — things only this editor wants. Ignored is a
+# list of ids this editor declines even when the catalogue shares them.
+vscode_extra_extensions: []
+vscode_ignored_extensions: []

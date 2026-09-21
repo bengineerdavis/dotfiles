@@ -38,6 +38,36 @@ mean.
   queued.
 - **Log, do not print,** for anything an agent may need to read back while
   debugging.
+
+## Dependency classes
+
+Four surfaces hold dependencies; each has its own add/remove rule. No
+`pyproject.toml` exists and none is planned; if one ever lands, the same rules
+map onto it (`uv add` / `uv add --dev`).
+
+1. **Script deps (PEP 723).** In each script's `# /// script` block. Add with
+   `uv add --script <file> <lib>`, never a hand edit; remove by deleting the
+   line — uv resolves the rest per run. Scripts that shell out check their
+   deps at runtime with `require()` and name the fix in the error (see
+   `bin/llm-ctx`).
+2. **Test-run deps.** The `uv run --with` list in `AGENTS.md` § Commands —
+   ephemeral: uv resolves and caches per run, nothing installs globally.
+   Add: the flag goes in the documented command AND the suite must
+   **skip, not error**, without it (`pytest.importorskip` at module level —
+   the jinja2 pattern in `tests/herdr/test_user_acceptance.py`). Remove:
+   drop the flag; an orphaned entry costs nothing but staleness.
+3. **Toolchain and tools.** `dotfiles/apps/mise/files/config.toml` — the
+   captured state. Add/remove by editing the entry and committing it (the
+   `github:` backend convention, never `ubi:`); upgrades come from
+   `mise upgrade`, never a tool's own updater.
+4. **Ansible collections.** `dotfiles/requirements.yml` (deployed beside
+   `ansible.cfg`; `ansible-galaxy collection install -r requirements.yml`
+   before the playbook runs). Declared but **unpinned** today — no
+   `version:` — so a machine installing today may get a different
+   collection than the one a support grade was recorded against
+   (`dotfiles/docs/TOPIC-RECIPES.md`, module-vs-shell ladder). Pinning
+   changes fleet-wide upgrade behavior, so it is queued as an author
+   decision rather than done here.
 - **Do not hide or wrap errors.** Swallowing an exception turns a fixable failure
   into a mystery. Where an error genuinely must not escape, convert it
   deliberately at a boundary and keep the message: `run_check` turns any raise
