@@ -1815,6 +1815,63 @@ and withdrawn — it reproduced the patterns, exactly as warned above.
 None open. The five that stood here were answered on 2026-09-11 and became
 tasks; see § Now and § Planned. Add new ones here rather than deciding them.
 
+## Sandbox isolation — verified findings, 2026-09-20
+
+Measured on this machine, for the coordination work in § Now. Recorded because
+the next session would otherwise re-probe it, and the `external_directory` deny
+makes that expensive.
+
+- **This box supports unprivileged bubblewrap.** `bwrap`, `podman`, `docker`,
+  `systemd-run`, `unshare` and `qemu-system-x86_64` are all on `PATH`;
+  `firejail`, `lima` and `colima` are absent. `user.max_user_namespaces` is
+  115796, and both `kernel.unprivileged_userns_clone` and
+  `kernel.apparmor_restrict_unprivileged_userns` are absent — no
+  Ubuntu-style userns restriction applies. The `overlay` module is present, so
+  an overlayfs upperdir can serve as a write audit trail.
+- **macOS has no equivalent, and that shapes the design.** No mount
+  namespaces, no Landlock, no overlayfs. Seatbelt (`sandbox-exec`) is the only
+  native path-level mechanism and is deprecated with an undocumented profile
+  language, though Chromium, Bazel, Nix, Codex CLI and Claude Code all ship it.
+  App Sandbox needs a signed bundle and cannot express an admin-supplied path
+  list; Endpoint Security needs an Apple-granted entitlement and a system
+  extension. So: **state the guarantee at the weakest platform**, make the
+  portable git-level path gate the invariant, and treat bwrap/Seatbelt as
+  defence in depth that turns a commit-time rejection into a write-time
+  `EACCES`. A future `sandbox-exec` removal is then an inconvenience, not a hole.
+- **A Linux VM on macOS is the wrong default for this threat model.** It buys a
+  hypervisor boundary against motivated attackers, which is not the stated
+  threat, and charges metadata-heavy filesystem performance plus unreliable
+  inotify across the boundary. The fast configuration keeps the repo *inside*
+  the VM, which converts the setup into remote development. Keep it as an
+  optional high-assurance mode only.
+- **Nothing in the ecosystem ships per-agent path subsets inside one shared
+  checkout.** Three independent sources agree — a ~90-project survey
+  (`webcoyote/awesome-AI-sandbox`), the shipping tools, and the council. Every
+  implementation does whole-workspace confinement per worktree or container.
+  Treat that convergence as evidence the original requirement was
+  over-specified: worktree-per-agent plus the push-time gate is the design.
+- **Adopt, don't build** (AGENTS.md ladder): `anthropic-experimental/sandbox-runtime`
+  wraps a process in Seatbelt-or-bubblewrap from one policy;
+  `treebeard` is an ephemeral git-worktree sandbox with copy-on-write and
+  network restriction — closest to what § Now specifies; `nixcage` and
+  `sandnix` are reference implementations of the two-backend split; `cco` is a
+  backend selector. Writing a third implementation here would be a build.
+  Name collision to avoid: three different projects are called
+  `sandbox-runtime` (Anthropic's, `carderne/`, and a Rust crate).
+- **Destructive git operations defeat any path allow-list.** `checkout`,
+  `restore`, `reset --hard`, `clean` and a stray `gc` destroy other agents'
+  work while touching only permitted paths. This is the strongest argument for
+  worktree-per-agent and for `.git` read-only inside worktrees.
+- **Allow-list directories, not files** — editors, formatters and compilers
+  write temp-file-plus-rename, which needs write permission on the directory.
+- **The cheapest high-value control is not confinement.** An out-of-scope write
+  is recoverable from git; `push --force`, `gh pr merge` and `npm publish` are
+  not. Deny push to protected refs and require human merge.
+- **The chezmoi deployed tree is the gap the portable layer cannot see.**
+  `~/bin` and `~/dotfiles` live outside the repo, so a git-level gate cannot
+  detect a `chezmoi apply` violation — only OS confinement can. That is the
+  strongest reason to keep bwrap despite its cost.
+
 ## Cross-session hazards
 
 Files with more than one session touching them recently. Check `git log -3 <file>`
