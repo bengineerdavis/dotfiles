@@ -1,0 +1,55 @@
+dotfiles/apps/deb-get/CHANGELOG.md
+  s_e58e7d7a101281::t_96bb2e5f3bbb9c 1-23
+dotfiles/apps/deb-get/README.md
+  s_e58e7d7a101281::t_beac87a8a9303b 1-108
+dotfiles/apps/deb-get/defaults/main.yaml
+  s_e58e7d7a101281::t_aaf5600ab857f6 1-31
+dotfiles/apps/deb-get/playbook.yaml
+  s_e58e7d7a101281::t_9949e8ed681635 1-20
+dotfiles/apps/deb-get/tasks.yaml
+  s_e58e7d7a101281::t_7e10ff5c3510fe 1-26
+dotfiles/apps/deb-get/tasks/apt-auth.yaml
+  s_e58e7d7a101281::t_e7d4c4a2d1ff56 1-113
+dotfiles/apps/deb-get/tasks/bootstrap.yaml
+  s_e58e7d7a101281::t_c43db4db5a7b14 1-86
+dotfiles/apps/deb-get/tasks/install.yaml
+  s_e58e7d7a101281::t_ccc123d179beba 1-20
+dotfiles/apps/deb-get/tasks/main.yaml
+  s_e58e7d7a101281::t_1c411a175f4ff3 1-36
+dotfiles/apps/deb-get/tasks/prerequisites.yaml
+  s_e58e7d7a101281::t_5c07e6c0f35620 1-13
+dotfiles/apps/deb-get/tasks/remove.yaml
+  s_e58e7d7a101281::t_c817f02ac43a3f 1-56
+dotfiles/apps/deb-get/tasks/token-resolution.yaml
+  s_e58e7d7a101281::t_b9ac9d733c2e76 1-145
+dotfiles/apps/deb-get/tasks/upgrade.yaml
+  s_e58e7d7a101281::t_bc502a916377eb 1-23
+dotfiles/apps/deb-get/tests/keyring-path-detection.yaml
+  s_e58e7d7a101281::t_fe4dded9c1855b 1-106
+dotfiles/apps/deb-get/tests/no-pubkey-parsing.yaml
+  s_e58e7d7a101281::t_2f4e4147455abe 1-58
+dotfiles/apps/deb-get/tests/token-resolution.yaml
+  s_e58e7d7a101281::t_00c19a9e722866 1-103
+dotfiles/apps/deb-get/tests/topic-metadata.yaml
+  s_e58e7d7a101281::t_8697800d1ae35e 1-40
+dotfiles/apps/deb-get/topic.yml
+  s_e58e7d7a101281::t_818289a2a95cb5 1-21
+dotfiles/apps/deb-get/vars/main.yaml
+  s_e58e7d7a101281::t_af8ea77d8122c1 1-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "beb0c2bcaa79abbc56c18cf82ba1e4ec89ef97db",
+  "prompts": {},
+  "sessions": {
+    "s_e58e7d7a101281": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f527f6ca7ffeVuv6UvJvGVICqR",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
