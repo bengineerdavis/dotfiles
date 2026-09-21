@@ -1,0 +1,19 @@
+# apps/bitwarden/topic.yml
+#
+# Topic metadata read by the parent playbook. See docs/TOPICS.md.
+
+# The Bitwarden CLI is managed by mise (apps/mise/files/config.toml declares
+# "bitwarden" = "latest"). This topic marks it as a dependency provider so
+# other topics can resolve tokens through it, and fails loudly if the CLI is
+# not on PATH.
+topic_name: bitwarden
+
+topic_provides: [bitwarden]
+
+# mise owns the actual binary installation.
+topic_requires: [mise]
+
+# Personal Linux tooling; macOS uses the 1Password topic or Homebrew separately.
+topic_os: [Debian]
+
+topic_tier: app

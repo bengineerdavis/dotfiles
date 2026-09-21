@@ -1,0 +1,7 @@
+# /home/bdavis/dotfiles/apps/bitwarden/tasks/upgrade.yaml
+# No-op lifecycle file for this marker topic.
+
+- name: "upgrade: no-op"
+  ansible.builtin.debug:
+    msg: "{{ role_name }}: upgrade is a no-op; the CLI binary is managed by apps/mise"
+  changed_when: false
