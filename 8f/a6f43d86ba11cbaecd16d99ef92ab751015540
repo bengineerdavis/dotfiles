@@ -1,0 +1,39 @@
+dotfiles/apps/1password/CHANGELOG.md
+  s_e58e7d7a101281::t_4f586649da29c7 1-10
+dotfiles/apps/1password/README.md
+  s_e58e7d7a101281::t_c77f0ad33dd0e6 1-30
+dotfiles/apps/1password/playbook.yaml
+  s_e58e7d7a101281::t_c2d121c9cfa3b3 1-15
+dotfiles/apps/1password/tasks/bootstrap.yaml
+  s_e58e7d7a101281::t_e3bdd73fa27a54 1-7
+dotfiles/apps/1password/tasks/install.yaml
+  s_e58e7d7a101281::t_ef281b469815a1 1-35
+dotfiles/apps/1password/tasks/main.yaml
+  s_e58e7d7a101281::t_f4408c68c9dba2 1-21
+dotfiles/apps/1password/tasks/prerequisites.yaml
+  s_e58e7d7a101281::t_56d63e7be4c6ad 1-7
+dotfiles/apps/1password/tasks/remove.yaml
+  s_e58e7d7a101281::t_1bd1a462cbff5c 1-7
+dotfiles/apps/1password/tasks/upgrade.yaml
+  s_e58e7d7a101281::t_0b19b313ccf61f 1-7
+dotfiles/apps/1password/tests/topic-metadata.yaml
+  s_e58e7d7a101281::t_7386d3235427ae 1-34
+dotfiles/apps/1password/topic.yml
+  s_e58e7d7a101281::t_7ef861f52db9d5 1-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8fa6f43d86ba11cbaecd16d99ef92ab751015540",
+  "prompts": {},
+  "sessions": {
+    "s_e58e7d7a101281": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f527f6ca7ffeVuv6UvJvGVICqR",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
