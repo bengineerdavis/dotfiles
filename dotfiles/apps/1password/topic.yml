@@ -1,0 +1,20 @@
+# apps/1password/topic.yml
+#
+# Topic metadata read by the parent playbook. See docs/TOPICS.md.
+
+# The 1Password CLI is managed by mise (apps/mise/files/config.toml declares
+# "1password-cli" = "latest"). This topic marks it as a dependency provider so
+# other topics can resolve tokens through it on work machines, and fails loudly
+# if the CLI is not on PATH.
+topic_name: 1password
+
+topic_provides: [1password]
+
+# mise owns the actual binary installation.
+topic_requires: [mise]
+
+# Declared for Debian work machines. macOS users typically get `op` via the
+# 1Password desktop app; set topic_os to [Darwin, Debian] if you want it there.
+topic_os: [Debian]
+
+topic_tier: app

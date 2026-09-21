@@ -1,0 +1,35 @@
+# apps/1password/tasks/install.yaml
+# Verify the 1Password CLI (`op`) is available. The binary itself is owned and
+# upgraded by the mise topic (see apps/mise/files/config.toml).
+
+- name: "Install: verify 1Password CLI is on PATH"
+  ansible.builtin.shell:
+    cmd: command -v op >/dev/null 2>&1
+    executable: /bin/bash
+  register: onepassword_cli_probe
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: "Install: fail loudly if op is missing"
+  ansible.builtin.fail:
+    msg: |
+      The 1Password CLI (`op`) is not on PATH.
+
+      The binary is managed by the mise topic; ensure this line is present in
+      apps/mise/files/config.toml under [tools]:
+
+          "1password-cli" = "latest"
+
+      Then run the mise topic first:
+
+          ./run-role.sh mise
+
+      After mise installs `op`, re-run this topic.
+  when: onepassword_cli_probe.rc != 0
+
+- name: "Install: report 1Password CLI version"
+  ansible.builtin.command:
+    cmd: op --version
+  changed_when: false
+  check_mode: false

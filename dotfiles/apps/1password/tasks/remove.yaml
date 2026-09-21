@@ -1,0 +1,7 @@
+# /home/bdavis/dotfiles/apps/1password/tasks/remove.yaml
+# No-op lifecycle file for this marker topic.
+
+- name: "remove: no-op"
+  ansible.builtin.debug:
+    msg: "{{ role_name }}: remove is a no-op; the CLI binary is managed by apps/mise"
+  changed_when: false
