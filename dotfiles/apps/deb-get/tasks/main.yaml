@@ -1,0 +1,36 @@
+# apps/deb-get/tasks/main.yaml — role lifecycle router
+#
+# Imports lifecycle subtask files with appropriate tags. The parent playbook
+# (or a standalone topic playbook) drives which phase runs via --tags.
+#
+# Token resolution is imported once at the top so it runs before any phase
+# that needs DEBGET_TOKEN, without duplicating across bootstrap/install/upgrade.
+# Auth repair is imported once for install/upgrade.
+
+- name: "Import token resolution tasks"
+  ansible.builtin.import_tasks: token-resolution.yaml
+  tags: [bootstrap, install, upgrade, provision]
+
+- name: "Import bootstrap tasks"
+  ansible.builtin.import_tasks: bootstrap.yaml
+  tags: [bootstrap, provision]
+
+- name: "Import prerequisites tasks"
+  ansible.builtin.import_tasks: prerequisites.yaml
+  tags: [prerequisites, provision]
+
+- name: "Import apt repository auth repair tasks"
+  ansible.builtin.import_tasks: apt-auth.yaml
+  tags: [install, upgrade, provision]
+
+- name: "Import upgrade tasks"
+  ansible.builtin.import_tasks: upgrade.yaml
+  tags: [upgrade, provision]
+
+- name: "Import install tasks"
+  ansible.builtin.import_tasks: install.yaml
+  tags: [install, provision]
+
+- name: "Import remove tasks"
+  ansible.builtin.import_tasks: remove.yaml
+  tags: [remove, never]

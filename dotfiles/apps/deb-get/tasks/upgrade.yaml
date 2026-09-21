@@ -1,0 +1,23 @@
+# apps/deb-get/tasks/upgrade.yaml
+# Topic-level upgrade logic for deb-get.
+#
+# System apt handles distro packages; this refreshes the deb-get package index
+# and upgrades only the packages deb-get installed. Token and auth resolution
+# are handled in tasks/main.yaml so they are not duplicated.
+
+- name: "Refresh deb-get's package index"
+  ansible.builtin.command:
+    cmd: "{{ debget_bin }} update"
+  environment:
+    DEBGET_TOKEN: "{{ debget_token | default('') }}"
+  become: true
+  changed_when: true
+
+- name: "Upgrade packages installed by deb-get"
+  ansible.builtin.command:
+    cmd: "{{ debget_bin }} upgrade --dg-only"
+  environment:
+    DEBGET_TOKEN: "{{ debget_token | default('') }}"
+  become: true
+  register: debget_upgrade_result
+  changed_when: "'0 upgraded' not in debget_upgrade_result.stdout"

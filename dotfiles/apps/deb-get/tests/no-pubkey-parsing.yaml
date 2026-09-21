@@ -1,0 +1,58 @@
+---
+# apps/deb-get/tests/no-pubkey-parsing.yaml
+#
+# Unit test for the NO_PUBKEY / 5xx message extraction in tasks/apt-auth.yaml.
+# Feeds captured apt-get update output to the same filters and asserts that
+# only the auth lines are selected.
+#
+# Run: ansible-playbook apps/deb-get/tests/no-pubkey-parsing.yaml
+# Safe: operates on a string; does not run apt.
+
+- name: "Test deb-get apt-auth message parsing"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+
+  vars:
+    debget_test_apt_output: |
+      Hit:1 http://archive.ubuntu.com/ubuntu jammy InRelease
+      Get:2 http://archive.ubuntu.com/ubuntu jammy-updates InRelease [119 kB]
+      W: An error occurred during the signature verification. The repository is not updated and the previous index files will be used. GPG error: https://cli.github.com/packages stable InRelease: The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 5612B36462313325
+      W: An error occurred during the signature verification. GPG error: https://apt.releases.hashicorp.com jammy InRelease: The following signatures couldn't be verified because the public key is not available: NO_PUBKEY FC9CA96ACA026560
+      E: Failed to fetch https://proget.makedeb.org/dists/prebuilt-mpr/InRelease  530  <none> [IP: 172.67.175.162 443]
+      E: The repository 'https://proget.makedeb.org prebuilt-mpr InRelease' is no longer signed.
+      N: Updating from such a repository can't be done securely, and is therefore disabled by default.
+      N: See apt-secure(8) manpage for repository creation and user configuration details.
+      N: Skipping acquire of configured file 'main/binary-i386/Packages' as repository 'http://deb.gierens.de stable InRelease' doesn't support architecture 'i386'
+
+  tasks:
+    - name: "Test: extract NO_PUBKEY lines and fetch-failure lines"
+      ansible.builtin.set_fact:
+        debget_test_no_pubkey: "{{ debget_test_apt_output.split('\n') | select('search', 'NO_PUBKEY') | list }}"
+        debget_test_fetch_failures: "{{ debget_test_apt_output.split('\n') | select('search', 'Failed to fetch') | list }}"
+
+    - name: "Assert both auth keys are detected"
+      ansible.builtin.assert:
+        that:
+          - debget_test_no_pubkey | length == 2
+          - "'5612B36462313325' in (debget_test_no_pubkey | join(' '))"
+          - "'FC9CA96ACA026560' in (debget_test_no_pubkey | join(' '))"
+        success_msg: "PASS: both NO_PUBKEY fingerprints detected"
+        fail_msg: "FAIL: NO_PUBKEY lines were {{ debget_test_no_pubkey }}"
+
+    - name: "Assert makedeb fetch failure is detected"
+      ansible.builtin.assert:
+        that:
+          - debget_test_fetch_failures | length == 1
+          - "'530' in (debget_test_fetch_failures | join(' '))"
+        success_msg: "PASS: fetch-failure outage line detected"
+        fail_msg: "FAIL: fetch-failure lines were {{ debget_test_fetch_failures }}"
+
+    - name: "Assert informational lines are not treated as auth failures"
+      ansible.builtin.assert:
+        that:
+          - debget_test_no_pubkey | select('search', 'i386') | length == 0
+          - debget_test_fetch_failures | select('search', 'i386') | length == 0
+        success_msg: "PASS: i386 warnings are not counted as auth failures"
+        fail_msg: "FAIL: i386 warnings leaked into auth results"

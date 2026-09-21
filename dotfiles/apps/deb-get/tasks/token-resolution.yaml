@@ -1,0 +1,145 @@
+# apps/deb-get/tasks/token-resolution.yaml
+# Resolve DEBGET_TOKEN from the configured secrets manager, falling back to
+# ~/.localrc and then the environment. Fails loudly if nothing yields a token.
+#
+# The lookup plugins require an unlocked session:
+#   - Bitwarden: bw CLI + BW_SESSION (from env or ~/.localrc)
+#   - 1Password: op CLI + signed-in session or OP_SERVICE_ACCOUNT_TOKEN
+#
+# This task file is imported from bootstrap.yaml, install.yaml, and upgrade.yaml
+# so a standalone --tags install or --tags upgrade run still has the token.
+
+- name: "Token: short-circuit if already provided"
+  ansible.builtin.set_fact:
+    debget_token_short_circuit: "{{ debget_token | default('') | length > 0 }}"
+
+- name: "Token: check if .localrc exists"
+  ansible.builtin.stat:
+    path: "{{ debget_localrc_file }}"
+  register: debget_localrc_stat
+  when: not debget_token_short_circuit | bool
+
+- name: "Token: read DEBGET_TOKEN from .localrc"
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      grep -E '^\s*export\s+DEBGET_TOKEN=' "{{ debget_localrc_file }}" 2>/dev/null \
+        | tail -n1 \
+        | sed -E "s/^\\s*export\\s+DEBGET_TOKEN=//; s/^['\\\"]//; s/['\\\"]$//"
+    executable: /bin/bash
+  register: debget_token_localrc_raw
+  changed_when: false
+  failed_when: false
+  when:
+    - not debget_token_short_circuit | bool
+    - debget_localrc_stat.stat.exists | default(false) | bool
+
+- name: "Token: read BW_SESSION from environment"
+  ansible.builtin.set_fact:
+    debget_bw_session_env: "{{ ansible_facts['env']['BW_SESSION'] | default('') }}"
+  when: not debget_token_short_circuit | bool
+
+- name: "Token: read BW_SESSION from .localrc"
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      grep -E '^\s*export\s+BW_SESSION=' "{{ debget_localrc_file }}" 2>/dev/null \
+        | tail -n1 \
+        | sed -E "s/^\\s*export\\s+BW_SESSION=//; s/^['\\\"]//; s/['\\\"]$//"
+    executable: /bin/bash
+  register: debget_bw_session_localrc_raw
+  changed_when: false
+  failed_when: false
+  when:
+    - not debget_token_short_circuit | bool
+    - debget_localrc_stat.stat.exists | default(false) | bool
+
+- name: "Token: determine effective BW_SESSION"
+  ansible.builtin.set_fact:
+    debget_bw_session: >-
+      {%- if (debget_bw_session_env | default('')) | length > 0 -%}
+      {{ debget_bw_session_env }}
+      {%- else -%}
+      {{ debget_bw_session_localrc_raw.stdout | default('') | trim }}
+      {%- endif %}
+  when: not debget_token_short_circuit | bool
+
+- name: "Token: probe bw CLI"
+  ansible.builtin.shell:
+    cmd: command -v bw >/dev/null 2>&1
+    executable: /bin/bash
+  register: debget_bw_probe
+  changed_when: false
+  failed_when: false
+  when: not debget_token_short_circuit | bool
+
+- name: "Token: resolve from Bitwarden"
+  ansible.builtin.set_fact:
+    debget_token: >-
+      {{ lookup('community.general.bitwarden', debget_bitwarden_item,
+                field='password', bw_session=debget_bw_session,
+                errors='ignore') | first | default('') }}
+  when:
+    - not debget_token_short_circuit | bool
+    - debget_secrets_manager == 'bitwarden'
+    - debget_bw_probe.rc | default(1) == 0
+    - debget_bw_session | default('') | length > 0
+
+- name: "Token: probe op CLI"
+  ansible.builtin.shell:
+    cmd: command -v op >/dev/null 2>&1
+    executable: /bin/bash
+  register: debget_op_probe
+  changed_when: false
+  failed_when: false
+  when:
+    - not debget_token_short_circuit | bool
+    - debget_secrets_manager == '1password'
+
+- name: "Token: resolve from 1Password"
+  ansible.builtin.set_fact:
+    debget_token: >-
+      {{ lookup('community.general.onepassword', debget_onepassword_uri,
+                errors='ignore') | first | default('') }}
+  environment:
+    OP_SERVICE_ACCOUNT_TOKEN: "{{ ansible_facts['env']['OP_SERVICE_ACCOUNT_TOKEN'] | default('') }}"
+  when:
+    - not debget_token_short_circuit | bool
+    - debget_secrets_manager == '1password'
+    - debget_op_probe.rc | default(1) == 0
+
+- name: "Token: fall back to .localrc DEBGET_TOKEN"
+  ansible.builtin.set_fact:
+    debget_token: "{{ debget_token_localrc_raw.stdout | default('') | trim }}"
+  when:
+    - not debget_token_short_circuit | bool
+    - debget_token | default('') | length == 0
+    - debget_token_localrc_raw.stdout | default('') | trim | length > 0
+
+- name: "Token: fall back to environment DEBGET_TOKEN"
+  ansible.builtin.set_fact:
+    debget_token: "{{ ansible_facts['env']['DEBGET_TOKEN'] | default('') }}"
+  when:
+    - not debget_token_short_circuit | bool
+    - debget_token | default('') | length == 0
+    - ansible_facts['env']['DEBGET_TOKEN'] | default('') | length > 0
+
+- name: "Token: fail loudly if unresolved"
+  ansible.builtin.fail:
+    msg: |
+      deb-get could not resolve DEBGET_TOKEN from any configured source.
+
+      Secrets manager selected: {{ debget_secrets_manager }}
+      Tried (in order): Bitwarden/1Password → ~/.localrc → environment variable.
+
+      Fix one of:
+        1. Bitwarden (default): ensure `bw` is on PATH, run `bw unlock`, and add
+           `export BW_SESSION=...` to {{ debget_localrc_file }}.
+        2. 1Password (work): ensure `op` is on PATH and either sign in or set
+           OP_SERVICE_ACCOUNT_TOKEN in {{ debget_localrc_file }} / env.
+        3. ~/.localrc: add `export DEBGET_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx`.
+        4. Environment: export DEBGET_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx.
+        5. Override: re-run with -e debget_token=ghp_xxxxxxxxxxxxxxxxxxxx.
+  when:
+    - not debget_token_short_circuit | bool
+    - debget_token | default('') | length == 0

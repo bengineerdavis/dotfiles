@@ -1,0 +1,113 @@
+# apps/deb-get/tasks/apt-auth.yaml
+# Repair missing or corrupt apt signing keys for repositories commonly added by
+# deb-get. This task is imported from install.yaml and upgrade.yaml so any auth
+# drift is caught loudly during both phases.
+#
+# Doctrine: "raise loudly" — every repaired key is reported, and any key that
+# cannot be repaired causes a clear failure naming the repository and the fix
+# path. Transient upstream HTTP 5xx errors are surfaced as warnings, not hidden.
+
+- name: "Auth: ensure modern keyrings directory exists"
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+  become: true
+
+- name: "Auth: discover where each known repo expects its keyring"
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      file=""
+      # Search both legacy .list and modern deb822 .sources files
+      while IFS= read -r candidate; do
+        if grep -ql "{{ item.repo_host }}" "$candidate" 2>/dev/null; then
+          file="$candidate"
+          break
+        fi
+      done < <(grep -RFl "{{ item.repo_host }}" /etc/apt/sources.list.d/ /etc/apt/sources.list 2>/dev/null || true)
+
+      if [[ -z "$file" ]]; then
+        # Repo not configured; use the modern default destination
+        echo "{{ item.default_dest }}"
+        exit 0
+      fi
+
+      dest=""
+      # Prefer deb822 Signed-By, then one-line signed-by= option
+      if [[ "$file" == *.sources ]]; then
+        dest=$(grep -ioP '(?<=^Signed-By:\s).*' "$file" 2>/dev/null | head -n1 || true)
+      fi
+      if [[ -z "$dest" ]]; then
+        dest=$(grep -oP '(?<=signed-by=)[^\] ]+' "$file" 2>/dev/null | head -n1 || true)
+      fi
+      if [[ -n "$dest" ]]; then
+        echo "$dest"
+      else
+        echo "{{ item.default_dest }}"
+      fi
+    executable: /bin/bash
+  become: true
+  register: debget_keyring_dest_results
+  changed_when: false
+  loop: "{{ debget_known_keyrings }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: "Auth: repair known signing keyrings"
+  ansible.builtin.get_url:
+    url: "{{ item.0.url }}"
+    dest: "{{ item.1.stdout | trim }}"
+    force: true
+    mode: "0644"
+    owner: root
+    group: root
+    timeout: "{{ debget_keyring_download_timeout }}"
+  become: true
+  register: debget_keyring_download_results
+  loop: "{{ debget_known_keyrings | zip(debget_keyring_dest_results.results) | list }}"
+  loop_control:
+    label: "{{ item.0.name }} -> {{ item.1.stdout | trim }}"
+
+- name: "Auth: report repaired keyrings"
+  ansible.builtin.debug:
+    msg: "✅ apt signing key refreshed: {{ item.item.0.name }} -> {{ item.item.1.stdout | trim }}"
+  loop: "{{ debget_keyring_download_results.results }}"
+  loop_control:
+    label: "{{ item.item.0.name }}"
+
+- name: "Auth: run apt-get update and capture remaining NO_PUBKEY errors"
+  ansible.builtin.shell:
+    cmd: "apt-get update 2>&1"
+    executable: /bin/bash
+  become: true
+  register: debget_apt_update_check
+  changed_when: false
+  failed_when: false
+
+- name: "Auth: extract remaining NO_PUBKEY warnings"
+  ansible.builtin.set_fact:
+    debget_remaining_no_pubkey: "{{ debget_apt_update_check.stdout_lines | select('search', 'NO_PUBKEY') | list }}"
+
+- name: "Auth: fail loudly if any repository is still unsigned"
+  ansible.builtin.fail:
+    msg: |
+      apt still reports missing public keys after deb-get's auth repair:
+
+      {{ debget_remaining_no_pubkey | join('\n') }}
+
+      The keyring URLs in vars/main.yaml may be stale, or the repository may
+      have changed its signing key. Add the correct URL, or fix the source
+      in /etc/apt/sources.list.d by hand.
+  when: debget_remaining_no_pubkey | length > 0
+
+- name: "Auth: warn about transient upstream outages"
+  ansible.builtin.debug:
+    msg: |
+      ⚠️ apt update reported non-auth fetch errors. These are upstream outages
+      or stale repository URLs and cannot be repaired by this topic:
+
+      {{ debget_apt_update_check.stdout_lines | select('search', 'Failed to fetch') | list | join('\n') }}
+  when: debget_apt_update_check.stdout is search('Failed to fetch')

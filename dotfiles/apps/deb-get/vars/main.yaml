@@ -1,0 +1,33 @@
+# apps/deb-get/vars/main.yaml
+# Derived internal values. Change defaults/main.yaml instead.
+---
+debget_bin: /usr/bin/deb-get
+
+# Packages required by the official deb-get install script and by deb-get
+# itself when it downloads .debs and repo metadata.
+debget_prerequisite_packages:
+  - curl
+  - jq
+  - lsb-release
+  - wget
+
+# Known 3rd-party apt repositories that frequently ship with missing or stale
+# signing keys after a deb-get install. Each entry maps the repository to the
+# URL that publishes its current keyring. The destination path should match the
+# signed-by= path in the corresponding .list/.sources file, or the modern
+# /etc/apt/keyrings/ location when deb-get manages it.
+#
+# These URLs are public official keyrings. If they change upstream, fetch the
+# new URL and update it here; the task will report the failure if the download
+# 404s.
+debget_known_keyrings:
+  - name: github-cli
+    repo_host: cli.github.com
+    url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
+    fallback_url: https://cli.github.com/packages/githubcli-archive-keyring.asc
+    default_dest: /etc/apt/keyrings/githubcli-archive-keyring.gpg
+
+  - name: hashicorp
+    repo_host: apt.releases.hashicorp.com
+    url: https://apt.releases.hashicorp.com/gpg
+    default_dest: /usr/share/keyrings/hashicorp-archive-keyring.gpg

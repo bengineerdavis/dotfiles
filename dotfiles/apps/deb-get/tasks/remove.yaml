@@ -1,0 +1,56 @@
+# apps/deb-get/tasks/remove.yaml
+# Explicit uninstall. Only runs under --tags remove.
+#
+# The apt sources and keyrings created by deb-get can be shared by other
+# packages the user wants to keep (e.g., gh from the GitHub CLI repo). By
+# default this removes only the deb-get package. Set
+# debget_remove_managed_repos=true to also remove the known keyrings and to
+# report any known sources that still exist so the user can remove them by hand.
+
+- name: "Remove: purge deb-get"
+  ansible.builtin.apt:
+    name: deb-get
+    state: absent
+    purge: true
+  become: true
+
+- name: "Remove: optionally remove known keyrings"
+  ansible.builtin.file:
+    path: "{{ item.default_dest }}"
+    state: absent
+  become: true
+  loop: "{{ debget_known_keyrings }}"
+  when: debget_remove_managed_repos | bool
+
+- name: "Remove: find known source files still on disk"
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      grep -RFl "{{ item.repo_host }}" /etc/apt/sources.list.d/ /etc/apt/sources.list 2>/dev/null || true
+    executable: /bin/bash
+  become: true
+  register: debget_known_source_files
+  changed_when: false
+  loop: "{{ debget_known_keyrings }}"
+
+- name: "Remove: optionally remove known source files"
+  ansible.builtin.file:
+    path: "{{ item.stdout | trim }}"
+    state: absent
+  become: true
+  loop: "{{ debget_known_source_files.results }}"
+  when:
+    - debget_remove_managed_repos | bool
+    - item.stdout | trim | length > 0
+
+- name: "Remove: report remaining known sources when not removing repos"
+  ansible.builtin.debug:
+    msg: |
+      deb-get package removed. These known sources/keyrings were left in place:
+
+      Keyrings: {{ debget_known_keyrings | map(attribute='default_dest') | list | join(', ') }}
+      Known sources still on disk: {{ debget_known_source_files.results | map(attribute='stdout') | select | list | join(', ') | default('none') }}
+
+      Re-run with --tags remove -e debget_remove_managed_repos=true to delete
+      them, or remove them manually if no other packages need them.
+  when: not (debget_remove_managed_repos | bool)

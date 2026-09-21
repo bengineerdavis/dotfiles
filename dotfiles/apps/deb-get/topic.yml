@@ -1,0 +1,21 @@
+# apps/deb-get/topic.yml
+#
+# Topic metadata read by the parent playbook. See docs/TOPICS.md.
+
+# Canonical name for the topic. Must match the directory under apps/.
+topic_name: deb-get
+
+# Provides the deb-get package manager so other topics can depend on it.
+topic_provides: [deb-get]
+
+# Needs apt because deb-get is a wrapper around apt for .debs from 3rd-party repos.
+# apt is a pkg-manager-tier topic in this repo, so it is ordered before deb-get.
+topic_requires: [apt]
+
+# deb-get is explicitly a Debian-family tool. It works on any system that can
+# install .deb packages (Debian, Ubuntu, derivatives).
+topic_os: [Debian]
+
+# Runs as an app-tier topic so the bitwarden topic (which provides the
+# DEBGET_TOKEN source) executes before deb-get does.
+topic_tier: app
