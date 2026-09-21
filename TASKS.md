@@ -217,6 +217,26 @@ nothing is.
   statutes, one maintained copy of each doc exists, and the open task list has
   been re-reviewed. [me]
 
+- **Switch the hook runner to prek and retire the pipx pre-commit.** Verified
+  2026-09-20: prek's unstaged-change mechanism is patch-to-cache, not
+  `git stash`. `crates/prek/src/cli/run/keeper.rs` captures unstaged work with
+  `git write-tree` + `git diff-index --binary`, writes it to
+  `~/.cache/prek/.../patches/{millis}-{pid}.patch` in a `0700` directory,
+  cleans the tree, runs hooks, then `git apply`s it back on drop — reverting
+  the hook's own changes first if they conflict, and restoring from a ctrl-C
+  cleanup handler. Neither `git.rs` nor `keeper.rs` contains `git stash`, so
+  the switch does not put hook runs on the shared `refs/stash` that already
+  holds two orphaned autostash entries — the one risk that gated this. prek
+  also disables `core.fsmonitor` for its own git calls and handles
+  `GIT_DIR`/`GIT_COMMON_DIR` worktree separation, which is useful precedent
+  for the coordination work. State today: `.git/hooks/pre-commit` is
+  pre-commit's (pipx 4.6.2, hardcoded interpreter), prek 0.5.3 is installed
+  via mise and wired to nothing. Done when one runner is installed and the
+  other removed, and a run against a tree with unstaged edits prints prek's
+  "Temporarily saving them to" line while `git stash list` stays unchanged —
+  the mechanism was verified against `master`, not the installed 0.5.3, so
+  that check is the confirmation. [me]
+
 - **Spec the zsh tooling standard — author interview first, then a
   review-best-practices pass, then council critique.** Queued by the author
   2026-09-16, from the LANGUAGES.md zsh row: ~90 `.zsh` files are zsh
