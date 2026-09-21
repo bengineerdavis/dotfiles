@@ -1697,7 +1697,12 @@ against this machine and must not be re-litigated.
   `snap` block that **zero topics use**, and that boilerplate is most of the 37
   commented-out module lines now sitting in topics that never wanted them.
   Emitting the one block a topic needs removes the category rather than
-  documenting it.
+  documenting it. **Also sweep for scaffold-residue artifacts when A9 runs**
+  (author, 2026-09-20): a topic-root `tasks.yaml` carrying unedited template
+  boilerplate is the known instance (deb-get ships one beside its real
+  `tasks/`; ollama carries the same leftover) — the sweep greps topics for
+  the template's comment markers and strips what no topic ever filled in,
+  rather than leaving dead boilerplate beside live tasks.
   **Do not build a second agent mechanism for the rest.** `migrate-to-roles.sh`
   already does this job and is the thing to absorb: it treats `template_dir/` as
   canonical, checks conformance with a **local** LLM (an Ollama chain —
