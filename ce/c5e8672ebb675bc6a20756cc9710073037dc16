@@ -1,0 +1,128 @@
+tests/herdr/calibration/defect-set-v1.md
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-86
+dotfiles/apps/herdr/topic.yml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-9
+tests/herdr/test_edge_stress.py
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-930
+tests/herdr/calibration/judge-dossier-r2.md
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-68
+dot_config/herdr/config.toml.tmpl
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-13
+dotfiles/apps/herdr/playbook.yaml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-14
+dotfiles/config/editors.yaml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-299
+dotfiles/apps/cursor/README.md
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1,3-24
+tests/herdr/calibration/ROUNDS.md
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-44
+tests/config/test_editors_catalogue.py
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-68
+dotfiles/apps/visual-studio-code/CHANGELOG.md
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-63
+dotfiles/apps/ollama/templates/com.ollama-models.check.plist.j2
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-31
+dotfiles/docs/JUDGE-SELECTION.md
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-120
+dotfiles/zsh/executable_aliases.zsh
+  s_e58e7d7a101281::t_9ad020e48e9e9e 15,17
+dotfiles/apps/ollama/defaults/main.yaml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 211-249
+dotfiles/playbook.yaml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 173-221,232
+dotfiles/apps/ollama/templates/ollama-models-check.service.j2
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-14
+tests/herdr/test_user_acceptance.py
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-576
+dotfiles/apps/ollama/templates/ollama-models-check.timer.j2
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-13
+dotfiles/apps/mise/files/config.toml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 11-16
+dotfiles/apps/visual-studio-code/tasks/install.yaml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 3-8,17-105
+opencode.json
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-60
+tests/herdr/fixtures/integration-status-herdr-0.9.1.txt
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-18
+dotfiles/apps/herdr/tasks/upgrade.yaml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-76
+dotfiles/apps/herdr/defaults/main.yaml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-35
+dotfiles/apps/herdr/tasks/main.yaml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-25
+dot_config/opencode/opencode.jsonc.tmpl
+  s_e58e7d7a101281::t_9ad020e48e9e9e 25-31,41-47,53-54,60-61
+dotfiles/apps/ollama/tasks/install.yaml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 788-856
+dotfiles/apps/visual-studio-code/tasks/upgrade.yaml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-6,8-11,13-16
+changelog.d/20260919_010000_bengineerdavis_herdr_topic.md
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-39
+tests/herdr/agents_contract.py
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-413
+dotfiles/apps/herdr/tasks/bootstrap.yaml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-10
+dotfiles/apps/herdr/templates/com.herdr.server.plist.j2
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-29
+dotfiles/apps/visual-studio-code/tasks/remove.yaml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 4-80
+tests/herdr/calibration/answer-key-v1.md
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-19
+dotfiles/apps/herdr/tasks/remove.yaml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-188
+docs/REFERENCES.md
+  s_e58e7d7a101281::t_9ad020e48e9e9e 25
+dotfiles/apps/herdr/README.md
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-148
+dotfiles/apps/herdr/CHANGELOG.md
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-132
+dotfiles/apps/herdr/tasks/prerequisites.yaml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-11
+TASKS.md
+  s_e58e7d7a101281::t_9ad020e48e9e9e 347-396,659-662,706-710,922-1023
+tests/herdr/test_catalogue_integrations.py
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-957
+dotfiles/docs/TOPIC-RECIPES.md
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-223
+dotfiles/apps/visual-studio-code/README.md
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1,3-6,8,10,12-16,18,20-36
+dotfiles/apps/cursor/CHANGELOG.md
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-44
+dotfiles/apps/herdr/tasks/install.yaml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-283
+dotfiles/apps/herdr/templates/herdr-server.service.j2
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-17
+docs/PYTHON.md
+  s_e58e7d7a101281::t_9ad020e48e9e9e 41-70
+dotfiles/config/agents.yaml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-127
+dotfiles/apps/visual-studio-code/defaults/main.yaml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-20
+dotfiles/requirements.yml
+  s_e58e7d7a101281::t_9ad020e48e9e9e 7-17,21,23
+  s_e58e7d7a101281::t_373161559ac5f0 20
+TASKS-RESOLVED.md
+  s_e58e7d7a101281::t_9ad020e48e9e9e 128-280
+tests/herdr/calibration/judge-dossier-r1.md
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-93
+AGENTS.md
+  s_e58e7d7a101281::t_9ad020e48e9e9e 298-317,630-631
+tests/herdr/test_lifecycle_contract.py
+  s_e58e7d7a101281::t_9ad020e48e9e9e 1-981
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cec5e8672ebb675bc6a20756cc9710073037dc16",
+  "prompts": {},
+  "sessions": {
+    "s_e58e7d7a101281": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f527f6ca7ffeVuv6UvJvGVICqR",
+        "model": "moonshotai/kimi-k2.7-code"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
