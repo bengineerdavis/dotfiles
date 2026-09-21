@@ -1,0 +1,23 @@
+dotfiles/managers.yaml
+  s_e58e7d7a101281::t_04d9954963f0b7 67,73
+dotfiles/requirements.yml
+  s_e58e7d7a101281::t_04d9954963f0b7 9
+dotfiles/roles/topic-resolution/defaults/main.yaml
+  s_e58e7d7a101281::t_04d9954963f0b7 8-9,13-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "120bc1b5d4bd0f4045527adb4e51ecf643c4becd",
+  "prompts": {},
+  "sessions": {
+    "s_e58e7d7a101281": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f527f6ca7ffeVuv6UvJvGVICqR",
+        "model": "moonshotai/kimi-k2.7-code"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
