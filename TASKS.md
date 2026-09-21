@@ -165,8 +165,43 @@ reversed earlier positions on purpose.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
+- **Bootstrap the multi-agent coordination layer — worktrees, frozen leases,
+  risk-tiered merge gates — then extract it to the copier template.** [#1,
+  reordered ahead of the governance consolidation by the author 2026-09-20]
+  Design settled this session with the author and a three-model council.
+  Structure: one worktree per agent session (its own index — the actual fix
+  for the `b3ad740`/`5692a86` mixed commits), one branch per task with
+  subtasks as *commits* rather than sub-branches, `.git` read-only inside
+  worktrees (Codex forces this; worktrees share `.git`, so a stray `gc` or a
+  `.git/hooks` write hits every agent), `rerere` on globally, and a
+  protected-ref deny so nothing irreversible lands unreviewed. Leases stack
+  rather than compete: the resolver *authors* an expansion from `topic.yml`
+  declarations, which is then **frozen** to a literal path list plus the
+  metadata commit hash, resolver version and a TTL — enforcement reads the
+  frozen artifact and never calls the resolver, which removes the TOCTOU hole
+  where a lease silently widens when someone else's merge lands. Bounds:
+  computation may only narrow (`effective = computed ∩ reviewed envelope ∩
+  policy`); dependency edges grant **read**, not write (transitive closure is
+  the canonical over-broadness bug); a commit may not widen the lease it was
+  made under; and a literal deny-list — policy paths, egress paths, secrets,
+  the deployed tree, resolver code, the lease store — outranks everything and
+  *is* the mechanical definition of the always-human-review tier. Conflict
+  detection is mechanical first (trial-merge plus duplicate `provides`, unmet
+  `requires` and cycles as hard errors on the **merged** tree, which no
+  per-branch gate can see), semantic later. **Measure merged-items-per-hour at
+  2, 3 and 5 agents before building anything for 10** — throughput in agent
+  count is plausibly non-monotonic, and if the curve flattens at 4 then most
+  of the machinery is solving a chosen problem rather than a real one. Done
+  when: worktree-per-agent is in use with `.git` read-only and `rerere` on; a
+  push-time path gate rejects out-of-lease paths and **has been seen to fail**
+  against a deliberately out-of-scope commit; the resolver rejects a
+  duplicate-`provides` merged tree; provenance trailers record
+  session/agent/model per commit; and the measured throughput curve is
+  recorded. [me]
+
 - **Consolidate the governance docs — PRD as the constitution, spec as the
-  derived statutes, conventions as the how-to.** [#1] Decided with the author
+  derived statutes, conventions as the how-to.** [#2, was #1 until the author
+  reordered the multiagent work ahead of it 2026-09-20] Decided with the author
   2026-09-16: PRD states each requirement once; spec derives its testable
   SHALL/BDD form and cites the principle back; AGENTS-referenced convention
   docs explain how to comply. The four docs are currently peers with no stated
