@@ -3,6 +3,10 @@
 # else stays default. `herdr --default-config` prints the full commented set
 # (208 keys at 0.9.1) when another opinion forms.
 
+# Written by the server on first start (2026-09-19) and captured here so an
+# apply does not re-trigger the onboarding flow.
+onboarding = false
+
 # The stable channel. (Homebrew, mise and nix installs ignore the preview
 # channel regardless — this pins the intent for direct-install fallbacks too.)
 update.channel = "stable"
