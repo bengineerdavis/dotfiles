@@ -62,8 +62,6 @@ is exactly the collision it exists to prevent.
 
 Format: `- <UTC start> — <what> — <files or resource>`
 
-- 2026-09-17 03:58 UTC — governance-docs consolidation (#1) — TASKS.md now; spec.md, PRD.md, AGENTS.md, docs/, dotfiles/docs/ next
-
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
@@ -1361,6 +1359,15 @@ nothing is.
   not, so the split is not along one clean line today. Done when benchmarking
   lives in its own repo, this repo installs it like any other tool, and nothing
   here imports it.
+- **Create the `worktrunk` topic — the `wt` Git-worktree manager, installed
+  via mise.** Parked by the author 2026-09-21 (write-and-forget, unassigned
+  backlog). Binary through the mise `github:` backend per the
+  `apps/mise/files/config.toml` convention (never `ubi:`); the mise registry
+  entry is verified live — `mise ls-remote worktrunk` resolves through 0.79.0
+  (checked 2026-09-21). `topic_requires: [mise]`, scaffolded per
+  `dotfiles/docs/TOPICS.md`; settle the two chooser questions first (which
+  machines run it, who upgrades — `dotfiles/docs/TOPIC-RECIPES.md`
+  install-mechanism chooser) and apply the test-first recipe. [unassigned]
 - **Add voice-typing topics: `apps/openwhispr` and `apps/superwhisper`, macOS
   first, with a Linux path that is not a cask.** Both exist as casks, verified
   2026-09-14: `openwhispr` 1.10.1 ("Privacy-first voice-to-text dictation with
@@ -1699,7 +1706,12 @@ against this machine and must not be re-litigated.
   `snap` block that **zero topics use**, and that boilerplate is most of the 37
   commented-out module lines now sitting in topics that never wanted them.
   Emitting the one block a topic needs removes the category rather than
-  documenting it.
+  documenting it. **Also sweep for scaffold-residue artifacts when A9 runs**
+  (author, 2026-09-20): a topic-root `tasks.yaml` carrying unedited template
+  boilerplate is the known instance (deb-get ships one beside its real
+  `tasks/`; ollama carries the same leftover) — the sweep greps topics for
+  the template's comment markers and strips what no topic ever filled in,
+  rather than leaving dead boilerplate beside live tasks.
   **Do not build a second agent mechanism for the rest.** `migrate-to-roles.sh`
   already does this job and is the thing to absorb: it treats `template_dir/` as
   canonical, checks conformance with a **local** LLM (an Ollama chain —

@@ -10,6 +10,12 @@
 #
 # This task file is imported from bootstrap.yaml, install.yaml, and upgrade.yaml
 # so a standalone --tags install or --tags upgrade run still has the token.
+#
+# Secret hygiene (2026-09-20, author-approved): every task whose registered
+# output or set_fact value carries DEBGET_TOKEN or BW_SESSION sets no_log, so
+# a verbose or failing run never prints the token. The token itself stays
+# machine-local by design (never committed, never shared across machines);
+# no_log closes the logging half — it does not change how the token resolves.
 
 - name: "Token: short-circuit if already provided"
   ansible.builtin.set_fact:
@@ -32,6 +38,7 @@
   register: debget_token_localrc_raw
   changed_when: false
   failed_when: false
+  no_log: true
   when:
     - not debget_token_short_circuit | bool
     - debget_localrc_stat.stat.exists | default(false) | bool
@@ -52,6 +59,7 @@
   register: debget_bw_session_localrc_raw
   changed_when: false
   failed_when: false
+  no_log: true
   when:
     - not debget_token_short_circuit | bool
     - debget_localrc_stat.stat.exists | default(false) | bool
@@ -65,6 +73,7 @@
       {{ debget_bw_session_localrc_raw.stdout | default('') | trim }}
       {%- endif %}
   when: not debget_token_short_circuit | bool
+  no_log: true
 
 - name: "Token: probe bw CLI"
   ansible.builtin.shell:
@@ -106,6 +115,7 @@
     - debget_secrets_manager == 'bitwarden'
     - debget_bw_probe.rc | default(1) == 0
     - debget_bw_session | default('') | length > 0
+  no_log: true
 
 
 - name: "Token: probe op CLI"
@@ -130,6 +140,7 @@
     - debget_secrets_manager == '1password'
     - debget_op_probe.rc | default(1) == 0
     - ansible_facts['env']['OP_SERVICE_ACCOUNT_TOKEN'] | default('') | length == 0
+  no_log: true
 
 - name: "Token: use 1Password session helper result if present"
   ansible.builtin.set_fact:
@@ -151,7 +162,7 @@
     - not debget_token_short_circuit | bool
     - debget_secrets_manager == '1password'
     - debget_op_probe.rc | default(1) == 0
-
+  no_log: true
 
 - name: "Token: fall back to .localrc DEBGET_TOKEN"
   ansible.builtin.set_fact:
@@ -160,6 +171,7 @@
     - not debget_token_short_circuit | bool
     - debget_token | default('') | length == 0
     - debget_token_localrc_raw.stdout | default('') | trim | length > 0
+  no_log: true
 
 - name: "Token: fall back to environment DEBGET_TOKEN"
   ansible.builtin.set_fact:
@@ -168,6 +180,7 @@
     - not debget_token_short_circuit | bool
     - debget_token | default('') | length == 0
     - ansible_facts['env']['DEBGET_TOKEN'] | default('') | length > 0
+  no_log: true
 
 - name: "Token: fail loudly if unresolved"
   ansible.builtin.fail:

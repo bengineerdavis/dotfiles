@@ -39,8 +39,18 @@ def test_opencode_resolves(run_real, os_family):
 
 def test_homebrew_probe_alias_is_brew():
     defaults = yaml.safe_load(DEFAULTS.read_text(encoding="utf-8"))
-    assert defaults["dependency_probe_binary"] == {"homebrew": "brew"}, (
+    probes = defaults["dependency_probe_binary"]
+    assert probes.get("homebrew") == "brew", (
         "`homebrew` must probe the `brew` binary — no `homebrew` binary exists "
         "on any OS, so a missing (or identity) alias fails the Debian "
         "resolution leg (see roles/topic-resolution/defaults/main.yaml)"
     )
+    # The dict legitimately grows as topics add probe aliases (bitwarden→bw,
+    # 1password→op, 2026-09-20); each alias maps a topic_requires token to the
+    # binary that actually exists — an alias whose value equals its own key is
+    # the identity-probe bug this guard exists to catch.
+    for token, binary in probes.items():
+        assert binary != token, (
+            f"probe alias {token!r} maps to itself — an identity alias "
+            "defeats the probe (the token must name a binary that exists)"
+        )
