@@ -1,0 +1,24 @@
+dotfiles/apps/deb-get/tasks/token-resolution.yaml
+  s_e58e7d7a101281::t_0a2966a5eddb20 155
+  s_e58e7d7a101281::t_f1c3f2db06037f 122-142,147,149
+  s_e58e7d7a101281::t_3bf393b1cd5ae2 181-187
+  s_e58e7d7a101281::t_d158bf58127b35 78-97,102-103
+  s_e58e7d7a101281::t_8b9d70125c2f52 6-9
+  s_e58e7d7a101281::t_76612678e0a79c 110
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "675ef8966f4a4718908ff508acae50fb35a31e45",
+  "prompts": {},
+  "sessions": {
+    "s_e58e7d7a101281": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f527f6ca7ffeVuv6UvJvGVICqR",
+        "model": "moonshotai/kimi-k2.7-code"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
