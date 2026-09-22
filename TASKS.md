@@ -1359,6 +1359,15 @@ nothing is.
   not, so the split is not along one clean line today. Done when benchmarking
   lives in its own repo, this repo installs it like any other tool, and nothing
   here imports it.
+- **Create the `worktrunk` topic — the `wt` Git-worktree manager, installed
+  via mise.** Parked by the author 2026-09-21 (write-and-forget, unassigned
+  backlog). Binary through the mise `github:` backend per the
+  `apps/mise/files/config.toml` convention (never `ubi:`); the mise registry
+  entry is verified live — `mise ls-remote worktrunk` resolves through 0.79.0
+  (checked 2026-09-21). `topic_requires: [mise]`, scaffolded per
+  `dotfiles/docs/TOPICS.md`; settle the two chooser questions first (which
+  machines run it, who upgrades — `dotfiles/docs/TOPIC-RECIPES.md`
+  install-mechanism chooser) and apply the test-first recipe. [unassigned]
 - **Add voice-typing topics: `apps/openwhispr` and `apps/superwhisper`, macOS
   first, with a Linux path that is not a cask.** Both exist as casks, verified
   2026-09-14: `openwhispr` 1.10.1 ("Privacy-first voice-to-text dictation with
