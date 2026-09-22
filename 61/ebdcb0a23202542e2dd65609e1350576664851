@@ -1,0 +1,35 @@
+dotfiles/apps/1password/tests/topic-metadata.yaml
+  s_e58e7d7a101281::t_abbb24b996dc02 29
+dotfiles/apps/1password/topic.yml
+  s_e58e7d7a101281::t_61b29693bc1a4b 16-18
+dotfiles/apps/1password/README.md
+  s_e58e7d7a101281::t_4ebfe0515bb961 4-5,15-19
+  s_e58e7d7a101281::t_0021a12878a09e 20
+dotfiles/apps/bitwarden/topic.yml
+  s_e58e7d7a101281::t_6d1125c1810f06 16-19
+dotfiles/apps/1password/CHANGELOG.md
+  s_e58e7d7a101281::t_138e15b4429660 11-14
+dotfiles/apps/bitwarden/README.md
+  s_e58e7d7a101281::t_11c177e1cc2639 4-5,15-18
+  s_e58e7d7a101281::t_84d4432583e50c 19
+dotfiles/apps/bitwarden/CHANGELOG.md
+  s_e58e7d7a101281::t_c80f7f6f9138cf 10-13
+dotfiles/apps/bitwarden/tests/topic-metadata.yaml
+  s_e58e7d7a101281::t_549b61f2e1ff39 29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "61ebdcb0a23202542e2dd65609e1350576664851",
+  "prompts": {},
+  "sessions": {
+    "s_e58e7d7a101281": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f527f6ca7ffeVuv6UvJvGVICqR",
+        "model": "moonshotai/kimi-k2.7-code"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
