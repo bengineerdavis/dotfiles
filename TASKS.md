@@ -66,9 +66,6 @@ A stale claim is not a lock. If a line looks abandoned, check `git log -3` on th
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
 
-- 2026-09-22T00:00Z — shift-left testing study: fusion-council model calls
-  (ollama local model, held briefly) — ollama, TASKS.md § Now item above
-
 ## Where things stand — 2026-09-15 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
