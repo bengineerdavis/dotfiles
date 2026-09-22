@@ -1,0 +1,34 @@
+dotfiles/roles/secrets-session/tasks/main.yaml
+  s_e58e7d7a101281::t_a35f04085ddc8c 1-13
+dotfiles/roles/secrets-session/tests/role-loads.yaml
+  s_e58e7d7a101281::t_3e3a2c083bbd3d 1-21,23-24
+  s_e58e7d7a101281::t_b993f183162532 22,25-28
+dotfiles/roles/secrets-session/defaults/main.yaml
+  s_e58e7d7a101281::t_321881ed36ed89 1-26
+dotfiles/roles/secrets-session/tests/bitwarden-empty-facts.yaml
+  s_e58e7d7a101281::t_9d5da197ebc507 1-35
+dotfiles/roles/secrets-session/tests/onepassword-empty-facts.yaml
+  s_e58e7d7a101281::t_eac414c6c33459 1-31
+dotfiles/roles/secrets-session/tasks/onepassword.yaml
+  s_e58e7d7a101281::t_585a147d281ea0 1-139
+dotfiles/roles/secrets-session/tasks/bitwarden.yaml
+  s_e58e7d7a101281::t_c3269d0f7c7b71 1-181
+dotfiles/roles/secrets-session/README.md
+  s_e58e7d7a101281::t_9f285e4fcde1e4 1-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5414b066c2fa74db6b6a37cdd4c496427d7b190e",
+  "prompts": {},
+  "sessions": {
+    "s_e58e7d7a101281": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f527f6ca7ffeVuv6UvJvGVICqR",
+        "model": "moonshotai/kimi-k2.7-code"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
