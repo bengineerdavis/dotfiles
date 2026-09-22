@@ -3,8 +3,10 @@
 # ~/.localrc and then the environment. Fails loudly if nothing yields a token.
 #
 # The lookup plugins require an unlocked session:
-#   - Bitwarden: bw CLI + BW_SESSION (from env or ~/.localrc)
-#   - 1Password: op CLI + signed-in session or OP_SERVICE_ACCOUNT_TOKEN
+#   - Bitwarden: bw CLI + BW_SESSION (from env, ~/.localrc, or the shared
+#                roles/secrets-session helper)
+#   - 1Password: op CLI + signed-in session, OP_SERVICE_ACCOUNT_TOKEN, or the
+#                shared roles/secrets-session helper
 #
 # This task file is imported from bootstrap.yaml, install.yaml, and upgrade.yaml
 # so a standalone --tags install or --tags upgrade run still has the token.
@@ -73,17 +75,38 @@
   failed_when: false
   when: not debget_token_short_circuit | bool
 
+- name: "Token: try shared Bitwarden session helper if no usable session"
+  ansible.builtin.include_role:
+    name: roles/secrets-session
+    tasks_from: bitwarden.yaml
+  vars:
+    secrets_session_required: false
+  when:
+    - not debget_token_short_circuit | bool
+    - debget_secrets_manager == 'bitwarden'
+    - debget_bw_probe.rc | default(1) == 0
+    - debget_bw_session | default('') | length == 0
+
+- name: "Token: use Bitwarden session helper result if present"
+  ansible.builtin.set_fact:
+    debget_bw_session: "{{ secrets_bitwarden_session }}"
+  when:
+    - not debget_token_short_circuit | bool
+    - debget_secrets_manager == 'bitwarden'
+    - secrets_bitwarden_session | default('') | length > 0
+
 - name: "Token: resolve from Bitwarden"
   ansible.builtin.set_fact:
     debget_token: >-
       {{ lookup('community.general.bitwarden', debget_bitwarden_item,
-                field='password', bw_session=debget_bw_session,
-                errors='ignore') | first | default('') }}
+                 field='password', bw_session=debget_bw_session,
+                 errors='ignore') | first | default('') }}
   when:
     - not debget_token_short_circuit | bool
     - debget_secrets_manager == 'bitwarden'
     - debget_bw_probe.rc | default(1) == 0
     - debget_bw_session | default('') | length > 0
+
 
 - name: "Token: probe op CLI"
   ansible.builtin.shell:
@@ -96,17 +119,39 @@
     - not debget_token_short_circuit | bool
     - debget_secrets_manager == '1password'
 
-- name: "Token: resolve from 1Password"
-  ansible.builtin.set_fact:
-    debget_token: >-
-      {{ lookup('community.general.onepassword', debget_onepassword_uri,
-                errors='ignore') | first | default('') }}
-  environment:
-    OP_SERVICE_ACCOUNT_TOKEN: "{{ ansible_facts['env']['OP_SERVICE_ACCOUNT_TOKEN'] | default('') }}"
+- name: "Token: try shared 1Password session helper if no usable session"
+  ansible.builtin.include_role:
+    name: roles/secrets-session
+    tasks_from: onepassword.yaml
+  vars:
+    secrets_session_required: false
   when:
     - not debget_token_short_circuit | bool
     - debget_secrets_manager == '1password'
     - debget_op_probe.rc | default(1) == 0
+    - ansible_facts['env']['OP_SERVICE_ACCOUNT_TOKEN'] | default('') | length == 0
+
+- name: "Token: use 1Password session helper result if present"
+  ansible.builtin.set_fact:
+    secrets_session_op_service_account_token: "{{ secrets_onepassword_session }}"
+  no_log: true
+  when:
+    - not debget_token_short_circuit | bool
+    - debget_secrets_manager == '1password'
+    - secrets_onepassword_session | default('') | length > 0
+
+- name: "Token: resolve from 1Password"
+  ansible.builtin.set_fact:
+    debget_token: >-
+      {{ lookup('community.general.onepassword', debget_onepassword_uri,
+                 errors='ignore') | first | default('') }}
+  environment:
+    OP_SERVICE_ACCOUNT_TOKEN: "{{ ansible_facts['env']['OP_SERVICE_ACCOUNT_TOKEN'] | default(secrets_session_op_service_account_token | default('')) }}"
+  when:
+    - not debget_token_short_circuit | bool
+    - debget_secrets_manager == '1password'
+    - debget_op_probe.rc | default(1) == 0
+
 
 - name: "Token: fall back to .localrc DEBGET_TOKEN"
   ansible.builtin.set_fact:
@@ -133,13 +178,13 @@
       Tried (in order): Bitwarden/1Password → ~/.localrc → environment variable.
 
       Fix one of:
-        1. Bitwarden (default): ensure `bw` is on PATH, run `bw unlock`, and add
-           `export BW_SESSION=...` to {{ debget_localrc_file }}.
-        2. 1Password (work): ensure `op` is on PATH and either sign in or set
-           OP_SERVICE_ACCOUNT_TOKEN in {{ debget_localrc_file }} / env.
-        3. ~/.localrc: add `export DEBGET_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx`.
-        4. Environment: export DEBGET_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx.
-        5. Override: re-run with -e debget_token=ghp_xxxxxxxxxxxxxxxxxxxx.
+         1. Bitwarden (default): ensure `bw` is on PATH and run `./run-role.sh bitwarden`,
+            or grant an interactive session at provision time.
+         2. 1Password (work): ensure `op` is on PATH and signed in, or set
+            OP_SERVICE_ACCOUNT_TOKEN in {{ debget_localrc_file }} / env.
+         3. ~/.localrc: add `export DEBGET_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx`.
+         4. Environment: export DEBGET_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx.
+         5. Override: re-run with -e debget_token=ghp_xxxxxxxxxxxxxxxxxxxx.
   when:
     - not debget_token_short_circuit | bool
     - debget_token | default('') | length == 0
