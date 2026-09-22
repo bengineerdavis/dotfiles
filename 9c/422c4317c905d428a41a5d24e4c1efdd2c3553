@@ -1,0 +1,20 @@
+dotfiles/apps/deb-get/README.md
+  s_e58e7d7a101281::t_31d5cce65bda9d 54-55,57-58,64-75
+  s_e58e7d7a101281::t_8ee133a6aa4a58 78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9c422c4317c905d428a41a5d24e4c1efdd2c3553",
+  "prompts": {},
+  "sessions": {
+    "s_e58e7d7a101281": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f527f6ca7ffeVuv6UvJvGVICqR",
+        "model": "moonshotai/kimi-k2.7-code"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
