@@ -1,0 +1,35 @@
+---
+# roles/secrets-session/tests/bitwarden-empty-facts.yaml
+#
+# When bw is absent, the bitwarden.yaml task file should fail early with a
+# clear message and should not leak the probe into further tasks. This test
+# runs only the failure path on a machine without bw; on a machine with bw it
+# will fail because `secrets_session_required` defaults to true and the vault
+# is not actually unlocked.
+#
+# Run with care: this is meant for CI/sandbox without bitwarden installed.
+
+- name: "Test secrets-session bitwarden.yaml fails cleanly when bw is absent"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+
+  vars:
+    secrets_session_required: false
+
+  tasks:
+    - name: "Run bitwarden session tasks without a real vault"
+      ansible.builtin.include_role:
+        name: roles/secrets-session
+        tasks_from: bitwarden.yaml
+      register: secrets_session_test_result
+      ignore_errors: true
+
+    - name: "Assert role handled absence gracefully"
+      ansible.builtin.assert:
+        that:
+          - secrets_session_test_result is not failed
+          - secrets_bitwarden_session is defined
+        success_msg: "PASS: secrets-session bitwarden.yaml tolerated an empty session"
+        fail_msg: "FAIL: bitwarden.yaml failed when the vault was unavailable"

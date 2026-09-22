@@ -1,0 +1,26 @@
+# roles/secrets-session/defaults/main.yaml
+#
+# Tunables for the shared secrets-session helper. Topics that need a vault
+# session should call this role with tasks_from set to the specific backend
+# (bitwarden.yaml / onepassword.yaml) when their configured source lacks a
+# usable session.
+---
+# Service/account label used when reading a stored vault password from the
+# macOS Keychain. A generic-password lookup of this service returns the
+# master password for the default Bitwarden account.
+secrets_session_bitwarden_keychain_service: "com.bitwarden.cli"
+
+# Account identifier for the stored Bitwarden master password on macOS.
+# Defaults to the currently connected local user account used by `bw login`.
+secrets_session_bitwarden_keychain_account: "{{ ansible_facts['env']['USER'] | default(ansible_facts['user_id']) }}"
+
+# Number of seconds to wait for the `security find-generic-password` command
+# before falling back to an interactive prompt. Keychain access may trigger
+# an unlock dialog; this timeout prevents Ansible from hanging if the user
+# is not at the machine.
+secrets_session_keychain_timeout: 30
+
+# When true, prompt interactively for the master password if no other unlock
+# source succeeds. Disable for non-TTY runs and rely on pre-exported sessions
+# or service-account tokens instead.
+secrets_session_allow_prompt: "{{ (ansible_facts['env']['TERM'] | default('dumb')) not in ['', 'dumb'] }}"

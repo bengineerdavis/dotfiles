@@ -1,0 +1,13 @@
+# roles/secrets-session/tasks/main.yaml
+#
+# Default entry point for the secrets-session helper role.
+#
+# This role is intended to be invoked through `include_role` with an explicit
+# `tasks_from:` parameter (bitwarden.yaml or onepassword.yaml) so that the
+# caller controls which vault session is established. Running main.yaml by
+# itself does nothing; it exists only to satisfy Ansible's role loader.
+
+- name: "secrets-session: main.yaml is a no-op; use tasks_from=bitwarden.yaml or tasks_from=onepassword.yaml"
+  ansible.builtin.debug:
+    msg: "secrets-session: call this role with tasks_from to unlock a specific vault"
+  changed_when: false
