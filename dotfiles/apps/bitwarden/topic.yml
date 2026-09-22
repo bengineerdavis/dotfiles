@@ -13,7 +13,9 @@ topic_provides: [bitwarden]
 # mise owns the actual binary installation.
 topic_requires: [mise]
 
-# Personal Linux tooling; macOS uses the 1Password topic or Homebrew separately.
-topic_os: [Debian]
+# Personal Linux tooling and macOS. The binary is the same on both platforms;
+# macOS typically gets it from Homebrew via mise, Debian from jdx/mise or the
+# aqua backend, depending on config.
+topic_os: [Darwin, Debian]
 
 topic_tier: app

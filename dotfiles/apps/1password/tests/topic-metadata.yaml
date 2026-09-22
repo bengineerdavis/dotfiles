@@ -26,6 +26,7 @@
           - onepassword_topic.topic_name == '1password'
           - onepassword_topic.topic_tier == 'app'
           - "'Debian' in onepassword_topic.topic_os"
+          - "'Darwin' in onepassword_topic.topic_os"
           - "'1password' in onepassword_topic.topic_provides"
           - "'mise' in onepassword_topic.topic_requires"
         success_msg: "PASS: 1password topic metadata is valid"

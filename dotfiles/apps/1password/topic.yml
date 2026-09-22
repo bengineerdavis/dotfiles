@@ -13,8 +13,8 @@ topic_provides: [1password]
 # mise owns the actual binary installation.
 topic_requires: [mise]
 
-# Declared for Debian work machines. macOS users typically get `op` via the
-# 1Password desktop app; set topic_os to [Darwin, Debian] if you want it there.
-topic_os: [Debian]
+# Debian work machines and macOS. On macOS the 1Password desktop app normally
+# provides `op`; this topic ensures the CLI is declared and present via mise.
+topic_os: [Darwin, Debian]
 
 topic_tier: app
