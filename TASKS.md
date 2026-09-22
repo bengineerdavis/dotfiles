@@ -944,6 +944,20 @@ nothing is.
 ## Planned
 
 
+- **Add an ollama model-health check for every model project tooling invokes.**
+  Author queued 2026-09-22, deferred — lower priority, no action taken in the
+  shift-left study. Trigger: the shift-left fusion council found every MLX
+  model on ollama fails at call time (`mlx runner exited unexpectedly`,
+  exit status 2/500 — verified 2026-09-22 on qwen3.6:35b-mlx and
+  gemma4:12b-mlx; GGUF olmo-3.1:32b works), and `tests/pii_redactor/conftest.py:29`
+  requests `qwen3.5:4b-mlx-bf16` by exact tag, failing into test failure when
+  absent. Principle from the author: any model a tool or test calls must be
+  verified to exist and respond — model availability becomes a tested
+  property, not an assumption. Done when a check (test or preflight) confirms
+  each invoked model id exists in `ollama list` and answers a call, and
+  tooling that depends on a missing/broken model skips-with-reason instead of
+  failing. [me]
+
 - Reconcile `tests/permissions/test_permission_tiers.py` with the deliberate
   settings change `9df508d`: history rewriting (`git filter-repo`) moved from
   deny to ask in `.claude/settings.json`, but the tier test still asserts
