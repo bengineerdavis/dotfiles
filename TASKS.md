@@ -940,6 +940,18 @@ nothing is.
   when the recommendations and open questions are delivered and the author
   has made adopt/adapt/reject calls — any resulting work is queued as its own
   task, not folded into this one. [me]
+- **Reconcile `tests/permissions/test_permission_tiers.py` with the deliberate
+  settings change `9df508d` — promoted from § Planned 2026-09-22 by the author's
+  call to address standing red tests.** History rewriting (`git filter-repo`)
+  moved from deny to ask in `.claude/settings.json`, but the tier test still
+  asserts deny — the full suite reports 1 failed / 637 passed (re-observed
+  2026-09-22 with the measured suite run). A red baseline poisons the
+  mutation discipline ("watch the right test go red" cannot distinguish new
+  red from pre-existing red), which is why this is Now. Decide whether the
+  test follows the settings (policy intent: ask) or the settings revert
+  (policy intent: deny) — that is a PERMISSIONS.md decision, not a test-side
+  edit. Done when the ask-vs-deny call is made with the author, the test and
+  settings agree, and the suite reports 0 failed on the documented command. [me]
 
 ## Planned
 
@@ -957,15 +969,6 @@ nothing is.
   each invoked model id exists in `ollama list` and answers a call, and
   tooling that depends on a missing/broken model skips-with-reason instead of
   failing. [me]
-
-- Reconcile `tests/permissions/test_permission_tiers.py` with the deliberate
-  settings change `9df508d`: history rewriting (`git filter-repo`) moved from
-  deny to ask in `.claude/settings.json`, but the tier test still asserts
-  deny — so the full suite reports 1 failed / 631 passed (observed 2026-09-19
-  during the herdr work; the failure is environmental, not new). Decide
-  whether the test follows the settings (policy intent: ask) or the settings
-  revert (policy intent: deny) — that is a PERMISSIONS.md decision, not a
-  test-side edit.
 
 - Migrate the mise `python.uv_venv_auto` setting before mise 2027.7.0 removes
   it — mise warned the deprecation during the herdr work (2026-09-19:
