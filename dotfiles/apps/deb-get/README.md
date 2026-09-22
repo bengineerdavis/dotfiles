@@ -51,16 +51,30 @@ The topic resolves `DEBGET_TOKEN` in this order:
 
 1. Explicit `-e debget_token=...` override.
 2. **Bitwarden** (default on personal machines): `bw get password DEBGET_TOKEN`.  
-   Requires `bw` on PATH and an unlocked vault. The easiest way is to add  
-   `export BW_SESSION=...` to `~/.localrc` after running `bw unlock --raw`.
+   Requires `bw` on PATH. If `BW_SESSION` is not already exported, the topic
+   will prompt for your master password at provision time.
 3. **1Password** (work machines): pass `-e debget_secrets_manager=1password`.  
-   Requires `op` on PATH and a signed-in session or `OP_SERVICE_ACCOUNT_TOKEN`.
+   Requires `op` on PATH. If a signed-in session or `OP_SERVICE_ACCOUNT_TOKEN`
+   is not available, the topic will prompt for your master password.
 4. **`~/.localrc`**: `export DEBGET_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx`.
 5. **Environment variable**: `export DEBGET_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx`.
 
 The topic never writes the token to disk itself.
 
+## After pulling on a new Mac
+
+```bash
+chezmoi update
+cd "$(chezmoi source-path)"
+./run-role.sh bitwarden   # or mise, which installs the bw binary
+./run-role.sh deb-get
+```
+
+If `BW_SESSION` is not already set, the run will pause and ask for your
+Bitwarden master password. The session token is kept in memory only.
+
 ## Configuration
+
 
 | Variable | Default | Meaning |
 |---|---|---|
