@@ -165,13 +165,28 @@ The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
 - **Review the automatic restart topics on `feat/topic-restart-stale`.**
-  [agent: restart-review] User approved automatic restarts for stale services
+  [reviewed; awaiting publication and human review] User approved automatic restarts for stale services
   and GUI apps, plus topic-owned installation of the 1Password GUI. Review the
   shared role and both callers, reproduce any defects with tests, and prepare
   the change for human review under the deployed-file merge gate. Done when
   focused tests and topic validation pass, with deployment limits and remaining
   failures recorded. Worktree: `wt-restart`; no live restart or cask adoption
   during review.
+  Review completed 2026-09-23 at `79f6f0f`: quit and reopen target the same
+  bundle, and process-probe errors no longer count as a stopped app. Four
+  regression cases failed before the fix; removing the exit-error guard killed
+  both probe-error tests. Focused suite: 53 passed. Non-model repo suite:
+  695 passed, 7 skipped, 7 deselected with all seven documented dependencies.
+  Parent/topic syntax checks, 1Password metadata and `skillet validate .` pass.
+  Scoped ansible-lint: 44 findings versus 42 on main (three path-role imports
+  added, one lowercase task name removed). Debian live restarts, actual cask
+  adoption and GUI Automation permission remain unverified. Per-GPU Ollama
+  units remain outside the check. 1Password installs through brew but updates
+  through its own updater; a disabled self-updater still needs an update path.
+  Publication must exclude the 29 unrelated unpublished ancestor commits on
+  local main: publish the four restart commits on a branch from `origin/main`,
+  or wait for the owner to publish those prerequisites. Do not self-merge or
+  deploy this branch under the current deployed-file merge gate.
 
 - **Build a machine-assisted merge-gate checker — turn the diff-derived
   design in `AGENTS.md` § Merge gates (2026-09-22, fusion council) into a
@@ -1087,6 +1102,54 @@ nothing is.
   governor). Done when a run emits the JSON artifact, the skip count is
   appended to a trend file, and the author has used it at least once to make
   a decision.
+- **Teach `skill-trust` about foreign skill buckets, so a third party's sync
+  stops failing provisioning.** [unclaimed — written 2026-09-23, cold-readable;
+  no prior conversation context needed]
+
+  **The problem, verified by direct inspection 2026-09-23.** Claude Code's
+  cloud sync writes `synced/<org>_<user>/` into `~/.agents/skills`, because
+  `~/.claude/skills` is a dotagents-made symlink to it. `cmd_audit`
+  (`tools/skill-trust/skill_trust/cli.py:118`) iterates top-level directories,
+  finds `synced` undeclared and carrying no licence of its own, and returns
+  DENIED, which `roles/guards/tasks/dotagents-approved-sources.yaml:99` turns
+  into a failed run. The bucket holds 10 skills: 4 Anthropic proprietary
+  (`LICENSE.txt` forbids retaining copies outside their services), 4 with no
+  licence, 2 MIT.
+
+  **Measured behaviour of that bucket — tested, not inferred (2026-09-23).**
+  Sync runs at Claude Code session start; there is no daemon and no launchd
+  job. It is suppressed entirely when `ANTHROPIC_API_KEY` is set, because the
+  API key outranks the claude.ai login. Sync does **not** prune directories it
+  does not own — a probe directory survived two syncs and never entered
+  `manifest.json`. A deleted skill is **recreated byte-identical** on the next
+  session (deleted `adhd`, re-synced, `cmp` identical). `manifest.json` carries
+  no content hashes, only timestamps, and the bucket mutates on its own
+  (`docx` updated upstream mid-test). Therefore **`deny` is not implementable
+  against a foreign bucket** — deletion loops forever — and the tool must say
+  so rather than attempt it.
+
+  Done when: a bucket carrying all three pieces of evidence (path
+  `<store>/synced/<id>/`, sibling marker `synced/.bucket-<id>`, a parsing
+  `manifest.json` with a `skills[]` array) resolves to a recorded `external`
+  verdict carrying a date and a reason, instead of a denial; a directory merely
+  *named* like a bucket without that evidence still fails closed; `deny` on a
+  foreign bucket is refused with the churn-loop reason rather than attempted;
+  buckets carry a human alias (deduced by default, e.g. `claude-sync`) that is
+  display-only, with rules keyed on the bucket id so renaming an alias cannot
+  change what is approved; the guard runs as the last task in `apps/opencode`
+  so unrelated topics converge before the gate can fail; `discover.py:32`
+  reports `license: Proprietary. LICENSE.txt has complete terms` as proprietary
+  rather than "no licence found"; and every new test has been seen to fail with
+  its mutation recorded in the commit message.
+
+  Deliberately **not** in scope, queued separately: the interactive consent
+  system (review queue, batch approval, export/import for machine rebuilds,
+  agent JSON protocol). Physical separation of the two stores is **rejected on
+  evidence** — dotagents only ever makes whole-directory symlinks
+  (`dist/symlinks/manager.js:15-82`), its `symlinks.targets` key is
+  project-scope only (`dist/config/schema.js:89`), so the only lever is
+  dropping `claude`/`cursor` from its `agents` list, which would mean
+  hand-managing per-skill links. The author declined that.
 
 ## Planned
 
