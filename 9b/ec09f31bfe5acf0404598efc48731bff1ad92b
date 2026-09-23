@@ -1,0 +1,25 @@
+dotfiles/apps/apt/files/apt_source_audit.py
+  s_632500cd5a2494::t_142cdaa5304345 1-116
+dotfiles/apps/apt/files/apt_keyring.py
+  s_632500cd5a2494::t_142cdaa5304345 1-273
+tests/topics/test_apt_keyring.py
+  s_632500cd5a2494::t_142cdaa5304345 1-250
+tests/topics/test_apt_source_audit.py
+  s_632500cd5a2494::t_142cdaa5304345 1-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9bec09f31bfe5acf0404598efc48731bff1ad92b",
+  "prompts": {},
+  "sessions": {
+    "s_632500cd5a2494": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f407ae36affe10UBPV2WhMeSJ3",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
