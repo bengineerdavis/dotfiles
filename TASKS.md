@@ -1152,6 +1152,15 @@ nothing is.
   `skillet validate` and its own evals, and is installed here through the
   machine's skill manager.
 
+- **Declare `explain-calibration` and `feynman-explanation` as agentic
+  dependencies.** [blocked: until the two skills exist — see the authoring
+  tasks above] spec.md § Dependencies makes a referenced skill a project
+  dependency: declared where the machine's skill manager installs and keeps
+  it current, skill-trust passing. spec.md § Writing already references
+  explain-calibration, so the declaration is owed the moment the skill
+  exists. Done when both skills are declared, installed via the skill
+  manager, and the declaration names the references that pull them in.
+
 - Reconcile `tests/permissions/test_permission_tiers.py` with the deliberate
   settings change `9df508d`: history rewriting (`git filter-repo`) moved from
   deny to ask in `.claude/settings.json`, but the tier test still asserts
