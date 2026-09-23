@@ -1,0 +1,29 @@
+tools/skill-trust/README.md
+  s_e419849efb75ae::t_e918f6ee1700a0 63-71
+tools/skill-trust/uv.lock
+  s_632500cd5a2494::t_3478abd2bd625c 8-9,11-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "001fa42b4ad1a99f6090118817e4c35ba5daa607",
+  "prompts": {},
+  "sessions": {
+    "s_632500cd5a2494": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f407ae36affe10UBPV2WhMeSJ3",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    },
+    "s_e419849efb75ae": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f360e4c2bffevwTsXO7icLr9aO",
+        "model": "deepseek/deepseek-v4-pro-0813"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
