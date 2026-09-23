@@ -679,6 +679,18 @@ nothing is.
   everything molecule does not — molecule tests convergence on a machine, not
   the repo's own logic. [blocked: needs the `--check` fix above, since a run
   that cannot dry-run cannot be trusted to converge twice either]
+  **Plugin choices verified 2026-09-22 (PyPI, not the pasted research that
+  prompted the check):** `pytest-molecule` (ansible-community, Sorin Sbarnea,
+  Production/Stable) as the orchestrator — auto-discovers `molecule.yml`
+  scenarios and registers each as a pytest case, so `pytest -n auto` covers
+  molecule runs too once the `$HOME`-sandbox work above lands.
+  `pytest-testinfra` as the verifier — the long-standing standard Molecule
+  uses to translate Python assertions (`host.file(...)`, `host.service(...)`)
+  into remote checks after converge, matching the herdr pattern already used
+  here. **`pytest-ansible` explicitly rejected**: as of v26.9.0 the package
+  deprecated itself — its own README: "I've made the difficult decision to
+  deprecate myself... plain pytest, ansible-test, molecule, tox-ansible, ADE,
+  and ansible-creator now carry the day for collection authors."
 - **Sweep the remaining hardcoded `/home/bdavis` paths out of
   `dot_zshrc.tmpl`.** Four of them, all inside the `{{ if eq .chezmoi.os
   "linux" }}` block (lines 69–459), so none render on macOS and none are broken
