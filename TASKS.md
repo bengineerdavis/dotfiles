@@ -2316,15 +2316,12 @@ and withdrawn — it reproduced the patterns, exactly as warned above.
 
 ## Decisions waiting on the author
 
-From the shift-left testing study (2026-09-22). Three of the original four
-were answered and landed 2026-09-22 (the LEDGER item's bypass-state note and
-auditor-of-the-auditor design, § Now; the `$HOME`-exception reopen trigger,
-§ Planned); one remains:
-
-- **Minimum gate set per task class?** Which exits must be 0 for docs,
-  tests, code, policy, and deployed-tree changes to count as "merged"? The
-  trust ladder's rungs are uncomputable until this is named per class.
-  Author: a separate pass, not now.
+From the shift-left testing study (2026-09-22). All four answered and
+landed: the LEDGER item's bypass-state note and auditor-of-the-auditor
+design (§ Now); the `$HOME`-exception reopen trigger (§ Planned); and
+decision 5 — minimum gate set per task class, resolved 2026-09-22 with a
+fusion council as "computed from the diff, not a per-class table"
+(AGENTS.md § Merge gates). None open.
 
 ## Sandbox isolation — verified findings, 2026-09-20
 
