@@ -278,3 +278,48 @@ deleted.
   set grows past a handful, a missed-update incident occurs, or the queued
   scheduled-runner service lands and wants a job. Landed in
   `dotfiles/requirements.yml` + the REFERENCES row.
+
+## 2026-09-22
+
+- **Shift-left testing study: comprehensive-and-immediate feedback for
+  humans and agents, ordered by execution speed.** Full method run:
+  a 4-agent read-only swarm inventoried current test/lint/hook mechanics
+  (measured the suite at ~200s, not the stale 104s claim; found prek is
+  the active hook runner, not the stale pipx pre-commit claim), mined
+  journaled lessons, and mapped the queued-item landscape and the
+  author's 5 questions to existing evidence/gaps. A fusion council (real
+  mixed models — deepseek-pro + glm-5.3 + local olmo-3.1, MLX models
+  found broken on this ollama server and substituted) turned the
+  findings into a deep-research brief, shown to the author before it
+  went out. Two deep researchers (opencode Task agents with web access)
+  returned findings on 8 threads (changed-file selection, on-save
+  triggering, mutation testing, coverage, `$HOME` sandboxing, parallel
+  execution, pre-push gates, progressive trust). Three advisor voices
+  (incrementalist, trust architect, agent-workflow specialist)
+  converged on a speed-ordered recommendation set, delivered to the
+  author with a compact critique/rejection list and open questions.
+  Questioning-skill exchange with the author produced the session's
+  most consequential finding: **trust attaches to the mechanism, not the
+  commit** — a two-track model (deterministic checks graduate fast and
+  stay graduated; judgment-based mechanisms graduate on a rolling
+  correction-rate window) now settled into `TASKS.md`'s LEDGER item, with
+  the global-vs-per-repo trust-scoping question routed to
+  `ai-prompt-library`'s blocked agent→function graduation item rather
+  than decided here. **Adopted and queued as their own tasks in
+  `TASKS.md`:** the pre-commit/merge-gate three-tier design (§ Now,
+  supersedes the old pre-commit/pre-push framing); the fast-test-loop
+  sequencing (fix slow tests → `pytest-randomly` → `pytest-xdist`, not
+  the reverse) plus a `collected == 0` tripwire; the `$HOME`-sandbox
+  implementation pattern (autouse fixture, subprocess `env=`, named
+  macOS escapes); machine-shaped gate outputs + a skip census
+  (coverage % explicitly rejected as the quality-over-time metric); the
+  two-track trust model. **Deferred:** an ollama model-health check
+  (§ Planned, low priority). **Promoted:** the standing-red permissions
+  test, § Planned → § Now. **Left open, recorded in § Decisions waiting
+  on the author:** bypass legitimacy, who audits the author's own
+  review, which tests may touch real `$HOME`, the minimum gate set per
+  task class. **Rejected by the advisor council, unanimous:**
+  pytest-testmon/pytest-picked (blind to this repo's shell/YAML change
+  surface; picked exits green on zero tests), coverage % as a tracked
+  metric, a full suite on pre-push, a local CI daemon, cosmic-ray,
+  mutmut as standing practice.

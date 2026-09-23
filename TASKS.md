@@ -933,29 +933,6 @@ nothing is.
   not release. Candidates: on a cadence, at each machine rebuild, or never —
   leaving everything under Unreleased, which is legitimate and costs nothing.
   Until this is settled the changelog grows one section and is still readable.
-- **Shift-left testing study: comprehensive-and-immediate feedback for humans
-  and agents, ordered by execution speed.** [agent: opencode session,
-  2026-09-22] Author request: could per-file-changed checks (ruff, scoped
-  tests) run on every write in or out of an IDE; can `pytest-xdist` speed the
-  full suite specifically for worktree-merge/pre-push gates that must clear
-  the whole codebase before anything reaches remote; how do fix/correction
-  feedback and planning work for both humans and agents; how is test
-  coverage/quality maintained over time; and how does human review stay a
-  load-bearing, zero-trust check on machine work (and vice versa) rather than
-  a formality. Method, per house practice: a read-only swarm studies current
-  practice and journaled lessons first (this item folds in rather than
-  duplicates the already-queued overlapping items below — ruff pre-commit
-  wiring, `ty`/xdoctest, prek/pre-commit reconciliation, the pytest
-  fast-subset/full-run split, the `pytest-xdist` HOME-sandboxing
-  prerequisite, LSP profiles, the metamorphic-testing research, and the
-  worktree merge-gate design in § Now above); a fusion council (real mixed
-  models) turns the swarm's findings into a deep-research brief, shown to the
-  author before it goes out; deep research runs; a second council in advisor
-  format turns findings into compact recommendations plus open questions,
-  delivered to the author with the questioning skill used throughout. Done
-  when the recommendations and open questions are delivered and the author
-  has made adopt/adapt/reject calls — any resulting work is queued as its own
-  task, not folded into this one. [me]
 - **Reconcile `tests/permissions/test_permission_tiers.py` with the deliberate
   settings change `9df508d` — promoted from § Planned 2026-09-22 by the author's
   call to address standing red tests.** History rewriting (`git filter-repo`)
