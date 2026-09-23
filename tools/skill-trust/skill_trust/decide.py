@@ -42,11 +42,22 @@ SOURCE_AVAILABLE = frozenset({
     "FSL-1.1-MIT", "FSL-1.1-ALv2", "Commons-Clause", "RSAL",
 })
 
+# Not an SPDX tier — these are what a skill writes when it is declaring that it
+# is nobody else's to copy. Matched case-insensitively because this field is
+# prose written by hand, not a generated identifier. Kept separate from UNKNOWN
+# so the report can say "it told us it is proprietary" rather than "we found
+# nothing": the two look identical in a verdict and could not be less alike when
+# someone is deciding what to do next.
+PROPRIETARY = frozenset({
+    "proprietary", "all-rights-reserved", "all rights reserved", "unlicensed",
+})
+
 
 class Tier(enum.Enum):
     PERMISSIVE = "permissive"
     COPYLEFT = "copyleft"
     SOURCE_AVAILABLE = "source-available"
+    PROPRIETARY = "proprietary"
     UNKNOWN = "unknown"
 
 
@@ -61,6 +72,8 @@ def licence_tier(spdx: str | None) -> Tier:
     if not spdx or spdx.strip().upper() in {"NOASSERTION", "NONE", "UNKNOWN", ""}:
         return Tier.UNKNOWN
     key = spdx.strip()
+    if key.lower() in PROPRIETARY:
+        return Tier.PROPRIETARY
     if key in PERMISSIVE:
         return Tier.PERMISSIVE
     if key in COPYLEFT:
@@ -150,6 +163,13 @@ def decide(
             Verdict.DENIED, "licence",
             f'"{source}" is {spdx} — source-available, not open source, '
             "however much it reads like it.",
+        )
+    if tier is Tier.PROPRIETARY:
+        return Decision(
+            Verdict.DENIED, "licence",
+            f'"{source}" declares itself {spdx}. It is not unlicensed by '
+            "oversight — it is someone else's, deliberately. Nothing here can "
+            "approve it; the owner can.",
         )
     return Decision(
         Verdict.DENIED, "default",

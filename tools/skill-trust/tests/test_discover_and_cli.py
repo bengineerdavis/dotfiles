@@ -20,6 +20,7 @@ import textwrap
 import pytest
 
 from skill_trust.cli import DENIED, ERROR, PERMITTED, UNKNOWN, main
+from skill_trust.decide import Tier, licence_tier
 from skill_trust.discover import licence_from_dir
 
 MIT_TEXT = "MIT License\n\nCopyright (c) 2026\n\nPermission is hereby granted..."
@@ -46,6 +47,32 @@ def skill(tmp_path):
 
 def test_reads_an_spdx_identifier_from_the_skill_s_own_frontmatter(skill):
     assert licence_from_dir(skill("a", frontmatter="license: Apache-2.0")) == "Apache-2.0"
+
+
+def test_a_prose_licence_field_is_read_rather_than_missed(skill):
+    """Anthropic's synced skills write a sentence here, not an identifier:
+    `license: Proprietary. LICENSE.txt has complete terms`. The pattern used to
+    anchor on end-of-line after one token, so this matched nothing and the skill
+    was reported as carrying no licence at all — which reads as an oversight by
+    whoever published it, when in fact they said the opposite clearly."""
+    d = skill("p", frontmatter="license: Proprietary. LICENSE.txt has complete terms")
+    assert licence_from_dir(d) == "Proprietary"
+
+
+def test_a_declared_proprietary_licence_is_not_reported_as_unknown(skill):
+    """Both deny. They are not the same fact, and the difference decides what a
+    human does next: chase the publisher for a missing licence, or accept that
+    the material is not theirs to take."""
+    assert licence_tier("Proprietary") is Tier.PROPRIETARY
+    assert licence_tier(None) is Tier.UNKNOWN
+
+
+def test_the_proprietary_denial_says_it_was_declared(tmp_path, skill, capsys):
+    skill("p", frontmatter="license: Proprietary. LICENSE.txt has complete terms")
+    cfg = _config(tmp_path, "approved_sources: []\n")
+    assert main(["--offline", "--config", cfg, "audit",
+                 "--skills-dir", str(tmp_path)]) == DENIED
+    assert "declares itself Proprietary" in capsys.readouterr().out
 
 
 def test_recognises_a_licence_from_its_text_when_no_identifier_is_given(skill):

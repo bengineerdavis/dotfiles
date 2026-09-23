@@ -29,7 +29,30 @@ _TEXT_MARKERS = [
 ]
 
 _SPDX_LINE = re.compile(r"SPDX-License-Identifier:\s*([A-Za-z0-9.\-+]+)")
-_FRONTMATTER_LICENCE = re.compile(r"^license:\s*([A-Za-z0-9.\-+]+)\s*$", re.M)
+# Deliberately the whole rest of the line, not a single token. Skills in the
+# wild write prose in this field — Anthropic's are `Proprietary. LICENSE.txt
+# has complete terms`. Anchoring on end-of-line after one token made that match
+# nothing, so a skill that declared itself proprietary was reported as carrying
+# no licence at all. "None declared" and "declared, and it is proprietary" are
+# different facts, and a human chasing the first should not be handed the second.
+_FRONTMATTER_LICENCE = re.compile(r"^license:\s*(\S.*?)\s*$", re.M)
+
+# A bare SPDX id, as opposed to a sentence that begins with one.
+_SPDX_TOKEN = re.compile(r"^[A-Za-z0-9.\-+]+$")
+
+
+def normalise_licence(value: str) -> str:
+    """Reduce a declared licence field to something classifiable.
+
+    A bare id passes through untouched. Prose is cut at the first sentence or
+    clause boundary, which is enough to recover `Proprietary` from Anthropic's
+    wording without pretending to parse English.
+    """
+    value = value.strip()
+    if _SPDX_TOKEN.match(value):
+        return value
+    head = value.split(".", 1)[0].split(",", 1)[0].strip()
+    return head or value
 
 
 def licence_from_dir(path: pathlib.Path) -> str | None:
@@ -43,7 +66,7 @@ def licence_from_dir(path: pathlib.Path) -> str | None:
         for pattern in (_SPDX_LINE, _FRONTMATTER_LICENCE):
             found = pattern.search(head)
             if found:
-                return found.group(1)
+                return normalise_licence(found.group(1))
 
     for name in ("LICENSE", "LICENSE.md", "LICENSE.txt", "LICENCE", "COPYING"):
         candidate = path / name
