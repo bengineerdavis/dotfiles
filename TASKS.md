@@ -955,6 +955,15 @@ nothing is.
 ## Planned
 
 
+- **Revisit the `$HOME`-exception list — reopen trigger, not a standing task.**
+  Author decision 2026-09-22: no test may touch real `$HOME` for now (find a
+  workaround — mock the keychain, avoid `zsh -l` — for every case rather than
+  naming exceptions), because the actual edge cases aren't known yet. Reopen
+  when: the `$HOME`-sandbox fixture (§ Now, the xdist sub-item) is built and a
+  real case resists sandboxing, or a second such case appears. Same shape as
+  the O4/Renovate reopen trigger already used in this file — decide when the
+  problem is real, not before.
+
 - **Add an ollama model-health check for every model project tooling invokes.**
   Author queued 2026-09-22, deferred — lower priority, no action taken in the
   shift-left study. Trigger: the shift-left fusion council found every MLX
@@ -2000,6 +2009,14 @@ author rather than the machine.
     doesn't mean the same thing twice); graduates on a rolling
     correction-rate window instead of a streak, and the trust *level* moves
     with the window rather than becoming permanent.
+  **Bypass state — provisional, 2026-09-22.** The ledger schema needs a
+  `bypassed(reason)` state alongside ran/failed, so a `--no-verify` push is
+  recorded rather than invisible. Author: "we don't yet have a more nuanced
+  set of use cases and edge cases; we're still building and experimenting a
+  lot, so this isn't wrong but I don't know yet" — added now as a field,
+  not as settled policy on when bypassing is acceptable. Revisit once real
+  bypass cases accumulate; the field just has to exist before the first one
+  happens, or it gets hidden instead of recorded.
   Latency tolerance is a property of *where an item sits on its track*, not a
   global clock: the funnel starts deliberately slow (least-privilege as the
   starting metaphor) and tightens toward the author's stated destination of
@@ -2195,23 +2212,15 @@ and withdrawn — it reproduced the patterns, exactly as warned above.
 
 ## Decisions waiting on the author
 
-From the shift-left testing study (2026-09-22) — answered questions became
-task edits above; these four remained open when the study closed:
+From the shift-left testing study (2026-09-22). Two of the original four
+answered 2026-09-22 (see the LEDGER item's bypass-state note, § Now, and
+the `$HOME`-exception reopen trigger, § Planned); one is being designed now
+(the auditor question, this section, below); one remains:
 
-- **Is a bypass ever legitimate?** If yes, the ledger needs a first-class
-  "bypassed with reason" state before the first real bypass happens, or
-  agents learn to hide theirs rather than record them.
-- **Who audits the auditor?** The quiz-before-merge and the rubber-stamp
-  risk are the same mechanism from opposite ends. What catches it when the
-  author stops genuinely quizzing — a periodic re-quiz on a ledger-sampled
-  merged item, or does the author self-certify indefinitely?
-- **Which tests may touch real `$HOME`?** Login-shell and keychain/`dscl`
-  cases can't be sandboxed on macOS by the researched fixture pattern (§
-  Now, the xdist sub-item). A named, excluded list turns the audit into a
-  lookup rather than a per-test debate.
 - **Minimum gate set per task class?** Which exits must be 0 for docs,
   tests, code, policy, and deployed-tree changes to count as "merged"? The
   trust ladder's rungs are uncomputable until this is named per class.
+  Author: a separate pass, not now.
 
 ## Sandbox isolation — verified findings, 2026-09-20
 
