@@ -1,0 +1,21 @@
+AGENTS.md
+  s_e419849efb75ae::t_874e8b157cb77e 850-856
+spec.md
+  s_e419849efb75ae::t_5678bdfcb6769a 109-114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a92489b908f707a3e2993b6baae183493cb9c120",
+  "prompts": {},
+  "sessions": {
+    "s_e419849efb75ae": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f360e4c2bffevwTsXO7icLr9aO",
+        "model": "deepseek/deepseek-v4-pro-0813"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
