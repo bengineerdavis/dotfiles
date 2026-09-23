@@ -1140,6 +1140,18 @@ nothing is.
   ai-prompt-library, passes `skillet validate` and its own evals, and is
   installed here through the machine's skill manager.
 
+- **Author the `feynman-explanation` skill — how to explain from first
+  principles.** Queued from the 2026-09-22 handoff (decisions 25–26), the
+  companion to explain-calibration (which decides *whether/how much*; this
+  one is *how*). Lives in ai-prompt-library, authored with skillet-authoring.
+  Activation is inferred from signals, never user-invoked: domain rated
+  new/general-principles; "what is X"; the same concept asked twice; "plain
+  english"/"ELI25"; a decision hinging on a term the user hasn't used;
+  undefined density. Internal self-check: would the explanation survive being
+  repeated back? Done when the skill exists in ai-prompt-library, passes
+  `skillet validate` and its own evals, and is installed here through the
+  machine's skill manager.
+
 - Reconcile `tests/permissions/test_permission_tiers.py` with the deliberate
   settings change `9df508d`: history rewriting (`git filter-repo`) moved from
   deny to ask in `.claude/settings.json`, but the tier test still asserts
