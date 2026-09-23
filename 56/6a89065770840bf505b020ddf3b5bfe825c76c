@@ -1,0 +1,32 @@
+dotfiles/executable_update.sh
+  s_632500cd5a2494::t_f1d17c7f04d34d 12-14
+  s_6ab6cbed4ff87b::t_3d9a5afe6b5410 29-30
+dotfiles/executable_install.sh
+  s_6ab6cbed4ff87b::t_2fb3668bad4a4b 5-7
+executable_update.sh
+  s_6ab6cbed4ff87b::t_bdb18ff8211b17 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "566a89065770840bf505b020ddf3b5bfe825c76c",
+  "prompts": {},
+  "sessions": {
+    "s_632500cd5a2494": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f407ae36affe10UBPV2WhMeSJ3",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    },
+    "s_6ab6cbed4ff87b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f573b0e98ffeoc4TSHzKrJiAB1",
+        "model": "deepseek/deepseek-v4-pro-0813"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
