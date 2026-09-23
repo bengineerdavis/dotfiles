@@ -106,6 +106,12 @@ that never runs are indistinguishable — both refuse, and both pass a smoke tes
 Before a new test is trusted, the code it covers SHALL be broken deliberately
 and the test watched going red.
 
+The mutation itself SHALL NOT be committed, so the evidence that the test was
+seen to fail SHALL be recorded beside the commit as greppable trailers —
+`Mutation: <what was broken>` and `Failing-test: <the test that went red>` —
+readable with `git interpret-trailers`. Prose in a commit body is not auditable;
+trailers are.
+
 #### Scenario: A suite passes on first run
 
 - **WHEN** a newly written test passes immediately

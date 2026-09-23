@@ -847,6 +847,13 @@ Two harness traps found here, worth checking for in any suite you touch:
   `-c`, so two TTY tests could never pass on macOS whatever the code did. Use
   `pty.openpty()`.
 
+Record the evidence on the commit as trailers, not prose: `Mutation: <what was
+broken>` and `Failing-test: <the test that went red>`. `spec.md` § Verification
+makes this a SHALL. The mutation state is never committed, so the proof can only
+live in the trailer, and only trailers are greppable — `git log --grep`
+over the history yields every mutation ever proven; a prose sentence in a body
+yields nothing.
+
 ### Properties and fuzzing
 
 Most tests here are examples: a specific input, a specific expected result. Two
