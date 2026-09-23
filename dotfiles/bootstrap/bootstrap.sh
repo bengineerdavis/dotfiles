@@ -6,7 +6,7 @@
 GITHUB_USERNAME=bengineerdavis
 
 # make sure all install commands have executable priviledges 
-chmod -v +x **/*install*
+chmod -v +x -- **/*install*
 
 xcode-select --install || echo "XCode already installed"
 
@@ -17,8 +17,10 @@ else
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     (
         echo
+        # Write a literal line for the user's .zprofile, not interpolate it now.
+        # shellcheck disable=SC2016
         echo 'eval "$(/opt/homebrew/bin/brew shellenv)"'
-    ) >>$HOME/.zprofile
+    ) >>"$HOME"/.zprofile
     eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
