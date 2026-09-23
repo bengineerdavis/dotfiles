@@ -1,0 +1,36 @@
+# roles/restart-stale/defaults/main.yaml
+#
+# Parameters for roles/restart-stale. A caller sets them with `vars:` on the
+# import — see roles/restart-stale/README.md. Every name is prefixed
+# `restart_stale_` so a caller's vars cannot collide with its own topic's.
+
+# How the process is supervised, which decides how it is found and restarted:
+#   launchd  a per-user launchd agent (macOS)       launchctl kickstart -k
+#   systemd  a systemd unit, user or system scope   systemctl restart
+#   app      a GUI app (macOS)                      quit gracefully, then open
+# Empty by default so a caller that forgets it fails at the parameter check
+# rather than silently checking nothing.
+restart_stale_kind: ""
+
+# The executable the process runs. Symlinks are resolved before its ctime is
+# read. For `app` this must be the bundle's main executable
+# (<Name>.app/Contents/MacOS/<exe>): processes are matched on this exact path,
+# and the bundle to reopen is derived from it.
+restart_stale_binary: ""
+
+# launchd: the job label, e.g. com.ollama.server.
+restart_stale_launchd_label: ""
+
+# systemd: the unit name and its scope. `system` restarts with become.
+restart_stale_systemd_unit: ""
+restart_stale_systemd_scope: user
+
+# app: the name AppleScript knows the app by, used in `quit app "<name>"`.
+restart_stale_app_name: ""
+
+# app: seconds to wait for a graceful quit before giving up. The app is never
+# force-killed; if it has not exited by then it is reported and left running.
+restart_stale_quit_timeout: 30
+
+# Named in the report so the operator knows which topic asked.
+restart_stale_caller: "a topic"

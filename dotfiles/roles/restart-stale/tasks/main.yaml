@@ -1,0 +1,232 @@
+# roles/restart-stale/tasks/main.yaml
+#
+# Restart a service or app whose running process is older than its binary.
+#
+# Why this exists: an upgrade that replaces a binary does not restart what is
+# running it. On 2026-09-22 apps/homebrew upgraded ollama 0.33.3 -> 0.34.3 at
+# 17:52 PDT, and the com.ollama.server agent went on running 0.33.3 — started
+# 2026-09-12 — until someone restarted it by hand. A handler in apps/ollama
+# could not have caught it: the binary changed in the homebrew topic, so the
+# ollama topic never sees a `changed` result to notify on. So this looks at the
+# machine instead: is the process older than the file it was started from?
+#
+# Stale means the process started before the binary's ctime. NOT mtime, NOT
+# birthtime: Homebrew carries both over from the bottle, so both predate the
+# install by days. filter_plugins/restart_stale.py has the measurements.
+#
+# What it does:
+#   not running    nothing — it will start on the new binary
+#   running, fresh nothing
+#   running, stale restart it, and say why
+# An app that will not quit gracefully is reported and left running. Nothing
+# here sends SIGKILL to an app.
+#
+# Parameters: see defaults/main.yaml.
+
+- name: "Restart-stale: check the parameters"
+  ansible.builtin.assert:
+    that:
+      - restart_stale_kind in ['launchd', 'systemd', 'app']
+      - restart_stale_binary | length > 0
+      - restart_stale_kind != 'launchd' or restart_stale_launchd_label | length > 0
+      - restart_stale_kind != 'systemd' or restart_stale_systemd_unit | length > 0
+      - restart_stale_kind != 'systemd' or restart_stale_systemd_scope in ['user', 'system']
+      - restart_stale_kind != 'app' or restart_stale_app_name | length > 0
+      - restart_stale_kind != 'app' or restart_stale_binary is search('\.app/Contents/MacOS/[^/]+$')
+      # launchd and GUI apps are macOS mechanisms; `ps -o comm` is a full path
+      # only on macOS, which the app match depends on.
+      - restart_stale_kind == 'systemd' or ansible_facts['os_family'] == 'Darwin'
+    fail_msg: >-
+      [restart-stale] {{ restart_stale_caller }} passed parameters this role
+      cannot act on: kind={{ restart_stale_kind | to_json }},
+      binary={{ restart_stale_binary | to_json }}. See
+      roles/restart-stale/defaults/main.yaml. Nothing has been restarted.
+    quiet: true
+
+# ── Find the running process ─────────────────────────────────────────────────
+# Every probe is read-only, so each runs under --check too (check_mode: false);
+# otherwise a dry run would report "not running" for everything.
+
+- name: "Restart-stale: read launchd's job table"
+  ansible.builtin.command:
+    argv: [launchctl, list]
+  register: restart_stale_launchd_list
+  changed_when: false
+  check_mode: false
+  when: restart_stale_kind == 'launchd'
+
+- name: "Restart-stale: read the unit's main PID"
+  # `systemctl show` needs no privilege at either scope. An unknown unit
+  # reports MainPID 0, the same as a stopped one.
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - "--{{ restart_stale_systemd_scope }}"
+      - show
+      - --property=MainPID
+      - --value
+      - "{{ restart_stale_systemd_unit }}"
+  register: restart_stale_systemd_show
+  changed_when: false
+  check_mode: false
+  when: restart_stale_kind == 'systemd'
+
+- name: "Restart-stale: resolve the PID"
+  ansible.builtin.set_fact:
+    restart_stale_pid: >-
+      {{ restart_stale_launchd_list.stdout
+         | restart_stale_launchd_pid(restart_stale_launchd_label)
+         if restart_stale_kind == 'launchd'
+         else (restart_stale_systemd_show.stdout | trim | int) }}
+  when: restart_stale_kind != 'app'
+
+- name: "Restart-stale: read when the process started"
+  # TZ=UTC and LC_ALL=C make lstart parse identically on BSD ps and procps.
+  # An app is found by its exact executable path among this user's processes;
+  # a supervised job by the PID its supervisor reported. ps exits 1 when the
+  # PID has gone since, which means not running rather than failure.
+  ansible.builtin.command:
+    argv: >-
+      {{ ['ps', '-x', '-U', ansible_facts['user_uid'] | string, '-o', 'pid=,lstart=,comm=']
+         if restart_stale_kind == 'app'
+         else ['ps', '-o', 'pid=,lstart=,comm=', '-p', restart_stale_pid | string] }}
+  environment:
+    TZ: UTC
+    LC_ALL: C
+  register: restart_stale_ps
+  changed_when: false
+  check_mode: false
+  failed_when: restart_stale_ps.rc not in [0, 1]
+  when: restart_stale_kind == 'app' or (restart_stale_pid | int) > 0
+
+- name: "Restart-stale: read the binary's ctime"
+  # ctime, following symlinks. Not mtime: see the header of this file.
+  # `stat` is not shelled out to — GNU coreutils shadows BSD stat on this
+  # Mac's PATH and the two take different flags. The module is portable.
+  ansible.builtin.stat:
+    path: "{{ restart_stale_binary }}"
+    follow: true
+    get_checksum: false
+    get_mime: false
+    get_attributes: false
+  register: restart_stale_binary_stat
+
+- name: "Restart-stale: decide whether a restart is owed"
+  ansible.builtin.set_fact:
+    restart_stale_verdict: >-
+      {{ (restart_stale_ps.stdout | default('') | restart_stale_ps_rows)
+         | restart_stale_verdict(
+             restart_stale_binary_stat.stat.ctime
+               if restart_stale_binary_stat.stat.exists else none,
+             comm=(restart_stale_binary if restart_stale_kind == 'app' else none)) }}
+
+# ── Restart what is stale ────────────────────────────────────────────────────
+
+- name: "Restart-stale: restart the launchd agent"
+  # -k stops the running instance and starts a new one in one step.
+  ansible.builtin.command:
+    argv:
+      - launchctl
+      - kickstart
+      - -k
+      - "gui/{{ ansible_facts['user_uid'] }}/{{ restart_stale_launchd_label }}"
+  register: restart_stale_kickstart
+  changed_when: true
+  when:
+    - restart_stale_kind == 'launchd'
+    - restart_stale_verdict.stale
+
+- name: "Restart-stale: restart the systemd unit"
+  # The module rather than `systemctl --user restart`: it supplies
+  # XDG_RUNTIME_DIR when the session lacks one, which a bare systemctl --user
+  # under cron or sudo does not.
+  ansible.builtin.systemd_service:
+    name: "{{ restart_stale_systemd_unit }}"
+    scope: "{{ restart_stale_systemd_scope }}"
+    state: restarted
+  become: "{{ restart_stale_systemd_scope == 'system' }}"
+  register: restart_stale_systemd_restart
+  when:
+    - restart_stale_kind == 'systemd'
+    - restart_stale_verdict.stale
+
+- name: "Restart-stale: ask the app to quit"
+  # A graceful quit, the same request the Quit menu item sends, so the app can
+  # save state and refuse. `with timeout` bounds the wait for AppleScript's
+  # reply — including a first-run Automation permission prompt nobody answers.
+  ansible.builtin.command:
+    argv:
+      - osascript
+      - -e
+      - "with timeout of {{ restart_stale_quit_timeout | int }} seconds"
+      - -e
+      - "quit app {{ restart_stale_app_name | to_json }}"
+      - -e
+      - end timeout
+  register: restart_stale_quit
+  changed_when: true
+  failed_when: false
+  when:
+    - restart_stale_kind == 'app'
+    - restart_stale_verdict.stale
+
+- name: "Restart-stale: wait for the app to exit"
+  ansible.builtin.command:
+    argv: [ps, -o, pid=, -p, "{{ restart_stale_verdict.pid | string }}"]
+  register: restart_stale_exited
+  until: restart_stale_exited.rc != 0
+  retries: "{{ restart_stale_quit_timeout | int }}"
+  delay: 1
+  changed_when: false
+  failed_when: false
+  when:
+    - restart_stale_kind == 'app'
+    - restart_stale_verdict.stale
+    # Under --check the quit above did not run but still reports rc 0.
+    - not ansible_check_mode
+    - restart_stale_quit.rc | default(1) == 0
+
+- name: "Restart-stale: reopen the app"
+  # The bundle is derived from the binary, so the copy that reopens is the copy
+  # whose ctime was checked — not whichever one LaunchServices prefers.
+  ansible.builtin.command:
+    argv: [open, -a, "{{ restart_stale_binary | dirname | dirname | dirname }}"]
+  register: restart_stale_open
+  changed_when: true
+  when:
+    - restart_stale_kind == 'app'
+    - restart_stale_verdict.stale
+    - not ansible_check_mode
+    - restart_stale_exited.rc | default(0) != 0
+
+# ── Say what happened ────────────────────────────────────────────────────────
+
+- name: "Restart-stale: report"
+  vars:
+    restart_stale_target: >-
+      {{ {'launchd': 'launchd agent ' ~ restart_stale_launchd_label,
+          'systemd': restart_stale_systemd_scope ~ ' unit ' ~ restart_stale_systemd_unit,
+          'app': 'app ' ~ restart_stale_app_name}[restart_stale_kind] }}
+    restart_stale_outcome: >-
+      {%- if not restart_stale_verdict.stale -%}
+        not restarted: {{ restart_stale_verdict.reason }}
+      {%- elif ansible_check_mode -%}
+        STALE, would restart (check mode): {{ restart_stale_verdict.reason }}
+      {%- elif restart_stale_kind != 'app' -%}
+        RESTARTED because {{ restart_stale_verdict.reason }}
+      {%- elif restart_stale_quit.rc | default(1) != 0 -%}
+        STALE but NOT restarted: the graceful quit failed (osascript exit
+        {{ restart_stale_quit.rc | default('?') }}:
+        {{ restart_stale_quit.stderr | default('') | trim or 'no message' }}).
+        Left running; quit and reopen it by hand. {{ restart_stale_verdict.reason }}
+      {%- elif restart_stale_exited.rc | default(0) == 0 -%}
+        STALE but NOT restarted: asked to quit, still running after
+        {{ restart_stale_quit_timeout }}s. Left running, not force-killed; quit
+        and reopen it by hand. {{ restart_stale_verdict.reason }}
+      {%- else -%}
+        RESTARTED (quit and reopened) because {{ restart_stale_verdict.reason }}
+      {%- endif -%}
+  ansible.builtin.debug:
+    msg: >-
+      [restart-stale] {{ restart_stale_caller }}: {{ restart_stale_target }} —
+      {{ restart_stale_outcome }}
