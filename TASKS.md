@@ -1980,6 +1980,41 @@ author rather than the machine.
   council as the single highest payoff-per-line item researched. Done when a
   deliberately-broken test path or an empty `-k` filter is shown to fail the
   run rather than exit 0.
+- **Generalize the golden-transcript pattern for `llm_judge` tests, instead
+  of a VCR-style HTTP recorder.** Researched 2026-09-22, prompted by
+  `pytest-recording` (kiwicom, real and mature — 615★, MIT): it doesn't fit
+  here. VCR.py patches HTTP libraries inside the *test process*; this repo's
+  `llm_judge` tests call models via `subprocess.run` (`pii-redactor` → the
+  real `llm` CLI, a grandchild process) — the network call never happens
+  where an in-process recorder is watching. The herdr work already proved
+  the right-shaped mechanism once: "a golden transcript against the real
+  binary caught the `letta (experimental)` wire variant" no library would
+  have shown. Generalize that into a convention — record subprocess stdout
+  to a fixture file once, replay from file by default, `--record` flag (or
+  `llm_judge`-style marker) re-runs against the real model to refresh it —
+  rather than adopting a tool that architecturally cannot reach the calls.
+  Also verified and rejected the same session: `pytest-agentkit`,
+  `pytest-agentprobe`, `pytest-agent-eval`, `pytest-agent-health` — all real
+  PyPI packages, all 1-3 releases old (weeks to a few months), Alpha status,
+  no adoption evidence; the function they'd serve (agent regression
+  testing, threshold pass/fail) is already done more rigorously here by the
+  herdr judge-panel/fusion-council calibration method. Revisit only if one
+  of these matures with real usage evidence, not on name recognition.
+- Add `pytest-timeout`. Formalizes the ad hoc `timeout N` wrapping AGENTS.md
+  already documents as a lesson (a cold model load can exceed a short
+  timeout and cascade into every subsequent run failing) — a per-test
+  timeout marker on anything that shells out to a model makes the failure
+  mode a named, bounded one instead of an open-ended hang. `pytest-cov`,
+  `pytest-mock`, `pytest-env` researched and not adopted the same pass:
+  `pytest-mock` is a convenience wrapper this repo's consistent
+  `monkeypatch` usage doesn't need; `pytest-env` sets static config-file
+  values and can't supply the *dynamic*, per-test `tmp_path`-derived paths
+  the `$HOME`-sandbox fixture (above) requires. `pytest-rerunfailures`
+  researched and explicitly rejected as a default: auto-rerun-until-green
+  is the same shape as this repo's dominant failure mode (tests passing
+  while testing nothing) — a test that passes on retry is evidence to
+  investigate, not noise to suppress. If ever adopted, scope it to named
+  environmental flakes only.
 - Put the AI tooling under characterization tests BEFORE starting refactor B, and
   use them as the parity bridge. Audit the existing behaviour, add tests that pin
   it, then let the reimplementation run against the same tests. Parity becomes
