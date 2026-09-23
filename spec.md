@@ -543,6 +543,15 @@ which is why the exemption exists rather than a style preference.
 - **THEN** the plain-language standard applies as it does to a written doc —
   conversation is not an exemption from it
 
+#### Scenario: A doc uses a glossary term
+
+- **GIVEN** a term defined in `docs/GLOSSARY.md`
+- **WHEN** a doc uses the term
+- **THEN** the first use links to the definition. A project term defined but
+  never linked gets re-explained inline in each doc that uses it, and the
+  explanations drift; general vocabulary is glossed inline on first use and
+  does not enter the glossary
+
 ## Constraints
 
 ### Constraint: No layer grants permission
