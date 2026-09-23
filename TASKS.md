@@ -270,6 +270,7 @@ Say any of these and the thread resumes where it stopped:
 | **"metamorphic"** | The metamorphic-testing research for the test suites |
 | **"pkgup"** | The Debian package-updater study, blocked on become privileges |
 | **"r&d factory"** | The llocallabs exploratory pipeline — scratchpad experiments promoted by test suites, not vibes |
+| **"multiagent"** / **"coordination"** / **"worktrees"** | § Now #1 — bootstrap the multi-agent coordination layer (worktree-per-agent, frozen leases, `--no-ff` per item); handoff at § Where things stand — 2026-09-22 |
 
 The design decisions behind all of it are in `dotfiles/docs/ROADMAP-topic-cli.md`
 § Amendment — read that before writing any `topical` code, since several of them
