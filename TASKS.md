@@ -1648,9 +1648,15 @@ nothing is.
 - Add a pytest hook to pre-commit, or decide deliberately not to. The suite
   takes ~200s measured (215s and 199.5s on 2026-09-22, `-m "not llm_judge"`,
   documented command — the earlier 104s figure could not be reproduced and is
-  treated as stale), which is too slow for every commit — the likely answer is
-  the fast subset on pre-commit and the full run on pre-push, matching how the
-  bats hook already declares `stages: [pre-commit, pre-push]`.
+  treated as stale), which is too slow for every commit. **Three-tier design
+  settled 2026-09-22 (shift-left study, advisor council, unanimous):** fast
+  deterministic hooks only at commit; the full suite as an explicit
+  **merge-gate** step, not pre-push — research found a 200s pre-push hook gets
+  bypassed by habit within a week, and `--no-verify` silently kills the
+  lint hooks sharing that stage too; `llm_judge` tests stay excluded-and-named,
+  run by deliberate manual invocation, never in an automatic gate. This
+  replaces the earlier "pre-commit fast / pre-push full" framing — pre-push is
+  not the gate; the merge is.
 - Use local models to generate a machine-local policy layer from on-device
   policy documents. The source documents cannot leave the device, which is
   exactly why a local model is the right tool: it reads them in place and emits
