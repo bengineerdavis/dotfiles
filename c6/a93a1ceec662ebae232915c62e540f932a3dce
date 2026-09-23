@@ -1,0 +1,36 @@
+dotfiles/apps/apt/CHANGELOG.md
+  s_632500cd5a2494::t_0ee274a5cf5ad1 16-24,39-42,46
+dotfiles/apps/apt/tasks/remove.yaml
+  s_632500cd5a2494::t_0ee274a5cf5ad1 5-17
+dotfiles/apps/apt/tasks/prerequisites.yaml
+  s_632500cd5a2494::t_0ee274a5cf5ad1 6,11-12
+  s_632500cd5a2494::t_331b04a8ed0be1 13
+dotfiles/apps/deb-get/CHANGELOG.md
+  s_632500cd5a2494::t_0ee274a5cf5ad1 37-40
+dotfiles/apps/apt/tasks/retired.yaml
+  s_632500cd5a2494::t_9da8adc28f6ac2 1-66
+dotfiles/apps/apt/defaults/main.yaml
+  s_632500cd5a2494::t_0ee274a5cf5ad1 35-59
+tests/topics/test_apt_tasks.py
+  s_632500cd5a2494::t_3eb9ea537c496f 1-30,32-68,70-136,146-148
+  s_632500cd5a2494::t_7295cbb500c4f6 31,69,137-145
+dotfiles/apps/apt/tasks/upgrade.yaml
+  s_632500cd5a2494::t_0ee274a5cf5ad1 6-12,17-47
+  s_632500cd5a2494::t_d1eb6dbe75657b 48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c6a93a1ceec662ebae232915c62e540f932a3dce",
+  "prompts": {},
+  "sessions": {
+    "s_632500cd5a2494": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f407ae36affe10UBPV2WhMeSJ3",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
