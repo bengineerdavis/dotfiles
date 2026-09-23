@@ -213,9 +213,10 @@ def test_app_stale_is_quit_gracefully_then_reopened(machine, run_role):
     result = ok(app(machine, run_role, started_offset=-HOUR))
 
     quit = machine.calls("osascript")
-    assert quit and 'quit app "Thing"' in quit[0]
+    bundle = str(machine.root / "Apps" / "Thing.app")
+    assert quit and f'quit app "{bundle}"' in quit[0]
     assert machine.calls("open") == [
-        ["open", "-a", str(machine.root / "Apps" / "Thing.app")]]
+        ["open", "-a", bundle]]
     assert said(result, "RESTARTED (quit and reopened)")
 
 
@@ -248,6 +249,29 @@ def test_app_whose_quit_is_refused_is_left_running(machine, run_role):
         "waited for an exit that was never requested"
     assert said(result, "STALE but NOT restarted: the graceful quit failed")
     assert said(result, "-1743")
+
+
+@darwin_only
+@pytest.mark.parametrize("rc", [1, 2])
+def test_an_exit_probe_error_cannot_authorize_reopening(machine, run_role, rc):
+    machine.state["exit_probe_error"] = {"rc": rc, "stderr": "process probe unavailable"}
+    result = app(machine, run_role, started_offset=-HOUR)
+
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert said(result, "process probe unavailable")
+    assert not machine.calls("open")
+    assert not said(result, "RESTARTED (quit and reopened)")
+
+
+@darwin_only
+def test_an_unreadable_process_table_is_not_a_stopped_app(machine, run_role):
+    machine.state["process_probe_error"] = {"rc": 1, "stderr": "process table unavailable"}
+    result = app(machine, run_role, started_offset=-HOUR)
+
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert said(result, "process table unavailable")
+    assert not machine.calls("osascript")
+    assert not machine.calls("open")
 
 
 @darwin_only

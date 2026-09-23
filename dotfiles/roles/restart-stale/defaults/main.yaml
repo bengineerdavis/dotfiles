@@ -25,7 +25,8 @@ restart_stale_launchd_label: ""
 restart_stale_systemd_unit: ""
 restart_stale_systemd_scope: user
 
-# app: the name AppleScript knows the app by, used in `quit app "<name>"`.
+# app: display name for the report. Quit and reopen target the exact bundle
+# derived from restart_stale_binary, so duplicate app names cannot redirect it.
 restart_stale_app_name: ""
 
 # app: seconds to wait for a graceful quit before giving up. The app is never
