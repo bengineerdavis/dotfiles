@@ -679,18 +679,32 @@ nothing is.
   everything molecule does not — molecule tests convergence on a machine, not
   the repo's own logic. [blocked: needs the `--check` fix above, since a run
   that cannot dry-run cannot be trusted to converge twice either]
-  **Plugin choices verified 2026-09-22 (PyPI, not the pasted research that
-  prompted the check):** `pytest-molecule` (ansible-community, Sorin Sbarnea,
-  Production/Stable) as the orchestrator — auto-discovers `molecule.yml`
-  scenarios and registers each as a pytest case, so `pytest -n auto` covers
-  molecule runs too once the `$HOME`-sandbox work above lands.
-  `pytest-testinfra` as the verifier — the long-standing standard Molecule
-  uses to translate Python assertions (`host.file(...)`, `host.service(...)`)
-  into remote checks after converge, matching the herdr pattern already used
-  here. **`pytest-ansible` explicitly rejected**: as of v26.9.0 the package
-  deprecated itself — its own README: "I've made the difficult decision to
-  deprecate myself... plain pytest, ansible-test, molecule, tox-ansible, ADE,
-  and ansible-creator now carry the day for collection authors."
+  **Plugin choices — corrected 2026-09-22, superseding the same-day note
+  below it.** The first pass recommended `pytest-molecule` on PyPI metadata
+  alone (Production/Stable classifier); checking its actual GitHub repo
+  caught what the classifier hid: **archived 2023**, own notice says
+  "functionality merged into pytest-ansible, switch there." Followed that
+  chain and it dead-ends: pytest-ansible has *also* deprecated the same
+  molecule-via-pytest integration and is itself EOL December 2026 (its
+  README's own migration table, fetched directly). The stated reason is
+  architectural, not fashion — wrapping each scenario as one
+  `molecule test -s <scenario>` subprocess cannot support Molecule's own
+  `shared_state` (create once in the default scenario, run component
+  scenarios, destroy once) or `--workers` concurrency; those need
+  Molecule's native multi-scenario orchestration. **Corrected choice: run
+  `molecule test --all --workers 4` directly, no pytest wrapper** — this is
+  also pytest-ansible's own recommended replacement for exactly this use.
+  `pytest-testinfra` is unaffected by any of this (it's the verifier
+  molecule scenarios call, not a molecule-orchestration plugin) and stays
+  the choice for translating the herdr-style Python assertions
+  (`host.file(...)`, `host.service(...)`) against post-converge state.
+  `pytest-ansible` stays rejected, now with the sharper reason: not just
+  the earlier self-deprecation quote, but a concrete EOL date and a
+  published migration table (ADE for collection unit tests, tox-ansible for
+  CI matrices, `ansible-inventory --list` + `pytest.mark.parametrize` for
+  host iteration — none of which this repo currently uses pytest-ansible
+  for, confirmed by grep, so there is nothing here to migrate, only
+  something to not adopt).
 - **Sweep the remaining hardcoded `/home/bdavis` paths out of
   `dot_zshrc.tmpl`.** Four of them, all inside the `{{ if eq .chezmoi.os
   "linux" }}` block (lines 69–459), so none render on macOS and none are broken
