@@ -247,6 +247,8 @@ Phase 2 — experiments, in sequence (your choice): happy path (two disjoint sub
  7. (g) mutation trailers — land now, as one small standalone change.
  8. "general" egress — ask (fail-closed), consistent with "everything else asks" (PERMISSIONS.md).
 
+Landed 2026-09-22, same session: 1 → `001fa42`; 3 → `48e4fbc` + `5a4c25a`; 7 → `a92489b`.
+
 ## Picking this back up
 
 Say any of these and the thread resumes where it stopped:
@@ -417,7 +419,7 @@ nothing is.
     incident class in the trust ladder is currently detectable only by a human
     redoing the work. Related: the mutation state that proves a test must
     never be committed, so the evidence can only ever live beside the commit,
-    not in it.
+    not in it. [done `a92489b` 2026-09-22]
 
 - **Consolidate the governance docs — PRD as the constitution, spec as the
   derived statutes, conventions as the how-to.** [#2, was #1 until the author
@@ -2286,6 +2288,12 @@ and `chezmoi status` before editing.
   pair of edits may not be so lucky. `~/.config/mise/config.toml` is a symlink
   to this file, so editing the source changes what mise reads immediately —
   before any `chezmoi apply`.
+
+  2026-09-22: seen live again — during an unrelated commit, a mise run
+  auto-bumped `github:danielmiessler/fabric` 1.4.478 → 1.4.479 in the working
+  tree (reverted; the pin is deliberate, see the comment above the fabric
+  line) and the `npm:@openai/codex` install failed with Permission denied
+  (os error 13) on `/tmp/fslock/...`. Standing machine issue, not a one-off.
 
 ## Standing reminders
 
