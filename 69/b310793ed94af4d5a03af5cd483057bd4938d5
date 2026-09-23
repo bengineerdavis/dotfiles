@@ -1,0 +1,19 @@
+spec.md
+  s_cc4c9b4d421079::t_a1258798548e2d 546-554
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "69b310793ed94af4d5a03af5cd483057bd4938d5",
+  "prompts": {},
+  "sessions": {
+    "s_cc4c9b4d421079": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f30091404ffe32McaInoeR67i1",
+        "model": "moonshotai/kimi-k3"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
