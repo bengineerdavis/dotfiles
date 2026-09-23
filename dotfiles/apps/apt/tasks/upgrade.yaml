@@ -2,15 +2,23 @@
 # apps/apt/tasks/upgrade.yaml
 # ──────────────────────────────────────────────────────────────────────────────
 # System-level apt upgrade. Topics do NOT own upgrade logic.
+#
+# Order matters. Signing keys are fixed first, because a missing key makes
+# apt-get update exit 100 and the module hard-fails after its retries.
+
+- name: "Upgrade: repair signing keyrings"
+  ansible.builtin.import_tasks: keyrings.yaml
 
 - name: "Upgrade: update apt cache"
   ansible.builtin.apt:
     update_cache: true
+    lock_timeout: "{{ apt_lock_timeout }}"
   become: true
 
 - name: "Upgrade: upgrade all apt packages"
   ansible.builtin.apt:
     upgrade: dist
+    lock_timeout: "{{ apt_lock_timeout }}"
   become: true
   register: apt_upgrade_result
 

@@ -1,12 +1,21 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # apps/apt/tasks/prerequisites.yaml
 # ──────────────────────────────────────────────────────────────────────────────
-# TODO: install core packages required before any topic installs.
+# Core packages required before any topic installs.
+#
+# Keys are fixed before the refresh, for the reason given in
+# upgrade.yaml. The keyring helper needs gpg; on a fresh box without it the
+# first pass defers, and it runs again once gnupg is installed. The second pass
+# is include_tasks (not import) so its `when` is decided once, up front.
+
+- name: "Prerequisites: repair signing keyrings"
+  ansible.builtin.import_tasks: keyrings.yaml
 
 - name: "Prerequisites: update apt cache"
   ansible.builtin.apt:
     update_cache: true
-    cache_valid_time: 3600
+    cache_valid_time: "{{ apt_cache_valid_time }}"
+    lock_timeout: "{{ apt_lock_timeout }}"
   become: true
 
 - name: "Prerequisites: install core apt packages"
@@ -20,4 +29,14 @@
       - software-properties-common
       - build-essential
     state: present
+    lock_timeout: "{{ apt_lock_timeout }}"
   become: true
+
+# Tasks inside a dynamic include do not inherit the router's tags, so `apply`
+# carries them; without it `--tags prerequisites` would skip the second pass.
+- name: "Prerequisites: repair signing keyrings now that gnupg is present"
+  ansible.builtin.include_tasks:
+    file: keyrings.yaml
+    apply:
+      tags: [prerequisites, provision]
+  when: apt_keyrings_deferred | default(false)
