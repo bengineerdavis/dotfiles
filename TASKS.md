@@ -234,10 +234,25 @@ nothing is.
     of it: the deployed tree, `~/bin`, `~/.binned/config.toml`, apt/brew
     locks, mise, ollama's global model memory. True parallel width is the
     number of in-flight tasks needing no global resource; model each global as
-    a semaphore. Estimated real ceiling here is 2–3 writers. Prerequisite for
-    any parallelism: sandbox the tests that touch `$HOME`
-    (`HOME=$(mktemp -d)`, chezmoi `--source`/`--destination`, `--dry-run`).
-    Until that holds, `pytest-xdist` is off the table.
+    a semaphore. Estimated real ceiling here is 2–3 writers — **flagged by the
+    shift-left study's fusion council as circular: estimated from a $HOME-touch
+    audit that doesn't exist yet, and hermetic HOME may dissolve the ceiling
+    rather than just unblock xdist.** Prerequisite for any parallelism: sandbox
+    the tests that touch `$HOME` (`HOME=$(mktemp -d)`, chezmoi
+    `--source`/`--destination`, `--dry-run`). **Implementation pattern
+    researched 2026-09-22:** an autouse conftest fixture pointing
+    `HOME`/`XDG_*` at `tmp_path` via `monkeypatch.setenv` (auto-reverts, no
+    manual teardown); the trap is modules that cache `os.path.expanduser("~")`
+    at import time — those must be invoked as subprocesses with an explicit
+    `env=` dict built from `tmp_path`, monkeypatching `os.environ` alone does
+    not reach them. macOS-specific escapes to name and exclude, not silently
+    tolerate: the system keychain and `dscl` ignore `$HOME`, and a subprocess
+    that re-execs a login shell (`zsh -l`) re-sources zprofile and escapes the
+    sandbox — a live Class-B channel (test passes while touching real state).
+    chezmoi's own upstream suite isolates at the layer that resolves the path
+    (in-process VFS + `testscript` txtar synthetic homes) rather than via env
+    vars — same principle, different mechanism, worth the comparison before
+    building. Until this holds, `pytest-xdist` is off the table.
   - **(d) The subtask dependency graph is deferred, with the condition for
     revisiting it stated.** Graphs work where they are *derived and enforced*
     and fail where they are *authored and trusted*: Bazel/Buck/Nix are
