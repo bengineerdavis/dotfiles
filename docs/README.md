@@ -17,6 +17,7 @@ instead, so the root holds only the five documents that govern the project.
 | `TOPICS.md` | index entry for topic conventions, which live in the deployed tree |
 | `LAYOUT.md` | the cross-machine directory standard: taxonomy, ownership, migration plan |
 | `LANGUAGES.md` | which languages the repo's scripts use, and the reusable per-language tool profile |
+| `GLOSSARY.md` | project terminology — the words that mean something specific here, linked on first use |
 
 ## Adding one
 

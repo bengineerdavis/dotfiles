@@ -763,6 +763,9 @@ root holds only the five documents that govern the project:
 - **`docs/LANGUAGES.md`** — the languages the repo's scripts use, and the
   reusable per-language tool profile (formatter/linter/typecheck/test/LSP).
   Points at `docs/PYTHON.md` instead of repeating it.
+- **`docs/GLOSSARY.md`** — project terminology only, not a CS dictionary.
+  General terms get glossed inline on first use; a doc using a glossary term
+  links to its definition on first use (`spec.md` § Writing).
 
 `CONTRIBUTING.md` is the human entry point and lives there rather than
 here on purpose: GitHub only discovers `CONTRIBUTING.md` in `.github/`, the
