@@ -479,6 +479,16 @@ nothing is.
     revert restores the source, not the machine. Scope is agent-concurrency
     only: what the coordination layer must guarantee about effects it cannot
     take back. Ansible plan-vs-apply drift is explicitly out.
+  - **(o) Phase 2 experiments — the design seen to work, in sequence.**
+    Choose the order; each is evidence, not ceremony. **Happy path:** two
+    disjoint sub-agents, simultaneous suites, prove the offline run works —
+    then `uv cache clean` one package and confirm the offline run fails.
+    **The guard seen to fail:** a path overlap refused at fan-out, then the
+    check disabled to confirm it was the guard that caught it; extended with
+    two sub-agents adding the same `topic_provides` from different files —
+    path intersection empty, so the resolver must reject the merged tree.
+    **Provisioner path:** `uv add`, merge back, re-lock; then two
+    provisioners refused.
 
 - **Consolidate the governance docs — PRD as the constitution, spec as the
   derived statutes, conventions as the how-to.** [#2, was #1 until the author
