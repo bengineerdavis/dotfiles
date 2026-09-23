@@ -1,0 +1,19 @@
+TASKS.md
+  s_e419849efb75ae::t_855bfe521a934b 273
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5d90cc7e1c6cd998e15409755edc0109a7e121cb",
+  "prompts": {},
+  "sessions": {
+    "s_e419849efb75ae": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f360e4c2bffevwTsXO7icLr9aO",
+        "model": "deepseek/deepseek-v4-pro-0813"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
