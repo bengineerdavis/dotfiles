@@ -2230,8 +2230,23 @@ and withdrawn — it reproduced the patterns, exactly as warned above.
 
 ## Decisions waiting on the author
 
-None open. The five that stood here were answered on 2026-09-11 and became
-tasks; see § Now and § Planned. Add new ones here rather than deciding them.
+From the shift-left testing study (2026-09-22) — answered questions became
+task edits above; these four remained open when the study closed:
+
+- **Is a bypass ever legitimate?** If yes, the ledger needs a first-class
+  "bypassed with reason" state before the first real bypass happens, or
+  agents learn to hide theirs rather than record them.
+- **Who audits the auditor?** The quiz-before-merge and the rubber-stamp
+  risk are the same mechanism from opposite ends. What catches it when the
+  author stops genuinely quizzing — a periodic re-quiz on a ledger-sampled
+  merged item, or does the author self-certify indefinitely?
+- **Which tests may touch real `$HOME`?** Login-shell and keychain/`dscl`
+  cases can't be sandboxed on macOS by the researched fixture pattern (§
+  Now, the xdist sub-item). A named, excluded list turns the audit into a
+  lookup rather than a per-test debate.
+- **Minimum gate set per task class?** Which exits must be 0 for docs,
+  tests, code, policy, and deployed-tree changes to count as "merged"? The
+  trust ladder's rungs are uncomputable until this is named per class.
 
 ## Sandbox isolation — verified findings, 2026-09-20
 
