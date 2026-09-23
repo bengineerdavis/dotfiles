@@ -2229,10 +2229,10 @@ and withdrawn — it reproduced the patterns, exactly as warned above.
 
 ## Decisions waiting on the author
 
-From the shift-left testing study (2026-09-22). Two of the original four
-answered 2026-09-22 (see the LEDGER item's bypass-state note, § Now, and
-the `$HOME`-exception reopen trigger, § Planned); one is being designed now
-(the auditor question, this section, below); one remains:
+From the shift-left testing study (2026-09-22). Three of the original four
+were answered and landed 2026-09-22 (the LEDGER item's bypass-state note and
+auditor-of-the-auditor design, § Now; the `$HOME`-exception reopen trigger,
+§ Planned); one remains:
 
 - **Minimum gate set per task class?** Which exits must be 0 for docs,
   tests, code, policy, and deployed-tree changes to count as "merged"? The
