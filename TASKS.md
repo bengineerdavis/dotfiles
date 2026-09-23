@@ -2016,6 +2016,36 @@ author rather than the machine.
   It records this repo's work rather than usage, which argues for committing it,
   but it is also a running record of agent-versus-author correction that may not
   want to be public.]**
+  **Two-track model, settled with the author 2026-09-22 (shift-left study):**
+  trust attaches to the *mechanism*, not the commit or session — a
+  deterministic check that has proven itself doesn't re-earn trust each run.
+  This is what makes trust transferable rather than reset-per-item, per the
+  author: "once we've built repeatable patterns we can label as high trust,
+  they should in theory be transferrable — we don't want to start from
+  scratch on stages for every commit." Two tracks, not one funnel:
+  - **Deterministic track** (prek/shellcheck, bats, pytest exit codes, ruff,
+    ty — anything with a binary, reproducible outcome). Entry gate: seen to
+    fail once (mutation-proven, per § Prove the test fails). Graduation:
+    short streak of clean runs. Once graduated, trusted permanently until it
+    changes or a false negative is found.
+  - **Judgment track** (agent code-gen, skill output, LLM-judge verdicts —
+    anything with output variance). No single-run entry gate ("passed"
+    doesn't mean the same thing twice); graduates on a rolling
+    correction-rate window instead of a streak, and the trust *level* moves
+    with the window rather than becoming permanent.
+  Latency tolerance is a property of *where an item sits on its track*, not a
+  global clock: the funnel starts deliberately slow (least-privilege as the
+  starting metaphor) and tightens toward the author's stated destination of
+  under 5 seconds for fully-graduated deterministic checks, as the ladder's
+  existing 5/10/20-clean-item promotion numbers are satisfied per mechanism.
+  **[open question, routed rather than decided here: is a mechanism's earned
+  trust keyed globally (e.g. "ruff" is trusted everywhere) or scoped per-repo
+  — and is a *skill's* trust portable across repos?** This is the same
+  question as the agent→function graduation policy already blocked on
+  `ai-prompt-library`'s TASKS.md (§ Now, "Check AGENTS.md and CONTRIBUTING.md
+  for places the agent→function graduation policy should apply") — the
+  author approved routing it there rather than deciding it in this repo;
+  no text lands here until that artifact exists.]
 - Factor a general git repository template out of this work, using copier
   (9.17.2, installed). **Its own repository at `~/code/personal/`**, alongside
   ai-prompt-library and impromptu — not a directory here, and not under
