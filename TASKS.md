@@ -164,6 +164,106 @@ reversed earlier positions on purpose.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
+- **Build a machine-assisted merge-gate checker — turn the diff-derived
+  design in `AGENTS.md` § Merge gates (2026-09-22, fusion council) into a
+  real, runnable tool instead of prose a human or agent applies by
+  judgment.** [handoff, unclaimed — written 2026-09-22 for a fresh session
+  to pick up cold; no prior conversation context needed to execute this]
+
+  **Where things stand today, verified by direct inspection, not memory:**
+  nothing computes this automatically. `.pre-commit-config.yaml` has
+  exactly three hooks (shellcheck, bats-on-staged-scripts,
+  commit-proportionality) and none of them know about diff buckets. The
+  gate design exists only as prose in `AGENTS.md`. Two scripts already
+  establish the house pattern to follow: `scripts/run-bats.sh` computes
+  `git diff --cached --name-only --diff-filter=ACM` and acts only on what
+  changed; `scripts/check_commit_proportionality.py` is a small,
+  stdlib-only Python script wired into prek as a `local` hook, exiting
+  nonzero on failure. Model the new script on both — this is
+  configuration-and-scripting for this repo's own governance, not a
+  bespoke external tool, so it belongs here per the AGENTS.md build ladder,
+  same as those two.
+
+  **(a) The classifier — mostly solved already, verified 2026-09-22.**
+  Compute the diff (`git diff --name-only <merge-base>..HEAD` or against
+  `--cached` depending on when it's invoked — decide which per (d) below)
+  and sort every changed path into exactly one of three buckets:
+  - **deployed-tree**: **fully mechanical, zero judgment call needed.**
+    `chezmoi managed --path-style=source-relative` prints every
+    `.chezmoiignore`-aware deployed source path (verified: it correctly
+    excludes `AGENTS.md` and includes `bin/executable_policy`,
+    `dotfiles/policy/*.yaml`). A changed path is deployed-tree if and only
+    if it appears in that list. No enumeration to maintain by hand.
+  - **policy**: not yet enumerated anywhere — this is the one real gap.
+    Strong candidates, found by inspection: `bin/executable_policy`,
+    `dotfiles/policy/**` (currently `ethics.yaml`, `personal.yaml`), and
+    `.claude/settings.json` (confirmed repo-native, **not**
+    chezmoi-managed — it lands in this bucket for being policy, not for
+    being deployed, a different reason than the bucket above). Confirm
+    this list is complete before shipping v1; it's a short, low-risk
+    enumeration task, not a deep research question.
+  - **egress**: genuinely unsolved and likely stays a judgment call — it's
+    about what a change *enables at runtime* (a new network call, a new
+    `curl`/`llm`/`ollama` invocation site), not a file-path pattern a diff
+    can mechanically reveal. Don't force a mechanical answer here; a
+    self-reported flag the agent sets, checked against nothing, is more
+    honest than a false sense of automation.
+  - **docs**: everything else that's markdown/comments/non-executable
+    metadata — this bucket needs its own small, editable pattern list
+    (e.g. `*.md`, `docs/**`) since "non-executable metadata" is currently
+    only prose too.
+  - Anything not caught by the three special buckets falls through to
+    **"everything else"** — the existing full gate, unchanged.
+
+  **(b) The check runner.** Given a bucket, either just *report* which
+  gates apply (advisory) or actually *run* them and report pass/fail
+  (enforcing) — see (c). Machine-readable output matters here specifically
+  because an agent, not just a human, consumes it: exit code +
+  `file:line`-shaped findings + one JSON artifact, same shape already
+  queued in the shift-left study's "machine-shaped gate outputs" task
+  (§ Now, "Machine-shaped gate outputs, and a skip census instead of
+  coverage %" — cross-reference it, don't re-derive the format).
+  If that task's `pytest-json-report` wiring lands first, this script
+  should *consume* that JSON rather than re-parsing pytest's text output.
+
+  **(c) Enforce or advise — an open sub-decision, not mine to make
+  silently.** Recommendation: **start advisory-only.** Three independent
+  reasons converged on this same session: the two-track trust model
+  (`AGENTS.md`, LEDGER item) says a new deterministic mechanism earns
+  trust through a seen-to-fail entry gate plus a streak, not by starting
+  maximal; the author's own stated principle is "start with least
+  privilege... once we can repeat a defined success condition, then we
+  improve" — this script hasn't repeated anything yet; and the exact same
+  gate-vs-report question is already open and deliberately unresolved for
+  `ty` (§ Now, "Install `ty` and typecheck") — treat both consistently
+  rather than deciding this one differently by accident. Tighten to
+  enforcing only after it's been run for real for a while and shown
+  correct.
+
+  **(d) Wiring point — deliberately NOT a blocking git hook.** This
+  session's own pytest-plugin research found the concrete failure mode: a
+  200s pre-push hook gets bypassed by habit within a week, and
+  `--no-verify` silently kills whatever else shares that stage — "a gate
+  you must bypass to work is a gate you've lost." Self-merging is a
+  deliberate act here (there's no server-side CI to enforce anything
+  regardless), so the natural integration point is a script the agent (or
+  human) *chooses* to run as part of its own "am I allowed to self-merge"
+  reasoning per § Merge gates — not an automatic hook that blocks
+  `git merge` itself. Once the LEDGER (§ Planned, "Build the LEDGER for the
+  trust ladder" — not yet built) exists, this
+  script is the natural thing that *writes* a ledger line — producer and
+  consumer, designed together rather than bolted on later.
+
+  **Done when:** the classifier correctly sorts a deliberately-constructed
+  three-file diff (one docs, one policy, one code) into the right buckets,
+  verified by direct inspection not assertion; the deployed-tree bucket is
+  proven against a real `chezmoi managed` diff, not a hand-written list;
+  the policy-path list is confirmed complete or corrected; the
+  enforce/advise call is made explicit in the script's own help text, not
+  left implicit; and running it against a real recent commit in this repo
+  produces output an agent could act on without a human translating it.
+  [unclaimed]
+
 - **Bootstrap the multi-agent coordination layer — worktrees, frozen leases,
   risk-tiered merge gates — then extract it to the copier template.** [#1,
   reordered ahead of the governance consolidation by the author 2026-09-20]
