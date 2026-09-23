@@ -130,7 +130,6 @@ remain modified by another session (`dotfiles/executable_install.sh`,
 | no separate dotagents topic — it's `npx -y @sentry/dotagents@latest --user` at apps/opencode/tasks/install.yaml:98 | find, grep |
 | `@sentry/dotagents@3.1.0` is MIT, public on npm — passes the litmus test, clears skill-trust | npm registry |
 | no task rule in either versioned config | grep both files |
-| `.worktrees/` not in tracked .gitignore | needs adding |
 
 **Private-index disclosure — decided.** `tools/skill-trust/uv.lock` pins a
 private corporate index — `https://sfw.security.sentry.io/pypi/simple` in
@@ -206,7 +205,16 @@ Phase 1 — this repo, configuration only. Each its own commit; `git commit -o`;
 | 13 | Task: author feynman-explanation |
 | 14 | Task: declare both skills as agentic dependencies |
 
-Sub-items (a)–(g) are committed. (h)–(n) are designed, not written:
+Landed 2026-09-23: 2 → `b0a1b08`; 3 → `ba50e33`; 4 → `b28dfca`; 5 →
+`7a9fed9`; 6 → `69b3107`; 7 → `a475a2b`; 8 → `033fd40`; 9 → `995cbc3`;
+10 → `6ed496c`; 11 → `bdab641`; 12 → `d0ea6be`; 13 → `ac19f2d`; 14 →
+`5725275`. Placement judgments, correct if wrong: item 10's task block is
+sub-item (o) of § Now #1; item 11's one line is a comment beside the npx
+call in `apps/opencode/tasks/install.yaml`; items 12–14 are § Planned
+entries.
+
+Sub-items (a)–(g) are committed. (h)–(n) were written into § Now #1 on
+2026-09-23 (`b0a1b08`); their designs are kept below as the record:
 
 - **(h) Lifecycle** — spawn/fanout/provision/collect/reap; ephemeral merge worktree; serial merge + suite; retry table; bisect a failed wave; never `git branch -D` (only after `merge-base --is-ancestor`); crash recovery via `remove --force` + prune
 - **(i) Declaration merge policy** — regenerate lockfiles; .gitattributes; pin uv; register pyproject.toml/uv.lock as hot files
@@ -233,7 +241,6 @@ Phase 2 — experiments, in sequence (your choice): happy path (two disjoint sub
 - `ollama ps` before benchmarking — model memory is global
 - Test command needs all seven `--with` flags or parts of the suite silently skip
 - `tests/tasks_doc` guards TASKS.md section boundaries
-- `.worktrees/` is currently excluded only locally via `.git/info/exclude` (previous session's change, to be replaced by the tracked entry)
 - `chezmoi add` on a `.tmpl` can overwrite `{{ }}` with literals — always `git diff` after
 
 **Resolved this session — the eight open questions**
