@@ -466,6 +466,23 @@ A tag named in a role SHALL also be declared in the model manifest.
   which once left 18GB of in-use weights one command from deletion. `status` and
   `check` report this as role drift
 
+### Behavior: Dependencies — a referenced skill is a declared dependency
+
+Referencing a skill for a method — from this file, a doc, or `AGENTS.md` —
+makes that skill a project dependency. The reference SHALL be matched by a
+declaration the machine's skill manager can install and keep current, and the
+skill SHALL pass skill-trust before the reference lands. An agent adding a
+reference SHALL update the declaration in the same change; an agent removing
+the last reference to a skill SHALL remove its declaration.
+
+#### Scenario: A spec cites a skill for its method
+
+- **GIVEN** a normative rule whose method lives in a skill
+- **WHEN** the reference is written
+- **THEN** the skill is declared as a project dependency in the same change —
+  a method referenced but not installed is a rule that reads as enforceable
+  and is not
+
 ### Behavior: Policy — egress consults the resolver, at the point of egress
 
 Every tool that sends content to a model SHALL consult `policy check` before
