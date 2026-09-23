@@ -66,7 +66,6 @@ A stale claim is not a lock. If a line looks abandoned, check `git log -3` on th
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
 
-- 2026-09-23T02:02Z — restart the ollama server so it matches its client (server 0.33.3 vs client 0.34.3; MLX runner failing) — ollama (global)
 
 ## Where things stand — 2026-09-15 (the session handoff)
 
@@ -1019,6 +1018,14 @@ nothing is.
   each invoked model id exists in `ollama list` and answers a call, and
   tooling that depends on a missing/broken model skips-with-reason instead of
   failing. [me]
+  *Evidence 2026-09-22 evening:* a restart of `com.ollama.server` fixed it —
+  `gemma4:12b-mlx` and `qwen3.8:27b-mlx` answered afterwards. The cause is not
+  established. The server process had run since 2026-09-12 on 0.33.3, and brew
+  installed 0.34.3 at 17:52 PDT without restarting it, so by evening client and
+  server disagreed. But the 09:32 failure predates that upgrade, so the mismatch
+  cannot explain it; a fresh process and a new version arrived together and
+  this evidence cannot separate them. The upgrade path not restarting the
+  server is its own defect regardless.
 
 - Migrate the mise `python.uv_venv_auto` setting before mise 2027.7.0 removes
   it — mise warned the deprecation during the herdr work (2026-09-19:
