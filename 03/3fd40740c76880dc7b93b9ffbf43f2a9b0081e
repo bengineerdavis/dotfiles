@@ -1,0 +1,23 @@
+docs/README.md
+  s_cc4c9b4d421079::t_045006dc4b18ec 21
+AGENTS.md
+  s_cc4c9b4d421079::t_461a9804e1f8a0 769-772
+docs/WORKTREES.md
+  s_cc4c9b4d421079::t_af732aac1fc840 1-79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "033fd40740c76880dc7b93b9ffbf43f2a9b0081e",
+  "prompts": {},
+  "sessions": {
+    "s_cc4c9b4d421079": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f30091404ffe32McaInoeR67i1",
+        "model": "moonshotai/kimi-k3"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
