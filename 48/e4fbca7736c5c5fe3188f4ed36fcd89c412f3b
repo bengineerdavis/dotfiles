@@ -1,0 +1,21 @@
+dotfiles/bootstrap/bootstrap.sh
+  s_e419849efb75ae::t_26c0e9b84a68c1 23
+  s_e419849efb75ae::t_16d42faf07b322 20-21
+  s_e419849efb75ae::t_3c05c94957bbf0 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "48e4fbca7736c5c5fe3188f4ed36fcd89c412f3b",
+  "prompts": {},
+  "sessions": {
+    "s_e419849efb75ae": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f360e4c2bffevwTsXO7icLr9aO",
+        "model": "deepseek/deepseek-v4-pro-0813"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
