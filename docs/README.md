@@ -18,6 +18,7 @@ instead, so the root holds only the five documents that govern the project.
 | `LAYOUT.md` | the cross-machine directory standard: taxonomy, ownership, migration plan |
 | `LANGUAGES.md` | which languages the repo's scripts use, and the reusable per-language tool profile |
 | `GLOSSARY.md` | project terminology — the words that mean something specific here, linked on first use |
+| `WORKTREES.md` | the agent-worktree naming contract and lifecycle: `.worktrees/<sid>`, one writer per worktree, ephemeral merge scratch |
 
 ## Adding one
 

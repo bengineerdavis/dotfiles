@@ -766,6 +766,10 @@ root holds only the five documents that govern the project:
 - **`docs/GLOSSARY.md`** — project terminology only, not a CS dictionary.
   General terms get glossed inline on first use; a doc using a glossary term
   links to its definition on first use (`spec.md` § Writing).
+- **`docs/WORKTREES.md`** — the agent-worktree naming contract and lifecycle:
+  flat `.worktrees/<sid>` names, underscores never slashes in branches, one
+  writer per worktree, ephemeral merge scratch, deletion only after
+  `merge-base --is-ancestor`.
 
 `CONTRIBUTING.md` is the human entry point and lives there rather than
 here on purpose: GitHub only discovers `CONTRIBUTING.md` in `.github/`, the
