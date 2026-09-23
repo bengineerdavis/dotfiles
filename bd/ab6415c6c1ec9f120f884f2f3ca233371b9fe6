@@ -1,0 +1,19 @@
+dotfiles/apps/opencode/tasks/install.yaml
+  s_cc4c9b4d421079::t_a1111450b35311 96-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bdab6415c6c1ec9f120f884f2f3ca233371b9fe6",
+  "prompts": {},
+  "sessions": {
+    "s_cc4c9b4d421079": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f30091404ffe32McaInoeR67i1",
+        "model": "moonshotai/kimi-k3"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
