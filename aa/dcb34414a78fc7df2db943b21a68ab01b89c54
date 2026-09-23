@@ -1,0 +1,46 @@
+tests/clipped/clipped_harness.py
+  s_1e72100d74133a::t_e818434ff50121 1-17
+tests/clipped/conftest.py
+  s_1e72100d74133a::t_cb81b7afe9dc93 25
+tests/pii_redactor/test_pii_redactor_llm.py
+  s_1e72100d74133a::t_9752743714caa7 21
+tests/pii_redactor/pii_redactor_harness.py
+  s_1e72100d74133a::t_2edb2bc71cd552 14
+  s_1e72100d74133a::t_cf9e59469bf683 1-13,15-29
+tests/policy/policy_harness.py
+  s_1e72100d74133a::t_1f8acf9b99caa0 1-17
+tests/quarantine/quarantine_harness.py
+  s_1e72100d74133a::t_2a48b244845b88 1-16
+tests/pii_redactor/test_pii_redactor_release.py
+  s_1e72100d74133a::t_c4c9a17e1d3e70 26
+  s_1e72100d74133a::t_88a93f25f96e01 35-39,41-50
+  s_1e72100d74133a::t_0b57002dc90a92 40
+tests/quarantine/test_quarantine.py
+  s_1e72100d74133a::t_00274858dd5858 14
+tests/policy/conftest.py
+  s_1e72100d74133a::t_a1fc5948b902cb 28
+tests/clipped/test_clipped_cli.py
+  s_1e72100d74133a::t_decf7fe6b7a224 12
+tests/policy/test_policy_resolution.py
+  s_1e72100d74133a::t_b9bb4ec6e0062f 11
+tests/quarantine/conftest.py
+  s_1e72100d74133a::t_329fee5f96f632 25
+tests/pii_redactor/conftest.py
+  s_1e72100d74133a::t_110889127659e2 26-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "aadcb34414a78fc7df2db943b21a68ab01b89c54",
+  "prompts": {},
+  "sessions": {
+    "s_1e72100d74133a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f31279a6fffeO89kN8f2aUi4ms",
+        "model": "deepseek/deepseek-v4-pro-0813"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
