@@ -2002,6 +2002,20 @@ author rather than the machine.
   select zero tests and exit green — exactly this repo's signature failure
   mode. Any selection mechanism built here must therefore guard against
   silent zero-selection.
+- **Add a periodic (nightly) full-suite run, separate from any per-merge
+  gate.** Settled with the author and a fusion council 2026-09-22, deciding
+  decision 5 (minimum gate set per task class): a merge gate proves *this
+  change* didn't break anything; it says nothing about whether the trunk
+  was already broken, and that's a different job — one this repo has no
+  mechanism for today (no CI service). Per-environment, matching existing
+  precedent (`apps/ollama` installs a launchd agent, `apps/clamav` a
+  systemd timer — new unit, not a new mechanism): a launchd agent on
+  Darwin, a systemd timer on Debian, running the documented full-suite
+  command and reporting failures somewhere the author will actually see
+  them. Done when one machine has the timer installed, a deliberately
+  broken test is shown to be caught by a scheduled run rather than only by
+  a merge, and the report mechanism is named (not just "runs and logs to a
+  file nobody reads").
 - Add a `collected == 0` tripwire. A pytest hook that fails loudly if a run
   collects no tests — cheap (a few lines), and it closes the exact failure
   class already hit twice in this repo (the `clipped.bats` path pointing at a
