@@ -1,7 +1,25 @@
-# /home/bdavis/dotfiles/apps/1password/tasks/remove.yaml
-# No-op lifecycle file for this marker topic.
+# apps/1password/tasks/remove.yaml
+# Explicit uninstall tasks. Never run as part of provision or install; only
+# invoked via --tags remove. `op` belongs to the mise topic and is not removed
+# here.
 
-- name: "remove: no-op"
+- name: "Remove: uninstall the 1Password desktop app (macOS, opt-in)"
+  # No `zap`: the cask's zap stanza trashes ~/Library/Group Containers and
+  # Application Support, which hold the local vault data and settings. A plain
+  # uninstall quits the app and removes the bundle only.
+  community.general.homebrew_cask:
+    name: 1password
+    state: absent
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - onepassword_remove_app | bool
+
+- name: "Remove: report that the desktop app was kept (macOS)"
   ansible.builtin.debug:
-    msg: "{{ role_name }}: remove is a no-op; the CLI binary is managed by apps/mise"
-  changed_when: false
+    msg: >-
+      {{ role_name }}: left the 1Password desktop app in {{ onepassword_appdir }},
+      because it may predate this topic. Remove it with
+      `-e onepassword_remove_app=true`.
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - not (onepassword_remove_app | bool)
