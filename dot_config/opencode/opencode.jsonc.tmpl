@@ -9,10 +9,18 @@
   "share": "disabled",
   "autoupdate": "notify",
 
-  // Same models everywhere. Default runs hosted; the small model (titles,
+  // Models, providers and agents come from .chezmoidata/opencode.yaml:
+  // common, then os.<os>, then hosts.<hostname>, deep-merged. Edit that file,
+  // not this block. The default runs hosted; the small model (titles,
   // summaries, compaction) stays local so trivial calls never leave the box.
-  "model": "openrouter/z-ai/glm-5.3-flash",
-  "small_model": "ollama/qwen3:8b",
+  // The `deep` agent opens on Opus 5 at max reasoning effort.
+{{- $oc := .opencode }}
+{{- $cfg := deepCopy $oc.common }}
+{{- $cfg = mergeOverwrite $cfg (deepCopy (get $oc.os .chezmoi.os | default dict)) }}
+{{- $cfg = mergeOverwrite $cfg (deepCopy (get $oc.hosts .chezmoi.hostname | default dict)) }}
+{{- range $key := keys $cfg | sortAlpha }}
+  {{ toJson $key }}: {{ get $cfg $key | toPrettyJson | trim | replace "\n" "\n  " }},
+{{- end }}
 
   // Baseline safety: reads are free, git is allowed, everything else asks.
   // Tokens live in auth.json, never here.

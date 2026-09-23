@@ -1,0 +1,51 @@
+# opencode model and agent settings, rendered into
+# dot_config/opencode/opencode.jsonc.tmpl.
+#
+# Three layers, deep-merged in order; later layers win key by key:
+#   common        every machine
+#   os.<os>       chezmoi.os: darwin or linux
+#   hosts.<name>  chezmoi.hostname (short form; `chezmoi data` shows it)
+#
+# To copy a setting from one machine to another, move its block from
+# hosts.<name> to common (all machines) or to another host. To give one
+# machine different settings, add or edit its hosts entry.
+#
+# Merge caveat: an override cannot set a value to false, 0 or "" — the merge
+# treats those as empty and keeps the lower layer. Delete the key from the
+# lower layer instead.
+#
+# Permissions are NOT here: their rules are order-sensitive (last match
+# wins) and a data merge sorts keys, so they stay literal in the template.
+# Project configs are owned by each project's git, not by chezmoi.
+opencode:
+  common:
+    model: openrouter/z-ai/glm-5.3-flash
+    small_model: ollama/qwen3:8b
+    provider:
+      openrouter:
+        models:
+          anthropic/claude-opus-5:
+            options:
+              reasoning:
+                effort: high
+            variants:
+              max:
+                reasoning:
+                  effort: max
+              xhigh:
+                reasoning:
+                  effort: xhigh
+              medium:
+                reasoning:
+                  effort: medium
+    agent:
+      deep:
+        description: Long-horizon deep reasoning on Claude Opus 5
+        mode: primary
+        model: openrouter/anthropic/claude-opus-5
+        variant: max
+  os:
+    darwin: {}
+    linux: {}
+  hosts:
+    L37V3P6GQ3: {}
