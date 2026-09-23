@@ -981,6 +981,20 @@ nothing is.
 ## Planned
 
 
+- **Watch the `pytest-agent-*` ecosystem — reopen trigger, not a standing
+  task.** `pytest-agentkit`, `pytest-agentprobe`, `pytest-agent-eval`,
+  `pytest-agent-health` verified real on PyPI 2026-09-22 but too immature to
+  adopt (1-3 releases, weeks to months old, Alpha, no adoption evidence).
+  Author: keep them on watch for when this repo (or a similar one) moves
+  toward a more heavily agent-integrated testing environment — the function
+  they aim at (agent regression testing, threshold pass/fail, catching
+  silent agent failures) is real and only getting more relevant here, just
+  not served by any of these four yet. Reopen when: one of them ships a
+  second year of releases with real adoption evidence (stars, dependents,
+  a case study), or this repo's own herdr-style judge-panel method stops
+  being sufficient for a concrete new need. Until then the herdr
+  judge-panel/fusion-council calibration method remains the house answer.
+
 - **Revisit the `$HOME`-exception list — reopen trigger, not a standing task.**
   Author decision 2026-09-22: no test may touch real `$HOME` for now (find a
   workaround — mock the keychain, avoid `zsh -l` — for every case rather than
@@ -2007,13 +2021,9 @@ author rather than the machine.
   to a fixture file once, replay from file by default, `--record` flag (or
   `llm_judge`-style marker) re-runs against the real model to refresh it —
   rather than adopting a tool that architecturally cannot reach the calls.
-  Also verified and rejected the same session: `pytest-agentkit`,
-  `pytest-agentprobe`, `pytest-agent-eval`, `pytest-agent-health` — all real
-  PyPI packages, all 1-3 releases old (weeks to a few months), Alpha status,
-  no adoption evidence; the function they'd serve (agent regression
-  testing, threshold pass/fail) is already done more rigorously here by the
-  herdr judge-panel/fusion-council calibration method. Revisit only if one
-  of these matures with real usage evidence, not on name recognition.
+  Also verified the same session: `pytest-agentkit`, `pytest-agentprobe`,
+  `pytest-agent-eval`, `pytest-agent-health` — not adopted now, watch-listed
+  instead (§ Planned, "Watch the pytest-agent-* ecosystem").
 - Add `pytest-timeout`. Formalizes the ad hoc `timeout N` wrapping AGENTS.md
   already documents as a lesson (a cold model load can exceed a short
   timeout and cascade into every subsequent run failing) — a per-test
