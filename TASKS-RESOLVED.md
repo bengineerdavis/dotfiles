@@ -323,3 +323,12 @@ deleted.
   surface; picked exits green on zero tests), coverage % as a tracked
   metric, a full suite on pre-push, a local CI daemon, cosmic-ray,
   mutmut as standing practice.
+- **Standing-red permissions test fixed — the ask-vs-deny call is ask.**
+  Author decision 2026-09-22: `git filter-repo` follows the settings change
+  (`9df508d`), not the reverted test expectation — `docs/PERMISSIONS.md` and
+  `.claude/settings.json` already agreed on ask ("history rewriting —
+  irreversible but legitimate") before this task started; the test was the
+  only stale side. `tests/permissions/test_permission_tiers.py:57` updated;
+  targeted test green (24 passed); full documented suite command re-run and
+  confirmed **0 failed** (638 passed, 7 skipped, 7 deselected, 189.01s) —
+  the mutation discipline's green baseline is restored.

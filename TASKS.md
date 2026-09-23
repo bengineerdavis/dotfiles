@@ -933,18 +933,6 @@ nothing is.
   not release. Candidates: on a cadence, at each machine rebuild, or never —
   leaving everything under Unreleased, which is legitimate and costs nothing.
   Until this is settled the changelog grows one section and is still readable.
-- **Reconcile `tests/permissions/test_permission_tiers.py` with the deliberate
-  settings change `9df508d` — promoted from § Planned 2026-09-22 by the author's
-  call to address standing red tests.** History rewriting (`git filter-repo`)
-  moved from deny to ask in `.claude/settings.json`, but the tier test still
-  asserts deny — the full suite reports 1 failed / 637 passed (re-observed
-  2026-09-22 with the measured suite run). A red baseline poisons the
-  mutation discipline ("watch the right test go red" cannot distinguish new
-  red from pre-existing red), which is why this is Now. Decide whether the
-  test follows the settings (policy intent: ask) or the settings revert
-  (policy intent: deny) — that is a PERMISSIONS.md decision, not a test-side
-  edit. Done when the ask-vs-deny call is made with the author, the test and
-  settings agree, and the suite reports 0 failed on the documented command. [me]
 - **Machine-shaped gate outputs, and a skip census instead of coverage %.**
   From the shift-left study's advisor council: every gate (prek, pytest,
   `skillet validate`) should emit exit code + `file:line` citations + one
