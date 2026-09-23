@@ -164,6 +164,15 @@ reversed earlier positions on purpose.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
+- **Review the automatic restart topics on `feat/topic-restart-stale`.**
+  [agent: restart-review] User approved automatic restarts for stale services
+  and GUI apps, plus topic-owned installation of the 1Password GUI. Review the
+  shared role and both callers, reproduce any defects with tests, and prepare
+  the change for human review under the deployed-file merge gate. Done when
+  focused tests and topic validation pass, with deployment limits and remaining
+  failures recorded. Worktree: `wt-restart`; no live restart or cask adoption
+  during review.
+
 - **Build a machine-assisted merge-gate checker — turn the diff-derived
   design in `AGENTS.md` § Merge gates (2026-09-22, fusion council) into a
   real, runnable tool instead of prose a human or agent applies by
