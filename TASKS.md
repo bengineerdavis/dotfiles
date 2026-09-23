@@ -66,6 +66,8 @@ A stale claim is not a lock. If a line looks abandoned, check `git log -3` on th
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
 
+- 2026-09-23T02:02Z — restart the ollama server so it matches its client (server 0.33.3 vs client 0.34.3; MLX runner failing) — ollama (global)
+
 ## Where things stand — 2026-09-15 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
