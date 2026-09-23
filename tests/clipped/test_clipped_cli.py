@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from conftest import CLIPBOARD_CONTENT
+from clipped_harness import CLIPBOARD_CONTENT
 
 
 # ── help and version ──────────────────────────────────────────────────────────
