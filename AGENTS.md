@@ -465,14 +465,33 @@ happens from main, by the author or by a session holding the apply claim in
 
 ### Merge gates
 
-An agent may merge its own branch to main when **all** of these hold:
+Gate selection is computed from the diff (`git diff --name-only`), never
+memorized by task class — a class table looked up by hand is a rule an agent
+can misremember; a diff check can only be fed the wrong paths, and that
+failure is itself catchable.
 
-- the full suite is green
-- `skillet validate .` exits 0 with no errors
-- the new or changed test has been seen to fail, with the mutation recorded in
-  the commit message
-- nothing under § Cross-session hazards was touched without a claim
-- the change touches no policy path, no egress path, and no deployed-tree file
+- **Diff touches only docs** (markdown, comments, non-executable metadata):
+  `skillet validate .` exits 0 and the doc-link/doc-integrity tests are
+  green. Nothing else required — seconds, not the full suite.
+- **Any other self-mergeable diff**: all of the following hold —
+  - the full suite is green
+  - `skillet validate .` exits 0 with no errors
+  - the new or changed test has been seen to fail, with the mutation
+    recorded in the commit message
+  - nothing under § Cross-session hazards was touched without a claim
+- **Diff touches any policy path, egress path, or deployed-tree file**:
+  always PR, always human review — no self-merge gate applies, regardless
+  of streak or rung.
+
+This keeps two things separate that a single gate list conflated: the trust
+ladder (above) answers *who may self-merge this class of change at all*; the
+gate list here answers *what must pass*, and that answer is a function of
+what changed, not who changed it or which class it was filed under.
+
+A full-suite pass only proves this change didn't break anything — it says
+nothing about whether the trunk was already broken. That is a separate,
+periodic job (nightly or on a cadence), not a per-merge one; see TASKS.md
+for the queued follow-on.
 
 Anything else: push the branch, open a PR, and report. Stakes and size decide,
 not preference. A new feature goes to PR; so does any change that takes more
@@ -528,7 +547,7 @@ internalised the design is a change nobody can maintain.
 
 An agent earns wider autonomy by track record, **per task class and blast
 radius**, never globally. Task classes: docs, tests, code, policy, deployed.
-An agent may sit at rung 3 for docs and rung 1 for policy at the same time.
+An agent may sit at rung 3 for code and rung 1 for policy at the same time.
 
 ### Rungs
 
