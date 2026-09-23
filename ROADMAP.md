@@ -136,6 +136,21 @@ from scratch:
   exclusive — all 27 topics currently have **zero** `meta/` directories, so
   `galaxy_info`, `dependencies` and `argument_specs` are simply absent. Adding
   them is additive and does not disturb discovery.
+- **Two collection-native tools wait on the same boundary decision, researched
+  2026-09-22.** `ansible-creator` (ansible org, 157★, active, Apache-2.0)
+  scaffolds a standard collection tree (`init`/`add`) — but this repo's 27
+  topics follow the bespoke `topic.yml`-at-role-root convention above, not
+  the generic layout `ansible-creator` generates, so using it now would mean
+  retrofitting its output rather than saving work. `ansible-test units` is,
+  per Ansible's own docs, "driven through pytest" — it wraps pytest with
+  collection-aware namespace injection (fixing the
+  `No module named 'ansible_collections'` class of error) and coverage, so
+  it does not compete with this repo's own `tests/` suite, it would only
+  apply to custom Ansible modules/plugins — and this repo has **zero**
+  (`plugins/`, `module_utils/`, `galaxy.yml` all absent, confirmed by
+  search). Both tools become relevant the moment topics become a real
+  collection, and not before; noted here rather than in TASKS.md because
+  neither has a done-condition until that decision lands.
 - **Changelogs are collection-scoped upstream.** `antsibull-changelog` generates
   `changelogs/changelog.yaml` per collection; roles appear inside it as objects.
   There is no per-role changelog standard, so the per-topic `CHANGELOG.md` this
