@@ -67,6 +67,14 @@ STUB = textwrap.dedent('''\
 
     if {name!r} == "ps":
         fmt = args[args.index("-o") + 1]
+        if fmt == "pid=" and "exit_probe_error" in state:
+            error = state["exit_probe_error"]
+            print(error["stderr"], file=sys.stderr)
+            sys.exit(error["rc"])
+        if fmt != "pid=" and "process_probe_error" in state:
+            error = state["process_probe_error"]
+            print(error["stderr"], file=sys.stderr)
+            sys.exit(error["rc"])
         rows = procs()
         if "-p" in args:
             rows = [p for p in rows if str(p["pid"]) == args[args.index("-p") + 1]]

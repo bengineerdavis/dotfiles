@@ -96,7 +96,9 @@
   register: restart_stale_ps
   changed_when: false
   check_mode: false
-  failed_when: restart_stale_ps.rc not in [0, 1]
+  failed_when: >-
+    restart_stale_ps.rc not in [0, 1]
+    or (restart_stale_ps.rc == 1 and (restart_stale_ps.stderr | trim | length) > 0)
   when: restart_stale_kind == 'app' or (restart_stale_pid | int) > 0
 
 - name: "Restart-stale: read the binary's ctime"
@@ -160,7 +162,7 @@
       - -e
       - "with timeout of {{ restart_stale_quit_timeout | int }} seconds"
       - -e
-      - "quit app {{ restart_stale_app_name | to_json }}"
+      - "quit app {{ (restart_stale_binary | dirname | dirname | dirname) | to_json }}"
       - -e
       - end timeout
   register: restart_stale_quit
@@ -178,7 +180,11 @@
   retries: "{{ restart_stale_quit_timeout | int }}"
   delay: 1
   changed_when: false
-  failed_when: false
+  # ps exits 1 without a diagnostic when the PID is gone. An error is not
+  # evidence that the app exited, and must not authorize a reopen.
+  failed_when: >-
+    restart_stale_exited.rc not in [0, 1]
+    or (restart_stale_exited.rc == 1 and (restart_stale_exited.stderr | trim | length) > 0)
   when:
     - restart_stale_kind == 'app'
     - restart_stale_verdict.stale
@@ -197,7 +203,8 @@
     - restart_stale_kind == 'app'
     - restart_stale_verdict.stale
     - not ansible_check_mode
-    - restart_stale_exited.rc | default(0) != 0
+    - restart_stale_quit.rc | default(1) == 0
+    - restart_stale_exited.rc | default(0) == 1
 
 # ── Say what happened ────────────────────────────────────────────────────────
 

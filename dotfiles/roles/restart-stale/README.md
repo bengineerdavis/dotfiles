@@ -44,7 +44,8 @@ Each parameter has a default and a comment in `defaults/main.yaml`.
 Every kind also needs `restart_stale_binary`, the executable the process runs.
 For `app`, that is the bundle's main executable
 (`<Name>.app/Contents/MacOS/<exe>`), and the bundle to reopen comes from that
-path.
+path. Quit and reopen both target that exact bundle, rather than an app name
+that may also identify a second installation.
 
 ## What counts as stale
 
@@ -70,6 +71,10 @@ The role asks an app to quit with the same request the Quit menu item sends. It
 waits `restart_stale_quit_timeout` seconds, then reopens the app only if it
 exited. If the quit fails or the app does not exit, the role reports that and
 leaves the app running. It never sends a kill.
+
+A failed process probe stops the task with an error. Only an explicit
+no-such-process result permits reopening; an unreadable process table is not
+evidence that the app stopped.
 
 ## Tests
 
