@@ -421,6 +421,64 @@ nothing is.
     redoing the work. Related: the mutation state that proves a test must
     never be committed, so the evidence can only ever live beside the commit,
     not in it. [done `a92489b` 2026-09-22]
+  - **(h) Lifecycle: spawn, fan-out, provision, collect, reap.** Every
+    worktree and branch passes through one lifecycle, so a wedged session is
+    recoverable by inspection rather than archaeology. Merging uses an
+    ephemeral scratch worktree `.worktrees/<sid>_merge_<n>`, recreated per
+    attempt from (base + input SHAs) — re-running `git merge` in a conflicted
+    tree is not idempotent, rebuilding from SHAs is (the Zuul/bors/merge-queue
+    pattern). Merges are serial with the suite after each — batching destroys
+    attribution — ordered inert → behaviour → activating. A failed wave is
+    bisected, not retried wholesale; green/green/red is a finding recorded
+    against the fan-out, evidence the decomposition was wrong. Retries follow
+    the table: infra 2–3 with full jitter under a retry budget;
+    rebase-and-retest 1–2; deterministic never retried unchanged; LLM
+    regeneration once carrying the failure evidence, then escalate.
+    Classification is mechanical — re-run the identical artifact in a fresh
+    scratch worktree: same failure is deterministic, different failure is a
+    flake, quarantined rather than retried into green. A branch is never
+    `git branch -D`'d until `merge-base --is-ancestor` proves the work
+    landed; crash recovery is `git worktree remove --force` plus
+    `git worktree prune`. Escalation reports to the orchestrator freely and
+    to the human at the retry cap, with a deadman timeout.
+  - **(i) Declaration merge policy: regenerate, never hand-merge.** Venvs
+    never merge — only declarations do (pyproject.toml, uv.lock). A lockfile
+    conflict is resolved by merging pyproject.toml and re-running `uv lock`,
+    never by editing the lock; `.gitattributes` carries `uv.lock merge=binary`
+    so git never attempts a textual merge of it. uv is pinned at the system
+    layer (`bootstrap.sh`), not mise — the lockfile carries a format
+    revision, and version skew churns it. pyproject.toml and uv.lock are
+    registered as hot files in § Cross-session hazards.
+  - **(j) Three coupling channels, and one unconditional gate.** Coupling
+    between parallel workers travels exactly three ways: writes, caught by
+    path-intersection at fan-out; reads, structurally isolated by worktrees;
+    semantics, caught only by the merged-state suite — the irreducible
+    channel, and the reason merges are serial with the suite after each.
+    Over all three sits one unconditional gate: no agent diff may touch the
+    gating tests or the policy code, because a worker that can edit its own
+    verifier can pass anything. That is a correctness requirement, not a
+    trust one.
+  - **(k) Capability manifest per subtask.** Every subtask declares a
+    manifest — paths, refs, commands, egress, secrets, limits, runtime —
+    because "read/write/both" is too coarse to enforce and too coarse to
+    audit. Enforcement is three layers: declare (the manifest), sandbox (what
+    the environment permits), gate (what the merge refuses). Manifests are
+    logged via git notes, so the audit trail travels with the refs.
+  - **(l) Contracts-first.** Interoperating pairs land their interface
+    before fan-out. The interface is a decision item — cheap to land, and
+    unblocking; fanning out before it exists charges every downstream branch
+    a rebase each time it changes.
+  - **(m) Verifier health first.** The suite's flake rate and mutation
+    sensitivity are measured before the orchestrator builds on it. An
+    orchestrator multiplies whatever the verifier is, and a verifier that
+    passes without exercising what it claims turns the merged-state gate
+    into Class B evidence at scale. Builds on (f)'s instrumentation and
+    (g)'s mutation trailers.
+  - **(n) Irreversible agent effects.** A change that reaches the deployed
+    tree (`~/bin`, `~/dotfiles`) cannot be undone by `git revert` — the
+    revert restores the source, not the machine. Scope is agent-concurrency
+    only: what the coordination layer must guarantee about effects it cannot
+    take back. Ansible plan-vs-apply drift is explicitly out.
 
 - **Consolidate the governance docs — PRD as the constitution, spec as the
   derived statutes, conventions as the how-to.** [#2, was #1 until the author
@@ -1032,6 +1090,26 @@ nothing is.
   not release. Candidates: on a cadence, at each machine rebuild, or never —
   leaving everything under Unreleased, which is legitimate and costs nothing.
   Until this is settled the changelog grows one section and is still readable.
+- **Make the test suite fast and model-safe: fix the conftest collision, keep
+  model calls out of the default run, and wire pytest-xdist as an opt-in fast
+  loop.** [me] Council study 2026-09-23 (three explore agents + xdist docs):
+  `$HOME` sandboxing is already done by fixtures, so sub-item (c)'s stated
+  prerequisite is moot — the real blockers are (1) five `from conftest import X`
+  sites collide on the flat `conftest` module name and one (`SCRIPT`) silently
+  resolves to the wrong binary, (2) `llm_judge` plus two unmarked
+  `test_binned_cli` cases make real model calls in the *default* invocation
+  despite the module docstring claiming otherwise, contending on the global
+  Ollama daemon and the shared `llm` logs.db, (3) cold model loads and unbounded
+  judge fan-out are the dominant slowness. Commits: extract shared constants
+  into `*_harness.py` modules (the `guard_harness` pattern);
+  `addopts = -m "not llm_judge"` plus mark the unmarked cases; bound model
+  concurrency and warm local models once; document
+  `--with pytest-xdist -n auto --dist worksteal -m "not llm_judge"`; drop the
+  unused `slow` marker and duplicate `llm_judge` registration, `importorskip`
+  bare `yaml`/`hypothesis`, point `test_binned_cli`/`pii_redactor` at source not
+  `~/bin`, decide `testpaths = tools`. Done when one invocation collects every
+  test directory without ImportError, a bare `pytest` makes zero real model
+  calls, and the xdist fast loop is green with a mutation check recorded.
 
 ## Planned
 
