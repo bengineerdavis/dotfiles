@@ -498,6 +498,13 @@ Length is part of the standard, not separate from it. Prose SHALL be
 proportional to what it describes, and a passage longer than its subject
 warrants is evidence the subject should have been split.
 
+Calibration is part of the standard too. An explanation SHALL be pitched at
+what the reader has shown they know: never denser than the vocabulary they
+have used, never re-explaining what they have already used correctly. The
+failure mode is undefined density, not length. The method — when to ask, how
+much to gloss, how to verify cheaply — lives in the `explain-calibration`
+skill; this spec binds only the outcome.
+
 This file and any skillet spec are exempt and SHALL keep normative language —
 SHALL, MUST, MUST NOT — with BDD scenarios. Plain language optimises for a
 reader deciding what to do; spec language optimises for a reader deciding
