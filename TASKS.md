@@ -2017,6 +2017,23 @@ author rather than the machine.
   not as settled policy on when bypassing is acceptable. Revisit once real
   bypass cases accumulate; the field just has to exist before the first one
   happens, or it gets hidden instead of recorded.
+  **Auditor of the auditor — designed 2026-09-22, consolidated from the
+  advisor council.** Once the ledger exists: a small trigger script (`shuf`
+  over the trailing window of ledger lines — a one-liner, not a build, same
+  "provisioning installs and triggers, never contains logic" shape as
+  everything else here) periodically samples one past merged item and asks
+  the author two questions cold, without re-reading the original quiz
+  notes first: do I still understand what this changed and why, and would I
+  still approve it today? Recorded alongside the ledger: item id, date,
+  outcome (`still-understand` / `drifted` / `would-not-approve-now`), and
+  if drifted, what didn't hold up. A drifted outcome is not an incident
+  against the agent — the code didn't change — it's a signal about review
+  depth at the time; two or more in a window is the trigger to look at
+  whether quizzing has gotten shallow, not to relitigate the item. Cadence
+  starts light (1 per ~10 merged items, or monthly, whichever is less
+  frequent) and is itself a judgment-track mechanism under the two-track
+  model above — it earns a tighter cadence over time rather than starting
+  maximal.
   Latency tolerance is a property of *where an item sits on its track*, not a
   global clock: the funnel starts deliberately slow (least-privilege as the
   starting metaphor) and tightens toward the author's stated destination of
