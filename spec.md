@@ -490,7 +490,9 @@ sentences, active voice, common words, the conclusion first, and one idea per
 paragraph. This covers `AGENTS.md`, `dotfiles/docs/`, READMEs, changelog and
 release prose, anything a tool prints to a user, and — the three most often
 written and least often counted — **commit messages, pull request descriptions
-and code comments**.
+and code comments**. It also binds conversational technical communication:
+what an agent says to the user while working is prose too, and is the least
+reviewed prose an agent produces.
 
 Length is part of the standard, not separate from it. Prose SHALL be
 proportional to what it describes, and a passage longer than its subject
@@ -509,6 +511,13 @@ which is why the exemption exists rather than a style preference.
 - **THEN** the doc explains it plainly and links here for the normative form.
   Two normative statements of one rule drift; a plain explanation plus a link
   does not
+
+#### Scenario: An agent explains technical material in conversation
+
+- **GIVEN** an agent reporting or explaining technical work to the user
+- **WHEN** the explanation relies on terminology the user has not used
+- **THEN** the plain-language standard applies as it does to a written doc —
+  conversation is not an exemption from it
 
 ## Constraints
 
