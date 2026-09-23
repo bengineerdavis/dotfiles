@@ -1938,7 +1938,27 @@ author rather than the machine.
   touched. Slowest offenders measured 2026-09-22 (`--durations`): the two
   `tests/topic_resolution/test_opencode_both_os.py` renders (18.1s, 12.4s),
   three `tests/binned/test_binned_judge.py` cases (6.7s, 6.7s, 4.5s), then a
-  long ~3s tail of policy/guards subprocess tests.
+  long ~3s tail of policy/guards subprocess tests. **Sequencing from the
+  shift-left study's advisor council, unanimous: fix these five slow tests
+  first (200s to an estimated ~120s serial, zero flake risk), add
+  `pytest-randomly` as a cheap order-dependence detector, and only then
+  consider `pytest-xdist`** — parallelizing a suite this skewed before fixing
+  its outliers buys 3-4x at real flake cost for half the win a serial fix gets
+  free. `pytest-testmon`/`pytest-picked` were researched and rejected for the
+  file-selection half of this task: both are blind to shell/YAML/`topic.yml`
+  changes (testmon traces Python coverage only; picked maps by path and
+  this repo's `tests/<script>/` layout breaks that mapping), and picked can
+  select zero tests and exit green — exactly this repo's signature failure
+  mode. Any selection mechanism built here must therefore guard against
+  silent zero-selection.
+- Add a `collected == 0` tripwire. A pytest hook that fails loudly if a run
+  collects no tests — cheap (a few lines), and it closes the exact failure
+  class already hit twice in this repo (the `clipped.bats` path pointing at a
+  nonexistent binary; the empty-grep-passes pattern named in AGENTS.md §
+  Prove the test fails). Named 2026-09-22 by the shift-left study's advisor
+  council as the single highest payoff-per-line item researched. Done when a
+  deliberately-broken test path or an empty `-k` filter is shown to fail the
+  run rather than exit 0.
 - Put the AI tooling under characterization tests BEFORE starting refactor B, and
   use them as the parity bridge. Audit the existing behaviour, add tests that pin
   it, then let the reimplementation run against the same tests. Parity becomes
