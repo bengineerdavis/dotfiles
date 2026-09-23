@@ -3,10 +3,13 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # Core packages required before any topic installs.
 #
-# Keys are fixed before the refresh, for the reason given in
+# Sources and keys are fixed before the refresh, for the reason given in
 # upgrade.yaml. The keyring helper needs gpg; on a fresh box without it the
 # first pass defers, and it runs again once gnupg is installed. The second pass
 # is include_tasks (not import) so its `when` is decided once, up front.
+
+- name: "Prerequisites: retire dead sources"
+  ansible.builtin.import_tasks: retired.yaml
 
 - name: "Prerequisites: repair signing keyrings"
   ansible.builtin.import_tasks: keyrings.yaml

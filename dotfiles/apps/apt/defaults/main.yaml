@@ -32,5 +32,30 @@ apt_keyrings:
     url: https://apt.releases.hashicorp.com/gpg
     require_keys: [FC9CA96ACA026560]
 
+# Repositories that are gone for good. Each file is commented out in place
+# (kept, not deleted) with a note saying why, so the record survives on disk
+# and a re-run is a no-op. Retiring a repo is a human decision; the source
+# audit below only reports candidates.
+apt_retired_sources:
+  - file: /etc/apt/sources.list.d/prebuilt-mpr.list
+    keyring: /usr/share/keyrings/prebuilt-mpr-archive-keyring.gpg
+    reason: >-
+      makedeb was archived upstream on 2025-11-21
+      (https://hunterwittenborn.com/blog/stepping-back-from-open-source/);
+      proget.makedeb.org answers HTTP 530 and apt-get update exits 100.
+
+# Packages that only a retired source ever provided. Purged, not autoremoved:
+# their dependencies (build-essential, libssl-dev, ...) may be wanted by other
+# things and are left for `apt autoremove` to judge.
+apt_retired_packages:
+  - makedeb
+  - mist
+  - tap
+
+# Source audit: report-only. A host failing `apt-get update` this many
+# consecutive runs is flagged as a retirement candidate.
+apt_source_audit_threshold: 3
+apt_source_audit_state: /var/lib/dotfiles/apt-source-audit.json
+
 # Seconds to wait when downloading a keyring.
 apt_keyring_timeout: 60

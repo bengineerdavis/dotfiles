@@ -34,6 +34,7 @@
 
 ### known_issues
 
-- The makedeb prebuilt-mPR repository (`proget.makedeb.org`) occasionally
-  returns HTTP 530. This is an upstream outage; the topic reports it but cannot
-  repair the key.
+- ~~The makedeb prebuilt-mPR repository (`proget.makedeb.org`) occasionally
+  returns HTTP 530.~~ Not occasional: makedeb was archived upstream on
+  2025-11-21 and the repository is gone for good. The apt topic retires it
+  (`apt_retired_sources`).

@@ -13,6 +13,15 @@ edge cases". Section names follow antsibull-changelog.
   must contain a public key, and the key IDs listed in `require_keys`, before
   anything is written. Runs before every cache refresh. Moved from deb-get,
   whose app-tier position made it run too late.
+- 2026-09-23: retired sources and packages (`apt_retired_sources`,
+  `apt_retired_packages`, `tasks/retired.yaml`). A retired source is commented
+  out in place with the reason, not deleted; its keyring is removed and the
+  packages only it provided are purged. One-way by design: `remove` does not
+  restore a dead repository.
+- 2026-09-23: report-only source audit in `upgrade` (`files/apt_source_audit.py`).
+  Names each host failing `apt-get update` and how many consecutive runs it has
+  failed; at `apt_source_audit_threshold` it is called a retirement candidate.
+  It never edits a source.
 
 ### bugfixes
 
@@ -27,7 +36,11 @@ edge cases". Section names follow antsibull-changelog.
   wedged, so the fix is to wait rather than stop the daemon. If a run still
   times out, `sudo systemctl stop packagekit` (it is D-Bus activated and comes
   back on its own) or the `unlock-apt` alias.
+- 2026-09-22: `proget.makedeb.org` (makedeb's prebuilt MPR) returns HTTP 530
+  because makedeb was archived upstream on 2025-11-21. Retired via
+  `apt_retired_sources`; makedeb, mist and tap are purged with it. Nothing else
+  on the reference machine came from that repository.
 - `ansible.builtin.apt` with `update_cache` hard-fails after
   `update_cache_retries` (5) when any source errors, including a foreign one.
   That is correct — a partial refresh would upgrade against stale indexes — and
-  is why a dead source has to be dealt with rather than tolerated.
+  is why dead sources are retired rather than tolerated.
