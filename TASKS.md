@@ -912,7 +912,9 @@ nothing is.
   adaptability and interpretation (high-context tasks — deciding what to do,
   how to succeed). **[blocked: the threshold research and council decision
   are owned in ai-prompt-library's TASKS.md — no text lands here until the
-  artifact exists.]**
+  artifact exists.]** Same artifact the shift-left study's two-track trust
+  model (§ Now, "Build the LEDGER") routes its global-vs-per-repo,
+  skill-portability question to — one open question, two entry points here.
 - Sweep committed machine-adjacent strings, per the audit in
   `dotfiles/docs/MULTI-MACHINE.md` (2026-09-12). The audit found: employer-
   adjacent paths (`~/code/work/sentry/`, `sfw.security.sentry.io`), the §
