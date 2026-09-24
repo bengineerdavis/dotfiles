@@ -278,3 +278,18 @@ deleted.
   set grows past a handful, a missed-update incident occurs, or the queued
   scheduled-runner service lands and wants a job. Landed in
   `dotfiles/requirements.yml` + the REFERENCES row.
+
+## 2026-09-23
+
+- **Captured the approved gita + machine-file-backup plan in a worktree
+  handoff.** Outcome: `HANDOFF.md` on `agent/gita-plan`
+  (`.worktrees/gita-plan`, commit 46042e9) carries the plan the author
+  approved 2026-09-23 — 41 settled decisions with their evidence, items
+  G0–G7 and BK1–BK4 with done-conditions and binding order, the six-critic
+  council's accepted objections, and corrections to two earlier claims (gh
+  here is installed by hand from GitHub's apt repo, not deb-get; the Linux
+  keychain path is the GNOME keyring, since this box predates
+  `systemd-creds`). Both done-conditions met: the handoff exists on the
+  branch, and the gita row in § Picking this back up points at it and names
+  G0 as the start. The durable record is the handoff until G0 transcribes
+  it into `TASKS.md` and `PRD.md`; the branch is a record, not merge-bound.

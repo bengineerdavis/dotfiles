@@ -205,7 +205,7 @@ Say any of these and the thread resumes where it stopped:
 | **"sandboxing"** | The two-phase agent-sandboxing research project |
 | **"session management"** / **"handoff protocol"** | The research feeding the TASKS.md process design; advisor review of handoffs is part of it |
 | **"rag"** / **"knowledge graphs"** | Preprocessed agent-context research |
-| **"gita"** | The multi-machine repo-manager study and its topic |
+| **"gita"** | Plan approved 2026-09-23 and captured at `.worktrees/gita-plan/HANDOFF.md` (branch `agent/gita-plan`) — gita topic G0–G7, backup BK1–BK4. Start at G0 |
 | **"metamorphic"** | The metamorphic-testing research for the test suites |
 | **"pkgup"** | The Debian package-updater study, blocked on become privileges |
 | **"r&d factory"** | The llocallabs exploratory pipeline — scratchpad experiments promoted by test suites, not vibes |
@@ -220,11 +220,6 @@ reversed earlier positions on purpose.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
-- **Capture the approved gita + machine-file-backup plan in a worktree
-  handoff.** The author approved the plan 2026-09-23 (gita topic items
-  G0–G7, backup items BK1–BK4) and the next session runs it. Done when
-  `HANDOFF.md` exists on `agent/gita-plan` in `.worktrees/gita-plan` and the
-  gita row in § Picking this back up points at it. [me]
 - **G0 — record the approved gita + backup plan and queue its items.** The
   plan is approved (author, 2026-09-23) and captured at
   `.worktrees/gita-plan/HANDOFF.md` (branch `agent/gita-plan`) — transcribe
