@@ -243,6 +243,15 @@ nothing is.
   omitted restriction or unsupported claim, with exact proposed corrections.
   No governance edits or commits by the reviewer; the orchestrator owns
   main-side reconciliation. [agent: gita-plan_sub_prd]
+- **G0b — audit the queued-plan transcription and prepare per-task patches.**
+  Review in `.worktrees/gita-plan_sub_queue`, branched from `agent/gita-plan`;
+  the proposed queue diff is `/tmp/opencode/gita-g0-initial.patch`. Done
+  when all handoff decisions are accounted for, incorrect additions or
+  omissions are reported, and one proposed queue patch per item is ready
+  for orchestrator review. Only review artifacts in that worktree may be
+  written; TASKS.md and governance changes land on main through the
+  orchestrator. Do not commit or start downstream implementation.
+  [agent: gita-plan_sub_queue]
 - **Bootstrap the multi-agent coordination layer — worktrees, frozen leases,
   risk-tiered merge gates — then extract it to the copier template.** [#1,
   reordered ahead of the governance consolidation by the author 2026-09-20]
