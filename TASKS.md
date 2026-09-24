@@ -230,8 +230,9 @@ The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
 - **Evaluate interchangeable components for agent work.**
-  [agent: OpenCode coordinator; expanded brief approved by the author,
-  2026-09-24] Task queues, orchestration, workspace creation, sandbox runtimes,
+  [agent: OpenCode coordinator; initial comparison complete, container setup
+  assessment pending; 2026-09-24] The author approved the expanded brief. Task queues,
+  orchestration, workspace creation, sandbox runtimes,
   and environment setup must be independently replaceable or removable.
   Include Backlog.md, workmux, herdr, and other relevant options; verify each
   tool's actual role instead of assuming all are queue managers. Compare
@@ -245,17 +246,30 @@ nothing is.
   ownership and lifecycle contracts, ranks compatible combinations, records
   rejected options and platform gaps, and is reviewed with the author.
 
-  - **Research and verify the component comparison.**
-    [agent: general/sandbox-components] Produce a local report at
-    `.worktrees/wt-restart/.claude/RESEARCH-modular-agent-runtime.md`.
-    Read relevant local repo instructions, designs, implementations and tests;
-    connect recommendations to that work. Pin source versions and distinguish
-    measured behavior from documentation claims. Exercise synthetic allow/deny
-    cases where available, including failure, resume and cleanup behavior.
-    Test interchangeability by tracing a queue replacement, a sandbox
-    replacement, and a workspace replacement without rebuilding other layers.
-    Recheck the 2026-09-20 host attribution and ecosystem-wide claims.
-    Research and disposable probes only; propose any implementation separately.
+  Author clarification, 2026-09-24: non-root containers, including Sandcastle's
+  approach, are first-class candidates when applying them requires very little
+  configuration. Native execution is a workload capability, not a universal
+  selection requirement. Compare host prerequisites, fresh-project setup,
+  required files/settings/commands, reusable images or templates, credential
+  wiring, and ongoing configuration maintenance. Preserve independent task,
+  workspace and runtime choices. Next evidence needed: a low-configuration
+  Sandcastle/container walkthrough against the native-wrapper baseline.
+
+  Report: `.worktrees/wt-restart/.claude/RESEARCH-modular-agent-runtime.md`
+  (local, uncommitted). The research agent mapped local prior work, verified
+  queue/runtime interfaces, and ran macOS synthetic probes. Coordinator review
+  reproduced SRT 0.0.77's false-success signal exit and mise 2026.9.12's failed
+  host-network exception, alongside successful filesystem restrictions.
+  Queue and workspace substitutions are interface-supported proposals;
+  Debian and end-to-end swaps remain unrun. Decide next: serialized versus
+  autonomous claims, worker commit authority, required network/IPC controls,
+  and resume/retention ownership. The completed research unit is archived in
+  `TASKS-RESOLVED.md`; implementation remains a separate decision.
+
+  Prepare a cold-start handoff [agent: OpenCode coordinator; requested
+  2026-09-24]. Done when one file records the current branch and worktree,
+  the approved requirements, evidence locations and the next research step,
+  with a pickup pointer here.
 
 - **Review the automatic restart topics on `feat/topic-restart-stale`.**
   [PR #5 open; resolving with the author in-session] User approved automatic restarts for stale services

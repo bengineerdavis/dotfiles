@@ -408,3 +408,18 @@ deleted.
   a separate requirement. Detailed findings are in the originating project's
   `docs/research/worktree-runtime-isolation.md`; trial files remain under
   `~/code/try/worktrunk-isolation-trial`. No live workflow configuration changed.
+
+- **Research interchangeable agent-work components.**
+  [agent: general/sandbox-components; coordinator: OpenCode, 2026-09-24]
+  Completed the author-approved comparison of task sources, orchestration,
+  session interfaces, workspace providers, environments and sandbox runtimes.
+  Local implementations and proposals were checked alongside pinned upstream
+  sources. Report: `.worktrees/wt-restart/.claude/RESEARCH-modular-agent-runtime.md`
+  (local, uncommitted). It includes queue, sandbox and workspace swap traces;
+  only the narrow SRT-to-mise filesystem substitution was exercised.
+  Mac synthetic probes established allowed and denied operations and found
+  lifecycle/network limits. Coordinator reruns confirmed SRT 0.0.77 reporting
+  self-SIGTERM as exit 0, mise 2026.9.12 failing host-network exceptions, and
+  both enforcing tested filesystem scopes. Debian, queue contention, session
+  restore and full swaps remain unrun. Pilot selection remains in § Now;
+  no live component was selected by the research report.
