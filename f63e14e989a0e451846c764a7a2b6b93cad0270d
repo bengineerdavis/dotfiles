@@ -1,0 +1,13 @@
+PROVENANCE: merge run by the restart-review session at the author's request, 2026-09-24.
+
+Brings a4fbdbe (chrome fintastic bump, from session PID 2588) onto origin's
+d89f24b. d89f24b was built in the ephemeral scratch worktree
+.worktrees/wt-restart_merge_1 by the restart-review session (worktree
+.worktrees/wt-restart, branch review/topic-restart-stale) because PID 2588
+was live in the main checkout. That session's uncommitted TASKS.md /
+TASKS-RESOLVED.md were stashed across this merge and restored; they landed
+as 62e6464 and c1a8379 by author override. This diff vs d89f24b is the
+chrome file only. The author also explicitly approved this session running
+`chezmoi apply` for the resulting tree (AGENTS.md reserves apply for the
+author or a claim holder) — excluding ~/docs, which is the queued
+"Stop repo tooling leaking into $HOME" leak.
