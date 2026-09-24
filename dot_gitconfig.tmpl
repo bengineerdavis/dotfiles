@@ -27,8 +27,6 @@
   # surfaces the same conflict once per level, and resolving it by hand each
   # time is a fresh chance to resolve it differently.
   enabled = true
-[mergetool ""]
-  cmd =  "$LOCAL" --label=LOCAL "$MERGED" --label=MERGED "$REMOTE" --label=REMOTE --output "$MERGED"
 [mergetool]
   prompt = false
   keepBackup = false
@@ -38,7 +36,5 @@
 	tool = meld
 [difftool]
 	prompt = false
-[difftool ""]
-    cmd =  "$LOCAL" --label=LOCAL "$REMOTE" --label=REMOTE
 [difftool "meld"]
 	cmd = meld \"$LOCAL\" \"$REMOTE\"

@@ -1528,8 +1528,8 @@ nothing is.
   `.email`/`.name` and prompt for a first-time machine, so the personal address
   no longer follows the file onto a work machine unattended. The two open
   questions (machine id, `blocked` verdict) remain open and still block
-  nothing; the vestigial `[mergetool ""]`/`[difftool ""]` are preserved verbatim
-  and still await an author judgement.
+  nothing; the vestigial `[mergetool ""]`/`[difftool ""]` were confirmed dead
+  — git never consults an empty subsection name — and deleted on main.
 - **Make the test suite fast and model-safe: fix the conftest collision, keep
   model calls out of the default run, and wire pytest-xdist as an opt-in fast
   loop.** [me] Done on branch `test-perf-xdist` (31d532d, fa25f20, 7908b50,
@@ -3257,6 +3257,10 @@ author rather than the machine.
   and `[difftool ""]` sections look vestigial, their `cmd` lines starting at
   `"$LOCAL"` where a program name should be. Still PR-and-review before it
   merges, being a deployed-tree path.
+
+  **Both since resolved on main:** the identity now prompts through
+  `promptStringOnce` (`gitconfig: parameterize the user identity`), and the
+  empty-named mergetool/difftool sections were confirmed dead and deleted.
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 
