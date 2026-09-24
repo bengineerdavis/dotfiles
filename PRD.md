@@ -2,11 +2,11 @@
 
 What this repository is for, who it serves, and what it must never become.
 
-This document came out of an interview with the author on 2026-09-10. Every
-requirement below traces to an answer given in that interview. Nothing here was
-inferred from reading the repo — a statement of purpose assembled from evidence
-would be a purpose nobody chose. Where the interview left something open, this
-says so instead of filling the gap.
+This document began with an interview with the author on 2026-09-10.
+Requirements trace to that interview or to later author-approved decisions,
+dated where recorded. Nothing here was inferred from reading the repo — a
+statement of purpose assembled from evidence would be a purpose nobody chose.
+Where the author left something open, this says so instead of filling the gap.
 
 It completes a set of four. `spec.md` says what must remain true. `AGENTS.md`
 says how to work here. `TASKS.md` says what is in flight. This file says what the
@@ -179,16 +179,43 @@ nothing ever leaves.
 
 - Machine-specific usage data stays on its machine. The code that derives it is
   publishable; its output is not.
-- Back up only what is expensive to regenerate. Everything else is regenerated on
-  demand and never stored.
-- **PII never leaves the internal disk.** No external drive, no cloud, no
-  exception.
-- **On a machine the author does not own, backups go to the internal disk only** —
-  neither cloud nor external drive.
+- Back up only what is expensive to regenerate, including configuration that is
+  hard to reconstruct. Everything else is regenerated on demand and never stored.
+- Outside the configuration-backup rule below, **PII never leaves the internal
+  disk** — neither external drive nor cloud.
+- Outside that same rule, **on a machine the author does not own, backups go to
+  the internal disk only** — neither cloud nor external drive.
 - Otherwise, external disk or encrypted cloud is acceptable.
 
 No backup mechanism exists today. Expensive state is currently unprotected, and
 that is a known gap rather than a solved problem.
+
+#### Configuration backups
+
+Approved by the author on 2026-09-23. For configuration backups only, this rule
+supersedes the internal-disk restrictions above:
+
+- **Customer data from a work machine never leaves that machine.** It is never
+  on the configuration capture list; its backup is the employer's concern.
+- **Work-derived configuration lives only in the work secrets manager.** On the
+  work Mac, machine-file backups go to work 1Password. No borg or personal
+  backup tool runs on or uploads from that device.
+- **Everything else is the author's data and may be backed up off-machine,
+  encrypted.** Personal machine files use an explicit path allowlist, with
+  local and independent remote backup repositories. Machine-written discovery
+  and sync records are rebuilt rather than backed up.
+
+Capture is limited to reviewed configuration paths, never home minus exclusions.
+Backup and restore are built and tested before real data enters the new machine
+files. This exception does not cover usage-derived data: `spec.md` § Data still
+requires those figures to stay on their machine.
+
+**Employer-risk dissent, recorded with the decision:** the employer's policy
+sets the boundary, and even internal repository names may be confidential. A
+personal tool uploading from a company-managed device creates an acceptable-use
+risk. Work 1Password and the exclusion of personal backup tools address these
+concerns; they do not establish employer approval. The `TASKS.md` review of what
+may leave a machine the author does not own stays open.
 
 ### Work environments and intellectual property
 
