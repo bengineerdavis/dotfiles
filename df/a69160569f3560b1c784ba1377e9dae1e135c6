@@ -1,0 +1,19 @@
+TASKS.md
+  s_bf8c8cfff427fc::t_4e4d9f65d031f0 223-227
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dfa69160569f3560b1c784ba1377e9dae1e135c6",
+  "prompts": {},
+  "sessions": {
+    "s_bf8c8cfff427fc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f311abe35ffe1gBkonenNuxpsq",
+        "model": "moonshotai/kimi-k3"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
