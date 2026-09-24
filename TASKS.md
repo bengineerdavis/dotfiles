@@ -75,71 +75,127 @@ delete the line and say so in your commit.
   `dotfiles/apps/opencode/**`, `dotfiles/roles/guards/**`
 
 
-## Where things stand — 2026-09-15 (the session handoff)
+## Where things stand — 2026-09-23 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
 snapshots is worse than none.
 
-**Nothing is mid-flight; the working tree is clean and everything is
-pushed.** This session fetched and fast-forwarded the second machine's 34
-commits, reviewed them (a second-pass sweep caught one blocking issue:
-`TASKS-RESOLVED.md` would have deployed to `~` — ignored in ade6473 before
-any apply ran), resolved five conflict classes with the author, and ran
-the layout-standardization interview. **`chezmoi apply` then ran clean —
-drift is zero** (the skillet pin, the cosine fix and `machines.yml`
-deployed; run by the agent under the author's explicit instruction, an
-override of the agents-never-apply rule in a clean single-session state).
-Note: the deployed mise config pins skillet 1.8.0 but the installed binary
-here is still 1.7.0 — `skillet validate .` exits 0 on it, and 1.8.0 lands
-on the next `mise install`.
+**The orchestrator instruction (most important).** The next agent will act
+as the author's assistant and orchestrator. For each task, it will use a
+separate agent (fresh session) working in its own sub-worktree. If tasks
+can be paralleled within the orchestrator's worktree, it will reassign
+agents accordingly. It will use the sub-worktree format
+(`.worktrees/<sid>_sub_<slug>`, branch `agent/<sid>_sub_<slug>`) and will
+ask the author using the interaction-questioning skill when unsure about
+anything. Fresh sessions and agents for each task — no shared context
+between task agents.
 
-**What the author owes this machine:** one command and one restart.
+**Session plan.** The orchestrator works in `.worktrees/orch` on branch
+`agent/orch`. For each task it:
+1. Creates a sub-worktree: `git worktree add .worktrees/orch_sub_<slug> -b agent/orch_sub_<slug> agent/orch`
+2. Spawns a fresh Task agent with the task brief and the sub-worktree path
+3. The sub-agent works in the sub-worktree (absolute paths + bash `workdir`)
+4. The orchestrator collects results and merges serially (inert → behaviour → activating)
+5. Deletes the sub-worktree after `merge-base --is-ancestor` proves the work landed
 
-- Regenerate the gita overlay without the venv-vendored entry (the agent's
-  find had no filter): rerun the generator with `-not -path "*/.venv/*"`
-  added to the find, writing `~/.local/state/layout/machines.local.yaml`.
-- Restart opencode when convenient: the new bash permission rules applied
-  today but config loads once at startup.
-- (Done by the agent since the last snapshot: chezmoi apply ×2, the
-  leaktk/betterleaks install on the github: backend, the skillet changelog
-  read — acceptance unchanged, pin aligned at 1.8.0 in 94389a5 — and the
-  project `opencode.json` you curated got versioned + deploy-ignored in
-  ef6a934.)
-- Register the repos with gita — **done 2026-09-15**, with two recorded
-  residuals. 51 repos registered (48 work + the two newly added
-  personal/templates + the two pre-existing). Residuals: (a) the overlay
-  `~/.local/state/layout/machines.local.yaml` lists 49 work paths because
-  the generator's find had no `.venv` filter — one entry is pip-vendored
-  content (`temporalio/bridge/sdk-core`), so regenerate with
-  `-not -path "*/.venv/*"` added; (b) three duplicate basenames
-  (`sentry-docs`, `sillysnakes-python-sdk-playground-1-29-26`,
-  `symbolicator`) each kept one registration — the dropped copies are
-  hackathon/archive duplicates, deliberately left unregistered unless the
-  author wants them under distinct names.
+Tasks that touch TASKS.md or governance docs (spec.md, PRD.md, AGENTS.md)
+are main-only — they cannot go in sub-worktrees. Tasks that need machine
+state (`chezmoi apply`, package installs, deployed tree) are serial and
+need the author's involvement.
 
-**Landed today (this session):** the merge review and its resolutions;
-the review-skill specification and opencode LSP research captures (top of
-§ Now); and the layout standard — policy + six-phase plan in
-`docs/LAYOUT.md`, author-approved, this Mac migrated in-session (seven
-type dirs under `~/code`, Best-README-Template → `templates/`,
-`dotfiles/machines.yml` added). Remaining phases live in the plan:
-second-machine inventory (queued, `[agent: second-machine session]`),
-topic-owned skeleton (with the gita study), second-machine migration,
-citation switch + drift guard.
+**Objective.** Build a multi-agent coordination layer: an orchestrator
+decomposes tasks, fans out parallel sub-agents that write in isolation,
+consolidates their work without corrupting git history, and escalates to
+the human only when necessary. Bootstrap here, extract to a copier
+template later.
 
-**Suite state, scoped honestly:** the ollama_evals property file is green
-here post-merge (28 passed, 1 skipped) — the cosine fix verified on this
-Mac. The full suite was NOT re-run this session; the other machine's
-454/12/13 claim (2026-09-14) is unverified here, and its pii_redactor
-model-absence diagnosis is second-machine — `qwen3.5:4b-mlx-bf16` IS
-installed on this Mac, so re-run those two tests before treating them as
-environmental. `tests/tasks_doc`: 12 passed after all queue edits.
+**What landed 2026-09-23.** Phase 1 items 2–14 of the multi-agent
+handoff, each its own commit to main:
 
-**Standing hazards — unchanged:** agents never run `chezmoi apply`;
-`.chezmoiignore` additions orphan whatever they already deployed (this
-session caught TASKS-RESOLVED.md BEFORE any apply, so no orphan); two
-casks self-update so brew's recorded versions drift; `bin/` scripts are
-chezmoi source, `~/bin` is what runs — check `chezmoi status` first.
+| SHA | What |
+|---|---|
+| `b0a1b08` | Sub-items (h)–(n) into § Now #1 |
+| `ba50e33` | spec § Writing: plain English binds conversation |
+| `b28dfca` | spec § Writing: calibration rule |
+| `7a9fed9` | spec § Dependencies: referenced skill is declared |
+| `69b3107` | spec § Writing: glossary linking rule |
+| `a475a2b` | docs/GLOSSARY.md |
+| `995cbc3` | .worktrees/ in tracked .gitignore |
+| `033fd40` | docs/WORKTREES.md |
+| `6ed496c` | Phase 2 experiments as sub-item (o) |
+| `bdab641` | dotagents vetting line in install.yaml |
+| `d0ea6be` | Task: author explain-calibration |
+| `ac19f2d` | Task: author feynman-explanation |
+| `5725275` | Task: declare both skills as agentic dependencies |
+| `cf1d61a` | Handoff annotation with SHAs |
+| `e9359b2` | Task: permission-rules review |
+
+**Worktree status.** This session worked in the main checkout on `main`.
+`test-perf-xdist` (`.worktrees/test-perf`) branches from `d0ea6be`, one of
+this session's commits — so "moving" this session's work off main is not
+possible without breaking that branch. The 13 commits stay on main. The
+next session works in `.worktrees/orch` on `agent/orch`. Two additional
+worktrees appeared mid-session from other sessions: `.worktrees/pyproject`
+on `agent/pyproject` and `.worktrees/test-perf` (moved to `a58e710`).
+
+**Sub-worktree conflict scan (2026-09-23).** Only 9 of 139 open tasks are
+fully sub-worktree-safe. Finishable without an author answer:
+- zshrc `/home/bdavis` sweep (TASKS.md:858) — one file
+- bin/triage tests (TASKS.md:1797) — new test dir
+- Bundle schema (TASKS.md:2010) — collides with task 547 on TOPICS.md
+- OpenTypeless (TASKS.md:1690) — research only
+
+70 items need global/deployed state (class C); 105 are owned or routed
+elsewhere (class E). Key hazards: shared `.git/hooks` (one hooks directory
+for all worktrees), tests that check main's tree instead of the worktree's,
+and the default suite calling real models until the pytest.ini change lands.
+
+**New task queued 2026-09-23.** Permission rules review: a subagent
+reviews help menus and manuals for all tools the repo's agents invoke,
+derives minimal allow/ask/deny rules, and writes them into `opencode.jsonc`,
+`.claude/settings.json`, and Cursor's config. Goal: fewer prompts without
+weakening the deny tier. Known gaps: `env *` is an arbitrary-exec wrapper
+in the allow tier; `sed -i`/`awk system()`/`rg --pre` can execute code;
+`git checkout .`/`git restore .` destroy uncommitted work; `git -C`
+bypasses subcommand-level rules.
+
+**Verified facts.**
+
+| Fact | Evidence |
+|---|---|
+| `test-perf-xdist` branches from `d0ea6be` | `git merge-base` |
+| `fix/apt-lock-and-trust` branches from `5a4c25a` | `git merge-base` |
+| § Claimed is empty despite four active worktrees | `TASKS.md` |
+| `env *` in allow tier — arbitrary-exec wrapper | `opencode.jsonc:109` |
+| `sed -i`, `awk system()`, `rg --pre` can execute code | `opencode.jsonc:97-98,94` |
+| `git checkout .` / `git restore .` destroy uncommitted work | `opencode.jsonc:40-41` |
+| No Cursor permission config exists | `dotfiles/apps/cursor/` |
+| `chezmoi *` bare allow would let `chezmoi apply` through | `tests/permissions/test_permission_tiers.py:91-95` |
+
+**Settled decisions** (carried forward from 2026-09-22, still in force):
+1–33 as recorded in the previous handoff (`git show 5ae9cc3:TASKS.md`).
+Key ones for the orchestrator: worktrees in-tree at `.worktrees/` (1),
+flat naming (2), one writer per worktree (5), sub-worktrees branch off
+parent (4), serial merge with suite after each (16), never `git branch -D`
+until `merge-base --is-ancestor` (h).
+
+**Corrections to earlier claims.**
+- The 2026-09-22 handoff's Phase 0 claim "no worktrees" is stale — four
+  worktrees now exist (`.worktrees/apt-trust`, `.worktrees/orch`,
+  `.worktrees/pyproject`, `.worktrees/test-perf`).
+- The claim "Three files remain modified by another session" is stale —
+  the working tree is clean as of 2026-09-23.
+
+**Gotchas.**
+- `git commit -o` for TASKS.md; `git add -p` + bare commit when co-editing
+- Agents never run `chezmoi apply`
+- `ollama ps` before benchmarking
+- `tests/tasks_doc` guards TASKS.md section boundaries
+- `chezmoi add` on a `.tmpl` can overwrite `{{ }}` with literals
+- Permission configs load at session start and do not reload
+- `git -C` bypasses subcommand-level permission rules
+- The `autonomous` agent allows `git push` — sub-agents must not push
+- `git worktree add` requires `ask` permission (not in any allow list)
 
 ## Picking this back up
 
@@ -158,10 +214,11 @@ Say any of these and the thread resumes where it stopped:
 | **"sandboxing"** | The two-phase agent-sandboxing research project |
 | **"session management"** / **"handoff protocol"** | The research feeding the TASKS.md process design; advisor review of handoffs is part of it |
 | **"rag"** / **"knowledge graphs"** | Preprocessed agent-context research |
-| **"gita"** | The multi-machine repo-manager study and its topic |
+| **"gita"** | G0 recorded the approved plan in PRD and § Gita and machine-file backup; next are G1, BK1 and the Linux inventory. Original handoff: `.worktrees/gita-plan/HANDOFF.md` on `agent/gita-plan` |
 | **"metamorphic"** | The metamorphic-testing research for the test suites |
 | **"pkgup"** | The Debian package-updater study, blocked on become privileges |
 | **"r&d factory"** | The llocallabs exploratory pipeline — scratchpad experiments promoted by test suites, not vibes |
+| **"multiagent"** / **"coordination"** / **"worktrees"** | § Now #1 — bootstrap the multi-agent coordination layer (worktree-per-agent, frozen leases, `--no-ff` per item); handoff at § Where things stand — 2026-09-22 |
 
 The design decisions behind all of it are in `dotfiles/docs/ROADMAP-topic-cli.md`
 § Amendment — read that before writing any `topical` code, since several of them
@@ -178,8 +235,8 @@ nothing is.
   shared role and both callers, reproduce any defects with tests, and prepare
   the change for human review under the deployed-file merge gate. Done when
   focused tests and topic validation pass, with deployment limits and remaining
-  failures recorded. Worktree: `wt-restart`; no live restart or cask adoption
-  during review.
+  failures recorded. Worktree: `.worktrees/wt-restart` inside the main chezmoi
+  source; no live restart or cask adoption during review.
   Review completed 2026-09-23 at `79f6f0f`: quit and reopen target the same
   bundle, and process-probe errors no longer count as a stopped app. Four
   regression cases failed before the fix; removing the exit-error guard killed
@@ -199,6 +256,11 @@ nothing is.
   expectation, already corrected by local-main commit `1e7899b`. No CI checks
   are configured on this PR. Complete the repo's author design check before
   merging; deployment is still separate.
+  Worktree relocation complete [agent: OpenCode restart-review]: Git registers
+  the new path at the same HEAD. Both existing local files had identical
+  content hashes before and immediately after the move; the handoff paths
+  were then updated. `git check-ignore` confirms the Git exclusion, and
+  `chezmoi managed` lists 1,015 entries with none under `.worktrees/`.
 
 - **Build a machine-assisted merge-gate checker — turn the diff-derived
   design in `AGENTS.md` § Merge gates (2026-09-22, fusion council) into a
@@ -300,6 +362,72 @@ nothing is.
   produces output an agent could act on without a human translating it.
   [unclaimed]
 
+- **G1 — find a maintainable existing repository manager before selecting
+  the Gita/Ansible path.** After G0, alongside BK1 and the existing
+  second-machine inventory, compare established multi-repository tools and
+  Ansible modules, roles and collections against the approved workflow.
+  Evaluate human-facing workflow and interface simplicity, current and
+  usable documentation, and fit to the handoff's machine selection, GitHub
+  discovery, remote matching, fetch-safe sync, per-repository verdicts,
+  non-aborting report, and freshness requirements. Include the preliminary
+  Gita/ghorg/Ansible research in
+  `.worktrees/gita-plan_sub_g1/dotfiles/docs/GITA-RESEARCH.md`, but widen
+  its candidate set before recommending. Follow
+  `dotfiles/docs/TOPIC-RECIPES.md`'s docs-and-Galaxy-first rule. If no
+  existing tool meets the need, specify the smallest Ansible-module/role
+  composition that could, what it still cannot do, and any contract or
+  ownership decisions needed; do not design a bespoke engine or implement
+  it here. Done when a sourced comparison ranks the existing options,
+  records rejections, recommends a path that minimizes customer-maintained
+  logic, and the author records the choice. The result hands the discovery
+  and sync mechanisms to G2/G3/G4/G7. The expanded report is prepared at
+  `.worktrees/gita-plan_sub_g1/dotfiles/docs/GITA-RESEARCH.md`. The author
+  accepted task-level Ansible orchestration as the fallback on 2026-09-24,
+  and asked for the complete workflow and candidate links before choosing
+  the final tool split. No tool has been adopted yet. [agent: gita-plan / OpenCode]
+
+- **BK1 — decide the backup host, installation and recovery-key design.**
+  After G0, alongside G1 and the second-machine inventory, research an
+  append-only borg host over SSH, borg/borgmatic installation on both OSes,
+  and the support grade of available Galaxy roles. Borg 1.4.x with
+  borgmatic is already chosen: pin 1.4.x, not borg 2 beta. The handoff's
+  upstream check on 2026-09-23 found stable borg 1.4.5, released 2026-07-18,
+  and borg 2 beta's warning against production backup repositories. A
+  commented `pipx:borgbackup` entry and stale inactive borg shim do not
+  establish an installation owner; the installation mechanism is this item.
+  Carry the borg FAQ rules checked that day: one repository per machine
+  per destination; redundancy is a second independent repository with its
+  own `borg create`, never copying/syncing a live repository or putting it
+  in a cloud-sync folder. Using a repository and its copy risks data loss
+  and AES-counter reuse. After machine loss, restore from the old repo,
+  then start a new one for future backups. The host copy is append-only;
+  occasional prune/compact uses a separate key with delete rights.
+  Keep an independent `borg key export` recovery copy and passphrases in
+  the secrets manager: Bitwarden for personal machines, 1Password for work.
+  Scheduled runtime passphrases come from the OS keychain: macOS Keychain
+  or GNOME keyring via `secret-tool` on the home Linux target, not its
+  unavailable `systemd-creds`. Borgmatic supplies config-driven repositories,
+  retention/checks and `config bootstrap` recovery. The handoff records
+  once-per-run `encryption_passcommand` in 1.9.9+, external credentials
+  including 1Password CLI/systemd credentials in 1.9.10+, and no built-in
+  Bitwarden hook; a passcommand works while that vault is unlocked.
+  Set owner = the backup topic and choose bounded retention that keeps the
+  newest archive and never prunes it, before any archive exists. Live
+  machine-file retention remains until the machine is decommissioned.
+  Decide key organisation in Bitwarden and check whether the work org
+  permits a 1Password service account. The work Mac uses work 1Password
+  only, with no borg; the both-OS installation research does not override
+  that rule. Done when the design, evidence and author's decisions are
+  recorded. G2 receives the ownership/retention contract; BK2–BK4 receive
+  the chosen host, install and credential design.
+  Research report prepared at
+  `.worktrees/gita-plan_sub_bk1/dotfiles/docs/BACKUP-RESEARCH.md`; no target
+  install, account or backup was exercised. Awaiting author decisions on the
+  remote host, retention/cadence, recovery-key access and whether a personal
+  macOS install path is needed; work 1Password automation remains subject to
+  work-owner approval. Spending ceiling: recommend on merits; no purchase
+  authorized. [agent: gita-plan / OpenCode]
+
 - **Bootstrap the multi-agent coordination layer — worktrees, frozen leases,
   risk-tiered merge gates — then extract it to the copier template.** [#1,
   reordered ahead of the governance consolidation by the author 2026-09-20]
@@ -389,7 +517,14 @@ nothing is.
     chezmoi's own upstream suite isolates at the layer that resolves the path
     (in-process VFS + `testscript` txtar synthetic homes) rather than via env
     vars — same principle, different mechanism, worth the comparison before
-    building. Until this holds, `pytest-xdist` is off the table.
+    building. ~~Until this holds, `pytest-xdist` is off the table.~~ **Corrected
+    2026-09-23:** the `$HOME` sandboxing is already done — policy, quarantine,
+    binned and clipped all redirect via fixtures — and `pytest-xdist` is now
+    measured working here (170s → 47s, `-n auto --dist worksteal`, same two
+    pre-existing failures). The "2–3 writers" ceiling is about agents sharing
+    `$HOME` resources and does not apply to tests, which are read-only apart
+    from tmp dirs. The remaining shared resource is the uv cache lock, not
+    `$HOME`.
   - **(d) The subtask dependency graph is deferred, with the condition for
     revisiting it stated.** Graphs work where they are *derived and enforced*
     and fail where they are *authored and trusted*: Bazel/Buck/Nix are
@@ -454,7 +589,168 @@ nothing is.
     incident class in the trust ladder is currently detectable only by a human
     redoing the work. Related: the mutation state that proves a test must
     never be committed, so the evidence can only ever live beside the commit,
-    not in it.
+    not in it. [done `a92489b` 2026-09-22]
+  - **(h) Lifecycle: spawn, fan-out, provision, collect, reap.** Every
+    worktree and branch passes through one lifecycle, so a wedged session is
+    recoverable by inspection rather than archaeology. Merging uses an
+    ephemeral scratch worktree `.worktrees/<sid>_merge_<n>`, recreated per
+    attempt from (base + input SHAs) — re-running `git merge` in a conflicted
+    tree is not idempotent, rebuilding from SHAs is (the Zuul/bors/merge-queue
+    pattern). Merges are serial with the suite after each — batching destroys
+    attribution — ordered inert → behaviour → activating. A failed wave is
+    bisected, not retried wholesale; green/green/red is a finding recorded
+    against the fan-out, evidence the decomposition was wrong. Retries follow
+    the table: infra 2–3 with full jitter under a retry budget;
+    rebase-and-retest 1–2; deterministic never retried unchanged; LLM
+    regeneration once carrying the failure evidence, then escalate.
+    Classification is mechanical — re-run the identical artifact in a fresh
+    scratch worktree: same failure is deterministic, different failure is a
+    flake, quarantined rather than retried into green. A branch is never
+    `git branch -D`'d until `merge-base --is-ancestor` proves the work
+    landed; crash recovery is `git worktree remove --force` plus
+    `git worktree prune`. Escalation reports to the orchestrator freely and
+    to the human at the retry cap, with a deadman timeout.
+  - **(i) Declaration merge policy: regenerate, never hand-merge.** Venvs
+    never merge — only declarations do (pyproject.toml, uv.lock). A lockfile
+    conflict is resolved by merging pyproject.toml and re-running `uv lock`,
+    never by editing the lock; `.gitattributes` carries `uv.lock merge=binary`
+    so git never attempts a textual merge of it. uv is pinned at the system
+    layer (`bootstrap.sh`), not mise — the lockfile carries a format
+    revision, and version skew churns it. pyproject.toml and uv.lock are
+    registered as hot files in § Cross-session hazards.
+    **Not true yet, 2026-09-23:** the uv that runs is mise's
+    `uv = "latest"`, not the bootstrap pin — (p) U1 fixes it.
+  - **(j) Three coupling channels, and one unconditional gate.** Coupling
+    between parallel workers travels exactly three ways: writes, caught by
+    path-intersection at fan-out; reads, structurally isolated by worktrees;
+    semantics, caught only by the merged-state suite — the irreducible
+    channel, and the reason merges are serial with the suite after each.
+    Over all three sits one unconditional gate: no agent diff may touch the
+    gating tests or the policy code, because a worker that can edit its own
+    verifier can pass anything. That is a correctness requirement, not a
+    trust one.
+  - **(k) Capability manifest per subtask.** Every subtask declares a
+    manifest — paths, refs, commands, egress, secrets, limits, runtime —
+    because "read/write/both" is too coarse to enforce and too coarse to
+    audit. Enforcement is three layers: declare (the manifest), sandbox (what
+    the environment permits), gate (what the merge refuses). Manifests are
+    logged via git notes, so the audit trail travels with the refs.
+  - **(l) Contracts-first.** Interoperating pairs land their interface
+    before fan-out. The interface is a decision item — cheap to land, and
+    unblocking; fanning out before it exists charges every downstream branch
+    a rebase each time it changes.
+  - **(m) Verifier health first.** The suite's flake rate and mutation
+    sensitivity are measured before the orchestrator builds on it. An
+    orchestrator multiplies whatever the verifier is, and a verifier that
+    passes without exercising what it claims turns the merged-state gate
+    into Class B evidence at scale. Builds on (f)'s instrumentation and
+    (g)'s mutation trailers.
+    Exhibit, 2026-09-23: `tests/chezmoi/test_governance_not_deployed.py:55`
+    runs `chezmoi managed` without `-S`, and chezmoi's source directory is
+    fixed, so from a worktree the guard checks main's source — a broken
+    ignore list in the worktree cannot turn it red. Found by reading the
+    code; (p) P2a proves it with a mutation and fixes it.
+  - **(n) Irreversible agent effects.** A change that reaches the deployed
+    tree (`~/bin`, `~/dotfiles`) cannot be undone by `git revert` — the
+    revert restores the source, not the machine. Scope is agent-concurrency
+    only: what the coordination layer must guarantee about effects it cannot
+    take back. Ansible plan-vs-apply drift is explicitly out.
+  - **(o) Phase 2 experiments — the design seen to work, in sequence.**
+    Choose the order; each is evidence, not ceremony. **Happy path:** two
+    disjoint sub-agents, simultaneous suites, prove the offline run works —
+    then `uv cache clean` one package and confirm the offline run fails.
+    **The guard seen to fail:** a path overlap refused at fan-out, then the
+    check disabled to confirm it was the guard that caught it; extended with
+    two sub-agents adding the same `topic_provides` from different files —
+    path intersection empty, so the resolver must reject the merged tree.
+    **Provisioner path:** `uv add`, merge back, re-lock; then two
+    provisioners refused.
+  - **(p) Make the repo a Python project: one root `pyproject.toml`, one
+    committed `uv.lock`, the test environment rebuilt offline.** [agent:
+    pyproject session, `.worktrees/pyproject` on `agent/pyproject`] Author
+    request 2026-09-23: follow current PyPA/PEP practice, research first,
+    critique by a council, propose any structural change before making it.
+    The research ran before this line existed; it is recorded late rather
+    than backdated. Decided with the author 2026-09-23: a root project that
+    is never built or installed (no `[build-system]`, `[tool.uv] package =
+    false`, PEP 735 dependency groups for the test deps), root-only
+    `.chezmoiignore` entries, and a governance guard that works from
+    worktrees; the `.chezmoiroot` move is a separate `ROADMAP.md` decision;
+    uv's version authority is the bootstrap pin (U1). Rule-outs: nothing new
+    in `$HOME`, deployed scripts run unchanged, frozen offline runs work,
+    `tools/skill-trust` keeps its own lock. Rejected: packaging the repo
+    (scripts must stay standalone), a uv workspace with skill-trust, a
+    subdirectory `pyproject.toml` (tools look at the root), `pylock.toml` or
+    requirements files (no `--frozen`, no groups), keeping the `--with` flags
+    (nothing locked). Order: council C1–C5; then PR 1 — P1 docs
+    (`docs/PYTHON.md`, `REFERENCES.md`, `LANGUAGES.md`), P2 baseline counts
+    per test directory, P2a guard uses `chezmoi -S`, P2b one commit adding
+    `pyproject.toml`, `uv.lock`, ignore entries, guard lists and
+    `.gitattributes`; then PR 2 after `test-perf-xdist` merges — P3
+    `pytest.ini` into `[tool.pytest]`, P4 `AGENTS.md` § Commands, changelog,
+    hot-file registration. P1 shares `docs/PYTHON.md` with `test-perf-xdist`
+    (its dependency paragraph) — rebase whichever lands second. Open for the
+    author at P2b: `requires-python` `>=3.14` or `>=3.11`; ruff/ty pinned in
+    lock groups or in mise. Done when `UV_OFFLINE=1 uv run --frozen pytest`
+    reproduces the baseline recorded first — the same passes, and only the
+    known failures, each named (author, 2026-09-23) — so (o) can use it as
+    its consumer path.
+    **Council verdicts 2026-09-23** (C1–C4 returned; C5 skipped, Exa key
+    absent). Author decisions: `requires-python = ">=3.14"`; ruff/ty in
+    lockfile dependency groups (lint/format libs in the lock); committed
+    `uv.lock` yes; split P2b into two commits (deploy-hygiene vs project
+    adoption); U1 step 1 before `uv lock` (lock format is uv-version-
+    sensitive). Corrections: `test-perf-xdist` is merged (`118aaa6`) — PR 2
+    no longer waits and the worktree needs rebasing; `tests/` has 44
+    `test_*.py` not 40; `slow` marker does not exist; `GOVERNANCE_DIRS =
+    []` makes one guard test dead code; `required-version` ships post-U1
+    not in PR 1; P4 (AGENTS.md commands) moves to PR 1 tail. Full
+    critiques in `.worktrees/pyproject/.council/`.
+    - **(p) C1 — architect advisor.** [agent: fresh-context read-only
+      subagent] Critiques the (p) brief on layering (chezmoi/Ansible/zsh),
+      the `PRD.md` provision-versus-logic rule, `.chezmoiroot` versus the
+      ignore list, and fit with this coordination work and Refactor B. Done
+      when it returns agree/disagree per decision, risks missed and what
+      would change its mind, then a round-2 reply to the other critiques.
+    - **(p) C2 — pragmatist advisor.** [agent: fresh-context read-only
+      subagent] Critiques daily workflow, the clash with `test-perf-xdist`,
+      order of work and what breaks first. Done as C1.
+    - **(p) C3 — skeptic advisor.** [agent: fresh-context read-only
+      subagent] Attacks every claim in the brief with file:line evidence,
+      hunts for tests that pass without checking anything, and asks whether
+      a lockfile is needed at all. Done as C1.
+    - **(p) C4 — second model, another vendor.** [agent: `ask-research
+      --no-online --model openrouter/google/gemini-3.1-pro-preview`] Same
+      brief, both rounds, zero-data-retention routing, web search off so
+      nothing repo-derived reaches a search provider. The brief carries
+      repo-relative paths only — no home paths, employer strings or usage
+      numbers. The content is not work-tagged, so the author's go-ahead is
+      the permission; record `policy explain
+      boundaries.llm_processing.remote_model_allowed` with the run. Done as
+      C1, with cost recorded; C4 and C5 together stay under $5 (author,
+      2026-09-23).
+    - **(p) C5 — practitioner survey.** [agent: `ask-research`, web search
+      on] Public question only: how do public chezmoi repositories host
+      Python tooling? Skipped, and the skip recorded, if the Exa key is not
+      set. Shares C4's $5 cap. Done when a sourced answer or a recorded skip
+      exists.
+    - **(p) U1 — make the uv pin real.** [me — both machines] `bootstrap.sh`
+      pins uv 0.12.17, but `apps/mise/files/config.toml:82` has
+      `uv = "latest"` right under a comment (lines 77–81, `2f13ed2`) saying
+      uv is not mise-managed; merge `57dd1dd` (2026-08-06) put the line
+      back. On the Linux box, 2026-09-23, the `uv` on PATH is mise's
+      (0.12.17) and no system uv exists, so bootstrap's `command -v uv`
+      check passes and its pin never installs. Mac not checked. Order, so
+      no machine is left without uv: (1) install system uv 0.12.17 on each
+      machine, as `bootstrap.sh` does; (2) then claim `config.toml` in
+      § Claimed and remove the mise line, fixing the comment or the line —
+      the file is symlinked from `~/.config/mise/config.toml`, so the edit
+      is live at once; (3) last, add `required-version = "==0.12.17"` to
+      `[tool.uv]` — earlier, a mise uv floating to 0.13 fails every uv
+      command here. The gita-plan session found the same mismatch (its G0
+      side finding 1); this is the one task for it. Done when `command -v
+      uv` is the system install on both machines, mise declares no uv, and
+      `required-version` enforces the pin.
 
 - **Consolidate the governance docs — PRD as the constitution, spec as the
   derived statutes, conventions as the how-to.** [#2, was #1 until the author
@@ -1040,15 +1336,23 @@ nothing is.
   `apps/mise/tasks/upgrade.yaml` pin-print must follow the version, and the
   four `npx @sentry/skillet@latest` aliases need a float-vs-pin decision.
 - Install `ty` and typecheck the Python. Named in the house toolchain and
-  currently absent — not installed, zero references in the repo. 32 test files
-  and 36 PEP 723 scripts are unchecked. Note `ty` is pre-1.0; decide whether it
+  currently absent — not installed, zero references in the repo. 42 test files
+  and 22 Python scripts are unchecked (counted 2026-09-23: 13 `uv run
+  --script`, one the stray `bin/executable_archive.bk`; 9 `python3` — the
+  earlier "32" and "36" were stale). `bin/executable_scanfiles` has a
+  `# /// script` block under a `python3` shebang: inert, as it declares no
+  dependencies, but against the `docs/PYTHON.md` rule. Note `ty` is
+  pre-1.0; decide whether it
   gates commits or just reports before wiring it into `prek`.
 - Wire `ruff` into `.pre-commit-config.yaml`. It is installed and the toolchain
   names it, but the hook config runs shellcheck and bats only, so no Python file
-  in this repo is linted on commit. Settle the ruleset first — 36 scripts written
+  in this repo is linted on commit. Settle the ruleset first — 22 scripts written
   before any linter will not pass a default config cleanly.
+  mise also declares ruff twice — `ruff` (`apps/mise/files/config.toml:147`)
+  and `pipx:ruff` (line 186) — so pick one first; § Now #1 (p) may pin it in
+  a lock group instead.
 - Integrate `xdoctest` and make illustrative examples a tested part of the
-  docs. Docstring examples in the 36 PEP 723 scripts and any Python modules
+  docs. Docstring examples in the 22 Python scripts and any Python modules
   run under pytest via the xdoctest plugin; docs (`dotfiles/docs/`, READMEs)
   carry code examples where they clarify, verified rather than trusted —
   written for humans first, machines as the proof they still work. Survey the
@@ -1198,6 +1502,84 @@ nothing is.
   questions (machine id, `blocked` verdict) remain open and still block
   nothing; the vestigial `[mergetool ""]`/`[difftool ""]` are preserved verbatim
   and still await an author judgement.
+- **Make the test suite fast and model-safe: fix the conftest collision, keep
+  model calls out of the default run, and wire pytest-xdist as an opt-in fast
+  loop.** [me] Done on branch `test-perf-xdist` (31d532d, fa25f20, 7908b50,
+  41bcc41, a58e710, 1ef7c86, 6c9de21) — awaiting author review, not merged.
+  Council study 2026-09-23 (three explore agents + xdist docs). **Correction
+  to the original brief:** the claim that "two unmarked `test_binned_cli`
+  cases make real model calls" is WRONG and is retracted. Measured on this
+  machine: `binned --auto "echo hello"` exits 2 in 0.26s with `No such command
+  'echo hello'` (typer rejects the free-text as a subcommand), `ollama ps`
+  unchanged — no model call happens, in the source *or* the deployed copy. The
+  real defect is worse: `test_explicit_command_enters_generate` and
+  `test_command_with_embedded_flags` pass **vacuously**, on a parse-error
+  message that happens to echo the command string. Their docstring claim ("We
+  do NOT make real LLM calls") is accidentally true, not for its stated
+  reason. Also corrected: slowness is **not** dominated by model calls (7
+  tests, now opt-in) but by per-test subprocess startup — ansible-playbook and
+  `uv run --script` at 3–13s each. Done when one invocation collects every
+  test directory without ImportError, a bare `pytest` makes zero real model
+  calls, and the xdist fast loop is green with a mutation check recorded —
+  all three now hold (210 collected clean across the four collided
+  directories; `addopts = -m "not llm_judge"` with both directions tested in
+  `tests/suite`; 170.7s → 46.75s measured 2026-09-23, 32 cores, 641 passed /
+  2 pre-existing failures / 8 skipped, no new failures).
+
+  **Open, for the author** (found while working, not decided):
+
+  1. **Judge/model ids do not exist on this machine.** `ollama list` has
+     `gemma3:12b`, `qwen3:8b`, `gpt-oss:20b`, `qwen3:30b`,
+     `qwen25-14b-opt:latest`, `qwen2.5:14b`, `mistral:7b` — and nothing else.
+     So `tests/pii_redactor`'s `INTEGRATION_MODEL = "qwen3.5:4b-mlx-bf16"` is
+     absent (the known "Unknown model" item), and `test_binned_llm_judge`'s
+     default judges `devstral-small-2, qwen3.5, claude-4-sonnet` are all
+     unavailable: two not pulled, and `claude-4-sonnet` is a vendor-native id
+     which resolves to nothing under the llm environment (AGENTS.md § Models —
+     use `openrouter/anthropic/...`). Install, substitute, or skip-with-reason
+     is the author's call, and substituting changes what is being measured so
+     it must not be done silently.
+  2. **Two `test_binned_cli` cases are vacuous** (above). Fixing them means
+     deciding what the free-text routing should do, which may be a binned CLI
+     question rather than a test question.
+  3. **Source vs deployed is inconsistent.** `policy` and `quarantine` test
+     the chezmoi *source*; `clipped`, `pii_redactor` and `binned` test
+     `~/bin`, so a green run can be against a stale binary. Note
+     `bin/executable_pii-redactor` and `bin/executable_binned` are **not** +x
+     while `bin/executable_policy` is — switching needs an invocation change
+     (quarantine uses `python3 SCRIPT`) as well as a path change.
+  4. **`testpaths = tests tools`.** The previously documented `pytest tests`
+     silently skipped `tools/skill-trust`; the documented command now says
+     `pytest tests tools`. Whether `tools` stays in `testpaths` is undecided —
+     it pulls a second packaged project into every run.
+  5. **`tests/clipped`'s clipboard cases are slow and order-dependent** — in
+     sequence they fail and burn `run_clipped`'s 60s timeout each, so the
+     suite cannot complete quickly until they get an environment skip or a
+     fix. Pre-existing and tracked by the "12 environmental suite failures"
+     item; not touched here.
+  6. **The recorded "104s" suite figure is stale.** Measured 2026-09-23:
+     170.7s for everything but `tests/clipped`, `-m "not llm_judge"`. Several
+     places still quote 104s.
+  7. **Run one suite at a time.** Two concurrent `uv run` invocations contend
+     on the `~/.cache/uv` lock and Hypothesis then reports deadline failures
+     that are CPU starvation, not bugs — corrupted evidence rather than a
+     clean skip. The fast-loop note in AGENTS.md § Commands records this.
+
+- **Derive minimal permission rules from tool manuals for all three agent
+  surfaces.** Queued by the author 2026-09-23: a subagent reviews the full
+  help menus and manuals for every tool the repo's agents invoke — git,
+  chezmoi, uv, pytest, mise, and the rest — classifies each subcommand and
+  flag as safe (allow), irreversible (ask), or dangerous (deny), and writes
+  the result into the three permission configs: `opencode.jsonc` (opencode),
+  `.claude/settings.json` (Claude Code), and Cursor's `cli.json`. The goal
+  is fewer approval prompts without weakening the deny tier. Known gaps to
+  close: `env *` is an arbitrary-exec wrapper in the allow tier;
+  `sed -i`/`awk system()`/`rg --pre` can execute code; `git checkout .`/
+  `git restore .` destroy uncommitted work; `git -C` bypasses
+  subcommand-level rules. Done when all three configs carry rules derived
+  from the tools' own documentation, the deny tier still blocks
+  `chezmoi apply`, force-push, and credential paths, and a deliberately
+  dangerous command has been seen to prompt. [agent: sub]
 
 ## Planned
 
@@ -1247,10 +1629,65 @@ nothing is.
   this evidence cannot separate them. The upgrade path not restarting the
   server is its own defect regardless.
 
+- **Author the `explain-calibration` skill — whether and how much to
+  explain.** Queued from the 2026-09-22 handoff (decisions 25, 31–33). Lives
+  in ai-prompt-library, authored with skillet-authoring — this line tracks it
+  here because spec.md § Writing now binds the outcome and references the
+  skill for the method. The skill carries the method the spec defers: ask the
+  question that sits under the most terms, not the term in front of you; ask
+  a reasoning question, not a vocabulary one; infer down and verify cheaply
+  with one gloss — being wrong costs one parenthesis. Compactness method:
+  conclusion in one sentence, plain meaning in one clause, the consequence
+  that makes it matter, evidence only if load-bearing. Optional-dependency
+  discovery (decision 27): it looks for feynman-explanation and, if absent,
+  asks permission to probe for an installer, else asks the user's preference;
+  no preferences saved by default. Done when the skill exists in
+  ai-prompt-library, passes `skillet validate` and its own evals, and is
+  installed here through the machine's skill manager.
+
+- **Author the `feynman-explanation` skill — how to explain from first
+  principles.** Queued from the 2026-09-22 handoff (decisions 25–26), the
+  companion to explain-calibration (which decides *whether/how much*; this
+  one is *how*). Lives in ai-prompt-library, authored with skillet-authoring.
+  Activation is inferred from signals, never user-invoked: domain rated
+  new/general-principles; "what is X"; the same concept asked twice; "plain
+  english"/"ELI25"; a decision hinging on a term the user hasn't used;
+  undefined density. Internal self-check: would the explanation survive being
+  repeated back? Done when the skill exists in ai-prompt-library, passes
+  `skillet validate` and its own evals, and is installed here through the
+  machine's skill manager.
+
+- **Declare `explain-calibration` and `feynman-explanation` as agentic
+  dependencies.** [blocked: until the two skills exist — see the authoring
+  tasks above] spec.md § Dependencies makes a referenced skill a project
+  dependency: declared where the machine's skill manager installs and keeps
+  it current, skill-trust passing. spec.md § Writing already references
+  explain-calibration, so the declaration is owed the moment the skill
+  exists. Done when both skills are declared, installed via the skill
+  manager, and the declaration names the references that pull them in.
+
 - Migrate the mise `python.uv_venv_auto` setting before mise 2027.7.0 removes
   it — mise warned the deprecation during the herdr work (2026-09-19:
   `python.uv_venv_auto=true` must become `python.uv_venv_auto="create|source"`
   or `"source"` in `apps/mise/files/config.toml`).
+  **Premise suspect, 2026-09-23:** the key is in no tracked file, and
+  `mise settings get python.uv_venv_auto` returns `false` on the Linux box.
+  Find where the warning came from (another config, an env var, the Mac)
+  before acting.
+
+- **Stop repo tooling leaking into `$HOME`.** `chezmoi managed
+  --include=files` on 2026-09-23 (700 paths) lists `docs/LANGUAGES.md`,
+  `docs/GLOSSARY.md` and `docs/WORKTREES.md` (→ `~/docs/`); `scripts/`, 3
+  hook scripts (→ `~/scripts/`); and two `bin/` strays,
+  `executable_archive.bk` and `executable_READMD.archive.md`. `tools/` (9
+  files → `~/tools/`) belongs to the skill-trust install task. The guard's
+  `GOVERNANCE_FILES_IN_DOCS` also omits `docs/LAYOUT.md`, ignored in
+  `851a419` but unguarded. `docs/ARCHITECTURE.md` and `docs/USAGE.md`
+  deploy on purpose. Until the guard sees worktrees (§ Now #1 (p) P2a),
+  check fixes from the main checkout. Done when each leak is ignored,
+  deleted or recorded as deliberate, and the guard lists every ignored
+  convention doc. The `.chezmoiroot` item in `ROADMAP.md` would end this
+  class of leak.
 
 - **Build the subscription machinery: `topic_subscribes` + playbook
   resolution + injection.** The mechanism half of the adopted system-config
@@ -1543,45 +1980,6 @@ nothing is.
   manager, its topic home and its teardown, and any non-manager logic left
   in the script has an owner or a retirement note alongside A10's `~/bin`
   sunset. [me]
-- **Study gita across the machines and decide its topic's shape.** The
-  author wants `gita` to manage the set of repositories that should be
-  shared or present on one or more machines — add and update flows through
-  one tool instead of ad-hoc clones. Two things before the topic exists:
-  detect what already exists (gita config at `~/.config/gita/` on each
-  machine is unmanaged today and may not exist on both), and build the repo
-  inventory per machine — which repos exist, which are wanted where, at
-  what remotes — because the topic can only declare what the agent
-  understands. Machine granularity is the design constraint: the repo set
-  is a per-machine decision resolved on the target (the machines.yml group
-  map is the settled design — the file now EXISTS, created 2026-09-15 as
-  `dotfiles/machines.yml` under `docs/LAYOUT.md`, with this Mac's
-  membership recorded), never one flat list for the fleet.
-  **Learnings from the 2026-09-15 registration pass on this Mac — the
-  topic's config must encode these so they are not re-learned:**
-  (1) `gita add <dir>` without `-r` registers only depth-1 repos and
-  reported "No new repos found" while 48 repos sat 2-4 levels deep under
-  `~/code/work/` — the topic's registration flow must recurse.
-  (2) Duplicate basenames collide silently: one registration per name, the
-  second repo dropped (`symbolicator`, `sentry-docs`,
-  `sillysnakes-python-sdk-playground-1-29-26` across org dirs). The
-  inventory must detect dupes and either rename or declare the drop
-  deliberate; membership lists cite paths, not names (LAYOUT.md).
-  (3) Recursive discovery must exclude `.venv` — the generator's find
-  swallowed pip-vendored content (`temporalio/bridge/sdk-core` inside a
-  virtualenv); same filter class as `.chezmoiignore`'s `**/.venv`.
-  (4) `gita ls` prints all names space-separated on ONE line — verify
-  counts with `wc -w`, never `wc -l`.
-  (5) `~/.config/gita/repos.csv` is unmanaged today; this session's
-  51-repo registration is the de facto baseline the topic's inventory
-  should ADOPT, not rediscover. Done when
-  existing-config detection is written, the per-machine inventory is
-  recorded, and a decision — with the author — fixes the topic's shape:
-  declared repo sets versus gita's group semantics, install via
-  `topic_requires`, and where the config lives; queued as the
-  topic-creation task it feeds. Collision surface, named per the
-  decomposition rules: `apps/git` (the git-ai topic task above) is also
-  git-adjacent — decide whether gita's config rides in it or a second topic
-  coexists, before either is scaffolded. [me]
 - **Harden cosine beyond the subnormal guard: the overflow tail and scale
   invariance.** The advisor pass found what 6c3079b's guard missed. Two
   tails: an overflow tail where sums overflow to inf and the quotient
@@ -1943,13 +2341,17 @@ nothing is.
   Output must be principles, not quotations — a generated layer that reproduces
   source text has moved the document, not abstracted it.
 - Design the state backup path, classified by machine ownership and data
-  sensitivity. Back up only what is expensive to regenerate — model weights,
-  eval results, benchmark history — and regenerate the rest. Rules that fall out
-  of the author interview, in priority order: PII never leaves the internal disk
-  under any circumstance; a machine the author does not own can use neither
-  cloud nor external disk, only its internal disk; everything else may use
-  external disk or encrypted cloud. No mechanism exists today, so expensive
-  state currently has no backup at all.
+  sensitivity. **First slice approved 2026-09-23: BK1–BK4 below cover
+  configuration backups**, under `PRD.md` § Configuration backups. They must
+  pass their restore drills before real data enters the new machine files.
+  The broader state design stays open: identify expensive-to-regenerate
+  state (model weights, eval results, benchmark history), apply `spec.md`
+  § Data to usage-derived content, and regenerate everything else. The
+  configuration exception does not relax the internal-disk rules for other
+  data. The AI state-contract item B3 precedes backing up those stores,
+  not the machine-file slice. Done when the remaining stores have owners,
+  retention rules and permitted destinations, and implementation tasks are
+  queued. No backup mechanism has been verified yet. [me]
 - Review what may and may not leave a machine the author does not own, against
   the governing policy for that machine. Feeds both the backup design above and
   the generated policy layer. Existing work on this is scattered — collect it
@@ -1968,6 +2370,312 @@ nothing is.
   answers, and adding a second local runtime alongside or instead of ollama
   requires no policy change. Pairs with `spec.md` § Shared code does not assume
   a provider, which states the rule but has no mechanism behind it.
+
+### Gita and machine-file backup — approved 2026-09-23
+
+The author approved the following plan on 2026-09-23. Its goal is one
+maintainable Ansible approach to populate and sync each machine's declared
+repositories, reporting per-repo problems without stopping other topics.
+Work macOS and home Linux keep separate local selections and private data.
+The requirements below carry the plan without needing the archival branch.
+
+**Binding execution order:** G0 → (G1 ∥ BK1 ∥ the existing second-machine
+inventory) → G2 → BK2 → BK3 → BK4 → **real-data gate** → G3 → G4 → G5 → G7.
+G6 may run any time, including alongside G2–G5. G4, G5 and G7 run serially:
+all edit the gita upgrade path. The second-machine inventory is the existing
+layout task, not another task to create here.
+
+**Real-data gate:** backup is built and tested through BK4 before real data
+enters any machine file. Use synthetic files for the preceding format and
+restore checks. Seed Linux only after its inventory and this gate; seed the
+Mac in a session on the Mac after the gate. Mac-side launchd, Homebrew and
+work-1Password behaviour need a session there; Linux evidence cannot prove them.
+
+**Configuration-backup rule:** customer data from a work machine never leaves
+that machine and is never on the capture list. Work-derived configuration
+lives only in the work secrets manager. Everything else is the author's data
+and may be stored off-machine, encrypted. Home `machine.yaml` and
+`private.yaml` go to local borg plus a borg host; work-Mac machine files go
+only to work 1Password, with no borg or personal backup uploader on that Mac.
+Machine-written records are rebuilt, never backed up. This rule is limited
+to configuration backups; `spec.md` § Data still binds usage-derived data.
+The existing employer-policy review stays open.
+
+Each item has its own branch and review; deployed-tree and policy changes
+need PR review. Claim hot files before editing them. Agents never run
+`chezmoi apply`. Render Ansible templates for both OS families with
+`StrictUndefined`, and run `bash -n` on rendered shell scripts. Prove guards
+both decline and relent; record deliberate failures as `Mutation:` and
+`Failing-test:` trailers. Keep removal with creation and name untested platforms.
+
+**Open implementation questions from G0b (2026-09-23):** settle these with
+the author at the named item, not by silently filling gaps in the handoff.
+G2: does no local pick prevent tool installation too, or only repo actions;
+which source files are required versus optional? G4/G5: define last good
+run independently of exit 0, missing/first-run timestamps, and when
+blocked-since resets. G7: does `off` stay off on timers, may timers clone
+new explicit declarations, and which type wins for a fork that is also a
+template? BK2: what counts as an empty required source? BK1 chooses numeric
+retention and backup cadence; the eight-hour schedule belongs to gita.
+Permission-work allocation: G2 owns machine-path read denial, BK2 owns
+backup-store denial, BK3/BK4 carry it to their destinations. Remote-store
+enforcement remains to be designed; the approved policy itself is unchanged.
+
+- **G2 — document and establish the catalogue and machine-file contract.**
+  After G1, BK1 and the second-machine inventory, add
+  `dotfiles/config/repos.yaml`: personal repos and remotes, one shared set
+  initially, with personal discovery sources. Remotes have their own file;
+  adding or removing a declaration means editing that file and running the
+  topic. This is a distinct catalogue domain with a subscriber and domain
+  truth, not data to fold into `editors.yaml` or `agents.yaml`.
+  Machine identity is named sets plus an unversioned local pick under
+  `~/.local/state/machine/`, never a committed hostname. Split local files by
+  what may travel: `machine.yaml` holds set picks, discovery modes and
+  schedule; `private.yaml` holds personal private entries; `work.yaml` holds
+  work entries and sources. Machine-written sync/discovery records live
+  separately from hand-edited files, preserving comments, and are rebuilt
+  rather than backed up. Declarations say what should exist; gita and disk
+  say what is actually cloned or registered. A machine with no local pick
+  gets a report and nothing else.
+  Migrate `dotfiles/machines.yml` away from hostnames and update
+  `docs/LAYOUT.md` to describe named sets and local selection. Live machine
+  files are retained until the machine is decommissioned. Apply the approved
+  agent-read denial for `~/.local/state/machine/`, following the
+  `~/.local/state/chezmoi/` precedent in `dotfiles/docs/MULTI-MACHINE.md`;
+  this permissions change needs policy-path PR review. No real machine-file
+  seeding before BK2–BK4 prove backup and recovery.
+  Done when the format and a working example are documented, the files
+  parse, and no machine hostname values remain in the current tree. This
+  hands the file contract to BK2 and, after the real-data gate, G3.
+
+- **G3 — clone missing declarations and adopt existing gita registrations.**
+  After the BK2–BK4 real-data gate, scaffold standalone `dotfiles/apps/gita`
+  with `topic_provides: [gita]` and `topic_requires: [mise, python, git]`.
+  Mise provides Python; git comes from apt/Homebrew prerequisites and is
+  probed on PATH as in `apps/chrome`. Do not wait for the queued `apps/git`:
+  it owns git configuration, not the binary. Claim
+  `dotfiles/apps/mise/files/config.toml` before taking ownership of its
+  existing `pipx:gita` entry using first-party mise commands, the herdr pattern.
+  Resolve the repo list in `dotfiles/roles/repo-context`, modelled on
+  `roles/topic-resolution`. Gita initially reads it role-relatively, like
+  `config/editors.yaml`; the queued `topic_subscribes` machinery later makes
+  the behaviour-preserving switch, as already planned for vscode.
+  Match existing clones by normalised host/owner/repo remote before cloning
+  anything. Keep the normaliser pure and property-tested. Report matches
+  outside the declared layout type; never relocate them automatically.
+  Groups mirror layout types, one per type. Registration recurses, excludes
+  `.venv`, and detects duplicate-basename collisions; membership cites paths
+  under the type directory, never bare names. `gita ls` is one line, so any
+  local count uses `wc -w`, not `wc -l`; keep measured counts out of the queue.
+  Adopt each target's existing `~/.config/gita/repos.csv` baseline instead
+  of rediscovering it, checking existence and provenance on that target.
+  The earlier study attributes its baseline to the Mac on 2026-09-15; the
+  later handoff says "this box" but identifies its session as Linux. Do not
+  assume that the Mac's observed baseline exists on Linux.
+  Never auto-trust SSH host keys. Bootstrap already clones via SSH to
+  github.com on a provisioned machine; report another untrusted host once.
+  Tag clone-new tasks `[install, upgrade]`, since `update.sh` requests only
+  `upgrade`. With no local pick, report and do nothing. Removal unregisters
+  gita entries and drops the topic's mise entry, never clones. During normal
+  reconciliation, unregister entries removed from declarations only with
+  `gita_unregister_removed`, default off.
+  Done when both-OS templates render with `StrictUndefined`, deliberate
+  breaks fail the tests with mutation trailers, and `--check` on the Linux
+  target changes nothing. This hands clone/registration state to G4.
+
+- **G4 — sync on update without allowing repo problems to abort the run.**
+  After G3, implement sync on `--tags upgrade`, using G1's decision about
+  calling gita or git. Fetch every repo, including dirty ones: fetch never
+  touches the working tree. Then fast-forward only clean repos with
+  `git merge --ff-only`. Report per-repo verdicts: fast-forwarded; skipped
+  for dirty state, conflicts, detached HEAD, no upstream or a mid-operation
+  state; or failed fetch. Failed fetch means UNKNOWN, never "up to date".
+  Repo problems are reported and the run exits 0. Only the topic's own
+  checks fail the run, such as a missing provider or malformed catalogue or
+  machine file. Record the deviation from `TOPIC-RECIPES.md`'s "fail once
+  at the end" in the topic README: the parent playbook's topic loop has no
+  rescue, so raising here skips later app topics.
+  Each run writes separate machine-written records of per-repo last-fetch
+  and blocked-since timestamps, feeding reports and G5's warning. Preserve
+  the stored last-good-run timestamp needed by that warning; an exit-0
+  report of repo problems is not evidence that a failed fetch succeeded.
+  Done when a planted dirty repo is fetched, skipped and reported while a
+  clean repo fast-forwards, and a failed fetch cannot pass as "up to date",
+  proven by deliberate mutation. This hands the sync path and timestamps
+  to G5; G4, G5 and G7 run serially on the shared upgrade path.
+
+- **G5 — schedule sync and warn only when stored state is stale or blocked.**
+  After G4, add a systemd user timer on Linux with `Persistent=true` for
+  catch-up, and a launchd agent on macOS. Default to three runs a day,
+  every eight hours, overridable per machine. Use the ollama timer/plist
+  templates as precedent. The unit invokes
+  `~/dotfiles/run-role.sh gita upgrade`; its playbook lookup is CWD-relative,
+  so set `WorkingDirectory` to the resolved `~/dotfiles` directory, or the
+  launchd equivalent, and supply the absolute resolved `~/.local/bin/mise`
+  path because a service PATH will not contain it. Resolve target paths at
+  deploy time. Timer-triggered discovery is report-only (G7), with no
+  surprise discovered clones.
+  Add the warning as topic shell wiring under `files/zsh/*.zsh`. It reads
+  stored timestamps only: no git, network or `stat`. Print one line when
+  the last good run is older than 12 hours, any repo has not fetched in
+  12 hours, or a repo has been blocked longer than 12 hours; otherwise be
+  silent. On Linux, report `loginctl enable-linger` as the fix for running
+  while logged out; never enable it silently.
+  At G5's start, confirm the author's distinction between classifying a
+  new clone from gh metadata and forbidden self-healing relocation under
+  `docs/LAYOUT.md`. The handoff places that confirmation here; G7 consumes it.
+  Done when units pass their validators, the warning fires at 13 hours and
+  stays silent at one hour with both directions mutation-proven, and
+  removal leaves none of the scheduling or warning wiring behind. Verify
+  Mac runtime behaviour in a Mac session. G7 follows this item serially.
+
+- **G6 — give gh one installation owner and adopt the existing Debian install.**
+  Add a small `dotfiles/apps/gh` topic: Homebrew on macOS and GitHub's signed
+  apt repository at `cli.github.com` on Debian. The handoff's 2026-09-23
+  evidence is `apt-cache policy`: gh is a dpkg package from
+  `https://cli.github.com/packages stable/main`, installed by hand rather
+  than by a topic or deb-get; `deb-get list --installed` had no match.
+  Adopt with `state: present`, not a reinstall. `apps/deb-get` currently
+  repairs that repository's keyring and protects gh during removal. Move
+  the keyring-repair entry from `dotfiles/apps/deb-get/vars/main.yaml` to
+  the gh topic so the key has one owner, and account for the existing
+  removal protection. A stale third-party apt source also offers older gh
+  builds on the Linux target; the recorded apt selection preferred
+  GitHub's newer package. Keep that source collision visible during adoption.
+  Check recent history and claim `dotfiles/apps/deb-get/` before editing.
+  Done when `--check` on the Linux target adopts without reinstalling and
+  removal leaves apt's sources clean; exercise Homebrew in a Mac session.
+  G6 may run any time, including alongside G2–G5, because it touches
+  different files. Missing gh remains G7's UNKNOWN discovery case.
+
+- **G7 — discover repositories through gh with explicit per-machine modes.**
+  After G5, implement G1's selected discovery approach. Personal sources
+  live in the committed catalogue; private sources, including work orgs,
+  live only in that machine's local file. A source's per-machine mode is
+  `add`, `report` (default), or `off`. These modes apply to user-run update;
+  timer runs report only, never adding discovered clones. Tag discovery
+  tasks `[install, upgrade]` so update's upgrade-only invocation finds them.
+  Missing gh, logged-out access, rate limiting or truncation means UNKNOWN,
+  never an empty result: add nothing and unregister nothing, while explicit
+  repos still sync. The handoff verified on 2026-09-23 that `gh repo list`
+  defaults to `--limit 30`; always set a limit and treat a full page as
+  truncated. Add at most ten repos per run. Skip archived repos by default.
+  Classify forks into `forks/`, templates into `templates/`, and other new
+  clones into the source's declared type, carrying the author confirmation
+  requested at G5's start. Existing clones are not relocated automatically.
+  Record which gh account listed the source; private repos invisible to
+  another account make the report partial, not evidence of absence.
+  Write discovered entries to a separate machine-written record, never
+  back into hand-edited YAML or its comments, and never back that record up.
+  Removing a discovered repo means adding it to the source's exclude list;
+  otherwise the next update rediscovers it. Keep the opt-in unregister and
+  never-delete-clones rules from G3.
+  Done when `report` and `add` work end to end and a gh failure cannot read
+  as "no repos", proven by mutation. This item runs serially after G4 and
+  G5 because all three edit the gita upgrade path.
+
+- **BK2 — prove home-machine local backup and explicit recovery in a sandbox.**
+  After G2, implement BK1's borg 1.4.x/borgmatic design with a local repo,
+  timer, runtime keyring passphrase, capture allowlist, staleness warning,
+  monthly `borgmatic extract` test restore and restore runbook. Use synthetic
+  machine files until the full BK2–BK4 real-data gate passes. Owner and
+  bounded retention are fixed before any archive exists; never prune the
+  newest archive. Keep one repository per machine per destination.
+  Capture an explicit path allowlist starting with
+  `~/.local/state/machine/`, never "home minus excludes". The home capture
+  contains `machine.yaml` and `private.yaml`; work-derived configuration
+  belongs only in work 1Password, machine-written records are rebuilt, and
+  customer data is never on the list. Apply the agent-read denial for the
+  backup store, matching the machine-state denial in G2; this is a
+  policy-path change needing PR review.
+  Missing or empty source files mean no archive is created and nothing is
+  pruned: deletion must not become a version or rotate out good copies.
+  Verify the handoff's proposed borgmatic `before_backup` exit-75 soft
+  failure actually skips both create and prune; that mechanism is unproven,
+  and a failure of the claim requires another guard, not weaker behaviour.
+  Never restore automatically: report the latest archive and exact restore
+  command. Test that a run never restores automatically and an explicit
+  restore works. Test fresh silence versus the accepted 12-hour stale
+  warning, and that a planted customer-data path never reaches an archive
+  while listed paths always do. The allowlist and missing-source guards
+  must both decline when required and proceed when permitted.
+  The handoff's Linux evidence on 2026-09-23 was systemd 249 without
+  `systemd-creds`, with `secret-tool` present and linger off. Use GNOME
+  keyring for scheduled passphrases; logged-in runs are expected to find it
+  unlocked, but prove that with an actual timer run. On lookup failure,
+  report the problem and let the staleness warning fire.
+  Done when sandbox deletion makes the next run skip both archive creation
+  and pruning, an explicitly requested restore brings the files back, and
+  each rule above has a test seen to fail when deliberately broken,
+  including the customer-data test in both directions. Record the timer
+  evidence and runbook; BK3 follows with independent off-machine recovery.
+
+- **BK3 — prove lost-home-machine recovery from the independent borg host.**
+  After BK2, add BK1's append-only SSH host repository, separate from the
+  local repository and unique to this machine and destination. Write it
+  with its own `borg create`; never sync/copy the live local repo to make
+  the host copy. Append-only access prevents a buggy or compromised client
+  from deleting past backups. Occasional prune/compact needs a separate
+  delete-capable key and must preserve the newest archive under BK1's
+  bounded retention. Carry BK2's allowlist, missing/empty-source guard and
+  agent-read denial to the backup store; records and customer data remain
+  excluded, and work-derived configuration stays only in work 1Password.
+  Put independent exported borg keys and passphrases in Bitwarden as the
+  recovery copy, not solely in the scheduled runtime keyring. Write the
+  recovery runbook: sign in to Bitwarden from a clean device, using an
+  offline 2FA recovery code if the phone was lost with the machine; fetch
+  the key and passphrase; run `borgmatic config bootstrap`; extract; verify;
+  then start a new repository for future backups. Do not resume writing
+  the old repository from the fresh client: that risks counter reuse.
+  Recovery remains explicit, never automatic; report the latest archive
+  and exact command. Done when an empty-HOME drill with only Bitwarden and
+  host access recovers the synthetic machine files and starts a new repo
+  afterwards, with the runbook and independent key copy verified. Keep
+  actual recovery material out of committed documentation. BK4 follows;
+  real machine-file data still waits for that final restore drill.
+
+- **BK4 — prove work-Mac machine-file recovery using work 1Password only.**
+  After BK3, work in a session on the Mac. Keep that machine's files in
+  work 1Password, with save-on-change during runs the user starts and a
+  stale-copy warning. A 1Password service account is an option only if
+  BK1 confirms the org permits it. Verify actual 1Password unlock/save
+  behaviour on that machine; the handoff has not checked it.
+  No borg runs on the work Mac, and no personal backup tool runs on or
+  uploads from the company-managed device. Work-derived configuration,
+  including `work.yaml`, lives only in the work secrets manager. Customer
+  data never enters the capture list or leaves the Mac; its backup belongs
+  to the employer. Machine-written state is rebuilt, never backed up.
+  Restore machine files explicitly from work 1Password; work-repo recovery
+  through discovery is G7's later work. Carry the agent-read denial for machine
+  files and the backup store, and BK1's ownership/retention contract.
+  Done when save-on-change, stale-copy warning and the restore drill pass
+  on the Mac using synthetic files. Only then is the shared real-data gate
+  satisfied: seed Linux after its inventory and the Mac in its own session,
+  then proceed to G3 in the binding order.
+
+- **Decide the history scrub for the published machine hostname.**
+  The 2026-09-23 handoff identifies a Mac hostname already published in
+  `dotfiles/machines.yml` on `origin/main`; its resemblance to a hardware
+  serial is unverified. Do not reproduce the value in the queue or report.
+  G2 drops hostnames from current files; this separate task is the author's
+  decision about history, not permission to rewrite it now. Record whether
+  to scrub and the intended scope. If a rewrite is authorised, its plan
+  must include a backup branch and provenance notes under `spec.md`
+  § Change records. A rewrite only bounds future exposure: it cannot
+  retract fetched, forked or indexed copies.
+  Done when the author's scrub-or-retain decision and, if needed, the
+  bounded rewrite plan are recorded without republishing the identifier.
+
+- **Amend Topic bundles' machine binding to named sets plus a local pick.**
+  The author's 2026-09-23 decision supersedes the 2026-09-12
+  hostname-to-groups binding in this queue's Topic bundles section. Add a
+  dated supersession note before the unstarted bundle work is built: topic
+  groups use the same named-set and machine-local selection boundary as
+  the repo catalogue, without committing hostnames. G2 owns the current
+  machine-file migration; this item owns correcting the bundle requirement.
+  Done when that section records the dated amendment and its downstream
+  tasks follow the new binding rather than the old hostname map. This
+  transcribes a settled decision; it does not reopen the bundle design.
 
 ### Refactor A — the `topical` CLI (provisioning config, state, bootstrapping)
 
@@ -2661,6 +3369,12 @@ and `chezmoi status` before editing.
   pair of edits may not be so lucky. `~/.config/mise/config.toml` is a symlink
   to this file, so editing the source changes what mise reads immediately —
   before any `chezmoi apply`.
+
+  2026-09-22: seen live again — during an unrelated commit, a mise run
+  auto-bumped `github:danielmiessler/fabric` 1.4.478 → 1.4.479 in the working
+  tree (reverted; the pin is deliberate, see the comment above the fabric
+  line) and the `npm:@openai/codex` install failed with Permission denied
+  (os error 13) on `/tmp/fslock/...`. Standing machine issue, not a one-off.
 
 ## Standing reminders
 

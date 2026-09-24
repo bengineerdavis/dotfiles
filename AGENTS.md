@@ -558,6 +558,11 @@ The point is not to test the agent's work; it is to check that the author
 actually understands what was built. A change that passes review while nobody
 internalised the design is a change nobody can maintain.
 
+A quiz carries **no recommended answer**. Marking one option "(Recommended)"
+hands over the agent's own reading and turns the check into a rubber stamp —
+the one thing it exists to prevent. Options stay neutral; the agent's reasoning
+belongs in the report it already wrote.
+
 ## Trust ladder
 
 An agent earns wider autonomy by track record, **per task class and blast
@@ -661,10 +666,19 @@ that a pattern across months stays visible.
 ## Commands
 
 ```bash
-# Tests — pytest is primary. Needs all seven, or parts of the suite skip or ERROR.
-uv run --with pytest --with hypothesis --with typer --with questionary --with pyyaml --with pillow --with jinja2 pytest tests -q
-uv run --with pytest pytest tests -m "not llm_judge" -q   # skip real-model tests
-uv run --with pytest pytest tests -m llm_judge -q         # only real-model tests
+# Tests — pytest is primary. Needs all eight, or parts of the suite skip or ERROR.
+# Model-calling tests are excluded by default (pytest.ini `addopts`); run them
+# on request with -m llm_judge, which overrides the filter.
+uv run --with pytest --with hypothesis --with typer --with questionary --with pyyaml --with pillow --with jinja2 --with pytest-xdist pytest tests tools -q
+
+# Fast loop — same scope, tests spread across CPUs. Measured on this machine
+# 2026-09-23 (32 cores, 641 passed / 2 pre-existing failures): 170s -> 47s.
+# Run one suite at a time. Two at once contend on the uv cache lock and
+# Hypothesis starts reporting deadline failures that are CPU starvation, not
+# bugs — which is corrupted evidence, worse than a slow run.
+uv run --with pytest --with hypothesis --with typer --with questionary --with pyyaml --with pillow --with jinja2 --with pytest-xdist pytest tests tools -q -n auto --dist worksteal
+
+uv run --with pytest pytest tests tools -m llm_judge -q         # only real-model tests
 
 bats tests/<name>.bats         # bash scripts only — see Languages below
 dotfiles/executable_run-role.sh <topic>          # apply one ansible topic
@@ -797,6 +811,13 @@ root holds only the five documents that govern the project:
 - **`docs/LANGUAGES.md`** — the languages the repo's scripts use, and the
   reusable per-language tool profile (formatter/linter/typecheck/test/LSP).
   Points at `docs/PYTHON.md` instead of repeating it.
+- **`docs/GLOSSARY.md`** — project terminology only, not a CS dictionary.
+  General terms get glossed inline on first use; a doc using a glossary term
+  links to its definition on first use (`spec.md` § Writing).
+- **`docs/WORKTREES.md`** — the agent-worktree naming contract and lifecycle:
+  flat `.worktrees/<sid>` names, underscores never slashes in branches, one
+  writer per worktree, ephemeral merge scratch, deletion only after
+  `merge-base --is-ancestor`.
 
 `CONTRIBUTING.md` is the human entry point and lives there rather than
 here on purpose: GitHub only discovers `CONTRIBUTING.md` in `.github/`, the
@@ -880,6 +901,13 @@ Two harness traps found here, worth checking for in any suite you touch:
 - GNU-only syntax in a portability test. `script -qec` is GNU; BSD `script` has no
   `-c`, so two TTY tests could never pass on macOS whatever the code did. Use
   `pty.openpty()`.
+
+Record the evidence on the commit as trailers, not prose: `Mutation: <what was
+broken>` and `Failing-test: <the test that went red>`. `spec.md` § Verification
+makes this a SHALL. The mutation state is never committed, so the proof can only
+live in the trailer, and only trailers are greppable — `git log --grep`
+over the history yields every mutation ever proven; a prose sentence in a body
+yields nothing.
 
 ### Properties and fuzzing
 

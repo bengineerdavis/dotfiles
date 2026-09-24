@@ -23,13 +23,29 @@ import pathlib
 
 import pytest
 
-from conftest import SCRIPT
+from pii_redactor_harness import SCRIPT
 
 # A model that returns already-clean text, so layers 2 and 3 both pass and
 # execution actually reaches the release decision.
 CLEAN_MODEL = 'cat >/dev/null; echo "Dear [REDACTED], your ticket is closed."'
 
 DIRTY_INPUT = "Dear Jane Doe, your ticket is closed. jane@acme.example\n"
+
+
+# ── harness identity ──────────────────────────────────────────────────────────
+#
+# `SCRIPT` is defined by both this suite and tests/clipped as the same name with
+# different values. Before the constants moved to pii_redactor_harness, both
+# conftest files competed for the single `conftest` module slot and whichever
+# imported second won — so `from conftest import SCRIPT` here could silently
+# resolve to ~/bin/clipped and run every release-gate test against the wrong
+# binary. Pin the identity so a regression fails loudly.
+
+def test_script_is_the_pii_redactor_binary():
+    assert SCRIPT.name == "pii-redactor", (
+        f"SCRIPT resolved to {SCRIPT} — the pii-redactor suite is importing "
+        "another suite's constant. Import from pii_redactor_harness, not conftest."
+    )
 
 
 # ── the gate, end to end ──────────────────────────────────────────────────────

@@ -6,7 +6,7 @@
 GITHUB_USERNAME=bengineerdavis
 
 # make sure all install commands have executable priviledges 
-chmod -v +x **/*install*
+chmod -v +x -- **/*install*
 
 xcode-select --install || echo "XCode already installed"
 
@@ -17,8 +17,10 @@ else
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     (
         echo
+        # Write a literal line for the user's .zprofile, not interpolate it now.
+        # shellcheck disable=SC2016
         echo 'eval "$(/opt/homebrew/bin/brew shellenv)"'
-    ) >>$HOME/.zprofile
+    ) >>"$HOME"/.zprofile
     eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
@@ -31,8 +33,11 @@ fi
 #    precedes mise. Kept OUT of mise on purpose: mise's pipx backend
 #    (pipx.uvx = true) auto-discovers uv/uvx on PATH, so `mise upgrade` never
 #    churns the uvx that backs ansible (which used to self-upgrade mid-run).
+#    Pinned, not "latest": uv.lock carries a format revision, so a version skew
+#    churns every lockfile in the repo. Bump deliberately, with a re-lock.
+UV_VERSION=0.12.17
 if ! command -v uv >/dev/null 2>&1; then
-    curl -LsSf https://astral.sh/uv/install.sh | sh
+    curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" | sh
 fi
 # uv installs into ~/.local/bin; put it on PATH so mise can discover it below.
 export PATH="$HOME/.local/bin:$PATH"

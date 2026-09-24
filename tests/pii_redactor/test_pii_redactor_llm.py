@@ -18,7 +18,7 @@ import shutil
 
 import pytest
 
-from conftest import INTEGRATION_LLM_OPTS, INTEGRATION_MODEL
+from pii_redactor_harness import INTEGRATION_LLM_OPTS, INTEGRATION_MODEL
 
 pytestmark = pytest.mark.llm_judge
 

@@ -41,14 +41,6 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
 
 
-def pytest_configure(config: pytest.Config) -> None:
-    config.addinivalue_line(
-        "markers",
-        "llm_judge: tests that call real LLM APIs — slow and costs tokens. "
-        "Run with: pytest -m llm_judge",
-    )
-
-
 @pytest.fixture(scope="session")
 def binned_module():
     """

@@ -5,5 +5,8 @@ __pycache__/
 .hypothesis/
 dotfiles/migration-backups/
 
+# Agent worktrees — in-tree, chezmoi-invisible; see docs/WORKTREES.md.
+.worktrees/
+
 # Tool virtualenvs — each tools/<name>/ builds its own for `uv run --project`.
 .venv/

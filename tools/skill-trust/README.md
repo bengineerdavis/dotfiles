@@ -85,6 +85,15 @@ installed:                                # what declares what, for `audit`
   - {name: commit-hygiene, source: bengineerdavis/ai-prompt-library}
 ```
 
+## Dependencies
+
+One runtime dependency: `pyyaml>=6`. `uv.lock` is generated against **public
+PyPI** so it stays portable — no private infrastructure belongs in a tracked
+file. A machine that must pull from the private Sentry PyPI does so through its
+machine-local uv configuration (`UV_INDEX_URL` or a global `uv.toml` entry),
+never by committing the private index into `uv.lock` or `pyproject.toml`; a
+lockfile re-generated against the private index must not be committed back.
+
 ## Graduating
 
 Self-contained by design: nothing here imports from outside this directory, and

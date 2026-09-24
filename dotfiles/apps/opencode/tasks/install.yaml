@@ -93,6 +93,8 @@
   # outside the table, at both `add` and `install`. Done via the CLI rather than
   # templating agents.toml, because that file is dotagents' to write. Adding an
   # entry that is already present is a no-op, which is what keeps this idempotent.
+  # @sentry/dotagents@3.1.0 is MIT and public on npm — passes the skill-trust
+  # litmus test (verified against the npm registry 2026-09-22).
   ansible.builtin.command:
     cmd: >-
       npx -y @sentry/dotagents@latest --user

@@ -15,6 +15,9 @@ tests/
 
 # Dev tooling — tracked in git but not deployed to home
 .claude
+# Linked checkouts are local workspace state, not home-directory files.
+.worktrees
+.worktrees/**
 AGENTS.md
 # Project-scoped opencode config for sessions run in the source repo —
 # it is not a home-directory file.
