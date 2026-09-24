@@ -170,7 +170,7 @@ The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
 - **Review the automatic restart topics on `feat/topic-restart-stale`.**
-  [reviewed; awaiting publication and human review] User approved automatic restarts for stale services
+  [PR #5 open; resolving with the author in-session] User approved automatic restarts for stale services
   and GUI apps, plus topic-owned installation of the 1Password GUI. Review the
   shared role and both callers, reproduce any defects with tests, and prepare
   the change for human review under the deployed-file merge gate. Done when
@@ -188,10 +188,14 @@ nothing is.
   adoption and GUI Automation permission remain unverified. Per-GPU Ollama
   units remain outside the check. 1Password installs through brew but updates
   through its own updater; a disabled self-updater still needs an update path.
-  Publication must exclude the 29 unrelated unpublished ancestor commits on
-  local main: publish the four restart commits on a branch from `origin/main`,
-  or wait for the owner to publish those prerequisites. Do not self-merge or
-  deploy this branch under the current deployed-file merge gate.
+  Published [PR #5](https://github.com/bengineerdavis/dotfiles/pull/5) from
+  `review/topic-restart-stale`, based on `origin/main`, with only the four
+  restart commits. The author requested that it be resolved in-session after
+  creation. The remote-base non-model suite is 690 passed, 1 failed, 7 skipped,
+  7 deselected: the failure is the unchanged `git filter-repo` permissions
+  expectation, already corrected by local-main commit `1e7899b`. No CI checks
+  are configured on this PR. Complete the repo's author design check before
+  merging; deployment is still separate.
 
 - **Build a machine-assisted merge-gate checker — turn the diff-derived
   design in `AGENTS.md` § Merge gates (2026-09-22, fusion council) into a
