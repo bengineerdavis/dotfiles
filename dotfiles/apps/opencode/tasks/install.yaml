@@ -196,9 +196,20 @@
   when: opencode_veto_failures | length > 0
   tags: [opencode_skills, upgrade]
 
+- name: "Report skill sync results"
+  ansible.builtin.debug:
+    msg: >-
+      Approved sources {{ opencode_skill_sources | map(attribute='source') | join(', ') }}
+      are trusted and declared as wildcards in ~/.agents/agents.toml;
+      `dotagents list` reports which skills that resolved to.
+  tags: [opencode_skills, upgrade]
+
 - name: "Guard that every installed skill came from an approved source"
   # After the sync, not before: the question is what is on the machine now, and
   # an undeclared directory is only visible once the declared ones are in place.
+  # It is also the LAST task in this file, so every other topic converges before
+  # the gate can fail — one undeclared skill must not block the rest of the
+  # install from completing.
   ansible.builtin.import_role:
     name: "roles/guards"
     tasks_from: dotagents-approved-sources.yaml
@@ -211,12 +222,4 @@
               | zip(opencode_skill_sources | map(attribute='exclude', default=[]))) }}
     guard_allow_unapproved_skills: "{{ opencode_allow_unapproved_skills }}"
     guard_foreign_buckets: "{{ opencode_skill_foreign }}"
-  tags: [opencode_skills, upgrade]
-
-- name: "Report skill sync results"
-  ansible.builtin.debug:
-    msg: >-
-      Approved sources {{ opencode_skill_sources | map(attribute='source') | join(', ') }}
-      are trusted and declared as wildcards in ~/.agents/agents.toml;
-      `dotagents list` reports which skills that resolved to.
   tags: [opencode_skills, upgrade]

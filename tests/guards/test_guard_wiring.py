@@ -104,6 +104,20 @@ def test_the_foreign_bucket_flag_is_plumbed_end_to_end():
     assert "'foreign_buckets': guard_foreign_buckets | bool" in guard_task
 
 
+def test_the_approved_sources_guard_is_the_last_task():
+    """The gate must not block unrelated topics from finishing. Running last is
+    the direct fix for 'one undeclared skill blocks my whole install' — every
+    other task converges before the gate can fail."""
+    text = _code(APPS / "opencode" / "tasks" / "install.yaml")
+
+    report_at = text.find("Report skill sync results")
+    guard_at = text.find("tasks_from: dotagents-approved-sources.yaml")
+
+    assert guard_at != -1, "apps/opencode no longer imports the approved-sources guard"
+    assert report_at != -1, "the report task moved; this test needs updating"
+    assert guard_at > report_at, "the approved-sources guard runs before the report"
+
+
 # --- the original bug cannot come back ----------------------------------------
 
 
