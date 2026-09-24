@@ -456,6 +456,11 @@ nothing is.
     passes without exercising what it claims turns the merged-state gate
     into Class B evidence at scale. Builds on (f)'s instrumentation and
     (g)'s mutation trailers.
+    Exhibit, 2026-09-23: `tests/chezmoi/test_governance_not_deployed.py:55`
+    runs `chezmoi managed` without `-S`, and chezmoi's source directory is
+    fixed, so from a worktree the guard checks main's source — a broken
+    ignore list in the worktree cannot turn it red. Found by reading the
+    code; (p) P2a proves it with a mutation and fixes it.
   - **(n) Irreversible agent effects.** A change that reaches the deployed
     tree (`~/bin`, `~/dotfiles`) cannot be undone by `git revert` — the
     revert restores the source, not the machine. Scope is agent-concurrency
