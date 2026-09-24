@@ -2327,6 +2327,25 @@ both decline and relent; record deliberate failures as `Mutation:` and
   actual recovery material out of committed documentation. BK4 follows;
   real machine-file data still waits for that final restore drill.
 
+- **BK4 — prove work-Mac machine-file recovery using work 1Password only.**
+  After BK3, work in a session on the Mac. Keep that machine's files in
+  work 1Password, with save-on-change during runs the user starts and a
+  stale-copy warning. A 1Password service account is an option only if
+  BK1 confirms the org permits it. Verify actual 1Password unlock/save
+  behaviour on that machine; the handoff has not checked it.
+  No borg runs on the work Mac, and no personal backup tool runs on or
+  uploads from the company-managed device. Work-derived configuration,
+  including `work.yaml`, lives only in the work secrets manager. Customer
+  data never enters the capture list or leaves the Mac; its backup belongs
+  to the employer. Machine-written state is rebuilt, never backed up.
+  Restore machine files explicitly from work 1Password; work-repo recovery
+  through discovery is G7's later work. Carry the agent-read denial for machine
+  files and the backup store, and BK1's ownership/retention contract.
+  Done when save-on-change, stale-copy warning and the restore drill pass
+  on the Mac using synthetic files. Only then is the shared real-data gate
+  satisfied: seed Linux after its inventory and the Mac in its own session,
+  then proceed to G3 in the binding order.
+
 ### Refactor A — the `topical` CLI (provisioning config, state, bootstrapping)
 
 Design already exists: `dotfiles/docs/ROADMAP-topic-cli.md`, marked "designed,
