@@ -1,0 +1,23 @@
+dot_zshrc.tmpl
+  s_c59d39cdee9c8b::t_2e0b69f04ff2b7 381
+  s_c59d39cdee9c8b::t_a36d65d805a48f 331
+  s_c59d39cdee9c8b::t_5e34cf35f09dca 267
+  s_c59d39cdee9c8b::t_03d5517d825aae 89
+  s_c59d39cdee9c8b::t_d9127d42f6edce 355
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "72dc2bc558022eb7c29e1e3cd268eebb245b9ceb",
+  "prompts": {},
+  "sessions": {
+    "s_c59d39cdee9c8b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2e85ed9fffeh3LiTBpuDrK1zo",
+        "model": "xiaomi/mimo-v2.6-pro"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
