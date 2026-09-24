@@ -2067,6 +2067,18 @@ need PR review. Claim hot files before editing them. Agents never run
 both decline and relent; record deliberate failures as `Mutation:` and
 `Failing-test:` trailers. Keep removal with creation and name untested platforms.
 
+- **G1 — research discovery and the sync caller before implementation.**
+  After G0, alongside BK1 and the existing second-machine inventory, compare
+  a thin `gh` + Ansible loop with ghorg and similar existing tools. Follow
+  `dotfiles/docs/TOPIC-RECIPES.md`'s docs-and-Galaxy-first requirement before
+  hand-rolling. Verify whether gita exposes per-repo failures: that answer
+  decides whether sync calls gita or git directly. Rank options against the
+  approved per-machine, report-without-aborting requirements, and record
+  rejected options and evidence rather than assuming the tool's behaviour.
+  Done when the comparison and the author's decision are recorded. This
+  hands the discovery-tool and sync-caller decisions to the later items;
+  the binding order puts this decision before G2.
+
 ### Refactor A — the `topical` CLI (provisioning config, state, bootstrapping)
 
 Design already exists: `dotfiles/docs/ROADMAP-topic-cli.md`, marked "designed,
