@@ -1,0 +1,28 @@
+PRD.md
+  s_31eebb5f8d64dd::t_732026af147702 5-9,182-187,193-217
+  s_1e72100d74133a::t_d31954289f29f7 218-219
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dace703b52b018924ee071893d16f4337121a828",
+  "prompts": {},
+  "sessions": {
+    "s_1e72100d74133a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f31279a6fffeO89kN8f2aUi4ms",
+        "model": "deepseek/deepseek-v4-pro-0813"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    },
+    "s_31eebb5f8d64dd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2e8b9380ffeaOipeAC5iKuAXK",
+        "model": "openai/gpt-6-astra-pro"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
