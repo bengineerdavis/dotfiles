@@ -506,6 +506,10 @@ nothing is.
     - **(p) C2 — pragmatist advisor.** [agent: fresh-context read-only
       subagent] Critiques daily workflow, the clash with `test-perf-xdist`,
       order of work and what breaks first. Done as C1.
+    - **(p) C3 — skeptic advisor.** [agent: fresh-context read-only
+      subagent] Attacks every claim in the brief with file:line evidence,
+      hunts for tests that pass without checking anything, and asks whether
+      a lockfile is needed at all. Done as C1.
 
 - **Consolidate the governance docs — PRD as the constitution, spec as the
   derived statutes, conventions as the how-to.** [#2, was #1 until the author
