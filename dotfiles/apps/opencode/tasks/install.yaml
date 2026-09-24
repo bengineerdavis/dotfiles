@@ -210,6 +210,7 @@
       {{ dict(opencode_skill_sources | map(attribute='source')
               | zip(opencode_skill_sources | map(attribute='exclude', default=[]))) }}
     guard_allow_unapproved_skills: "{{ opencode_allow_unapproved_skills }}"
+    guard_foreign_buckets: "{{ opencode_skill_foreign }}"
   tags: [opencode_skills, upgrade]
 
 - name: "Report skill sync results"

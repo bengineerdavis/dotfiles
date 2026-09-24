@@ -85,3 +85,11 @@ opencode_remove_skills: false
 # which is exactly what this topic exists to prevent. See
 # roles/guards/tasks/dotagents-approved-sources.yaml.
 opencode_allow_unapproved_skills: false
+
+# Recognise a foreign skill bucket as external rather than denying it. Passed
+# through to `guard_foreign_buckets` (see roles/guards/defaults/main.yaml). On
+# by default: Claude Code's cloud sync writes a `synced/` bucket into
+# ~/.agents/skills, and a deny there is not implementable — a deleted synced
+# skill is recreated byte-identical on the next session, so the guard would fail
+# every run forever. Off restores the fail-closed denial.
+opencode_skill_foreign: true

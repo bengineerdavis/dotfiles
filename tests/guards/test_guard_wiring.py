@@ -89,6 +89,21 @@ def test_guard_callers_use_a_static_import():
         )
 
 
+def test_the_foreign_bucket_flag_is_plumbed_end_to_end():
+    """`opencode_skill_foreign` -> `guard_foreign_buckets` -> the trust rules,
+    and on by default. A break anywhere along that chain silently turns 'not
+    mine to rule on' back into a denial that fails provisioning."""
+    topic_defaults = _code(APPS / "opencode" / "defaults" / "main.yaml")
+    install = _code(APPS / "opencode" / "tasks" / "install.yaml")
+    guard_defaults = _code(GUARD_DEFAULTS)
+    guard_task = _code(GUARDS / "tasks" / "dotagents-approved-sources.yaml")
+
+    assert "opencode_skill_foreign: true" in topic_defaults
+    assert 'guard_foreign_buckets: "{{ opencode_skill_foreign }}"' in install
+    assert "guard_foreign_buckets: true" in guard_defaults
+    assert "'foreign_buckets': guard_foreign_buckets | bool" in guard_task
+
+
 # --- the original bug cannot come back ----------------------------------------
 
 

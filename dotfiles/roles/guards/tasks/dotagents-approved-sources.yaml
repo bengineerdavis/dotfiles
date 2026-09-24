@@ -25,7 +25,7 @@
 #   guard_approved_sources, guard_denied_sources, guard_vendored_skills,
 #   guard_skill_excludes, guard_allow_copyleft, guard_agents_skills_dir,
 #   guard_allow_unapproved_skills, guard_caller,
-#   guard_skill_trust_cmd, guard_dotagents_list_cmd
+#   guard_skill_trust_cmd, guard_dotagents_list_cmd, guard_foreign_buckets
 
 - name: "Guard: check skill-trust is installed"
   ansible.builtin.command: "{{ guard_skill_trust_cmd }} --help"
@@ -65,6 +65,7 @@
         'vendored': guard_vendored_skills,
         'exclude': guard_skill_excludes,
         'licences': {'allow_copyleft': guard_allow_copyleft | bool},
+        'foreign_buckets': guard_foreign_buckets | bool,
       } | to_nice_yaml }}
   changed_when: false
 
