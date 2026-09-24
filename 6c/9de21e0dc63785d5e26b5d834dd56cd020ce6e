@@ -1,0 +1,24 @@
+tests/ollama_evals/conftest.py
+  s_1e72100d74133a::t_f8ba52b24b9bc7 25-26
+  s_1e72100d74133a::t_6895cbb74e68da 27-33
+tests/herdr/test_edge_stress.py
+  s_1e72100d74133a::t_28680ab0c777cf 92-95
+tests/suite/test_optional_dep_skips.py
+  s_1e72100d74133a::t_21a90568df21a3 1-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6c9de21e0dc63785d5e26b5d834dd56cd020ce6e",
+  "prompts": {},
+  "sessions": {
+    "s_1e72100d74133a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f31279a6fffeO89kN8f2aUi4ms",
+        "model": "deepseek/deepseek-v4-pro-0813"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
