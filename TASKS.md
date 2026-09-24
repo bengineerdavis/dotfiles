@@ -1965,13 +1965,17 @@ nothing is.
   Output must be principles, not quotations — a generated layer that reproduces
   source text has moved the document, not abstracted it.
 - Design the state backup path, classified by machine ownership and data
-  sensitivity. Back up only what is expensive to regenerate — model weights,
-  eval results, benchmark history — and regenerate the rest. Rules that fall out
-  of the author interview, in priority order: PII never leaves the internal disk
-  under any circumstance; a machine the author does not own can use neither
-  cloud nor external disk, only its internal disk; everything else may use
-  external disk or encrypted cloud. No mechanism exists today, so expensive
-  state currently has no backup at all.
+  sensitivity. **First slice approved 2026-09-23: BK1–BK4 below cover
+  configuration backups**, under `PRD.md` § Configuration backups. They must
+  pass their restore drills before real data enters the new machine files.
+  The broader state design stays open: identify expensive-to-regenerate
+  state (model weights, eval results, benchmark history), apply `spec.md`
+  § Data to usage-derived content, and regenerate everything else. The
+  configuration exception does not relax the internal-disk rules for other
+  data. The AI state-contract item B3 precedes backing up those stores,
+  not the machine-file slice. Done when the remaining stores have owners,
+  retention rules and permitted destinations, and implementation tasks are
+  queued. No backup mechanism has been verified yet. [me]
 - Review what may and may not leave a machine the author does not own, against
   the governing policy for that machine. Feeds both the backup design above and
   the generated policy layer. Existing work on this is scattered — collect it
