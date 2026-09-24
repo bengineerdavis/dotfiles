@@ -26,14 +26,17 @@ Keep it short. This tracks *open* work and cross-session hazards, not history �
   how soon. An item here is finished when it moves to `TASKS-RESOLVED.md` — a stopgap until the process refactor lands; a roadmap item is never finished.
 - One line per item, imperative, with enough context to pick it up cold.
 - **Captures commit immediately.** Anything an agent queues here or captures
-  for later gets its own commit, straight to main, the moment it is written —
+  for later gets its own commit on its own branch, the moment it is written —
   so it exits the conversation and cannot be lost to session context, even
   when nothing else will be done with it. Kept separate from in-flight work.
   **One task, one commit** — queueing two tasks is two commits, and amending a
-  queued task is another, never a rewrite of the commit that added it. When
-  creating a single task genuinely needs several commits (the task plus the
-  convention doc it depends on, say), put them on a branch rather than
-  interleaving them with in-flight work on main.
+  queued task is another, never a rewrite of the commit that added it. Merge
+  the branch promptly: an unmerged capture is invisible to every other session,
+  which is the cost this rule trades for not colliding on main. See
+  `AGENTS.md` § Everything is branched.
+- **Append at the end of a section; never reflow or reorder.** Two branches
+  appending to different section ends merge cleanly. Two rewriting the same
+  lines do not.
 - Mark **[blocked: reason]** rather than deleting — a blocked item that vanishes
   gets rediscovered from scratch.
 - Mark **[inferred]** for anything reconstructed from repo evidence rather than

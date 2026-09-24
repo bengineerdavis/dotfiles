@@ -441,15 +441,30 @@ branches get more scrutiny automatically — which is right, and which is also a
 signal: if a branch keeps failing the gates, it is probably carrying more than
 one decision.
 
-### Never branched
+### Everything is branched
 
-- **`TASKS.md`** — the shared queue. Commit it straight to main with nothing else
-  staged: `git add -p`, then a bare `git commit`, then `git show --stat HEAD`.
-  It has to stay current for sessions that cannot see your branch. Deleting your
-  own task line is a main-side commit even when the work was done on a branch.
-- **Governance docs** (`spec.md`, `PRD.md`, `AGENTS.md`) — land these as their own
-  commit, and prefer main whenever the change does not depend on branch code.
-  They are the surface where unrelated branches collide.
+**No session commits to main directly. Work lands by merge, never by a direct
+write.** One session, one worktree, one branch — including for `TASKS.md` and
+the governance docs. Conflicts in shared files are resolved at merge.
+
+This reverses an earlier rule that sent `TASKS.md` straight to main. The reason
+that rule existed has not gone away, so carry it as a working constraint rather
+than losing it:
+
+- **`TASKS.md`** — edit your worktree's copy. Keep edits **append-only at the end
+  of a section**; never reflow or reorder. Two branches appending to different
+  section ends merge cleanly, two branches rewriting the same lines do not.
+- **Merge often.** A branch that sits for a week hides its task lines and its
+  claims from every other session for a week. The old main-side rule bought
+  visibility at the cost of collisions on main; this one buys the opposite, and
+  only short-lived branches keep the bill small.
+- **Governance docs** (`spec.md`, `PRD.md`, `AGENTS.md`) — still their own
+  commit, still the surface where unrelated branches collide. Branch them like
+  everything else and merge them promptly.
+
+The live gap this opens: § Claimed is read in real time to avoid collisions, and
+a claim on an unmerged branch cannot be read by anyone. Until that is resolved,
+treat an empty § Claimed as "no claims I can see", not "no claims exist".
 
 ### Applying is main-only
 
