@@ -525,6 +525,23 @@ nothing is.
       Python tooling? Skipped, and the skip recorded, if the Exa key is not
       set. Shares C4's $5 cap. Done when a sourced answer or a recorded skip
       exists.
+    - **(p) U1 — make the uv pin real.** [me — both machines] `bootstrap.sh`
+      pins uv 0.12.17, but `apps/mise/files/config.toml:82` has
+      `uv = "latest"` right under a comment (lines 77–81, `2f13ed2`) saying
+      uv is not mise-managed; merge `57dd1dd` (2026-08-06) put the line
+      back. On the Linux box, 2026-09-23, the `uv` on PATH is mise's
+      (0.12.17) and no system uv exists, so bootstrap's `command -v uv`
+      check passes and its pin never installs. Mac not checked. Order, so
+      no machine is left without uv: (1) install system uv 0.12.17 on each
+      machine, as `bootstrap.sh` does; (2) then claim `config.toml` in
+      § Claimed and remove the mise line, fixing the comment or the line —
+      the file is symlinked from `~/.config/mise/config.toml`, so the edit
+      is live at once; (3) last, add `required-version = "==0.12.17"` to
+      `[tool.uv]` — earlier, a mise uv floating to 0.13 fails every uv
+      command here. The gita-plan session found the same mismatch (its G0
+      side finding 1); this is the one task for it. Done when `command -v
+      uv` is the system install on both machines, mise declares no uv, and
+      `required-version` enforces the pin.
 
 - **Consolidate the governance docs — PRD as the constitution, spec as the
   derived statutes, conventions as the how-to.** [#2, was #1 until the author
