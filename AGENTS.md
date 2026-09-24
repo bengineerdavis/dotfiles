@@ -627,10 +627,19 @@ that a pattern across months stays visible.
 ## Commands
 
 ```bash
-# Tests — pytest is primary. Needs all seven, or parts of the suite skip or ERROR.
-uv run --with pytest --with hypothesis --with typer --with questionary --with pyyaml --with pillow --with jinja2 pytest tests -q
-uv run --with pytest pytest tests -m "not llm_judge" -q   # skip real-model tests
-uv run --with pytest pytest tests -m llm_judge -q         # only real-model tests
+# Tests — pytest is primary. Needs all eight, or parts of the suite skip or ERROR.
+# Model-calling tests are excluded by default (pytest.ini `addopts`); run them
+# on request with -m llm_judge, which overrides the filter.
+uv run --with pytest --with hypothesis --with typer --with questionary --with pyyaml --with pillow --with jinja2 --with pytest-xdist pytest tests tools -q
+
+# Fast loop — same scope, tests spread across CPUs. Measured on this machine
+# 2026-09-23 (32 cores, 641 passed / 2 pre-existing failures): 170s -> 47s.
+# Run one suite at a time. Two at once contend on the uv cache lock and
+# Hypothesis starts reporting deadline failures that are CPU starvation, not
+# bugs — which is corrupted evidence, worse than a slow run.
+uv run --with pytest --with hypothesis --with typer --with questionary --with pyyaml --with pillow --with jinja2 --with pytest-xdist pytest tests tools -q -n auto --dist worksteal
+
+uv run --with pytest pytest tests tools -m llm_judge -q         # only real-model tests
 
 bats tests/<name>.bats         # bash scripts only — see Languages below
 dotfiles/executable_run-role.sh <topic>          # apply one ansible topic
