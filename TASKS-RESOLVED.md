@@ -321,3 +321,8 @@ deleted.
   with `tests/tasks_doc` passing before each commit. The queue retains its
   implementation questions, permission-work allocation and target-specific
   baseline correction. No runtime behaviour was exercised.
+- **Fold G0's uv side finding into the existing U1 task.** Another session
+  queued § Now #1 (p) U1 while G0's transcription was in progress, including
+  the same evidence and the author's system-pin decision. Removed the duplicate
+  queued in `c94ed6f`; U1 remains the single open implementation task. This
+  resolves duplicate tracking, not the installation mismatch.
