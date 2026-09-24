@@ -3362,7 +3362,9 @@ makes that expensive.
 
 **Host attribution needs confirmation (2026-09-24).** The Linux-specific
 measurements below do not establish capabilities on the current macOS host.
-The sandbox-runtime comparison above will recheck platform claims separately.
+The September 24 comparison measured macOS only; Debian verification remains
+open. Its local report is
+`.worktrees/wt-restart/.claude/RESEARCH-modular-agent-runtime.md`.
 
 - **This box supports unprivileged bubblewrap.** `bwrap`, `podman`, `docker`,
   `systemd-run`, `unshare` and `qemu-system-x86_64` are all on `PATH`;
@@ -3381,24 +3383,28 @@ The sandbox-runtime comparison above will recheck platform claims separately.
   portable git-level path gate the invariant, and treat bwrap/Seatbelt as
   defence in depth that turns a commit-time rejection into a write-time
   `EACCES`. A future `sandbox-exec` removal is then an inconvenience, not a hole.
-- **A Linux VM on macOS is the wrong default for this threat model.** It buys a
-  hypervisor boundary against motivated attackers, which is not the stated
-  threat, and charges metadata-heavy filesystem performance plus unreliable
-  inotify across the boundary. The fast configuration keeps the repo *inside*
-  the VM, which converts the setup into remote development. Keep it as an
-  optional high-assurance mode only.
-- **Nothing in the ecosystem ships per-agent path subsets inside one shared
-  checkout.** Three independent sources agree — a ~90-project survey
-  (`webcoyote/awesome-AI-sandbox`), the shipping tools, and the council. Every
-  implementation does whole-workspace confinement per worktree or container.
-  Treat that convergence as evidence the original requirement was
-  over-specified: worktree-per-agent plus the push-time gate is the design.
-- **Adopt, don't build** (AGENTS.md ladder): `anthropic-experimental/sandbox-runtime`
-  wraps a process in Seatbelt-or-bubblewrap from one policy;
-  `treebeard` is an ephemeral git-worktree sandbox with copy-on-write and
-  network restriction — closest to what § Now specifies; `nixcage` and
-  `sandnix` are reference implementations of the two-backend split; `cco` is a
-  backend selector. Writing a third implementation here would be a build.
+- **Choose VM-backed execution by workload and configuration cost.** The
+  earlier recommendation against a Linux VM default was too broad for the
+  current brief. On 2026-09-24 the author accepted low-configuration non-root
+  containers, including Sandcastle's approach, as primary candidates. Check
+  host prerequisites, filesystem/watch behavior and native macOS dependencies
+  for the actual workload. VM-backed containers are not limited to an optional
+  high-assurance mode.
+- **Subtree confinement exists; shared-writer safety is a different question.**
+  The earlier ecosystem-wide absence claim was too broad. On macOS 26.6.2,
+  SRT 0.0.77 allowed a synthetic write under `./allowed` while denying one at
+  the workspace root. The research agent and coordinator reproduced this on
+  2026-09-24. It does not isolate a shared index or a concurrently changing
+  test tree, so it does not establish safe multi-writer use of one checkout.
+- **Adopt, don't build** (AGENTS.md ladder): `anthropics/sandbox-runtime`
+  wraps a process in Seatbelt-or-bubblewrap from one policy. Candidate source
+  checks on 2026-09-24 changed the earlier descriptions: Treebeard couples
+  worktree/overlay lifecycle and has no verified Debian backend; nixcage is
+  Nix/VM infrastructure; sandnix uses Seatbelt/Landlock; cco selects backends
+  but deliberately permits networking. The report carries pins and limits.
+  Installed mise also has optional Seatbelt/Landlock controls, separate from
+  its ordinary environment setup. Building another runtime here remains out
+  of scope.
   Name collision to avoid: three different projects are called
   `sandbox-runtime` (Anthropic's, `carderne/`, and a Rust crate).
 - **Destructive git operations defeat any path allow-list.** `checkout`,
