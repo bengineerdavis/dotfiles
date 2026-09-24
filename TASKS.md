@@ -220,22 +220,25 @@ reversed earlier positions on purpose.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
-- **G1 — research discovery and the sync caller before implementation.**
-  After G0, alongside BK1 and the existing second-machine inventory, compare
-  a thin `gh` + Ansible loop with ghorg and similar existing tools. Follow
-  `dotfiles/docs/TOPIC-RECIPES.md`'s docs-and-Galaxy-first requirement before
-  hand-rolling. Verify whether gita exposes per-repo failures: that answer
-  decides whether sync calls gita or git directly. Rank options against the
-  approved per-machine, report-without-aborting requirements, and record
-  rejected options and evidence rather than assuming the tool's behaviour.
-  Done when the comparison and the author's decision are recorded. This
-  hands the discovery-tool and sync-caller decisions to the later items;
-  the binding order puts this decision before G2.
-  Research report prepared at
-  `.worktrees/gita-plan_sub_g1/dotfiles/docs/GITA-RESEARCH.md`; independent
-  runtime checks were not performed. Awaiting the author's choice of tools
-  and an external home for the required reconciliation logic (or an explicit
-  exception to the provisioning/build boundary). [agent: gita-plan / OpenCode]
+- **G1 — find a maintainable existing repository manager before selecting
+  the Gita/Ansible path.** After G0, alongside BK1 and the existing
+  second-machine inventory, compare established multi-repository tools and
+  Ansible modules, roles and collections against the approved workflow.
+  Evaluate human-facing workflow and interface simplicity, current and
+  usable documentation, and fit to the handoff's machine selection, GitHub
+  discovery, remote matching, fetch-safe sync, per-repository verdicts,
+  non-aborting report, and freshness requirements. Include the preliminary
+  Gita/ghorg/Ansible research in
+  `.worktrees/gita-plan_sub_g1/dotfiles/docs/GITA-RESEARCH.md`, but widen
+  its candidate set before recommending. Follow
+  `dotfiles/docs/TOPIC-RECIPES.md`'s docs-and-Galaxy-first rule. If no
+  existing tool meets the need, specify the smallest Ansible-module/role
+  composition that could, what it still cannot do, and any contract or
+  ownership decisions needed; do not design a bespoke engine or implement
+  it here. Done when a sourced comparison ranks the existing options,
+  records rejections, recommends a path that minimizes customer-maintained
+  logic, and the author records the choice. The result hands the discovery
+  and sync mechanisms to G2/G3/G4/G7. [agent: gita-plan / OpenCode]
 
 - **BK1 — decide the backup host, installation and recovery-key design.**
   After G0, alongside G1 and the second-machine inventory, research an
