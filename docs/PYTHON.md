@@ -56,6 +56,9 @@ map onto it (`uv add` / `uv add --dev`).
    **skip, not error**, without it (`pytest.importorskip` at module level —
    the jinja2 pattern in `tests/herdr/test_user_acceptance.py`). Remove:
    drop the flag; an orphaned entry costs nothing but staleness.
+   `pytest-xdist` is the one entry that is optional by design: nothing imports
+   it, and it is only needed for the `-n` fast loop in `AGENTS.md` § Commands,
+   so a run without it just cannot use `-n`.
 3. **Toolchain and tools.** `dotfiles/apps/mise/files/config.toml` — the
    captured state. Add/remove by editing the entry and committing it (the
    `github:` backend convention, never `ubi:`); upgrades come from

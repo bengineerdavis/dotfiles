@@ -241,3 +241,20 @@ does not.
 
 `spec.md` and `PRD.md` are the beginning of this. The gap is everything true
 about the system that is neither a requirement nor a constraint.
+
+### Move the deployed tree under `.chezmoiroot`
+
+The repo root is also chezmoi's source root, so every tooling file at the
+root deploys to `$HOME` unless `.chezmoiignore` names it. The governance
+guard's docstring counts five near-misses in one session, and on 2026-09-23
+convention docs, hook scripts and `tools/` still deployed (`TASKS.md`
+§ Planned, "Stop repo tooling leaking into `$HOME`"). chezmoi's documented
+fix is a `.chezmoiroot` file pointing the source state at a subdirectory
+such as `home/`, which leaves the root free for tooling.
+
+Considered and deferred 2026-09-23 as option B of the Python-project
+research (`TASKS.md` § Now #1 (p)). Cost: nearly every tracked file moves
+(chezmoi manages 700 targets today), every test and doc that names a source
+path changes, and it collides with every open branch. Benefit: the ignore
+list and its guard stop being the only defence. The root-project-plus-
+ignore-list option passed the same rule-outs for far less, so it went first.

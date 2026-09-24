@@ -9,7 +9,9 @@ set -euo pipefail
 # ansible is mise-managed; `mise exec` guarantees it's on PATH.
 
 here="$(cd "$(dirname "$0")" && pwd)"
-# shellcheck source=bootstrap/profile.sh
+# The pre-commit hook runs shellcheck without -x, so it cannot follow the
+# source; profile.sh is linted on its own.
+# shellcheck source=bootstrap/profile.sh disable=SC1091
 . "$here/bootstrap/profile.sh"
 
 # Resolve minimal/full (precedence: arg > saved default > first-run prompt /
@@ -24,4 +26,5 @@ echo "› upgrade profile: ${profile}" >&2
 # in-playbook mise upgrade excludes it (see apps/mise/tasks/upgrade.yaml).
 mise upgrade --yes pipx:ansible
 
-mise exec -- ansible-playbook -i localhost playbook.yaml --tags "upgrade,${profile}"
+# `-i localhost,` (trailing comma) is an inline host list, not an inventory file.
+mise exec -- ansible-playbook -i localhost, playbook.yaml --tags "upgrade,${profile}"

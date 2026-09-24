@@ -17,16 +17,12 @@ Run:
 from __future__ import annotations
 
 import pathlib
-import re
 import shutil
 import subprocess
 
 import pytest
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-SCRIPT = REPO / "bin" / "executable_quarantine"
-
-SECRET_RE = re.compile(r"AGE-SECRET-KEY-1[A-Z0-9]+")
+from quarantine_harness import REPO, SCRIPT, SECRET_RE
 
 
 def _age_dir() -> str | None:
