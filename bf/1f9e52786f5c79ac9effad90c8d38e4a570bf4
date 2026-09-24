@@ -1,0 +1,21 @@
+tests/suite/test_conftest_isolation.py
+  s_1e72100d74133a::t_6583bafae072f9 39-43
+tests/suite/test_llm_judge_filter.py
+  s_1e72100d74133a::t_9bae660e35cd10 50-54,56-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bf1f9e52786f5c79ac9effad90c8d38e4a570bf4",
+  "prompts": {},
+  "sessions": {
+    "s_1e72100d74133a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f31279a6fffeO89kN8f2aUi4ms",
+        "model": "deepseek/deepseek-v4-pro-0813"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
