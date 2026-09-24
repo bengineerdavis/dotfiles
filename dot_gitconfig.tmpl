@@ -2,8 +2,8 @@
 	defaultBranch = main
 	templateDir = {{ .chezmoi.homeDir }}/.git-template
 [user]
-    email = "bengineerdavis@gmail.com" 
-    name = "Ben Davis"
+    email = {{ .email }}
+    name = {{ .name }}
 [core]
 	editor = code --wait
 	excludesfile = {{ .chezmoi.homeDir }}/.gitignore_global

@@ -1191,10 +1191,13 @@ nothing is.
   `deny` refused for foreign buckets (loud, run proceeds, per the author's call);
   the `guard_foreign_buckets` / `opencode_skill_foreign` keys (both default
   on); and the guard moved to the last task in `apps/opencode`. Every mutation
-  named in the commit messages was seen to fail its intended test first. The two
-  open questions (machine id, `blocked` verdict) remain open and still block
-  nothing. The `user.email` in `dot_gitconfig.tmpl` and the vestigial
-  `[mergetool ""]`/`[difftool ""]` need the author before the PR merges.
+  named in the commit messages was seen to fail its intended test first. The
+  `user.email`/`user.name` in `dot_gitconfig.tmpl` are now parameterized off
+  `.email`/`.name` and prompt for a first-time machine, so the personal address
+  no longer follows the file onto a work machine unattended. The two open
+  questions (machine id, `blocked` verdict) remain open and still block
+  nothing; the vestigial `[mergetool ""]`/`[difftool ""]` are preserved verbatim
+  and still await an author judgement.
 
 ## Planned
 
