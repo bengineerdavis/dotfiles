@@ -271,10 +271,13 @@ nothing is.
   that rule. Done when the design, evidence and author's decisions are
   recorded. G2 receives the ownership/retention contract; BK2–BK4 receive
   the chosen host, install and credential design.
-  [agent: gita-plan_sub_bk1] Fresh session in `.worktrees/gita-plan_sub_bk1`,
-  branch `agent/gita-plan_sub_bk1` from `agent/gita-plan` (the author's
-  sub-worktree convention). Deliver `dotfiles/docs/BACKUP-RESEARCH.md`;
-  public research only, no accounts, purchases, credentials or installation.
+  Research report prepared at
+  `.worktrees/gita-plan_sub_bk1/dotfiles/docs/BACKUP-RESEARCH.md`; no target
+  install, account or backup was exercised. Awaiting author decisions on the
+  remote host, retention/cadence, recovery-key access and whether a personal
+  macOS install path is needed; work 1Password automation remains subject to
+  work-owner approval. Spending ceiling: recommend on merits; no purchase
+  authorized. [agent: gita-plan / OpenCode]
 
 - **Bootstrap the multi-agent coordination layer — worktrees, frozen leases,
   risk-tiered merge gates — then extract it to the copier template.** [#1,
