@@ -2495,7 +2495,18 @@ author rather than the machine.
   Either the author adopts it, or the sandbox grants read access, or the topic
   route is chosen. Done when both settings land on a second machine without
   being typed there. Note this is a deployed-tree path, so it is PR-and-review
-  either way per `AGENTS.md` § Merge gates. [blocked: needs author decision]
+  either way per `AGENTS.md` § Merge gates.
+
+  **Done 2026-09-23** in `d9b15a1` and `cf30fb7`, on branch
+  `skill-trust-foreign-buckets`. The author supplied `~/.gitconfig`, so the
+  adoption route was taken: it is now `dot_gitconfig.tmpl`, with its three
+  hardcoded `/Users/ben.davis` paths resolved through `.chezmoi.homeDir` —
+  they would have failed silently on Linux. Two questions were left open
+  rather than decided quietly: `user.email` is a personal address that will
+  follow this file onto a work machine, and the empty-named `[mergetool ""]`
+  and `[difftool ""]` sections look vestigial, their `cmd` lines starting at
+  `"$LOCAL"` where a program name should be. Still PR-and-review before it
+  merges, being a deployed-tree path.
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 
