@@ -220,6 +220,22 @@ reversed earlier positions on purpose.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
+- **G1 — research discovery and the sync caller before implementation.**
+  After G0, alongside BK1 and the existing second-machine inventory, compare
+  a thin `gh` + Ansible loop with ghorg and similar existing tools. Follow
+  `dotfiles/docs/TOPIC-RECIPES.md`'s docs-and-Galaxy-first requirement before
+  hand-rolling. Verify whether gita exposes per-repo failures: that answer
+  decides whether sync calls gita or git directly. Rank options against the
+  approved per-machine, report-without-aborting requirements, and record
+  rejected options and evidence rather than assuming the tool's behaviour.
+  Done when the comparison and the author's decision are recorded. This
+  hands the discovery-tool and sync-caller decisions to the later items;
+  the binding order puts this decision before G2.
+  [agent: gita-plan_sub_g1] Fresh session in `.worktrees/gita-plan_sub_g1`,
+  branch `agent/gita-plan_sub_g1` from `agent/gita-plan` (the author's
+  sub-worktree convention). Deliver `dotfiles/docs/GITA-RESEARCH.md` for
+  orchestrator review; no commits, installs or real-repo operations.
+
 - **Bootstrap the multi-agent coordination layer — worktrees, frozen leases,
   risk-tiered merge gates — then extract it to the copier template.** [#1,
   reordered ahead of the governance consolidation by the author 2026-09-20]
@@ -2010,18 +2026,6 @@ retention and backup cadence; the eight-hour schedule belongs to gita.
 Permission-work allocation: G2 owns machine-path read denial, BK2 owns
 backup-store denial, BK3/BK4 carry it to their destinations. Remote-store
 enforcement remains to be designed; the approved policy itself is unchanged.
-
-- **G1 — research discovery and the sync caller before implementation.**
-  After G0, alongside BK1 and the existing second-machine inventory, compare
-  a thin `gh` + Ansible loop with ghorg and similar existing tools. Follow
-  `dotfiles/docs/TOPIC-RECIPES.md`'s docs-and-Galaxy-first requirement before
-  hand-rolling. Verify whether gita exposes per-repo failures: that answer
-  decides whether sync calls gita or git directly. Rank options against the
-  approved per-machine, report-without-aborting requirements, and record
-  rejected options and evidence rather than assuming the tool's behaviour.
-  Done when the comparison and the author's decision are recorded. This
-  hands the discovery-tool and sync-caller decisions to the later items;
-  the binding order puts this decision before G2.
 
 - **G2 — document and establish the catalogue and machine-file contract.**
   After G1, BK1 and the second-machine inventory, add
