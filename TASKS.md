@@ -1621,6 +1621,10 @@ nothing is.
   cover each new rule, have been seen to fail without it, and a PR is open
   (policy path: human review). Branch and worktree
   `perms_gh_read_worktree_add`. Feeds the permission-rules review above.
+  Revised 2026-09-24: the read-only `gh` carve-out landed in opencode only.
+  Claude Code resolves deny > ask > allow regardless of order, so no allow
+  can carve reads out of its `Bash(gh *)` ask; splitting that rule is left
+  to the permission-rules review above.
 
 ## Planned
 
