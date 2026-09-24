@@ -1,0 +1,13 @@
+PROVENANCE: message-only reword under the new commit-hygiene structure rules
+
+The 21 single-paragraph commit bodies from this session's herdr work were
+reworded on 2026-09-19, after council-directed research (2 judges overruled
+the adopted ## headers, 2-1; dissent recorded).
+
+The first rewrite attempt dropped subjects — the spot-check caught it, main
+was reset to the backup branch, and the message map was rebuilt with
+subjects.
+
+- tree verified identical to backup/pre-reword-8f6c31b (empty diff), twice
+- subjects unchanged; other sessions' commits in range passed through
+- message map: tool-output/herdr-reword/ (session artifact)
