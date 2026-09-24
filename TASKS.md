@@ -2346,6 +2346,18 @@ both decline and relent; record deliberate failures as `Mutation:` and
   satisfied: seed Linux after its inventory and the Mac in its own session,
   then proceed to G3 in the binding order.
 
+- **Reconcile uv's claimed installation owner with mise's active declaration.**
+  Side finding from the 2026-09-23 handoff: the comments in
+  `dotfiles/apps/mise/files/config.toml` and
+  `dotfiles/bootstrap/bootstrap.sh` say uv is system-installed rather than
+  mise-managed, but the mise config declares `uv = "latest"`, and the
+  recorded Linux `command -v uv` resolved through mise. This is the mise
+  topic's concern, not gita's. Confirm the intended owner with the author
+  before changing the mechanism, and claim the mise config before editing.
+  Done when the declaration and comments agree with the recorded ownership
+  decision and its verification. Do not turn this side finding into a new
+  prerequisite for the approved gita/backup chain.
+
 ### Refactor A — the `topical` CLI (provisioning config, state, bootstrapping)
 
 Design already exists: `dotfiles/docs/ROADMAP-topic-cli.md`, marked "designed,
