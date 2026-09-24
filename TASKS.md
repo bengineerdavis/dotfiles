@@ -226,6 +226,34 @@ reversed earlier positions on purpose.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
+- **Evaluate interchangeable components for agent work.**
+  [agent: OpenCode coordinator; expanded brief approved by the author,
+  2026-09-24] Task queues, orchestration, workspace creation, sandbox runtimes,
+  and environment setup must be independently replaceable or removable.
+  Include Backlog.md, workmux, herdr, and other relevant options; verify each
+  tool's actual role instead of assuming all are queue managers. Compare
+  Sandcastle (`mattpocock/sandcastle`), `anthropics/sandbox-runtime`, and
+  maintained bubblewrap/Seatbelt consumers on macOS and Debian. Worktrunk and
+  mise are the baseline, not mandatory dependencies; include a workspace
+  alternative that does not require Git worktrees. Use local repositories,
+  prior research and queued decisions alongside upstream docs, source and
+  practitioner reports. This feeds the existing sandboxing and coordination
+  items. Done when an evidenced report identifies replaceable boundaries,
+  ownership and lifecycle contracts, ranks compatible combinations, records
+  rejected options and platform gaps, and is reviewed with the author.
+
+  - **Research and verify the component comparison.**
+    [agent: general/sandbox-components] Produce a local report at
+    `.worktrees/wt-restart/.claude/RESEARCH-modular-agent-runtime.md`.
+    Read relevant local repo instructions, designs, implementations and tests;
+    connect recommendations to that work. Pin source versions and distinguish
+    measured behavior from documentation claims. Exercise synthetic allow/deny
+    cases where available, including failure, resume and cleanup behavior.
+    Test interchangeability by tracing a queue replacement, a sandbox
+    replacement, and a workspace replacement without rebuilding other layers.
+    Recheck the 2026-09-20 host attribution and ecosystem-wide claims.
+    Research and disposable probes only; propose any implementation separately.
+
 - **Review the automatic restart topics on `feat/topic-restart-stale`.**
   [PR #5 open; resolving with the author in-session] User approved automatic restarts for stale services
   and GUI apps, plus topic-owned installation of the 1Password GUI. Review the
@@ -3247,6 +3275,10 @@ fusion council as "computed from the diff, not a per-class table"
 Measured on this machine, for the coordination work in § Now. Recorded because
 the next session would otherwise re-probe it, and the `external_directory` deny
 makes that expensive.
+
+**Host attribution needs confirmation (2026-09-24).** The Linux-specific
+measurements below do not establish capabilities on the current macOS host.
+The sandbox-runtime comparison above will recheck platform claims separately.
 
 - **This box supports unprivileged bubblewrap.** `bwrap`, `podman`, `docker`,
   `systemd-run`, `unshare` and `qemu-system-x86_64` are all on `PATH`;
