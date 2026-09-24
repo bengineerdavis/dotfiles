@@ -1120,6 +1120,9 @@ nothing is.
   names it, but the hook config runs shellcheck and bats only, so no Python file
   in this repo is linted on commit. Settle the ruleset first — 22 scripts written
   before any linter will not pass a default config cleanly.
+  mise also declares ruff twice — `ruff` (`apps/mise/files/config.toml:147`)
+  and `pipx:ruff` (line 186) — so pick one first; § Now #1 (p) may pin it in
+  a lock group instead.
 - Integrate `xdoctest` and make illustrative examples a tested part of the
   docs. Docstring examples in the 22 Python scripts and any Python modules
   run under pytest via the xdoctest plugin; docs (`dotfiles/docs/`, READMEs)
