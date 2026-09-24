@@ -1,0 +1,14 @@
+PROVENANCE: this commit also carries the test-perf task line, swept in on 2026-09-23.
+
+b0a1b08's subject says it adds multiagent sub-items (h)-(n). It also carries
+the 'Make the test suite fast and model-safe' task line queued by a parallel
+session, which had edited TASKS.md in the working tree and not yet committed
+it. All sessions share one .git/index; the concurrent commit took the whole
+file. Attribution is wrong, queue state is correct.
+
+Not unscrambled: the committing session was live and building on the tip.
+Split on the next TASKS.md touch if it matters; meanwhile this note is the
+record.
+
+Prevention (recurrence of b3ad740/5692a86): git commit -o <paths>, then
+git show --stat HEAD. See AGENTS.md, 'Working alongside other sessions'.
