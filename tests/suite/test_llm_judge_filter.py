@@ -47,8 +47,14 @@ def _collect(extra: list[str]) -> list[str]:
 
 
 def test_default_run_declines_the_model_tests():
+    # Empty by construction, not by accident: MODEL_TEST_FILES are entirely
+    # module-level `pytestmark = pytest.mark.llm_judge`, so a bare run collects
+    # nothing from them. If a non-model test is ever added to one of these
+    # files this fails — which is the point. Move it to another file rather
+    # than weakening this assertion.
     assert _collect([]) == [], (
-        "a bare pytest run must not collect model-calling tests"
+        "a bare pytest run must not collect model-calling tests; "
+        f"MODEL_TEST_FILES are llm_judge-only by design, got {_collect([])!r}"
     )
 
 

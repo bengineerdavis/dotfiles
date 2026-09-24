@@ -36,6 +36,11 @@ def _imports_of_conftest(path: pathlib.Path) -> list[str]:
         if isinstance(node, ast.ImportFrom):
             if (node.module or "").rsplit(".", 1)[-1] == "conftest":
                 found.append(f"{path.relative_to(REPO)}:{node.lineno}: from {node.module} import ...")
+            # `from somepkg import conftest` binds the same colliding name
+            # without the module being called conftest.
+            for alias in node.names:
+                if alias.name == "conftest":
+                    found.append(f"{path.relative_to(REPO)}:{node.lineno}: from {node.module} import conftest")
         elif isinstance(node, ast.Import):
             for alias in node.names:
                 if alias.name.rsplit(".", 1)[-1] == "conftest":
