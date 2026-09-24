@@ -497,6 +497,12 @@ nothing is.
     reproduces the baseline recorded first — the same passes, and only the
     known failures, each named (author, 2026-09-23) — so (o) can use it as
     its consumer path.
+    - **(p) C1 — architect advisor.** [agent: fresh-context read-only
+      subagent] Critiques the (p) brief on layering (chezmoi/Ansible/zsh),
+      the `PRD.md` provision-versus-logic rule, `.chezmoiroot` versus the
+      ignore list, and fit with this coordination work and Refactor B. Done
+      when it returns agree/disagree per decision, risks missed and what
+      would change its mind, then a round-2 reply to the other critiques.
 
 - **Consolidate the governance docs — PRD as the constitution, spec as the
   derived statutes, conventions as the how-to.** [#2, was #1 until the author
