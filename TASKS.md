@@ -429,6 +429,8 @@ nothing is.
     layer (`bootstrap.sh`), not mise — the lockfile carries a format
     revision, and version skew churns it. pyproject.toml and uv.lock are
     registered as hot files in § Cross-session hazards.
+    **Not true yet, 2026-09-23:** the uv that runs is mise's
+    `uv = "latest"`, not the bootstrap pin — (p) U1 fixes it.
   - **(j) Three coupling channels, and one unconditional gate.** Coupling
     between parallel workers travels exactly three ways: writes, caught by
     path-intersection at fan-out; reads, structurally isolated by worktrees;
