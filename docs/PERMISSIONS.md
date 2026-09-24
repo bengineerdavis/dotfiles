@@ -67,6 +67,16 @@ Carve-outs from an `ask` family:
   still ask. Creating a worktree only adds a checkout, and agents here work one
   worktree per session (`docs/WORKTREES.md`), so the prompt was pure friction.
   Deleting one can lose uncommitted work.
+- **Read-only `gh`** is allowed: `list`/`view`/`status` forms of `pr`, `issue`,
+  `repo`, `run`, `workflow`, `release` and `label`, plus `gh search` and
+  `gh status`. `gh api` is allowed only as a GET: a method (`-X`, `--method`),
+  a field (`-f`, `-F`, `--field`, `--raw-field`), a body (`--input`) or
+  `graphql` makes it ask, because each can write. `gh auth` stays at ask, since
+  it can print a token.
+
+Claude Code has the worktree carve-out but not the `gh` one. Its precedence is
+deny > ask > allow regardless of order, so an allow cannot carve an exception
+out of the `Bash(gh *)` ask; that needs the broad rule split first.
 
 ## Interpreters are allowed, deliberately
 
