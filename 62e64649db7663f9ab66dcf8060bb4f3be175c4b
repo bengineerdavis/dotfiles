@@ -1,0 +1,14 @@
+PROVENANCE: committed on behalf of an exited session, by author override, 2026-09-24.
+
+Content authored by session "opencode-worktree-isolation" (opencode PID 2588,
+cwd ~/.local/share/chezmoi), which exited leaving this TASKS-RESOLVED.md
+entry uncommitted in the shared main checkout. The author directed that it
+be committed as-is "for now", to be sorted out later on the other branch.
+
+Committed by the restart-review session (opencode, working from worktree
+.worktrees/wt-restart on branch review/topic-restart-stale), which was
+merging origin/main into main at the time. The edit was stashed across that
+merge (f63e14e) and restored; its one append-at-end conflict with the
+2026-09-23 section was resolved by keeping both, date order. Content is
+otherwise byte-identical to what the exited session left. Not reviewed for
+correctness by the committing session.
