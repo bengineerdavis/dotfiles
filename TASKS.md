@@ -2030,6 +2030,43 @@ nothing is.
   requires no policy change. Pairs with `spec.md` § Shared code does not assume
   a provider, which states the rule but has no mechanism behind it.
 
+### Gita and machine-file backup — approved 2026-09-23
+
+The author approved the following plan on 2026-09-23. Its goal is one
+maintainable Ansible approach to populate and sync each machine's declared
+repositories, reporting per-repo problems without stopping other topics.
+Work macOS and home Linux keep separate local selections and private data.
+The requirements below carry the plan without needing the archival branch.
+
+**Binding execution order:** G0 → (G1 ∥ BK1 ∥ the existing second-machine
+inventory) → G2 → BK2 → BK3 → BK4 → **real-data gate** → G3 → G4 → G5 → G7.
+G6 may run any time, including alongside G2–G5. G4, G5 and G7 run serially:
+all edit the gita upgrade path. The second-machine inventory is the existing
+layout task, not another task to create here.
+
+**Real-data gate:** backup is built and tested through BK4 before real data
+enters any machine file. Use synthetic files for the preceding format and
+restore checks. Seed Linux only after its inventory and this gate; seed the
+Mac in a session on the Mac after the gate. Mac-side launchd, Homebrew and
+work-1Password behaviour need a session there; Linux evidence cannot prove them.
+
+**Configuration-backup rule:** customer data from a work machine never leaves
+that machine and is never on the capture list. Work-derived configuration
+lives only in the work secrets manager. Everything else is the author's data
+and may be stored off-machine, encrypted. Home `machine.yaml` and
+`private.yaml` go to local borg plus a borg host; work-Mac machine files go
+only to work 1Password, with no borg or personal backup uploader on that Mac.
+Machine-written records are rebuilt, never backed up. This rule is limited
+to configuration backups; `spec.md` § Data still binds usage-derived data.
+The existing employer-policy review stays open.
+
+Each item has its own branch and review; deployed-tree and policy changes
+need PR review. Claim hot files before editing them. Agents never run
+`chezmoi apply`. Render Ansible templates for both OS families with
+`StrictUndefined`, and run `bash -n` on rendered shell scripts. Prove guards
+both decline and relent; record deliberate failures as `Mutation:` and
+`Failing-test:` trailers. Keep removal with creation and name untested platforms.
+
 ### Refactor A — the `topical` CLI (provisioning config, state, bootstrapping)
 
 Design already exists: `dotfiles/docs/ROADMAP-topic-cli.md`, marked "designed,
