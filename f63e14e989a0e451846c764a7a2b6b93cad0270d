@@ -11,3 +11,13 @@ chrome file only. The author also explicitly approved this session running
 `chezmoi apply` for the resulting tree (AGENTS.md reserves apply for the
 author or a claim holder) — excluding ~/docs, which is the queued
 "Stop repo tooling leaking into $HOME" leak.
+
+Update, same session: the apply did NOT happen. The active opencode
+permission layer denies `chezmoi apply *` (dry-run included), and the
+session did not work around it; the author applies by hand.
+
+Observation for the permission-rules review: this session's earlier
+`git push --force-with-lease=<ref>:<sha> origin review/topic-restart-stale`
+(PR #5, 302a94f -> a8f4580, author-approved) was NOT caught by the deny rule
+`git push --force-with-lease *`, because the `=` form has no space after the
+flag. The deny pattern has a gap; the push itself was authorised.
