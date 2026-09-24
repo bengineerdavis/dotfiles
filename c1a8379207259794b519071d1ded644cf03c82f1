@@ -1,0 +1,14 @@
+PROVENANCE: committed on behalf of an exited session, by author override, 2026-09-24.
+
+Content authored by the "OpenCode coordinator" session (opencode PID 2588,
+cwd ~/.local/share/chezmoi; the brief says author-approved 2026-09-24),
+which exited leaving this TASKS.md task uncommitted in the shared main
+checkout. The author directed that it be committed as-is "for now", to be
+sorted out later on the other branch. Its sub-task writes its report into
+.worktrees/wt-restart/.claude/, i.e. inside the restart-review worktree.
+
+Committed by the restart-review session (opencode, working from worktree
+.worktrees/wt-restart on branch review/topic-restart-stale), which was
+merging origin/main into main at the time. The edit was stashed across that
+merge (f63e14e) and restored cleanly; content is byte-identical to what the
+exited session left. Not reviewed for correctness by the committing session.
