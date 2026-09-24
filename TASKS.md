@@ -66,6 +66,11 @@ A stale claim is not a lock. If a line looks abandoned, check `git log -3` on th
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
 
+- 2026-09-24T00:25Z — skill-trust foreign buckets (branch
+  `skill-trust-foreign-buckets`, worktree
+  `../chezmoi-skill-trust-foreign-buckets`) — `tools/skill-trust/**`,
+  `dotfiles/apps/opencode/**`, `dotfiles/roles/guards/**`
+
 
 ## Where things stand — 2026-09-15 (the session handoff)
 
@@ -1150,6 +1155,28 @@ nothing is.
   project-scope only (`dist/config/schema.js:89`), so the only lever is
   dropping `claude`/`cursor` from its `agents` list, which would mean
   hand-managing per-skill links. The author declined that.
+
+  **Status 2026-09-23 — half landed, rest claimed in a worktree.** `eb0b4b2`
+  did the licence-reporting half: `discover.py` reads a prose `license:` field
+  (Anthropic's `Proprietary. LICENSE.txt has complete terms` previously matched
+  nothing and reported as carrying no licence at all) and a PROPRIETARY tier
+  reports it as declared rather than unknown. Both mutations were run and each
+  caught only its intended tests; suite green at 38.
+
+  Remaining work is on branch `skill-trust-foreign-buckets`, worktree
+  `../chezmoi-skill-trust-foreign-buckets`, cut from `eb0b4b2`: `buckets.py`
+  with the three-part evidence detection and deduced aliases; the `external`
+  verdict; `deny` refused for foreign buckets carrying the churn-loop reason;
+  the `guard_foreign_buckets` and `opencode_skill_foreign` config keys; and
+  moving the guard to the last task in `apps/opencode`. Two questions are open
+  and block none of it: a machine id that survives a rebuild, for the Part 2
+  rules filename (hostname does not), and whether a fourth `blocked` verdict is
+  worth having so "unsolved" can be said without faking a refusal.
+
+  One process note for whoever picks this up: the commit that first added this
+  task (`80d8f27`) was made by a different session and swept this text in
+  alongside its own. That session recorded the scope error in a git note rather
+  than rewriting history — push `refs/notes/commits` when publishing.
 
 ## Planned
 
