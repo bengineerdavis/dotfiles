@@ -1,0 +1,21 @@
+.chezmoiignore
+  s_547f006da5461f::t_430e3d37af6e84 42-50
+tests/chezmoi/test_governance_not_deployed.py
+  s_547f006da5461f::t_93fbae39def1ae 40-41,46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d45993805db84f8a43cfa9579f6e7619a9d84205",
+  "prompts": {},
+  "sessions": {
+    "s_547f006da5461f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2e9af15bffecKXp8mu1INMWM1",
+        "model": "anthropic/claude-opus-5.5"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
