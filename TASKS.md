@@ -1295,6 +1295,20 @@ nothing is.
   `python.uv_venv_auto=true` must become `python.uv_venv_auto="create|source"`
   or `"source"` in `apps/mise/files/config.toml`).
 
+- **Stop repo tooling leaking into `$HOME`.** `chezmoi managed
+  --include=files` on 2026-09-23 (700 paths) lists `docs/LANGUAGES.md`,
+  `docs/GLOSSARY.md` and `docs/WORKTREES.md` (→ `~/docs/`); `scripts/`, 3
+  hook scripts (→ `~/scripts/`); and two `bin/` strays,
+  `executable_archive.bk` and `executable_READMD.archive.md`. `tools/` (9
+  files → `~/tools/`) belongs to the skill-trust install task. The guard's
+  `GOVERNANCE_FILES_IN_DOCS` also omits `docs/LAYOUT.md`, ignored in
+  `851a419` but unguarded. `docs/ARCHITECTURE.md` and `docs/USAGE.md`
+  deploy on purpose. Until the guard sees worktrees (§ Now #1 (p) P2a),
+  check fixes from the main checkout. Done when each leak is ignored,
+  deleted or recorded as deliberate, and the guard lists every ignored
+  convention doc. The `.chezmoiroot` item in `ROADMAP.md` would end this
+  class of leak.
+
 - **Build the subscription machinery: `topic_subscribes` + playbook
   resolution + injection.** The mechanism half of the adopted system-config
   model (resolved council entry, `TASKS-RESOLVED.md` 2026-09-17): a topic
