@@ -54,6 +54,8 @@ CASES = [
     ("chezmoi apply --dry-run", "deny", "same, with any argument"),
     ("git push --force origin main", "deny", "spec.md § Change records"),
     ("git push -f origin main", "deny", "short form of the same thing"),
+    ("git push --force-with-lease=main:abc123 origin main", "deny",
+     "the = form slipped past `--force-with-lease *` on 2026-09-24"),
     ("git filter-repo --path x", "ask", "history rewriting — irreversible but legitimate, per docs/PERMISSIONS.md"),
     ("git push origin main", "ask", "publishing is outward-facing"),
     ("git -C /tmp/x push --force", "ask", "the -C form must not bypass the tiers"),

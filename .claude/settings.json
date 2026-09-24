@@ -142,6 +142,7 @@
       "Bash(git push -f *)",
       "Bash(git push -f)",
       "Bash(git push --force-with-lease *)",
+      "Bash(git push --force-with-lease=*)",
       "Read(~/.ssh/**)",
       "Read(~/.aws/**)",
       "Read(~/.config/gh/**)",
