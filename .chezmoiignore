@@ -16,6 +16,8 @@ tests/
 # Dev tooling — tracked in git but not deployed to home
 .claude
 AGENTS.md
+# Branch-local work-in-flight notes. Never deployed; deleted at merge.
+HANDOFF.md
 # Project-scoped opencode config for sessions run in the source repo —
 # it is not a home-directory file.
 opencode.json
