@@ -42,7 +42,7 @@ contradicting a written convention.
   configuration disagreed, and the configuration is what actually decides.
 - Force-push (`git push --force`, `-f`, `--force-with-lease`). `spec.md` § Change
   records requires a backup branch and `git notes` first, and a rewrite does not
-  un-publish.
+  un-publish. `--force-with-lease=<ref>` needs its own rule; see below.
 - Credential stores and secret files. These are read-denies, and Claude Code
   extends a Read deny to Edit and Write on the same path.
 
@@ -60,6 +60,23 @@ egress (`curl`, `wget`), secret access (`op`), history rewriting
 Reading and searching, git operations that stay local, running tests, the
 validators, `chezmoi` read commands plus `add` (which only moves deployed
 content into a git-tracked source), and the interpreters.
+
+Carve-outs from an `ask` family:
+
+- **`git worktree add`** is allowed; `remove`, `prune`, `move` and the rest
+  still ask. Creating a worktree only adds a checkout, and agents here work one
+  worktree per session (`docs/WORKTREES.md`), so the prompt was pure friction.
+  Deleting one can lose uncommitted work.
+- **Read-only `gh`** is allowed: `list`/`view`/`status` forms of `pr`, `issue`,
+  `repo`, `run`, `workflow`, `release` and `label`, plus `gh search` and
+  `gh status`. `gh api` is allowed only as a GET: a method (`-X`, `--method`),
+  a field (`-f`, `-F`, `--field`, `--raw-field`), a body (`--input`) or
+  `graphql` makes it ask, because each can write. `gh auth` stays at ask, since
+  it can print a token.
+
+Claude Code has the worktree carve-out but not the `gh` one. Its precedence is
+deny > ask > allow regardless of order, so an allow cannot carve an exception
+out of the `Bash(gh *)` ask; that needs the broad rule split first.
 
 ## Interpreters are allowed, deliberately
 
@@ -83,10 +100,10 @@ Two working habits follow. Add the narrowest rule that does the job. And when a
 rule needs widening for the third time, that is evidence the intent was wrong,
 not that the rule was too tight.
 
-## Two ways a rule quietly fails to match
+## Three ways a rule quietly fails to match
 
-Both were found while writing these rules, and both matter because the failure
-is silent — the command runs, and no tier claims it.
+All three were found in use, and all matter because the failure is silent:
+the narrow rule never fires, and a broader rule, or none, decides instead.
 
 **A flag before the subcommand changes the string.** `Bash(git push *)` does not
 match `git -C /some/path push`, because matching is against the whole command
@@ -95,6 +112,14 @@ this config replaced used the `git -C` form, so this is not hypothetical. It is
 closed here by putting **all** `git -C` invocations in `ask`. A broad allow would
 have been the natural-looking fix and would have let `git -C <path> push --force`
 past both `ask` and `deny` at once.
+
+**A flag written with `=` does too.** `git push --force-with-lease *` needs a
+space after the flag, so `git push --force-with-lease=main:<sha> origin main`
+matched no deny rule. It fell through to `git push *`, which asks at the top
+level and allows in the autonomous agent. Found on 2026-09-24, when an
+approved `=`-form force-push went through with no prompt, because `git push *`
+had been set to always-allow for that session. Closed with a second pattern,
+`git push --force-with-lease=*`.
 
 **An environment prefix does the same.** `FOO=1 pytest` matches no `pytest` rule.
 Left alone deliberately: an unmatched command prompts, which is the correct
