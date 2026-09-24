@@ -2187,6 +2187,25 @@ both decline and relent; record deliberate failures as `Mutation:` and
   removal leaves none of the scheduling or warning wiring behind. Verify
   Mac runtime behaviour in a Mac session. G7 follows this item serially.
 
+- **G6 — give gh one installation owner and adopt the existing Debian install.**
+  Add a small `dotfiles/apps/gh` topic: Homebrew on macOS and GitHub's signed
+  apt repository at `cli.github.com` on Debian. The handoff's 2026-09-23
+  evidence is `apt-cache policy`: gh is a dpkg package from
+  `https://cli.github.com/packages stable/main`, installed by hand rather
+  than by a topic or deb-get; `deb-get list --installed` had no match.
+  Adopt with `state: present`, not a reinstall. `apps/deb-get` currently
+  repairs that repository's keyring and protects gh during removal. Move
+  the keyring-repair entry from `dotfiles/apps/deb-get/vars/main.yaml` to
+  the gh topic so the key has one owner, and account for the existing
+  removal protection. A stale third-party apt source also offers older gh
+  builds on the Linux target; the recorded apt selection preferred
+  GitHub's newer package. Keep that source collision visible during adoption.
+  Check recent history and claim `dotfiles/apps/deb-get/` before editing.
+  Done when `--check` on the Linux target adopts without reinstalling and
+  removal leaves apt's sources clean; exercise Homebrew in a Mac session.
+  G6 may run any time, including alongside G2–G5, because it touches
+  different files. Missing gh remains G7's UNKNOWN discovery case.
+
 ### Refactor A — the `topical` CLI (provisioning config, state, bootstrapping)
 
 Design already exists: `dotfiles/docs/ROADMAP-topic-cli.md`, marked "designed,
