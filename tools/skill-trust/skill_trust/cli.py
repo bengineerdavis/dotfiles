@@ -9,6 +9,7 @@ of question and a caller should not have to learn two vocabularies:
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import pathlib
 import shutil
@@ -16,6 +17,7 @@ import sys
 
 import yaml
 
+from .buckets import ForeignBucket, find_buckets
 from .decide import Decision, Verdict, decide
 from .discover import licence_from_dir, licence_from_repo
 
@@ -69,6 +71,44 @@ def _judge(source: str, skill: str | None, config: dict,
     return decide(source, skill, config, spdx=spdx)
 
 
+def _deny_rule_naming_bucket(config: dict, bucket_id: str) -> str | None:
+    """A `deny_sources` pattern that names this bucket id exactly, or None.
+
+    The id is the bucket's match key, so this compares on the id — never the
+    alias — which is what keeps the alias a display-only label: renaming it
+    cannot change what a rule approves or refuses.
+    """
+    for pattern in config.get("deny_sources") or []:
+        if pattern.strip().lower() == bucket_id.lower():
+            return pattern
+    return None
+
+
+def _external_line(bucket: ForeignBucket, config: dict, today: str) -> str:
+    """The recorded `external` verdict: a date and a reason, not an absence.
+
+    It asserts "not mine to rule on" — which is not "allowed" — and, when a
+    deny rule names the bucket anyway, refuses to enforce it: deleting a synced
+    skill only makes the sync recreate it byte-identical on the next session,
+    so deny loops forever and is refused rather than attempted.
+    """
+    denial = _deny_rule_naming_bucket(config, bucket.id)
+    if denial is not None:
+        return (
+            f'EXTERNAL [foreign_bucket] {bucket.id} ({bucket.alias}): a deny '
+            f'rule names "{denial}", but deny is refused here. This bucket is '
+            "owned by another program's sync, and deleting its skills only "
+            "makes the sync recreate them byte-identical on the next session, "
+            f"so the rule is inert and nothing is deleted. Observed {today}."
+        )
+    return (
+        f"EXTERNAL [foreign_bucket] {bucket.id} ({bucket.alias}): not ours to "
+        "rule on — a directory another program owns in the skills store, and "
+        "denying it would loop forever, because a deleted synced skill is "
+        f"recreated byte-identical next session. Observed {today}."
+    )
+
+
 def cmd_check(args) -> int:
     config = load_config(args.config)
     skill_dir = pathlib.Path(args.skill_dir) if args.skill_dir else None
@@ -109,6 +149,10 @@ def cmd_audit(args) -> int:
                 declared[entry["name"]] = entry["source"]
 
     vendored = set(config.get("vendored") or [])
+    foreign = bool(config.get("foreign_buckets", True))
+    buckets = find_buckets(root) if foreign else []
+    bucket_ids = {b.id for b in buckets}
+    today = datetime.date.today().isoformat()
     problems: list[tuple[str, Decision]] = []
     # Counted before the vendored skip on purpose: a directory whose skills are
     # all exempt is fully accounted for, not unexamined. Conflating the two would
@@ -120,6 +164,27 @@ def cmd_audit(args) -> int:
         # a .DS_Store — is not an undeclared skill, and reporting it as one
         # trains people to ignore the audit.
         name = path.name
+        if name == "synced" and foreign:
+            # The `synced` container is not a skill. Its evidenced children are
+            # foreign buckets and get the recorded `external` verdict; its other
+            # children are undeclared and fail closed — a directory merely named
+            # like a bucket is not one.
+            for bucket in buckets:
+                seen += 1
+                print(_external_line(bucket, config, today))
+            for child in sorted(p for p in path.iterdir() if p.is_dir()):
+                child_name = child.name
+                if child_name in bucket_ids:
+                    continue
+                seen += 1
+                problems.append((child_name, Decision(
+                    Verdict.DENIED, "undeclared",
+                    f'"{child_name}" sits under synced/ but carries no bucket '
+                    "evidence — no sibling .bucket-<id> marker, or a "
+                    "manifest.json that does not parse to a skills[] array. "
+                    "Named like a bucket is not being one; it fails closed.",
+                )))
+            continue
         seen += 1
         if name in vendored:
             continue
