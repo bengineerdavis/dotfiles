@@ -45,6 +45,9 @@ def test_missing_optional_dependency_skips_instead_of_erroring(tmp_path):
     (tmp_path / "PIL.py").write_text('raise ImportError("PIL blocked by tests/suite")\n')
     proc = _run(str(tmp_path))
     out = _body(proc)
+    # spec.md § Verification: assert the output is non-empty before grepping it
+    # — `assert "error" not in ""` passes vacuously and would read as a pass.
+    assert out.strip(), "the nested pytest produced no output at all"
     assert "error" not in out.lower(), (
         f"a missing optional dependency must skip, not error:\n{out[-800:]}"
     )
@@ -54,6 +57,7 @@ def test_missing_optional_dependency_skips_instead_of_erroring(tmp_path):
 def test_present_optional_dependency_runs_the_suite():
     pytest.importorskip("PIL")
     out = _body(_run(None))
+    assert out.strip(), "the nested pytest produced no output at all"
     assert "passed" in out, (
         f"a capable subject must not be skipped when its dependency is "
         f"present:\n{out[-800:]}"
