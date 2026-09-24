@@ -220,6 +220,11 @@ reversed earlier positions on purpose.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
+- **Capture the approved gita + machine-file-backup plan in a worktree
+  handoff.** The author approved the plan 2026-09-23 (gita topic items
+  G0–G7, backup items BK1–BK4) and the next session runs it. Done when
+  `HANDOFF.md` exists on `agent/gita-plan` in `.worktrees/gita-plan` and the
+  gita row in § Picking this back up points at it. [me]
 - **Bootstrap the multi-agent coordination layer — worktrees, frozen leases,
   risk-tiered merge gates — then extract it to the copier template.** [#1,
   reordered ahead of the governance consolidation by the author 2026-09-20]
