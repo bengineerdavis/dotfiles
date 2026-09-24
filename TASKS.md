@@ -231,10 +231,11 @@ nothing is.
   Done when the comparison and the author's decision are recorded. This
   hands the discovery-tool and sync-caller decisions to the later items;
   the binding order puts this decision before G2.
-  [agent: gita-plan_sub_g1] Fresh session in `.worktrees/gita-plan_sub_g1`,
-  branch `agent/gita-plan_sub_g1` from `agent/gita-plan` (the author's
-  sub-worktree convention). Deliver `dotfiles/docs/GITA-RESEARCH.md` for
-  orchestrator review; no commits, installs or real-repo operations.
+  Research report prepared at
+  `.worktrees/gita-plan_sub_g1/dotfiles/docs/GITA-RESEARCH.md`; independent
+  runtime checks were not performed. Awaiting the author's choice of tools
+  and an external home for the required reconciliation logic (or an explicit
+  exception to the provisioning/build boundary). [agent: gita-plan / OpenCode]
 
 - **BK1 — decide the backup host, installation and recovery-key design.**
   After G0, alongside G1 and the second-machine inventory, research an
