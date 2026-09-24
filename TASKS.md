@@ -236,6 +236,13 @@ nothing is.
   author. Delegate separate units to fresh sessions in separate worktrees,
   reconcile results here, and ask one decision-changing question at a time
   under `interaction-questioning`. G0 stays open until its changes land.
+- **G0a — review the PRD transcription against the approved handoff.**
+  Read-only review in `.worktrees/gita-plan_sub_prd`, branched from
+  `agent/gita-plan`; read the orchestrator's draft in main and handoff
+  decisions 33–41. Done when a report identifies any changed meaning,
+  omitted restriction or unsupported claim, with exact proposed corrections.
+  No governance edits or commits by the reviewer; the orchestrator owns
+  main-side reconciliation. [agent: gita-plan_sub_prd]
 - **Bootstrap the multi-agent coordination layer — worktrees, frozen leases,
   risk-tiered merge gates — then extract it to the copier template.** [#1,
   reordered ahead of the governance consolidation by the author 2026-09-20]
