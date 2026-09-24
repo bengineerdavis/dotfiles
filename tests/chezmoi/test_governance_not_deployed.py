@@ -52,7 +52,7 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture(scope="module")
 def managed() -> set[str]:
     out = subprocess.run(
-        ["chezmoi", "managed"],
+        ["chezmoi", "-S", str(REPO), "managed"],
         cwd=REPO, capture_output=True, text=True, timeout=60,
     )
     assert out.returncode == 0, f"chezmoi managed failed: {out.stderr}"
