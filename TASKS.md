@@ -225,6 +225,16 @@ nothing is.
   G0–G7, backup items BK1–BK4) and the next session runs it. Done when
   `HANDOFF.md` exists on `agent/gita-plan` in `.worktrees/gita-plan` and the
   gita row in § Picking this back up points at it. [me]
+- **G0 — record the approved gita + backup plan and queue its items.** The
+  plan is approved (author, 2026-09-23) and captured at
+  `.worktrees/gita-plan/HANDOFF.md` (branch `agent/gita-plan`) — transcribe
+  it, do not re-decide it. Done when the PRD configuration-backup rule is
+  its own commit with the employer-risk dissent noted beside it; the gita
+  study (line 1344) is resolved with its outcome; G1–G7 and BK1–BK4 are
+  queued, each with its done-condition; and the three side findings are
+  queued — the uv mismatch, the published-hostname scrub, and the
+  topic-bundles hostname→groups amendment — one task per commit,
+  `tests/tasks_doc` green before each. [me]
 - **Bootstrap the multi-agent coordination layer — worktrees, frozen leases,
   risk-tiered merge gates — then extract it to the copier template.** [#1,
   reordered ahead of the governance consolidation by the author 2026-09-20]
