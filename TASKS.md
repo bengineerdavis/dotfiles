@@ -2474,6 +2474,28 @@ author rather than the machine.
   the root tree into `dotfiles/docs/` or document the split honestly —
   includes the original question of whether the whole root `docs/` tree
   goes.
+- **Make `rerere.enabled` and `merge.conflictstyle=zdiff3` portable.** Both are
+  set on this machine's `.git/config` for the chezmoi repo (2026-09-23) and reach
+  every worktree, because worktrees share the common `.git/config`. They do not
+  travel to another machine. `rerere` records a conflict resolution and replays
+  it when the same conflict reappears, which is worth far more under the
+  one-writer-per-worktree model than it was before: a tree merge surfaces the
+  same conflict once per level, and resolving it three times by hand is three
+  chances to resolve it differently. `zdiff3` adds the common ancestor to
+  conflict markers, which is what distinguishes "both sides added a line, keep
+  both and renumber" from "both sides renamed the same line, pick one" — the
+  markers are identical without it, and the wrong reading silently deletes a
+  value other code already branches on.
+
+  Blocked on a decision, not on work: there is no chezmoi-managed git config and
+  no `apps/git` topic, so this needs either adopting the unmanaged
+  `~/.gitconfig` into chezmoi or creating a git topic. An agent cannot do the
+  first — `~/.gitconfig` is outside the agent sandbox, so it cannot be read, and
+  `spec.md` § Data forbids committing employer-identifying strings sight unseen.
+  Either the author adopts it, or the sandbox grants read access, or the topic
+  route is chosen. Done when both settings land on a second machine without
+  being typed there. Note this is a deployed-tree path, so it is PR-and-review
+  either way per `AGENTS.md` § Merge gates. [blocked: needs author decision]
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 
