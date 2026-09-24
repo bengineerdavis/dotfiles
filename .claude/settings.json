@@ -20,6 +20,7 @@
       "Bash(git shortlog *)",
       "Bash(git describe *)",
       "Bash(git worktree list *)",
+      "Bash(git worktree add *)",
       "Bash(git stash list *)",
       "Bash(git notes *)",
       "Bash(git config --get *)",

@@ -61,6 +61,13 @@ Reading and searching, git operations that stay local, running tests, the
 validators, `chezmoi` read commands plus `add` (which only moves deployed
 content into a git-tracked source), and the interpreters.
 
+Carve-outs from an `ask` family:
+
+- **`git worktree add`** is allowed; `remove`, `prune`, `move` and the rest
+  still ask. Creating a worktree only adds a checkout, and agents here work one
+  worktree per session (`docs/WORKTREES.md`), so the prompt was pure friction.
+  Deleting one can lose uncommitted work.
+
 ## Interpreters are allowed, deliberately
 
 `python3`, `uv run` and friends are in **allow**. Given the threat model above

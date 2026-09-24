@@ -71,6 +71,7 @@ def _blocks(config: dict) -> dict[str, dict]:
 
 # (command, required tier in BOTH blocks, why)
 BOTH = [
+    ("git worktree add .worktrees/x -b x", "allow", "creating a worktree is additive and undoable"),
     ("git worktree list --porcelain", "allow", "read-only"),
     ("git worktree remove .worktrees/x", "ask", "deletion asks"),
     ("git worktree prune", "ask", "prunes admin state"),

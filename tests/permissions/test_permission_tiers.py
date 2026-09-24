@@ -56,6 +56,7 @@ CASES = [
     ("git push -f origin main", "deny", "short form of the same thing"),
     ("git push --force-with-lease=main:abc123 origin main", "deny",
      "the = form slipped past `--force-with-lease *` on 2026-09-24"),
+    ("git worktree add .worktrees/x -b x", "allow", "creating a worktree is additive"),
     ("git filter-repo --path x", "ask", "history rewriting — irreversible but legitimate, per docs/PERMISSIONS.md"),
     ("git push origin main", "ask", "publishing is outward-facing"),
     ("git -C /tmp/x push --force", "ask", "the -C form must not bypass the tiers"),
