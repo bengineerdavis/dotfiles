@@ -392,3 +392,19 @@ deleted.
   had a passing `tests/tasks_doc` run. This proves documentation structure,
   not gita or backup behaviour. The next work is G1, BK1 and Linux inventory;
   real machine files still wait for the complete BK2–BK4 restore gate.
+
+## 2026-09-24
+
+- **Evaluate Worktrunk against `mise run worktree-new`.**
+  [agent: opencode-worktree-isolation] Tested Worktrunk 0.79.0 with mise
+  2026.9.12 on macOS using an invented account in a disposable local clone.
+  The mise wrapper already generates and checks a worktree-local denylist.
+  Worktrunk can call those tasks from `pre-start`, but has no such hook
+  configured today. Removing generation blocked the first launch; switching
+  into the failed tree again skipped the creation hook. Explicit hook retry
+  repaired it. A loopback-port probe confirmed shared networking; `HOME`
+  remained shared too. Recommend Worktrunk for lifecycle management, mise for
+  setup, and readiness checks on existing worktrees. Runtime isolation remains
+  a separate requirement. Detailed findings are in the originating project's
+  `docs/research/worktree-runtime-isolation.md`; trial files remain under
+  `~/code/try/worktrunk-isolation-trial`. No live workflow configuration changed.
