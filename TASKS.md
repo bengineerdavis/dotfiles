@@ -1108,15 +1108,20 @@ nothing is.
   `apps/mise/tasks/upgrade.yaml` pin-print must follow the version, and the
   four `npx @sentry/skillet@latest` aliases need a float-vs-pin decision.
 - Install `ty` and typecheck the Python. Named in the house toolchain and
-  currently absent — not installed, zero references in the repo. 32 test files
-  and 36 PEP 723 scripts are unchecked. Note `ty` is pre-1.0; decide whether it
+  currently absent — not installed, zero references in the repo. 42 test files
+  and 22 Python scripts are unchecked (counted 2026-09-23: 13 `uv run
+  --script`, one the stray `bin/executable_archive.bk`; 9 `python3` — the
+  earlier "32" and "36" were stale). `bin/executable_scanfiles` has a
+  `# /// script` block under a `python3` shebang: inert, as it declares no
+  dependencies, but against the `docs/PYTHON.md` rule. Note `ty` is
+  pre-1.0; decide whether it
   gates commits or just reports before wiring it into `prek`.
 - Wire `ruff` into `.pre-commit-config.yaml`. It is installed and the toolchain
   names it, but the hook config runs shellcheck and bats only, so no Python file
-  in this repo is linted on commit. Settle the ruleset first — 36 scripts written
+  in this repo is linted on commit. Settle the ruleset first — 22 scripts written
   before any linter will not pass a default config cleanly.
 - Integrate `xdoctest` and make illustrative examples a tested part of the
-  docs. Docstring examples in the 36 PEP 723 scripts and any Python modules
+  docs. Docstring examples in the 22 Python scripts and any Python modules
   run under pytest via the xdoctest plugin; docs (`dotfiles/docs/`, READMEs)
   carry code examples where they clarify, verified rather than trusted —
   written for humans first, machines as the proof they still work. Survey the
