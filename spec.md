@@ -106,6 +106,12 @@ that never runs are indistinguishable — both refuse, and both pass a smoke tes
 Before a new test is trusted, the code it covers SHALL be broken deliberately
 and the test watched going red.
 
+The mutation itself SHALL NOT be committed, so the evidence that the test was
+seen to fail SHALL be recorded beside the commit as greppable trailers —
+`Mutation: <what was broken>` and `Failing-test: <the test that went red>` —
+readable with `git interpret-trailers`. Prose in a commit body is not auditable;
+trailers are.
+
 #### Scenario: A suite passes on first run
 
 - **WHEN** a newly written test passes immediately
@@ -460,6 +466,23 @@ A tag named in a role SHALL also be declared in the model manifest.
   which once left 18GB of in-use weights one command from deletion. `status` and
   `check` report this as role drift
 
+### Behavior: Dependencies — a referenced skill is a declared dependency
+
+Referencing a skill for a method — from this file, a doc, or `AGENTS.md` —
+makes that skill a project dependency. The reference SHALL be matched by a
+declaration the machine's skill manager can install and keep current, and the
+skill SHALL pass skill-trust before the reference lands. An agent adding a
+reference SHALL update the declaration in the same change; an agent removing
+the last reference to a skill SHALL remove its declaration.
+
+#### Scenario: A spec cites a skill for its method
+
+- **GIVEN** a normative rule whose method lives in a skill
+- **WHEN** the reference is written
+- **THEN** the skill is declared as a project dependency in the same change —
+  a method referenced but not installed is a rule that reads as enforceable
+  and is not
+
 ### Behavior: Policy — egress consults the resolver, at the point of egress
 
 Every tool that sends content to a model SHALL consult `policy check` before
@@ -484,11 +507,20 @@ sentences, active voice, common words, the conclusion first, and one idea per
 paragraph. This covers `AGENTS.md`, `dotfiles/docs/`, READMEs, changelog and
 release prose, anything a tool prints to a user, and — the three most often
 written and least often counted — **commit messages, pull request descriptions
-and code comments**.
+and code comments**. It also binds conversational technical communication:
+what an agent says to the user while working is prose too, and is the least
+reviewed prose an agent produces.
 
 Length is part of the standard, not separate from it. Prose SHALL be
 proportional to what it describes, and a passage longer than its subject
 warrants is evidence the subject should have been split.
+
+Calibration is part of the standard too. An explanation SHALL be pitched at
+what the reader has shown they know: never denser than the vocabulary they
+have used, never re-explaining what they have already used correctly. The
+failure mode is undefined density, not length. The method — when to ask, how
+much to gloss, how to verify cheaply — lives in the `explain-calibration`
+skill; this spec binds only the outcome.
 
 This file and any skillet spec are exempt and SHALL keep normative language —
 SHALL, MUST, MUST NOT — with BDD scenarios. Plain language optimises for a
@@ -503,6 +535,22 @@ which is why the exemption exists rather than a style preference.
 - **THEN** the doc explains it plainly and links here for the normative form.
   Two normative statements of one rule drift; a plain explanation plus a link
   does not
+
+#### Scenario: An agent explains technical material in conversation
+
+- **GIVEN** an agent reporting or explaining technical work to the user
+- **WHEN** the explanation relies on terminology the user has not used
+- **THEN** the plain-language standard applies as it does to a written doc —
+  conversation is not an exemption from it
+
+#### Scenario: A doc uses a glossary term
+
+- **GIVEN** a term defined in `docs/GLOSSARY.md`
+- **WHEN** a doc uses the term
+- **THEN** the first use links to the definition. A project term defined but
+  never linked gets re-explained inline in each doc that uses it, and the
+  explanations drift; general vocabulary is glossed inline on first use and
+  does not enter the glossary
 
 ## Constraints
 

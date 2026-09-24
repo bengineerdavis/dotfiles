@@ -32,10 +32,11 @@ import re
 import shutil
 import subprocess
 import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import NamedTuple
 
 import pytest
+
+from judge_panel_harness import panel_is_trustworthy, run_panel
 
 pytestmark = pytest.mark.llm_judge
 
@@ -141,18 +142,10 @@ def _judge_one(judge_model: str, command: str, script: str) -> JudgeScore:
     )
 
 
-def run_panel(command: str, script: str, judge_models: list[str]) -> list[JudgeScore]:
-    """Run all judges in parallel; silently drop any that error."""
-    scores: list[JudgeScore] = []
-    with ThreadPoolExecutor(max_workers=len(judge_models)) as pool:
-        futures = {pool.submit(_judge_one, m, command, script): m for m in judge_models}
-        for fut in as_completed(futures):
-            model = futures[fut]
-            try:
-                scores.append(fut.result())
-            except Exception as exc:
-                print(f"\n  [judge {model!r} failed] {exc}", file=sys.stderr)
-    return scores
+# The fan-out lives in judge_panel_harness.run_panel: it bounds concurrency to
+# MAX_CONCURRENT_JUDGES (two cold local loads can kill the shared Ollama
+# daemon) and returns failures as data instead of silently dropping judges.
+# This file supplies _judge_one as the judge implementation.
 
 
 def _print_panel_report(command: str, scores: list[JudgeScore], panel_mean: float,
@@ -237,10 +230,18 @@ def test_judge_panel(
     assert script.strip(), "generate_script returned empty output"
 
     # Run judge panel
-    scores = run_panel(command, script, judge_models)
+    scores, failures = run_panel(command, script, judge_models, judge_fn=_judge_one)
+    for model, exc in failures:
+        print(f"\n  [judge {model!r} failed] {exc}", file=sys.stderr)
 
-    if not scores:
-        pytest.skip("All judges failed — check that judge model aliases are valid")
+    if not panel_is_trustworthy(len(scores), len(judge_models)):
+        dead = ", ".join(f"{m!r} ({type(e).__name__}: {e})" for m, e in failures) or "none reported"
+        pytest.skip(
+            f"judge panel degraded: {len(scores)}/{len(judge_models)} answered, "
+            f"and a strict majority is required before a mean is evidence. "
+            f"Dead judges: {dead}. Check the ids against `ollama list` (exact "
+            "tags) and `llm models`."
+        )
 
     panel_mean = sum(s.mean for s in scores) / len(scores)
     _print_panel_report(command, scores, panel_mean, min_mean)

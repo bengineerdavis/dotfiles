@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 
-from conftest import SECRET_RE
+from quarantine_harness import SECRET_RE
 
 
 # --- init: writing needs no secret ------------------------------------------
