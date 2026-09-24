@@ -236,6 +236,8 @@ nothing is.
   author. Delegate separate units to fresh sessions in separate worktrees,
   reconcile results here, and ask one decision-changing question at a time
   under `interaction-questioning`. G0 stays open until its changes land.
+  The uv mismatch is already queued as § Now #1 (p) U1 (author,
+  2026-09-23) — do not queue it again.
 - **G0a — review the PRD transcription against the approved handoff.**
   Read-only review in `.worktrees/gita-plan_sub_prd`, branched from
   `agent/gita-plan`; read the orchestrator's draft in main and handoff
@@ -427,6 +429,8 @@ nothing is.
     layer (`bootstrap.sh`), not mise — the lockfile carries a format
     revision, and version skew churns it. pyproject.toml and uv.lock are
     registered as hot files in § Cross-session hazards.
+    **Not true yet, 2026-09-23:** the uv that runs is mise's
+    `uv = "latest"`, not the bootstrap pin — (p) U1 fixes it.
   - **(j) Three coupling channels, and one unconditional gate.** Coupling
     between parallel workers travels exactly three ways: writes, caught by
     path-intersection at fan-out; reads, structurally isolated by worktrees;
@@ -452,6 +456,11 @@ nothing is.
     passes without exercising what it claims turns the merged-state gate
     into Class B evidence at scale. Builds on (f)'s instrumentation and
     (g)'s mutation trailers.
+    Exhibit, 2026-09-23: `tests/chezmoi/test_governance_not_deployed.py:55`
+    runs `chezmoi managed` without `-S`, and chezmoi's source directory is
+    fixed, so from a worktree the guard checks main's source — a broken
+    ignore list in the worktree cannot turn it red. Found by reading the
+    code; (p) P2a proves it with a mutation and fixes it.
   - **(n) Irreversible agent effects.** A change that reaches the deployed
     tree (`~/bin`, `~/dotfiles`) cannot be undone by `git revert` — the
     revert restores the source, not the machine. Scope is agent-concurrency
@@ -497,6 +506,51 @@ nothing is.
     reproduces the baseline recorded first — the same passes, and only the
     known failures, each named (author, 2026-09-23) — so (o) can use it as
     its consumer path.
+    - **(p) C1 — architect advisor.** [agent: fresh-context read-only
+      subagent] Critiques the (p) brief on layering (chezmoi/Ansible/zsh),
+      the `PRD.md` provision-versus-logic rule, `.chezmoiroot` versus the
+      ignore list, and fit with this coordination work and Refactor B. Done
+      when it returns agree/disagree per decision, risks missed and what
+      would change its mind, then a round-2 reply to the other critiques.
+    - **(p) C2 — pragmatist advisor.** [agent: fresh-context read-only
+      subagent] Critiques daily workflow, the clash with `test-perf-xdist`,
+      order of work and what breaks first. Done as C1.
+    - **(p) C3 — skeptic advisor.** [agent: fresh-context read-only
+      subagent] Attacks every claim in the brief with file:line evidence,
+      hunts for tests that pass without checking anything, and asks whether
+      a lockfile is needed at all. Done as C1.
+    - **(p) C4 — second model, another vendor.** [agent: `ask-research
+      --no-online --model openrouter/google/gemini-3.1-pro-preview`] Same
+      brief, both rounds, zero-data-retention routing, web search off so
+      nothing repo-derived reaches a search provider. The brief carries
+      repo-relative paths only — no home paths, employer strings or usage
+      numbers. The content is not work-tagged, so the author's go-ahead is
+      the permission; record `policy explain
+      boundaries.llm_processing.remote_model_allowed` with the run. Done as
+      C1, with cost recorded; C4 and C5 together stay under $5 (author,
+      2026-09-23).
+    - **(p) C5 — practitioner survey.** [agent: `ask-research`, web search
+      on] Public question only: how do public chezmoi repositories host
+      Python tooling? Skipped, and the skip recorded, if the Exa key is not
+      set. Shares C4's $5 cap. Done when a sourced answer or a recorded skip
+      exists.
+    - **(p) U1 — make the uv pin real.** [me — both machines] `bootstrap.sh`
+      pins uv 0.12.17, but `apps/mise/files/config.toml:82` has
+      `uv = "latest"` right under a comment (lines 77–81, `2f13ed2`) saying
+      uv is not mise-managed; merge `57dd1dd` (2026-08-06) put the line
+      back. On the Linux box, 2026-09-23, the `uv` on PATH is mise's
+      (0.12.17) and no system uv exists, so bootstrap's `command -v uv`
+      check passes and its pin never installs. Mac not checked. Order, so
+      no machine is left without uv: (1) install system uv 0.12.17 on each
+      machine, as `bootstrap.sh` does; (2) then claim `config.toml` in
+      § Claimed and remove the mise line, fixing the comment or the line —
+      the file is symlinked from `~/.config/mise/config.toml`, so the edit
+      is live at once; (3) last, add `required-version = "==0.12.17"` to
+      `[tool.uv]` — earlier, a mise uv floating to 0.13 fails every uv
+      command here. The gita-plan session found the same mismatch (its G0
+      side finding 1); this is the one task for it. Done when `command -v
+      uv` is the system install on both machines, mise declares no uv, and
+      `required-version` enforces the pin.
 
 - **Consolidate the governance docs — PRD as the constitution, spec as the
   derived statutes, conventions as the how-to.** [#2, was #1 until the author
@@ -1054,15 +1108,20 @@ nothing is.
   `apps/mise/tasks/upgrade.yaml` pin-print must follow the version, and the
   four `npx @sentry/skillet@latest` aliases need a float-vs-pin decision.
 - Install `ty` and typecheck the Python. Named in the house toolchain and
-  currently absent — not installed, zero references in the repo. 32 test files
-  and 36 PEP 723 scripts are unchecked. Note `ty` is pre-1.0; decide whether it
+  currently absent — not installed, zero references in the repo. 42 test files
+  and 22 Python scripts are unchecked (counted 2026-09-23: 13 `uv run
+  --script`, one the stray `bin/executable_archive.bk`; 9 `python3` — the
+  earlier "32" and "36" were stale). `bin/executable_scanfiles` has a
+  `# /// script` block under a `python3` shebang: inert, as it declares no
+  dependencies, but against the `docs/PYTHON.md` rule. Note `ty` is
+  pre-1.0; decide whether it
   gates commits or just reports before wiring it into `prek`.
 - Wire `ruff` into `.pre-commit-config.yaml`. It is installed and the toolchain
   names it, but the hook config runs shellcheck and bats only, so no Python file
-  in this repo is linted on commit. Settle the ruleset first — 36 scripts written
+  in this repo is linted on commit. Settle the ruleset first — 22 scripts written
   before any linter will not pass a default config cleanly.
 - Integrate `xdoctest` and make illustrative examples a tested part of the
-  docs. Docstring examples in the 36 PEP 723 scripts and any Python modules
+  docs. Docstring examples in the 22 Python scripts and any Python modules
   run under pytest via the xdoctest plugin; docs (`dotfiles/docs/`, READMEs)
   carry code examples where they clarify, verified rather than trusted —
   written for humans first, machines as the proof they still work. Survey the
@@ -1240,6 +1299,20 @@ nothing is.
   it — mise warned the deprecation during the herdr work (2026-09-19:
   `python.uv_venv_auto=true` must become `python.uv_venv_auto="create|source"`
   or `"source"` in `apps/mise/files/config.toml`).
+
+- **Stop repo tooling leaking into `$HOME`.** `chezmoi managed
+  --include=files` on 2026-09-23 (700 paths) lists `docs/LANGUAGES.md`,
+  `docs/GLOSSARY.md` and `docs/WORKTREES.md` (→ `~/docs/`); `scripts/`, 3
+  hook scripts (→ `~/scripts/`); and two `bin/` strays,
+  `executable_archive.bk` and `executable_READMD.archive.md`. `tools/` (9
+  files → `~/tools/`) belongs to the skill-trust install task. The guard's
+  `GOVERNANCE_FILES_IN_DOCS` also omits `docs/LAYOUT.md`, ignored in
+  `851a419` but unguarded. `docs/ARCHITECTURE.md` and `docs/USAGE.md`
+  deploy on purpose. Until the guard sees worktrees (§ Now #1 (p) P2a),
+  check fixes from the main checkout. Done when each leak is ignored,
+  deleted or recorded as deliberate, and the guard lists every ignored
+  convention doc. The `.chezmoiroot` item in `ROADMAP.md` would end this
+  class of leak.
 
 - **Build the subscription machinery: `topic_subscribes` + playbook
   resolution + injection.** The mechanism half of the adopted system-config
