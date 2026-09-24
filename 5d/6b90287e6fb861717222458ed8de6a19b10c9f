@@ -1,0 +1,37 @@
+tests/triage/conftest.py
+  s_90359717e728ea::t_ad4b6ff893a5eb 1-97,101-166
+  s_cdc22a8a3c70fe::t_8a8bdfece1d2a8 98-100
+tests/triage/test_triage_stdin.py
+  s_cdc22a8a3c70fe::t_d346f4ea9abc85 10,17
+  s_cdc22a8a3c70fe::t_f4c2c1862355d3 1-9,11-16,18-31
+tests/triage/test_triage_resolution.py
+  s_90359717e728ea::t_98932ecef72ddb 1-76
+tests/triage/test_triage_platform_label.py
+  s_cdc22a8a3c70fe::t_1c3e6b98d91189 1-98
+tests/triage/test_triage_logging_guard.py
+  s_cdc22a8a3c70fe::t_aad6d374d687cb 1-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5d6b90287e6fb861717222458ed8de6a19b10c9f",
+  "prompts": {},
+  "sessions": {
+    "s_90359717e728ea": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2e95b1d5ffe7CgZtp1Gbtifen",
+        "model": "xiaomi/mimo-v2.6-pro"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    },
+    "s_cdc22a8a3c70fe": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2e858bb9ffeaVBLCAi6Ycbu0P",
+        "model": "xiaomi/mimo-v2.6-pro"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
