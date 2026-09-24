@@ -1,0 +1,29 @@
+tests/binned/judge_panel_harness.py
+  s_1e72100d74133a::t_2a1df25120b4b5 1-34,36-52,54-60,62
+  s_1e72100d74133a::t_98b42b9731e3f1 61
+  s_1e72100d74133a::t_09b827414eaf2e 53
+  s_1e72100d74133a::t_1611625f6afa8d 35
+tests/binned/test_binned_llm_judge.py
+  s_1e72100d74133a::t_d849c1db1c5aa4 145-148
+  s_1e72100d74133a::t_cba8c7dc21c36f 233-244
+  s_1e72100d74133a::t_17dfc0a000c0b9 39
+  s_1e72100d74133a::t_e38563555f48c3 40
+tests/binned/test_judge_panel_quorum.py
+  s_1e72100d74133a::t_a1c9174dbfed8a 1-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "41bcc41f57f814a247664d1f52b51811697a638b",
+  "prompts": {},
+  "sessions": {
+    "s_1e72100d74133a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f31279a6fffeO89kN8f2aUi4ms",
+        "model": "deepseek/deepseek-v4-pro-0813"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
