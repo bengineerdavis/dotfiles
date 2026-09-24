@@ -238,7 +238,11 @@ nothing is.
   it here. Done when a sourced comparison ranks the existing options,
   records rejections, recommends a path that minimizes customer-maintained
   logic, and the author records the choice. The result hands the discovery
-  and sync mechanisms to G2/G3/G4/G7. [agent: gita-plan / OpenCode]
+  and sync mechanisms to G2/G3/G4/G7. The expanded report is prepared at
+  `.worktrees/gita-plan_sub_g1/dotfiles/docs/GITA-RESEARCH.md`. The author
+  accepted task-level Ansible orchestration as the fallback on 2026-09-24,
+  and asked for the complete workflow and candidate links before choosing
+  the final tool split. No tool has been adopted yet. [agent: gita-plan / OpenCode]
 
 - **BK1 — decide the backup host, installation and recovery-key design.**
   After G0, alongside G1 and the second-machine inventory, research an
