@@ -68,7 +68,7 @@ delete the line and say so in your commit.
 
 - 2026-09-24T00:25Z — skill-trust foreign buckets (branch
   `skill-trust-foreign-buckets`, worktree
-  `../chezmoi-skill-trust-foreign-buckets`) — `tools/skill-trust/**`,
+  `~/code/wt-skill-trust-foreign-buckets`) — `tools/skill-trust/**`,
   `dotfiles/apps/opencode/**`, `dotfiles/roles/guards/**`
 
 
@@ -1168,7 +1168,7 @@ nothing is.
   caught only its intended tests; suite green at 38.
 
   Remaining work is on branch `skill-trust-foreign-buckets`, worktree
-  `../chezmoi-skill-trust-foreign-buckets`, cut from `eb0b4b2`: `buckets.py`
+  `~/code/wt-skill-trust-foreign-buckets`, cut from `eb0b4b2`: `buckets.py`
   with the three-part evidence detection and deduced aliases; the `external`
   verdict; `deny` refused for foreign buckets carrying the churn-loop reason;
   the `guard_foreign_buckets` and `opencode_skill_foreign` config keys; and
