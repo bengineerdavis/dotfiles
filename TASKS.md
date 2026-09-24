@@ -236,6 +236,8 @@ nothing is.
   author. Delegate separate units to fresh sessions in separate worktrees,
   reconcile results here, and ask one decision-changing question at a time
   under `interaction-questioning`. G0 stays open until its changes land.
+  The uv mismatch is already queued as § Now #1 (p) U1 (author,
+  2026-09-23) — do not queue it again.
 - **G0a — review the PRD transcription against the approved handoff.**
   Read-only review in `.worktrees/gita-plan_sub_prd`, branched from
   `agent/gita-plan`; read the orchestrator's draft in main and handoff
