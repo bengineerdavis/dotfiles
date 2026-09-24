@@ -8,8 +8,8 @@ pager = "bat -l help"
 
 # Add custom variables here to use in your templates
 # Example: email = "your@email.com"
-{{- $email := promptStringOnce . "email" "Git email — use a work address on a work machine" "bengineerdavis@gmail.com" -}}
-{{- $name := promptStringOnce . "name" "Git full name" "Ben Davis" -}}
+{{ $email := promptStringOnce . "email" "Git email — use a work address on a work machine" "bengineerdavis@gmail.com" }}
+{{ $name := promptStringOnce . "name" "Git full name" "Ben Davis" }}
 [data]
     email = "{{ $email }}"
     name = "{{ $name }}"
