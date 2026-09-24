@@ -1,0 +1,19 @@
+tests/suite/test_optional_dep_skips.py
+  s_1e72100d74133a::t_5faaa0cdc16527 48-50,60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2d1a2da57434b7d8c8e16eca21e1d76c3c2dd3df",
+  "prompts": {},
+  "sessions": {
+    "s_1e72100d74133a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f31279a6fffeO89kN8f2aUi4ms",
+        "model": "deepseek/deepseek-v4-pro-0813"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
