@@ -230,7 +230,7 @@ The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
 - **Evaluate interchangeable components for agent work.**
-  [agent: OpenCode coordinator; initial comparison complete, container setup
+  [handoff ready, unclaimed; initial comparison complete, container setup
   assessment pending; 2026-09-24] The author approved the expanded brief. Task queues,
   orchestration, workspace creation, sandbox runtimes,
   and environment setup must be independently replaceable or removable.
@@ -266,10 +266,14 @@ nothing is.
   and resume/retention ownership. The completed research unit is archived in
   `TASKS-RESOLVED.md`; implementation remains a separate decision.
 
-  Prepare a cold-start handoff [agent: OpenCode coordinator; requested
-  2026-09-24]. Done when one file records the current branch and worktree,
-  the approved requirements, evidence locations and the next research step,
-  with a pickup pointer here.
+  **Pickup:** `.worktrees/wt-restart/.claude/HANDOFF-modular-agent-runtime.md`
+  on `review/topic-restart-stale`. The initial research and coordinator review
+  are complete; no research agent remains running. The author clarified that
+  low-configuration non-root containers are primary options. Next: compare
+  Sandcastle's shipped container setup, workmux's container workflow and a
+  native wrapper. The handoff and sibling report are local, uncommitted files.
+  They retain the latest requirements and evidence where this queue's older
+  research text differs.
 
 - **Review the automatic restart topics on `feat/topic-restart-stale`.**
   [PR #5 open; resolving with the author in-session] User approved automatic restarts for stale services
