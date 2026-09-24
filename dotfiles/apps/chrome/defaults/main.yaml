@@ -103,16 +103,15 @@ chrome_extensions:
     slug: fintastic
     name: "Fintastic — Intercom → Sentry Quick-Links"
     repo: "git@github.com:trjuntunen/fintastic.git"
-    # v1.2.0; the hand-installed copy in ~/Documents was v1.1.2.
+    # v1.2.1 (commit 897480c, "Release 1.2.1"). Bumped from v1.2.0 on 2026-09-24.
     #
-    # This tag was FORCE-MOVED upstream on 2026-09-09, from 601e1a7 ("Merge
-    # feat/conversation-participants into main") to b08de80 ("Tell 'no orgs
-    # found' apart from 'no orgs answered yet'") — a 13-file diff touching
-    # src/identity.js. The move was reviewed and accepted deliberately via
-    # `-e chrome_allow_moved_refs=true`; the clone and dist/ are built from
-    # b08de80. Recorded here because "v1.2.0" alone no longer identifies a
-    # commit, which is precisely the failure mode the guard exists to catch.
-    ref: v1.2.0
+    # v1.2.0 history note: the tag was FORCE-MOVED upstream on 2026-09-09,
+    # from 601e1a7 to b08de80 ("Tell 'no orgs found' apart from 'no orgs
+    # answered yet'") — reviewed and accepted via
+    # `-e chrome_allow_moved_refs=true`. It is now an annotated tag; when
+    # checking it, dereference with `v1.2.0^{commit}` or the guard will see a
+    # tag-object SHA and think it moved again.
+    ref: v1.2.1
     # A bare clone is NOT loadable. scripts/build.mjs (esbuild) bundles
     # @sentry/browser into src/telemetry.js and writes the loadable extension
     # to dist/, which is gitignored. The GitHub releases are source-only tags
