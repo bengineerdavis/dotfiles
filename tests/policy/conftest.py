@@ -25,12 +25,7 @@ import textwrap
 
 import pytest
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-SCRIPT = REPO / "bin" / "executable_policy"
-
-# Exit codes, mirrored from the script so a silent change to either shows up
-# as a failing test rather than as a test that quietly asserts nothing.
-PERMITTED, DENIED, UNKNOWN, ERROR = 0, 1, 2, 3
+from policy_harness import PERMITTED, DENIED, UNKNOWN, ERROR, REPO, SCRIPT
 
 
 @pytest.fixture

@@ -17,16 +17,12 @@ Run:
 from __future__ import annotations
 
 import os
-import pathlib
 import pty
 import subprocess
 
 import pytest
 
-SCRIPT = pathlib.Path.home() / "bin" / "clipped"
-
-CLIPBOARD_CONTENT = "clipboard-content"
-CAPTURE_NAME = "clipped-copy-capture"
+from clipped_harness import CAPTURE_NAME, CLIPBOARD_CONTENT, SCRIPT
 
 
 @pytest.fixture(autouse=True)

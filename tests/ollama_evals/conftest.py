@@ -22,5 +22,13 @@ def ev():
     loader = importlib.machinery.SourceFileLoader("ollama_evals", str(SCRIPT))
     spec = importlib.util.spec_from_loader("ollama_evals", loader)
     mod = importlib.util.module_from_spec(spec)
-    loader.exec_module(mod)
+    try:
+        loader.exec_module(mod)
+    except ImportError as exc:
+        # The script imports Pillow at module level, so a run without
+        # `--with pillow` used to abort with 53 setup errors and take the rest
+        # of the directory with it. A missing test-run dependency is a skip
+        # with a named reason, not a failure — docs/PYTHON.md, Dependency
+        # classes. Both directions are asserted in tests/suite.
+        pytest.skip(f"ollama-evals dependencies unavailable: {exc}")
     return mod

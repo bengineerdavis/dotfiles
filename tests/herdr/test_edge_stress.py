@@ -89,6 +89,10 @@ import pathlib
 import re
 
 import pytest
+
+pytest.importorskip("hypothesis")
+pytest.importorskip("yaml")
+
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
