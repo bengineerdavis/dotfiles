@@ -294,7 +294,14 @@ nothing is.
     a semaphore. Estimated real ceiling here is 2–3 writers. Prerequisite for
     any parallelism: sandbox the tests that touch `$HOME`
     (`HOME=$(mktemp -d)`, chezmoi `--source`/`--destination`, `--dry-run`).
-    Until that holds, `pytest-xdist` is off the table.
+    ~~Until that holds, `pytest-xdist` is off the table.~~ **Corrected
+    2026-09-23:** the `$HOME` sandboxing is already done — policy, quarantine,
+    binned and clipped all redirect via fixtures — and `pytest-xdist` is now
+    measured working here (170s → 47s, `-n auto --dist worksteal`, same two
+    pre-existing failures). The "2–3 writers" ceiling is about agents sharing
+    `$HOME` resources and does not apply to tests, which are read-only apart
+    from tmp dirs. The remaining shared resource is the uv cache lock, not
+    `$HOME`.
   - **(d) The subtask dependency graph is deferred, with the condition for
     revisiting it stated.** Graphs work where they are *derived and enforced*
     and fail where they are *authored and trusted*: Bazel/Buck/Nix are
@@ -1041,24 +1048,66 @@ nothing is.
   Until this is settled the changelog grows one section and is still readable.
 - **Make the test suite fast and model-safe: fix the conftest collision, keep
   model calls out of the default run, and wire pytest-xdist as an opt-in fast
-  loop.** [me] Council study 2026-09-23 (three explore agents + xdist docs):
-  `$HOME` sandboxing is already done by fixtures, so sub-item (c)'s stated
-  prerequisite is moot — the real blockers are (1) five `from conftest import X`
-  sites collide on the flat `conftest` module name and one (`SCRIPT`) silently
-  resolves to the wrong binary, (2) `llm_judge` plus two unmarked
-  `test_binned_cli` cases make real model calls in the *default* invocation
-  despite the module docstring claiming otherwise, contending on the global
-  Ollama daemon and the shared `llm` logs.db, (3) cold model loads and unbounded
-  judge fan-out are the dominant slowness. Commits: extract shared constants
-  into `*_harness.py` modules (the `guard_harness` pattern);
-  `addopts = -m "not llm_judge"` plus mark the unmarked cases; bound model
-  concurrency and warm local models once; document
-  `--with pytest-xdist -n auto --dist worksteal -m "not llm_judge"`; drop the
-  unused `slow` marker and duplicate `llm_judge` registration, `importorskip`
-  bare `yaml`/`hypothesis`, point `test_binned_cli`/`pii_redactor` at source not
-  `~/bin`, decide `testpaths = tools`. Done when one invocation collects every
+  loop.** [me] Done on branch `test-perf-xdist` (31d532d, fa25f20, 7908b50,
+  41bcc41, a58e710, 1ef7c86, 6c9de21) — awaiting author review, not merged.
+  Council study 2026-09-23 (three explore agents + xdist docs). **Correction
+  to the original brief:** the claim that "two unmarked `test_binned_cli`
+  cases make real model calls" is WRONG and is retracted. Measured on this
+  machine: `binned --auto "echo hello"` exits 2 in 0.26s with `No such command
+  'echo hello'` (typer rejects the free-text as a subcommand), `ollama ps`
+  unchanged — no model call happens, in the source *or* the deployed copy. The
+  real defect is worse: `test_explicit_command_enters_generate` and
+  `test_command_with_embedded_flags` pass **vacuously**, on a parse-error
+  message that happens to echo the command string. Their docstring claim ("We
+  do NOT make real LLM calls") is accidentally true, not for its stated
+  reason. Also corrected: slowness is **not** dominated by model calls (7
+  tests, now opt-in) but by per-test subprocess startup — ansible-playbook and
+  `uv run --script` at 3–13s each. Done when one invocation collects every
   test directory without ImportError, a bare `pytest` makes zero real model
-  calls, and the xdist fast loop is green with a mutation check recorded.
+  calls, and the xdist fast loop is green with a mutation check recorded —
+  all three now hold (210 collected clean across the four collided
+  directories; `addopts = -m "not llm_judge"` with both directions tested in
+  `tests/suite`; 170.7s → 46.75s measured 2026-09-23, 32 cores, 641 passed /
+  2 pre-existing failures / 8 skipped, no new failures).
+
+  **Open, for the author** (found while working, not decided):
+
+  1. **Judge/model ids do not exist on this machine.** `ollama list` has
+     `gemma3:12b`, `qwen3:8b`, `gpt-oss:20b`, `qwen3:30b`,
+     `qwen25-14b-opt:latest`, `qwen2.5:14b`, `mistral:7b` — and nothing else.
+     So `tests/pii_redactor`'s `INTEGRATION_MODEL = "qwen3.5:4b-mlx-bf16"` is
+     absent (the known "Unknown model" item), and `test_binned_llm_judge`'s
+     default judges `devstral-small-2, qwen3.5, claude-4-sonnet` are all
+     unavailable: two not pulled, and `claude-4-sonnet` is a vendor-native id
+     which resolves to nothing under the llm environment (AGENTS.md § Models —
+     use `openrouter/anthropic/...`). Install, substitute, or skip-with-reason
+     is the author's call, and substituting changes what is being measured so
+     it must not be done silently.
+  2. **Two `test_binned_cli` cases are vacuous** (above). Fixing them means
+     deciding what the free-text routing should do, which may be a binned CLI
+     question rather than a test question.
+  3. **Source vs deployed is inconsistent.** `policy` and `quarantine` test
+     the chezmoi *source*; `clipped`, `pii_redactor` and `binned` test
+     `~/bin`, so a green run can be against a stale binary. Note
+     `bin/executable_pii-redactor` and `bin/executable_binned` are **not** +x
+     while `bin/executable_policy` is — switching needs an invocation change
+     (quarantine uses `python3 SCRIPT`) as well as a path change.
+  4. **`testpaths = tests tools`.** The previously documented `pytest tests`
+     silently skipped `tools/skill-trust`; the documented command now says
+     `pytest tests tools`. Whether `tools` stays in `testpaths` is undecided —
+     it pulls a second packaged project into every run.
+  5. **`tests/clipped`'s clipboard cases are slow and order-dependent** — in
+     sequence they fail and burn `run_clipped`'s 60s timeout each, so the
+     suite cannot complete quickly until they get an environment skip or a
+     fix. Pre-existing and tracked by the "12 environmental suite failures"
+     item; not touched here.
+  6. **The recorded "104s" suite figure is stale.** Measured 2026-09-23:
+     170.7s for everything but `tests/clipped`, `-m "not llm_judge"`. Several
+     places still quote 104s.
+  7. **Run one suite at a time.** Two concurrent `uv run` invocations contend
+     on the `~/.cache/uv` lock and Hypothesis then reports deadline failures
+     that are CPU starvation, not bugs — corrupted evidence rather than a
+     clean skip. The fast-loop note in AGENTS.md § Commands records this.
 
 - **Derive minimal permission rules from tool manuals for all three agent
   surfaces.** Queued by the author 2026-09-23: a subagent reviews the full
