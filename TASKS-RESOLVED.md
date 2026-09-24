@@ -313,3 +313,11 @@ deleted.
   acceptable-use objection beside the rule. No design change or runtime
   verification was claimed. The orchestrator reconciled the review on main
   under the author's explicit G0 commit authorisation.
+- **G0b — independent queue transcription review.** The fresh
+  `gita-plan_sub_queue` session mapped all 41 handoff decisions to proposed
+  task patches. After its sandbox could not read the temporary draft, it
+  transcribed the handoff directly. The orchestrator reviewed and integrated
+  the common order and each task separately (`6dd6820` through `32a94bf`),
+  with `tests/tasks_doc` passing before each commit. The queue retains its
+  implementation questions, permission-work allocation and target-specific
+  baseline correction. No runtime behaviour was exercised.

@@ -238,15 +238,6 @@ nothing is.
   under `interaction-questioning`. G0 stays open until its changes land.
   The uv mismatch is already queued as § Now #1 (p) U1 (author,
   2026-09-23) — do not queue it again.
-- **G0b — audit the queued-plan transcription and prepare per-task patches.**
-  Review in `.worktrees/gita-plan_sub_queue`, branched from `agent/gita-plan`;
-  the proposed queue diff is `/tmp/opencode/gita-g0-initial.patch`. Done
-  when all handoff decisions are accounted for, incorrect additions or
-  omissions are reported, and one proposed queue patch per item is ready
-  for orchestrator review. Only review artifacts in that worktree may be
-  written; TASKS.md and governance changes land on main through the
-  orchestrator. Do not commit or start downstream implementation.
-  [agent: gita-plan_sub_queue]
 - **Bootstrap the multi-agent coordination layer — worktrees, frozen leases,
   risk-tiered merge gates — then extract it to the copier template.** [#1,
   reordered ahead of the governance consolidation by the author 2026-09-20]
@@ -2024,6 +2015,19 @@ need PR review. Claim hot files before editing them. Agents never run
 `StrictUndefined`, and run `bash -n` on rendered shell scripts. Prove guards
 both decline and relent; record deliberate failures as `Mutation:` and
 `Failing-test:` trailers. Keep removal with creation and name untested platforms.
+
+**Open implementation questions from G0b (2026-09-23):** settle these with
+the author at the named item, not by silently filling gaps in the handoff.
+G2: does no local pick prevent tool installation too, or only repo actions;
+which source files are required versus optional? G4/G5: define last good
+run independently of exit 0, missing/first-run timestamps, and when
+blocked-since resets. G7: does `off` stay off on timers, may timers clone
+new explicit declarations, and which type wins for a fork that is also a
+template? BK2: what counts as an empty required source? BK1 chooses numeric
+retention and backup cadence; the eight-hour schedule belongs to gita.
+Permission-work allocation: G2 owns machine-path read denial, BK2 owns
+backup-store denial, BK3/BK4 carry it to their destinations. Remote-store
+enforcement remains to be designed; the approved policy itself is unchanged.
 
 - **G1 — research discovery and the sync caller before implementation.**
   After G0, alongside BK1 and the existing second-machine inventory, compare
