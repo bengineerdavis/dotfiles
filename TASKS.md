@@ -503,6 +503,9 @@ nothing is.
       ignore list, and fit with this coordination work and Refactor B. Done
       when it returns agree/disagree per decision, risks missed and what
       would change its mind, then a round-2 reply to the other critiques.
+    - **(p) C2 — pragmatist advisor.** [agent: fresh-context read-only
+      subagent] Critiques daily workflow, the clash with `test-perf-xdist`,
+      order of work and what breaks first. Done as C1.
 
 - **Consolidate the governance docs — PRD as the constitution, spec as the
   derived statutes, conventions as the how-to.** [#2, was #1 until the author
