@@ -467,6 +467,36 @@ nothing is.
     path intersection empty, so the resolver must reject the merged tree.
     **Provisioner path:** `uv add`, merge back, re-lock; then two
     provisioners refused.
+  - **(p) Make the repo a Python project: one root `pyproject.toml`, one
+    committed `uv.lock`, the test environment rebuilt offline.** [agent:
+    pyproject session, `.worktrees/pyproject` on `agent/pyproject`] Author
+    request 2026-09-23: follow current PyPA/PEP practice, research first,
+    critique by a council, propose any structural change before making it.
+    The research ran before this line existed; it is recorded late rather
+    than backdated. Decided with the author 2026-09-23: a root project that
+    is never built or installed (no `[build-system]`, `[tool.uv] package =
+    false`, PEP 735 dependency groups for the test deps), root-only
+    `.chezmoiignore` entries, and a governance guard that works from
+    worktrees; the `.chezmoiroot` move is a separate `ROADMAP.md` decision;
+    uv's version authority is the bootstrap pin (U1). Rule-outs: nothing new
+    in `$HOME`, deployed scripts run unchanged, frozen offline runs work,
+    `tools/skill-trust` keeps its own lock. Rejected: packaging the repo
+    (scripts must stay standalone), a uv workspace with skill-trust, a
+    subdirectory `pyproject.toml` (tools look at the root), `pylock.toml` or
+    requirements files (no `--frozen`, no groups), keeping the `--with` flags
+    (nothing locked). Order: council C1–C5; then PR 1 — P1 docs
+    (`docs/PYTHON.md`, `REFERENCES.md`, `LANGUAGES.md`), P2 baseline counts
+    per test directory, P2a guard uses `chezmoi -S`, P2b one commit adding
+    `pyproject.toml`, `uv.lock`, ignore entries, guard lists and
+    `.gitattributes`; then PR 2 after `test-perf-xdist` merges — P3
+    `pytest.ini` into `[tool.pytest]`, P4 `AGENTS.md` § Commands, changelog,
+    hot-file registration. P1 shares `docs/PYTHON.md` with `test-perf-xdist`
+    (its dependency paragraph) — rebase whichever lands second. Open for the
+    author at P2b: `requires-python` `>=3.14` or `>=3.11`; ruff/ty pinned in
+    lock groups or in mise. Done when `UV_OFFLINE=1 uv run --frozen pytest`
+    reproduces the baseline recorded first — the same passes, and only the
+    known failures, each named (author, 2026-09-23) — so (o) can use it as
+    its consumer path.
 
 - **Consolidate the governance docs — PRD as the constitution, spec as the
   derived statutes, conventions as the how-to.** [#2, was #1 until the author
