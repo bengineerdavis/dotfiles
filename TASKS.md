@@ -1302,6 +1302,10 @@ nothing is.
   it — mise warned the deprecation during the herdr work (2026-09-19:
   `python.uv_venv_auto=true` must become `python.uv_venv_auto="create|source"`
   or `"source"` in `apps/mise/files/config.toml`).
+  **Premise suspect, 2026-09-23:** the key is in no tracked file, and
+  `mise settings get python.uv_venv_auto` returns `false` on the Linux box.
+  Find where the warning came from (another config, an env var, the Mac)
+  before acting.
 
 - **Stop repo tooling leaking into `$HOME`.** `chezmoi managed
   --include=files` on 2026-09-23 (700 paths) lists `docs/LANGUAGES.md`,
