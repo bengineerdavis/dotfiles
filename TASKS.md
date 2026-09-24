@@ -1609,6 +1609,19 @@ nothing is.
   `chezmoi apply`, force-push, and credential paths, and a deliberately
   dangerous command has been seen to prompt. [agent: sub]
 
+- **Allow worktree creation and read-only `gh`; close the `--force-with-lease=`
+  deny gap.** [agent: OpenCode restart-review, 2026-09-24; author-requested]
+  In `opencode.jsonc` (both bash blocks) and `.claude/settings.json`:
+  `git worktree add` allowed, every other worktree mutation asks; read-only
+  `gh` subcommands (pr/issue/run/release/repo/workflow list-view, search,
+  status, and GET-only `gh api`) allowed, anything that writes still asks;
+  `git push --force-with-lease=*` denied — found live when an `=`-form
+  force-push matched no deny rule. Carries the restart-review worktree's
+  uncommitted permission edit as its own commit. Done when the tier tests
+  cover each new rule, have been seen to fail without it, and a PR is open
+  (policy path: human review). Branch and worktree
+  `perms_gh_read_worktree_add`. Feeds the permission-rules review above.
+
 ## Planned
 
 
