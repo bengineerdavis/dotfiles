@@ -520,6 +520,11 @@ nothing is.
       boundaries.llm_processing.remote_model_allowed` with the run. Done as
       C1, with cost recorded; C4 and C5 together stay under $5 (author,
       2026-09-23).
+    - **(p) C5 — practitioner survey.** [agent: `ask-research`, web search
+      on] Public question only: how do public chezmoi repositories host
+      Python tooling? Skipped, and the skip recorded, if the Exa key is not
+      set. Shares C4's $5 cap. Done when a sourced answer or a recorded skip
+      exists.
 
 - **Consolidate the governance docs — PRD as the constitution, spec as the
   derived statutes, conventions as the how-to.** [#2, was #1 until the author
