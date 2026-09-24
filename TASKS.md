@@ -510,6 +510,16 @@ nothing is.
       subagent] Attacks every claim in the brief with file:line evidence,
       hunts for tests that pass without checking anything, and asks whether
       a lockfile is needed at all. Done as C1.
+    - **(p) C4 — second model, another vendor.** [agent: `ask-research
+      --no-online --model openrouter/google/gemini-3.1-pro-preview`] Same
+      brief, both rounds, zero-data-retention routing, web search off so
+      nothing repo-derived reaches a search provider. The brief carries
+      repo-relative paths only — no home paths, employer strings or usage
+      numbers. The content is not work-tagged, so the author's go-ahead is
+      the permission; record `policy explain
+      boundaries.llm_processing.remote_model_allowed` with the run. Done as
+      C1, with cost recorded; C4 and C5 together stay under $5 (author,
+      2026-09-23).
 
 - **Consolidate the governance docs — PRD as the constitution, spec as the
   derived statutes, conventions as the how-to.** [#2, was #1 until the author
