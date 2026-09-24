@@ -205,7 +205,7 @@ Say any of these and the thread resumes where it stopped:
 | **"sandboxing"** | The two-phase agent-sandboxing research project |
 | **"session management"** / **"handoff protocol"** | The research feeding the TASKS.md process design; advisor review of handoffs is part of it |
 | **"rag"** / **"knowledge graphs"** | Preprocessed agent-context research |
-| **"gita"** | Plan approved 2026-09-23 and captured at `.worktrees/gita-plan/HANDOFF.md` (branch `agent/gita-plan`) — gita topic G0–G7, backup BK1–BK4. Start at G0 |
+| **"gita"** | G0 recorded the approved plan in PRD and § Gita and machine-file backup; next are G1, BK1 and the Linux inventory. Original handoff: `.worktrees/gita-plan/HANDOFF.md` on `agent/gita-plan` |
 | **"metamorphic"** | The metamorphic-testing research for the test suites |
 | **"pkgup"** | The Debian package-updater study, blocked on become privileges |
 | **"r&d factory"** | The llocallabs exploratory pipeline — scratchpad experiments promoted by test suites, not vibes |
@@ -220,24 +220,6 @@ reversed earlier positions on purpose.
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
-- **G0 — record the approved gita + backup plan and queue its items.** The
-  plan is approved (author, 2026-09-23) and captured at
-  `.worktrees/gita-plan/HANDOFF.md` (branch `agent/gita-plan`) — transcribe
-  it, do not re-decide it. Done when the PRD configuration-backup rule is
-  its own commit with the employer-risk dissent noted beside it; the gita
-  study (line 1344) is resolved with its outcome; G1–G7 and BK1–BK4 are
-  queued, each with its done-condition; and the three side findings are
-  queued — the uv mismatch, the published-hostname scrub, and the
-  topic-bundles hostname→groups amendment — one task per commit,
-  `tests/tasks_doc` green before each. [agent: gita-plan / OpenCode]
-  Resumed 2026-09-23 from `agent/gita-plan` at `46042e9`. The author
-  authorised the orchestrator to review and commit this transcription on
-  main, one task per commit; implementation decisions still return to the
-  author. Delegate separate units to fresh sessions in separate worktrees,
-  reconcile results here, and ask one decision-changing question at a time
-  under `interaction-questioning`. G0 stays open until its changes land.
-  The uv mismatch is already queued as § Now #1 (p) U1 (author,
-  2026-09-23) — do not queue it again.
 - **Bootstrap the multi-agent coordination layer — worktrees, frozen leases,
   risk-tiered merge gates — then extract it to the copier template.** [#1,
   reordered ahead of the governance consolidation by the author 2026-09-20]

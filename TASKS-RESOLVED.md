@@ -326,3 +326,15 @@ deleted.
   the same evidence and the author's system-pin decision. Removed the duplicate
   queued in `c94ed6f`; U1 remains the single open implementation task. This
   resolves duplicate tracking, not the installation mismatch.
+- **G0 — record the approved gita and configuration-backup plan.** Resumed
+  from `agent/gita-plan`'s `HANDOFF.md` (`46042e9`), with two fresh review
+  agents in separate sub-worktrees. The author authorised orchestrator
+  review and separate main-side commits for this transcription. `dace703`
+  records the PRD rule with adjacent employer-risk dissent; `d60f984`
+  resolves the gita study; `49aca09` through `5617e9c` queue G1–G7/BK1–BK4;
+  `b1df9ad` and `32a94bf` queue the hostname and bundle findings. The uv
+  finding has one home in U1 after `8d85f02`. `4e89860` revises the broader
+  backup task without closing the employer-policy review. Each queue commit
+  had a passing `tests/tasks_doc` run. This proves documentation structure,
+  not gita or backup behaviour. The next work is G1, BK1 and Linux inventory;
+  real machine files still wait for the complete BK2–BK4 restore gate.
