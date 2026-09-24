@@ -1,0 +1,23 @@
+tests/suite/test_llm_judge_filter.py
+  s_1e72100d74133a::t_9768a7a38c811d 1-29,32-39,44-58
+  s_1e72100d74133a::t_5d51bf6e37bbb3 30-31,40-43
+pytest.ini
+  s_1e72100d74133a::t_49579dc868f410 7-11
+  s_1e72100d74133a::t_be9cfbf02bf1f2 12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fa25f20f71d006b0c836474f6568ead6c7b84c93",
+  "prompts": {},
+  "sessions": {
+    "s_1e72100d74133a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f31279a6fffeO89kN8f2aUi4ms",
+        "model": "deepseek/deepseek-v4-pro-0813"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
