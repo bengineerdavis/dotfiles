@@ -1185,6 +1185,17 @@ nothing is.
   alongside its own. That session recorded the scope error in a git note rather
   than rewriting history — push `refs/notes/commits` when publishing.
 
+  **Status 2026-09-24 — implemented, awaiting review.** The remaining work
+  landed on the branch as four commits: `buckets.py` with three-part evidence
+  detection and deduced aliases; the `external` verdict with a date and reason;
+  `deny` refused for foreign buckets (loud, run proceeds, per the author's call);
+  the `guard_foreign_buckets` / `opencode_skill_foreign` keys (both default
+  on); and the guard moved to the last task in `apps/opencode`. Every mutation
+  named in the commit messages was seen to fail its intended test first. The two
+  open questions (machine id, `blocked` verdict) remain open and still block
+  nothing. The `user.email` in `dot_gitconfig.tmpl` and the vestigial
+  `[mergetool ""]`/`[difftool ""]` need the author before the PR merges.
+
 ## Planned
 
 
