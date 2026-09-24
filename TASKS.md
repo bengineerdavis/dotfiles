@@ -538,6 +538,17 @@ nothing is.
     reproduces the baseline recorded first — the same passes, and only the
     known failures, each named (author, 2026-09-23) — so (o) can use it as
     its consumer path.
+    **Council verdicts 2026-09-23** (C1–C4 returned; C5 skipped, Exa key
+    absent). Author decisions: `requires-python = ">=3.14"`; ruff/ty in
+    lockfile dependency groups (lint/format libs in the lock); committed
+    `uv.lock` yes; split P2b into two commits (deploy-hygiene vs project
+    adoption); U1 step 1 before `uv lock` (lock format is uv-version-
+    sensitive). Corrections: `test-perf-xdist` is merged (`118aaa6`) — PR 2
+    no longer waits and the worktree needs rebasing; `tests/` has 44
+    `test_*.py` not 40; `slow` marker does not exist; `GOVERNANCE_DIRS =
+    []` makes one guard test dead code; `required-version` ships post-U1
+    not in PR 1; P4 (AGENTS.md commands) moves to PR 1 tail. Full
+    critiques in `.worktrees/pyproject/.council/`.
     - **(p) C1 — architect advisor.** [agent: fresh-context read-only
       subagent] Critiques the (p) brief on layering (chezmoi/Ansible/zsh),
       the `PRD.md` provision-versus-logic rule, `.chezmoiroot` versus the
