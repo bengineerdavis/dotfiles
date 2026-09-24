@@ -2371,6 +2371,17 @@ both decline and relent; record deliberate failures as `Mutation:` and
   Done when the author's scrub-or-retain decision and, if needed, the
   bounded rewrite plan are recorded without republishing the identifier.
 
+- **Amend Topic bundles' machine binding to named sets plus a local pick.**
+  The author's 2026-09-23 decision supersedes the 2026-09-12
+  hostname-to-groups binding in this queue's Topic bundles section. Add a
+  dated supersession note before the unstarted bundle work is built: topic
+  groups use the same named-set and machine-local selection boundary as
+  the repo catalogue, without committing hostnames. G2 owns the current
+  machine-file migration; this item owns correcting the bundle requirement.
+  Done when that section records the dated amendment and its downstream
+  tasks follow the new binding rather than the old hostname map. This
+  transcribes a settled decision; it does not reopen the bundle design.
+
 ### Refactor A — the `topical` CLI (provisioning config, state, bootstrapping)
 
 Design already exists: `dotfiles/docs/ROADMAP-topic-cli.md`, marked "designed,
