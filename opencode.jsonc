@@ -17,11 +17,26 @@
       "*": "ask",
 
       // --- read-only inspection and local git: the workhorse allow tier ---
+      "git status": "allow",
       "git status *": "allow",
       "git diff *": "allow",
+      "git log": "allow",
       "git log *": "allow",
       "git show *": "allow",
-      "git branch *": "allow",
+      // Branch mutations ask; allow only these unambiguous listing forms.
+      "git branch *": "ask",
+      "git branch": "allow",
+      "git branch --show-current": "allow",
+      "git branch --list": "allow",
+      "git branch -a": "allow",
+      "git branch -r": "allow",
+      "git branch -v": "allow",
+      "git branch -vv": "allow",
+      "git branch -av": "allow",
+      "git branch -avv": "allow",
+      "git branch -rv": "allow",
+      "git branch -rvv": "allow",
+      "git rev-parse": "allow",
       "git rev-parse *": "allow",
       "git rev-list *": "allow",
       "git ls-files *": "allow",
@@ -30,6 +45,9 @@
       "git blame *": "allow",
       "git shortlog *": "allow",
       "git describe *": "allow",
+      "git worktree": "ask",
+      "git worktree *": "ask",
+      "git worktree list": "allow",
       "git worktree list *": "allow",
       "git stash list *": "allow",
       "git stash *": "allow",
@@ -83,6 +101,8 @@
       "mise list *": "allow",
 
       // read-only shell utilities
+      "pwd": "allow",
+      "pwd *": "allow",
       "ls *": "allow",
       "cat *": "allow",
       "head *": "allow",
@@ -144,6 +164,24 @@
       "ollama rm *": "ask",
       "uv publish *": "ask",
 
+      // Read-only PR commands override the broader gh ask rule.
+      "gh pr": "allow",
+      "gh pr *": "ask",
+      "gh pr list": "allow",
+      "gh pr list *": "allow",
+      "gh pr status": "allow",
+      "gh pr status *": "allow",
+      "gh pr view": "allow",
+      "gh pr view *": "allow",
+      "gh pr checks": "allow",
+      "gh pr checks *": "allow",
+      "gh pr diff": "allow",
+      "gh pr diff *": "allow",
+      // git log can also write a file or invoke an external diff helper.
+      "git log *--output*": "ask",
+      "git log *--ext-diff*": "ask",
+      "git log *--textconv*": "ask",
+
       // --- deny: never, matching docs/PERMISSIONS.md § deny. chezmoi apply is
       // main-only (AGENTS.md § Applying is main-only) — denied, not asked ---
       "chezmoi apply *": "deny",
@@ -158,18 +196,32 @@
 
   "agent": {
     "autonomous": {
-      "description": "Same toolset as build, with the frequent-but-reversible operations auto-approved: commit/push (never force), gh, network fetches, package installs, model pulls, webfetch. Deny tier is unchanged. Select it when you want the agent to work unattended.",
+      "description": "Same toolset as build, with frequent-but-reversible operations auto-approved: commit/push (never force), network fetches, package installs, model pulls, webfetch. PR reads are allowed; PR, branch and worktree mutations still ask. Deny tier is unchanged. Select it when you want the agent to work unattended.",
       "mode": "primary",
       "permission": {
         "bash": {
           "*": "ask",
 
           // read-only inspection and local git (same as top level)
+          "git status": "allow",
           "git status *": "allow",
           "git diff *": "allow",
+          "git log": "allow",
           "git log *": "allow",
           "git show *": "allow",
-          "git branch *": "allow",
+          "git branch *": "ask",
+          "git branch": "allow",
+          "git branch --show-current": "allow",
+          "git branch --list": "allow",
+          "git branch -a": "allow",
+          "git branch -r": "allow",
+          "git branch -v": "allow",
+          "git branch -vv": "allow",
+          "git branch -av": "allow",
+          "git branch -avv": "allow",
+          "git branch -rv": "allow",
+          "git branch -rvv": "allow",
+          "git rev-parse": "allow",
           "git rev-parse *": "allow",
           "git rev-list *": "allow",
           "git ls-files *": "allow",
@@ -178,6 +230,9 @@
           "git blame *": "allow",
           "git shortlog *": "allow",
           "git describe *": "allow",
+          "git worktree": "ask",
+          "git worktree *": "ask",
+          "git worktree list": "allow",
           "git worktree list *": "allow",
           "git stash list *": "allow",
           "git stash *": "allow",
@@ -223,6 +278,8 @@
           "mise ls *": "allow",
           "mise list *": "allow",
 
+          "pwd": "allow",
+          "pwd *": "allow",
           "ls *": "allow",
           "cat *": "allow",
           "head *": "allow",
@@ -282,6 +339,23 @@
           "ssh *": "ask",
           "ollama rm *": "ask",
           "uv publish *": "ask",
+
+          // Keep PR mutations at ask even in this agent; reads are free.
+          "gh pr": "allow",
+          "gh pr *": "ask",
+          "gh pr list": "allow",
+          "gh pr list *": "allow",
+          "gh pr status": "allow",
+          "gh pr status *": "allow",
+          "gh pr view": "allow",
+          "gh pr view *": "allow",
+          "gh pr checks": "allow",
+          "gh pr checks *": "allow",
+          "gh pr diff": "allow",
+          "gh pr diff *": "allow",
+          "git log *--output*": "ask",
+          "git log *--ext-diff*": "ask",
+          "git log *--textconv*": "ask",
 
           // --- deny tier, unchanged ---
           "chezmoi apply *": "deny",
