@@ -31,10 +31,14 @@
   prompt = false
   keepBackup = false
   writeToTemp = false
+# Labels name each pane. Setting cmd replaces git's built-in meld driver, so
+# git judges success by whether $MERGED changed, not by meld's exit code.
+[mergetool "meld"]
+  cmd = meld \"$LOCAL\" --label=LOCAL \"$MERGED\" --label=MERGED \"$REMOTE\" --label=REMOTE --output \"$MERGED\"
 # source: https://stackoverflow.com/a/55882069
 [diff]
 	tool = meld
 [difftool]
 	prompt = false
 [difftool "meld"]
-	cmd = meld \"$LOCAL\" \"$REMOTE\"
+	cmd = meld \"$LOCAL\" --label=LOCAL \"$REMOTE\" --label=REMOTE
