@@ -238,13 +238,6 @@ nothing is.
   under `interaction-questioning`. G0 stays open until its changes land.
   The uv mismatch is already queued as § Now #1 (p) U1 (author,
   2026-09-23) — do not queue it again.
-- **G0a — review the PRD transcription against the approved handoff.**
-  Read-only review in `.worktrees/gita-plan_sub_prd`, branched from
-  `agent/gita-plan`; read the orchestrator's draft in main and handoff
-  decisions 33–41. Done when a report identifies any changed meaning,
-  omitted restriction or unsupported claim, with exact proposed corrections.
-  No governance edits or commits by the reviewer; the orchestrator owns
-  main-side reconciliation. [agent: gita-plan_sub_prd]
 - **G0b — audit the queued-plan transcription and prepare per-task patches.**
   Review in `.worktrees/gita-plan_sub_queue`, branched from `agent/gita-plan`;
   the proposed queue diff is `/tmp/opencode/gita-g0-initial.patch`. Done

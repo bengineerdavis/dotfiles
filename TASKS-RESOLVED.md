@@ -306,3 +306,10 @@ deleted.
   are not claimed complete: the second-machine inventory and G3 own them.
   The original baseline was recorded on the Mac in September 2026; the
   handoff's Linux attribution needs target-side verification, noted in G3.
+- **G0a — independent PRD transcription review.** The fresh
+  `gita-plan_sub_prd` session checked handoff decisions 33–41 against the
+  draft and spec. Its two corrections landed in `dace703`: date later
+  author-approved amendments in the introduction and retain the managed-device
+  acceptable-use objection beside the rule. No design change or runtime
+  verification was claimed. The orchestrator reconciled the review on main
+  under the author's explicit G0 commit authorisation.
