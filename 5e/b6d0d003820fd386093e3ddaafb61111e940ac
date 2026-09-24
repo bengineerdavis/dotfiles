@@ -1,0 +1,19 @@
+TASKS.md
+  s_31eebb5f8d64dd::t_6f675077c38c4d 2082-2108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5eb6d0d003820fd386093e3ddaafb61111e940ac",
+  "prompts": {},
+  "sessions": {
+    "s_31eebb5f8d64dd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2e8b9380ffeaOipeAC5iKuAXK",
+        "model": "openai/gpt-6-astra-pro"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
