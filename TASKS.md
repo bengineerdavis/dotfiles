@@ -175,8 +175,8 @@ nothing is.
   shared role and both callers, reproduce any defects with tests, and prepare
   the change for human review under the deployed-file merge gate. Done when
   focused tests and topic validation pass, with deployment limits and remaining
-  failures recorded. Worktree: `wt-restart`; no live restart or cask adoption
-  during review.
+  failures recorded. Worktree: `.worktrees/wt-restart` inside the main chezmoi
+  source; no live restart or cask adoption during review.
   Review completed 2026-09-23 at `79f6f0f`: quit and reopen target the same
   bundle, and process-probe errors no longer count as a stopped app. Four
   regression cases failed before the fix; removing the exit-error guard killed
@@ -196,6 +196,11 @@ nothing is.
   expectation, already corrected by local-main commit `1e7899b`. No CI checks
   are configured on this PR. Complete the repo's author design check before
   merging; deployment is still separate.
+  Worktree relocation complete [agent: OpenCode restart-review]: Git registers
+  the new path at the same HEAD. Both existing local files had identical
+  content hashes before and immediately after the move; the handoff paths
+  were then updated. `git check-ignore` confirms the Git exclusion, and
+  `chezmoi managed` lists 1,015 entries with none under `.worktrees/`.
 
 - **Build a machine-assisted merge-gate checker — turn the diff-derived
   design in `AGENTS.md` § Merge gates (2026-09-22, fusion council) into a
