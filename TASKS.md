@@ -2358,6 +2358,19 @@ both decline and relent; record deliberate failures as `Mutation:` and
   decision and its verification. Do not turn this side finding into a new
   prerequisite for the approved gita/backup chain.
 
+- **Decide the history scrub for the published machine hostname.**
+  The 2026-09-23 handoff identifies a Mac hostname already published in
+  `dotfiles/machines.yml` on `origin/main`; its resemblance to a hardware
+  serial is unverified. Do not reproduce the value in the queue or report.
+  G2 drops hostnames from current files; this separate task is the author's
+  decision about history, not permission to rewrite it now. Record whether
+  to scrub and the intended scope. If a rewrite is authorised, its plan
+  must include a backup branch and provenance notes under `spec.md`
+  § Change records. A rewrite only bounds future exposure: it cannot
+  retract fetched, forked or indexed copies.
+  Done when the author's scrub-or-retain decision and, if needed, the
+  bounded rewrite plan are recorded without republishing the identifier.
+
 ### Refactor A — the `topical` CLI (provisioning config, state, bootstrapping)
 
 Design already exists: `dotfiles/docs/ROADMAP-topic-cli.md`, marked "designed,
