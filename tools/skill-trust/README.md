@@ -19,16 +19,40 @@ and a caller should not have to learn two vocabularies:
 | 3 | error — the rules could not be read |
 | 127 | a dependency is missing (`gh`, unless `--offline`) |
 
+## Foreign buckets
+
+A **foreign bucket** is a directory another program owns inside the skills
+store — Claude Code's cloud sync writes `synced/<id>/`. `skill-trust` has no
+jurisdiction over it, so it declines to rule rather than deny:
+
+- A bucket is recognised by evidence, never by name: the path `synced/<id>/`, a
+  sibling `.bucket-<id>` marker, and a `manifest.json` that parses to a
+  `skills[]` array. All three must hold.
+- A recognised bucket resolves to a recorded `external` verdict — a date and a
+  reason — not a denial. `external` is "not mine to rule on", which is not
+  "allowed"; the audit still exits permitted and prints the bucket.
+- `deny` is refused against a foreign bucket. Deleting a synced skill only makes
+  the sync recreate it byte-identical on the next session, so deny loops
+  forever; the tool says so and names the inert rule rather than attempting it.
+- Rules key on the bucket id, never the alias (`claude-sync`, or
+  `claude-sync@<first8>` when several buckets exist). The alias is a display
+  label, so renaming it cannot change what is approved.
+
+`foreign_buckets: false` in the config turns this off and restores the previous
+fail-closed denial.
+
 ## Precedence
 
 Highest first, failing closed at the bottom:
 
-1. **`deny_sources`** — a ban is a judgement about a publisher and outranks the
+1. **`foreign bucket`** — a directory another program owns is external; it never
+   reaches the rules below.
+2. **`deny_sources`** — a ban is a judgement about a publisher and outranks the
    paperwork. A denied source with an impeccable MIT licence is still denied.
-2. **`exclude`** — a named skill vetoed from an otherwise approved source.
-3. **`approved_sources`** — explicit allow; no licence lookup needed.
-4. **licence** — permissive admits an unnamed source.
-5. **deny.**
+3. **`exclude`** — a named skill vetoed from an otherwise approved source.
+4. **`approved_sources`** — explicit allow; no licence lookup needed.
+5. **`licence`** — permissive admits an unnamed source.
+6. **deny.**
 
 ## Licences
 
@@ -54,6 +78,7 @@ approved_sources: [bengineerdavis/ai-prompt-library, getsentry/skillet]
 exclude:
   getsentry/skillet: [openspec-archive-change]
 vendored: [no-ai-slop]                    # allowed to exist undeclared
+foreign_buckets: true                     # recognise a foreign bucket as external
 licences:
   allow_copyleft: false
 installed:                                # what declares what, for `audit`

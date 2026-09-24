@@ -15,6 +15,7 @@ Run:
 
 from __future__ import annotations
 
+import json
 import textwrap
 
 import pytest
@@ -167,3 +168,78 @@ def test_audit_on_an_empty_directory_is_unknown_not_success(tmp_path):
 def test_audit_on_a_missing_directory_is_an_error(tmp_path):
     assert main(["--offline", "--config", _config(tmp_path, "{}\n"),
                  "audit", "--skills-dir", str(tmp_path / "nope")]) == ERROR
+
+
+# --- foreign buckets ---------------------------------------------------------
+
+
+def _bucket(tmp_path, bucket_id: str, *, marker: bool = True):
+    """A bucket-shaped directory under `tmp_path/synced/`."""
+    synced = tmp_path / "synced"
+    synced.mkdir(parents=True, exist_ok=True)
+    bucket = synced / bucket_id
+    bucket.mkdir(parents=True, exist_ok=True)
+    if marker:
+        (synced / f".bucket-{bucket_id}").write_text("")
+    (bucket / "manifest.json").write_text(
+        json.dumps({"skills": [{"name": "one"}, {"name": "two"}]}))
+    return bucket
+
+
+def test_a_foreign_bucket_is_external_not_denied(tmp_path, capsys):
+    _bucket(tmp_path, "org_user")
+    code = main(["--offline", "--config", _config(tmp_path, "{}\n"),
+                 "audit", "--skills-dir", str(tmp_path)])
+    assert code == PERMITTED
+    out = capsys.readouterr().out
+    assert "EXTERNAL [foreign_bucket]" in out
+    assert "org_user (claude-sync)" in out
+    assert "DENIED" not in out
+
+
+def test_a_dir_named_like_a_bucket_without_evidence_fails_closed(tmp_path, capsys):
+    """The exemption is evidence, never the name — a directory merely named like
+    a bucket still fails closed rather than passing."""
+    _bucket(tmp_path, "org_user", marker=False)
+    code = main(["--offline", "--config", _config(tmp_path, "{}\n"),
+                 "audit", "--skills-dir", str(tmp_path)])
+    assert code == DENIED
+    assert "fails closed" in capsys.readouterr().out
+
+
+def test_a_deny_rule_keyed_on_the_id_is_refused_not_attempted(tmp_path, capsys):
+    """deny is not implementable against a foreign bucket — deleting loops
+    forever — so a deny naming the bucket id is refused, loudly, and the run
+    still proceeds rather than attempting an unenforceable deletion."""
+    _bucket(tmp_path, "org_user")
+    cfg = _config(tmp_path, "deny_sources: [org_user]\n")
+    code = main(["--offline", "--config", cfg,
+                 "audit", "--skills-dir", str(tmp_path)])
+    assert code == PERMITTED
+    out = capsys.readouterr().out
+    assert "EXTERNAL [foreign_bucket]" in out
+    assert "refused" in out
+    assert "inert" in out
+    assert "byte-identical" in out
+    assert "DENIED" not in out
+
+
+def test_a_deny_rule_keyed_on_the_alias_changes_nothing(tmp_path, capsys):
+    """The alias is a display label; rules key on the id. A deny naming the
+    alias must not trip the refusal path — the bucket is still merely external."""
+    _bucket(tmp_path, "org_user")
+    cfg = _config(tmp_path, "deny_sources: [claude-sync]\n")
+    code = main(["--offline", "--config", cfg,
+                 "audit", "--skills-dir", str(tmp_path)])
+    assert code == PERMITTED
+    out = capsys.readouterr().out
+    assert "EXTERNAL [foreign_bucket]" in out
+    assert "refused" not in out
+
+
+def test_foreign_buckets_off_restores_the_denial(tmp_path, capsys):
+    _bucket(tmp_path, "org_user")
+    cfg = _config(tmp_path, "foreign_buckets: false\n")
+    code = main(["--offline", "--config", cfg,
+                 "audit", "--skills-dir", str(tmp_path)])
+    assert code == DENIED

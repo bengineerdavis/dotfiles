@@ -26,14 +26,17 @@ Keep it short. This tracks *open* work and cross-session hazards, not history �
   how soon. An item here is finished when it moves to `TASKS-RESOLVED.md` — a stopgap until the process refactor lands; a roadmap item is never finished.
 - One line per item, imperative, with enough context to pick it up cold.
 - **Captures commit immediately.** Anything an agent queues here or captures
-  for later gets its own commit, straight to main, the moment it is written —
+  for later gets its own commit on its own branch, the moment it is written —
   so it exits the conversation and cannot be lost to session context, even
   when nothing else will be done with it. Kept separate from in-flight work.
   **One task, one commit** — queueing two tasks is two commits, and amending a
-  queued task is another, never a rewrite of the commit that added it. When
-  creating a single task genuinely needs several commits (the task plus the
-  convention doc it depends on, say), put them on a branch rather than
-  interleaving them with in-flight work on main.
+  queued task is another, never a rewrite of the commit that added it. Merge
+  the branch promptly: an unmerged capture is invisible to every other session,
+  which is the cost this rule trades for not colliding on main. See
+  `AGENTS.md` § Everything is branched.
+- **Append at the end of a section; never reflow or reorder.** Two branches
+  appending to different section ends merge cleanly. Two rewriting the same
+  lines do not.
 - Mark **[blocked: reason]** rather than deleting — a blocked item that vanishes
   gets rediscovered from scratch.
 - Mark **[inferred]** for anything reconstructed from repo evidence rather than
@@ -1514,6 +1517,19 @@ nothing is.
   alongside its own. That session recorded the scope error in a git note rather
   than rewriting history — push `refs/notes/commits` when publishing.
 
+  **Status 2026-09-24 — implemented, awaiting review.** The remaining work
+  landed on the branch as four commits: `buckets.py` with three-part evidence
+  detection and deduced aliases; the `external` verdict with a date and reason;
+  `deny` refused for foreign buckets (loud, run proceeds, per the author's call);
+  the `guard_foreign_buckets` / `opencode_skill_foreign` keys (both default
+  on); and the guard moved to the last task in `apps/opencode`. Every mutation
+  named in the commit messages was seen to fail its intended test first. The
+  `user.email`/`user.name` in `dot_gitconfig.tmpl` are now parameterized off
+  `.email`/`.name` and prompt for a first-time machine, so the personal address
+  no longer follows the file onto a work machine unattended. The two open
+  questions (machine id, `blocked` verdict) remain open and still block
+  nothing; the vestigial `[mergetool ""]`/`[difftool ""]` are preserved verbatim
+  and still await an author judgement.
 - **Make the test suite fast and model-safe: fix the conftest collision, keep
   model calls out of the default run, and wire pytest-xdist as an opt-in fast
   loop.** [me] Done on branch `test-perf-xdist` (31d532d, fa25f20, 7908b50,
@@ -3208,6 +3224,39 @@ author rather than the machine.
   the root tree into `dotfiles/docs/` or document the split honestly —
   includes the original question of whether the whole root `docs/` tree
   goes.
+- **Make `rerere.enabled` and `merge.conflictstyle=zdiff3` portable.** Both are
+  set on this machine's `.git/config` for the chezmoi repo (2026-09-23) and reach
+  every worktree, because worktrees share the common `.git/config`. They do not
+  travel to another machine. `rerere` records a conflict resolution and replays
+  it when the same conflict reappears, which is worth far more under the
+  one-writer-per-worktree model than it was before: a tree merge surfaces the
+  same conflict once per level, and resolving it three times by hand is three
+  chances to resolve it differently. `zdiff3` adds the common ancestor to
+  conflict markers, which is what distinguishes "both sides added a line, keep
+  both and renumber" from "both sides renamed the same line, pick one" — the
+  markers are identical without it, and the wrong reading silently deletes a
+  value other code already branches on.
+
+  Blocked on a decision, not on work: there is no chezmoi-managed git config and
+  no `apps/git` topic, so this needs either adopting the unmanaged
+  `~/.gitconfig` into chezmoi or creating a git topic. An agent cannot do the
+  first — `~/.gitconfig` is outside the agent sandbox, so it cannot be read, and
+  `spec.md` § Data forbids committing employer-identifying strings sight unseen.
+  Either the author adopts it, or the sandbox grants read access, or the topic
+  route is chosen. Done when both settings land on a second machine without
+  being typed there. Note this is a deployed-tree path, so it is PR-and-review
+  either way per `AGENTS.md` § Merge gates.
+
+  **Done 2026-09-23** in `d9b15a1` and `cf30fb7`, on branch
+  `skill-trust-foreign-buckets`. The author supplied `~/.gitconfig`, so the
+  adoption route was taken: it is now `dot_gitconfig.tmpl`, with its three
+  hardcoded `/Users/ben.davis` paths resolved through `.chezmoi.homeDir` —
+  they would have failed silently on Linux. Two questions were left open
+  rather than decided quietly: `user.email` is a personal address that will
+  follow this file onto a work machine, and the empty-named `[mergetool ""]`
+  and `[difftool ""]` sections look vestigial, their `cmd` lines starting at
+  `"$LOCAL"` where a program name should be. Still PR-and-review before it
+  merges, being a deployed-tree path.
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 

@@ -70,3 +70,12 @@ guard_dotagents_list_cmd: "npx -y @sentry/dotagents@latest --user list --json"
 
 # Accept unapproved or undeclared skills for one run.
 guard_allow_unapproved_skills: false
+
+# Recognise a foreign skill bucket — a directory another program owns in the
+# skills store, like Claude Code's `synced/` — as external rather than denying
+# it. `external` is "not mine to rule on", not "allowed": skill-trust declines
+# jurisdiction instead of failing provisioning, because a deny there is not
+# implementable — deleting a synced skill only makes the sync recreate it
+# byte-identical on the next session. On by default for that reason; off
+# restores the old fail-closed denial.
+guard_foreign_buckets: true
