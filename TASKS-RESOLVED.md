@@ -293,3 +293,16 @@ deleted.
   branch, and the gita row in § Picking this back up points at it and names
   G0 as the start. The durable record is the handoff until G0 transcribes
   it into `TASKS.md` and `PRD.md`; the branch is a record, not merge-bound.
+- **Study gita across the machines and decide its topic's shape.** Design
+  resolved by the author's approved 2026-09-23 plan, recorded in
+  `agent/gita-plan:HANDOFF.md` (`46042e9`) and transcribed into `TASKS.md`
+  § Gita and machine-file backup. Outcome: standalone `apps/gita`, a
+  personal-repo catalogue, named sets selected locally, separate private/work
+  files, and backups proven before real machine-file data is seeded. The
+  git-config topic stays separate. G3 carries all five registration lessons:
+  recursive registration, basename-collision detection with relative-path
+  membership, `.venv` exclusion, word-counting `gita ls`, and adopting existing
+  registrations. The original study's inventory and existing-config detection
+  are not claimed complete: the second-machine inventory and G3 own them.
+  The original baseline was recorded on the Mac in September 2026; the
+  handoff's Linux attribution needs target-side verification, noted in G3.
