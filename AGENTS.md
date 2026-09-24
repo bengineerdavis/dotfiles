@@ -524,6 +524,11 @@ The point is not to test the agent's work; it is to check that the author
 actually understands what was built. A change that passes review while nobody
 internalised the design is a change nobody can maintain.
 
+A quiz carries **no recommended answer**. Marking one option "(Recommended)"
+hands over the agent's own reading and turns the check into a rubber stamp —
+the one thing it exists to prevent. Options stay neutral; the agent's reasoning
+belongs in the report it already wrote.
+
 ## Trust ladder
 
 An agent earns wider autonomy by track record, **per task class and blast
