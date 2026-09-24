@@ -229,7 +229,13 @@ nothing is.
   queued, each with its done-condition; and the three side findings are
   queued — the uv mismatch, the published-hostname scrub, and the
   topic-bundles hostname→groups amendment — one task per commit,
-  `tests/tasks_doc` green before each. [me]
+  `tests/tasks_doc` green before each. [agent: gita-plan / OpenCode]
+  Resumed 2026-09-23 from `agent/gita-plan` at `46042e9`. The author
+  authorised the orchestrator to review and commit this transcription on
+  main, one task per commit; implementation decisions still return to the
+  author. Delegate separate units to fresh sessions in separate worktrees,
+  reconcile results here, and ask one decision-changing question at a time
+  under `interaction-questioning`. G0 stays open until its changes land.
 - **Bootstrap the multi-agent coordination layer — worktrees, frozen leases,
   risk-tiered merge gates — then extract it to the copier template.** [#1,
   reordered ahead of the governance consolidation by the author 2026-09-20]
