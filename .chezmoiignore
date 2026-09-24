@@ -42,6 +42,15 @@ docs/PYTHON.md
 docs/REFERENCES.md
 docs/README.md
 docs/LAYOUT.md
+docs/LANGUAGES.md
+docs/GLOSSARY.md
+docs/WORKTREES.md
+scripts/
+scripts/**
+tools/
+tools/**
+bin/archive.bk
+bin/READMD.archive.md
 .gitignore
 .mailmap
 .hypothesis
