@@ -44,7 +44,7 @@ def classify(id_: str, *, marker_exists: bool, manifest_text: str | None) -> boo
         return False
     try:
         payload = json.loads(manifest_text)
-    except (json.JSONDecodeError, UnicodeDecodeError):
+    except json.JSONDecodeError:
         return False
     if not isinstance(payload, dict):
         return False
