@@ -1648,6 +1648,9 @@ nothing is.
     candidates through bounded contexts and aggregates, mapped onto this
     repo's topics and roles. Research only; done when a written verdict names
     a preferred definition, its failure cases, and what it rejects.
+  - **O2 — revert-and-history advisor.** [agent: general/outcome-o2] Judge
+    the candidates by what history needs: revert, bisect, cherry-pick,
+    changelog. Research only; same done-condition as O1.
 
 ## Planned
 
