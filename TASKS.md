@@ -1644,6 +1644,14 @@ nothing is.
   can carve reads out of its `Bash(gh *)` ask; splitting that rule is left
   to the permission-rules review above.
 
+- **Label meld's panes from sections git actually reads.** [agent: OpenCode
+  restart-review, 2026-09-24; author-requested] The deployed `~/.gitconfig`
+  carried pane labels in `[mergetool ""]`/`[difftool ""]`, which git never
+  consults. Move them into `[mergetool "meld"]` and `[difftool "meld"]` in
+  `dot_gitconfig.tmpl`. Done when a test renders the template and git itself
+  resolves both labelled commands, seen failing first, and a PR is open
+  (deployed file: human review). Branch and worktree `gitconfig_meld_labels`.
+
 ## Planned
 
 
