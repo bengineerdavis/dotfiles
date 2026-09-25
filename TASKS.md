@@ -73,10 +73,6 @@ delete the line and say so in your commit.
   `skill-trust-foreign-buckets`, worktree
   `~/code/wt-skill-trust-foreign-buckets`) — `tools/skill-trust/**`,
   `dotfiles/apps/opencode/**`, `dotfiles/roles/guards/**`
-- 2026-09-24T14:42Z — repo-manager research handoff: seeding
-  `dotfiles/docs/research/repo-manager/` and pushing branch
-  `agent/repo-manager` (worktree `.worktrees/repo-manager`) — TASKS.md,
-  `dotfiles/docs/research/repo-manager/**`
 
 
 ## Where things stand — 2026-09-23 (the session handoff)
