@@ -1651,6 +1651,9 @@ nothing is.
   - **O2 — revert-and-history advisor.** [agent: general/outcome-o2] Judge
     the candidates by what history needs: revert, bisect, cherry-pick,
     changelog. Research only; same done-condition as O1.
+  - **O3 — reviewer advisor.** [agent: general/outcome-o3] Judge the
+    candidates by what a reviewer who was not in the session can hold and
+    decide on. Research only; same done-condition as O1.
 
 ## Planned
 
