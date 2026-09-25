@@ -230,8 +230,9 @@ The handful actually next. Keep this short — if everything is Now,
 nothing is.
 
 - **Evaluate interchangeable components for agent work.**
-  [agent: OpenCode coordinator; expanded brief approved by the author,
-  2026-09-24] Task queues, orchestration, workspace creation, sandbox runtimes,
+  [handoff ready, unclaimed; initial comparison complete, container setup
+  assessment pending; 2026-09-24] The author approved the expanded brief. Task queues,
+  orchestration, workspace creation, sandbox runtimes,
   and environment setup must be independently replaceable or removable.
   Include Backlog.md, workmux, herdr, and other relevant options; verify each
   tool's actual role instead of assuming all are queue managers. Compare
@@ -245,17 +246,34 @@ nothing is.
   ownership and lifecycle contracts, ranks compatible combinations, records
   rejected options and platform gaps, and is reviewed with the author.
 
-  - **Research and verify the component comparison.**
-    [agent: general/sandbox-components] Produce a local report at
-    `.worktrees/wt-restart/.claude/RESEARCH-modular-agent-runtime.md`.
-    Read relevant local repo instructions, designs, implementations and tests;
-    connect recommendations to that work. Pin source versions and distinguish
-    measured behavior from documentation claims. Exercise synthetic allow/deny
-    cases where available, including failure, resume and cleanup behavior.
-    Test interchangeability by tracing a queue replacement, a sandbox
-    replacement, and a workspace replacement without rebuilding other layers.
-    Recheck the 2026-09-20 host attribution and ecosystem-wide claims.
-    Research and disposable probes only; propose any implementation separately.
+  Author clarification, 2026-09-24: non-root containers, including Sandcastle's
+  approach, are first-class candidates when applying them requires very little
+  configuration. Native execution is a workload capability, not a universal
+  selection requirement. Compare host prerequisites, fresh-project setup,
+  required files/settings/commands, reusable images or templates, credential
+  wiring, and ongoing configuration maintenance. Preserve independent task,
+  workspace and runtime choices. Next evidence needed: a low-configuration
+  Sandcastle/container walkthrough against the native-wrapper baseline.
+
+  Report: `.worktrees/wt-restart/.claude/RESEARCH-modular-agent-runtime.md`
+  (local, uncommitted). The research agent mapped local prior work, verified
+  queue/runtime interfaces, and ran macOS synthetic probes. Coordinator review
+  reproduced SRT 0.0.77's false-success signal exit and mise 2026.9.12's failed
+  host-network exception, alongside successful filesystem restrictions.
+  Queue and workspace substitutions are interface-supported proposals;
+  Debian and end-to-end swaps remain unrun. Decide next: serialized versus
+  autonomous claims, worker commit authority, required network/IPC controls,
+  and resume/retention ownership. The completed research unit is archived in
+  `TASKS-RESOLVED.md`; implementation remains a separate decision.
+
+  **Pickup:** `.worktrees/wt-restart/.claude/HANDOFF-modular-agent-runtime.md`
+  on `review/topic-restart-stale`. The initial research and coordinator review
+  are complete; no research agent remains running. The author clarified that
+  low-configuration non-root containers are primary options. Next: compare
+  Sandcastle's shipped container setup, workmux's container workflow and a
+  native wrapper. The handoff and sibling report are local, uncommitted files.
+  They retain the latest requirements and evidence where this queue's older
+  research text differs.
 
 - **Review the automatic restart topics on `feat/topic-restart-stale`.**
   [PR #5 open; resolving with the author in-session] User approved automatic restarts for stale services
@@ -289,6 +307,12 @@ nothing is.
   content hashes before and immediately after the move; the handoff paths
   were then updated. `git check-ignore` confirms the Git exclusion, and
   `chezmoi managed` lists 1,015 entries with none under `.worktrees/`.
+  Split 2026-09-24 at the author's direction, because PR #5 bundled two
+  topics under one title: the role plus its first caller, ollama, is branch
+  `restart_stale_role_ollama` (worktree of the same name); the 1Password
+  desktop app is `onepassword_desktop_app`, stacked on it. PR #5 is closed
+  with pointers. The author's design review continues on the role PR from
+  the PEP 8 question; see `.worktrees/wt-restart/.claude/HANDOFF-restart-review.md`.
 
 - **Build a machine-assisted merge-gate checker — turn the diff-derived
   design in `AGENTS.md` § Merge gates (2026-09-22, fusion council) into a
@@ -1634,6 +1658,13 @@ nothing is.
   `git cherry`. AGENTS.md § Decomposing points to it for tasks that need more
   merges than planned. Done when the docs gate passes and a PR is open.
   Branch and worktree `docs_bucketing`.
+- **Label meld's panes from sections git actually reads.** [agent: OpenCode
+  restart-review, 2026-09-24; author-requested] The deployed `~/.gitconfig`
+  carried pane labels in `[mergetool ""]`/`[difftool ""]`, which git never
+  consults. Move them into `[mergetool "meld"]` and `[difftool "meld"]` in
+  `dot_gitconfig.tmpl`. Done when a test renders the template and git itself
+  resolves both labelled commands, seen failing first, and a PR is open
+  (deployed file: human review). Branch and worktree `gitconfig_meld_labels`.
 
 ## Planned
 
@@ -3368,7 +3399,9 @@ makes that expensive.
 
 **Host attribution needs confirmation (2026-09-24).** The Linux-specific
 measurements below do not establish capabilities on the current macOS host.
-The sandbox-runtime comparison above will recheck platform claims separately.
+The September 24 comparison measured macOS only; Debian verification remains
+open. Its local report is
+`.worktrees/wt-restart/.claude/RESEARCH-modular-agent-runtime.md`.
 
 - **This box supports unprivileged bubblewrap.** `bwrap`, `podman`, `docker`,
   `systemd-run`, `unshare` and `qemu-system-x86_64` are all on `PATH`;
@@ -3387,24 +3420,28 @@ The sandbox-runtime comparison above will recheck platform claims separately.
   portable git-level path gate the invariant, and treat bwrap/Seatbelt as
   defence in depth that turns a commit-time rejection into a write-time
   `EACCES`. A future `sandbox-exec` removal is then an inconvenience, not a hole.
-- **A Linux VM on macOS is the wrong default for this threat model.** It buys a
-  hypervisor boundary against motivated attackers, which is not the stated
-  threat, and charges metadata-heavy filesystem performance plus unreliable
-  inotify across the boundary. The fast configuration keeps the repo *inside*
-  the VM, which converts the setup into remote development. Keep it as an
-  optional high-assurance mode only.
-- **Nothing in the ecosystem ships per-agent path subsets inside one shared
-  checkout.** Three independent sources agree — a ~90-project survey
-  (`webcoyote/awesome-AI-sandbox`), the shipping tools, and the council. Every
-  implementation does whole-workspace confinement per worktree or container.
-  Treat that convergence as evidence the original requirement was
-  over-specified: worktree-per-agent plus the push-time gate is the design.
-- **Adopt, don't build** (AGENTS.md ladder): `anthropic-experimental/sandbox-runtime`
-  wraps a process in Seatbelt-or-bubblewrap from one policy;
-  `treebeard` is an ephemeral git-worktree sandbox with copy-on-write and
-  network restriction — closest to what § Now specifies; `nixcage` and
-  `sandnix` are reference implementations of the two-backend split; `cco` is a
-  backend selector. Writing a third implementation here would be a build.
+- **Choose VM-backed execution by workload and configuration cost.** The
+  earlier recommendation against a Linux VM default was too broad for the
+  current brief. On 2026-09-24 the author accepted low-configuration non-root
+  containers, including Sandcastle's approach, as primary candidates. Check
+  host prerequisites, filesystem/watch behavior and native macOS dependencies
+  for the actual workload. VM-backed containers are not limited to an optional
+  high-assurance mode.
+- **Subtree confinement exists; shared-writer safety is a different question.**
+  The earlier ecosystem-wide absence claim was too broad. On macOS 26.6.2,
+  SRT 0.0.77 allowed a synthetic write under `./allowed` while denying one at
+  the workspace root. The research agent and coordinator reproduced this on
+  2026-09-24. It does not isolate a shared index or a concurrently changing
+  test tree, so it does not establish safe multi-writer use of one checkout.
+- **Adopt, don't build** (AGENTS.md ladder): `anthropics/sandbox-runtime`
+  wraps a process in Seatbelt-or-bubblewrap from one policy. Candidate source
+  checks on 2026-09-24 changed the earlier descriptions: Treebeard couples
+  worktree/overlay lifecycle and has no verified Debian backend; nixcage is
+  Nix/VM infrastructure; sandnix uses Seatbelt/Landlock; cco selects backends
+  but deliberately permits networking. The report carries pins and limits.
+  Installed mise also has optional Seatbelt/Landlock controls, separate from
+  its ordinary environment setup. Building another runtime here remains out
+  of scope.
   Name collision to avoid: three different projects are called
   `sandbox-runtime` (Anthropic's, `carderne/`, and a Rust crate).
 - **Destructive git operations defeat any path allow-list.** `checkout`,
