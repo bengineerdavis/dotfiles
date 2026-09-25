@@ -1,0 +1,37 @@
+dotfiles/docs/GITA-RESEARCH.md
+  s_31eebb5f8d64dd::t_9933c54c77f556 101,103,106-107
+  s_31eebb5f8d64dd::t_fcde5b5f844f6b 380-383,385-413,419-423,427-439,498-519
+  s_2759e7816a386a::t_0e51c1cbef86ad 57-58,203,231-233,250-251,312-319,342,345,353-369,372,440-445,457,465,476-477,483-484,492-496
+  s_31eebb5f8d64dd::t_5e0f6568861aad 98
+  s_31eebb5f8d64dd::t_fe3e34d406ee4e 3-4,11-13,17-20,22
+  s_31eebb5f8d64dd::t_c186757a35dfc8 109-122
+  s_31eebb5f8d64dd::t_074225a980715d 77,97,99-100,102,104-105
+  s_2759e7816a386a::t_fe310bc88efb2e 1-2,5-9,21,38-56,59-68,70-76,78-86,163-202,204-230,234-249,252-311,320-341,343-344,346-352,370-371,373-379,384,424-426,446-456,458-464,466-475,478-482,485-491,497
+  s_31eebb5f8d64dd::t_6a05317d5ee8a2 10,23-37,69,87-96,108,123-162
+  s_31eebb5f8d64dd::t_9718e6f1e63979 14-16,414-418
+  s_31eebb5f8d64dd::t_1901f64f42a763 520-525
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ebb82e95bdf75864d0308f1c64b759ef944b0ef7",
+  "prompts": {},
+  "sessions": {
+    "s_2759e7816a386a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2e390976ffekWxPR9zuSy4eF2",
+        "model": "openai/gpt-6-astra-pro"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    },
+    "s_31eebb5f8d64dd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2e8b9380ffeaOipeAC5iKuAXK",
+        "model": "openai/gpt-6-astra-pro"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
