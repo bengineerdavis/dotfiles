@@ -289,6 +289,12 @@ nothing is.
   content hashes before and immediately after the move; the handoff paths
   were then updated. `git check-ignore` confirms the Git exclusion, and
   `chezmoi managed` lists 1,015 entries with none under `.worktrees/`.
+  Split 2026-09-24 at the author's direction, because PR #5 bundled two
+  topics under one title: the role plus its first caller, ollama, is branch
+  `restart_stale_role_ollama` (worktree of the same name); the 1Password
+  desktop app is `onepassword_desktop_app`, stacked on it. PR #5 is closed
+  with pointers. The author's design review continues on the role PR from
+  the PEP 8 question; see `.worktrees/wt-restart/.claude/HANDOFF-restart-review.md`.
 
 - **Build a machine-assisted merge-gate checker — turn the diff-derived
   design in `AGENTS.md` § Merge gates (2026-09-22, fusion council) into a
