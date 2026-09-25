@@ -18,7 +18,7 @@ nothing changed — a stale date is the signal, not the version number.
 | [AGENTS.md](https://agents.md/) | unversioned convention; stewarded by the Agentic AI Foundation (Linux Foundation) since 2026 | `AGENTS.md` at root | 2026-09-12 |
 | [Agent Skills specification](https://agentskills.io) | current spec; format only — no distribution | every `SKILL.md`; see `dotfiles/docs/AGENT-ARTIFACTS.md` | 2026-09-12 |
 | [dotagents](https://github.com/getsentry/dotagents) (@sentry/dotagents) | 3.1.0 installed; MIT | skill distribution; `agents.toml` + `agents.lock` under `~/.agents/` | 2026-09-12 |
-| [Inline script metadata](https://packaging.python.org/en/latest/specifications/inline-script-metadata/) (PyPA) | living spec; post-Jan-2024 form | 36 scripts in `bin/` and topic `files/` | 2026-09-11 |
+| [Inline script metadata](https://packaging.python.org/en/latest/specifications/inline-script-metadata/) (PyPA) | living spec; post-Jan-2024 form | 22 Python scripts in `bin/` and topic `files/` | 2026-09-23 |
 | [PEP 723](https://peps.python.org/pep-0723/) | approval record only — **not** the current spec | historical; cite PyPA instead | 2026-09-11 |
 | [PEP 508](https://peps.python.org/pep-0508/) — dependency specifiers | Final | the `dependencies` list inside PEP 723 blocks | 2026-09-11 (via 723) |
 | [skillet](https://www.npmjs.com/package/@sentry/skillet) | **1.7.0** pinned in `spec.md` footer | `spec.md`, every skill spec | 2026-09-11 |

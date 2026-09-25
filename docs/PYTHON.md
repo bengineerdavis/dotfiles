@@ -12,9 +12,9 @@ language-neutral and stay there.
 
 ## Toolchain
 
-Python here is 36 standalone PEP 723 scripts plus the test suite. **There is no
-`pyproject.toml` and no package**, which changes what several of the usual rules
-mean.
+Python here is 22 standalone scripts (13 PEP 723, 9 stdlib-only) plus the test
+suite. A root `pyproject.toml` holds the test environment as PEP 735 dependency
+groups; the repo is never built or installed (`package = false`).
 
 - **uv runs everything.** Scripts start `#!/usr/bin/env -S uv run --script`. Run
   tools through `uv run` rather than installing them globally, so the version is
@@ -41,24 +41,21 @@ mean.
 
 ## Dependency classes
 
-Four surfaces hold dependencies; each has its own add/remove rule. No
-`pyproject.toml` exists and none is planned; if one ever lands, the same rules
-map onto it (`uv add` / `uv add --dev`).
+Four surfaces hold dependencies; each has its own add/remove rule. The root
+`pyproject.toml` holds test and lint groups; use `uv add --group test LIB` or
+`uv add --group lint LIB`, never a hand edit.
 
 1. **Script deps (PEP 723).** In each script's `# /// script` block. Add with
    `uv add --script <file> <lib>`, never a hand edit; remove by deleting the
    line — uv resolves the rest per run. Scripts that shell out check their
    deps at runtime with `require()` and name the fix in the error (see
    `bin/llm-ctx`).
-2. **Test-run deps.** The `uv run --with` list in `AGENTS.md` § Commands —
-   ephemeral: uv resolves and caches per run, nothing installs globally.
-   Add: the flag goes in the documented command AND the suite must
-   **skip, not error**, without it (`pytest.importorskip` at module level —
-   the jinja2 pattern in `tests/herdr/test_user_acceptance.py`). Remove:
-   drop the flag; an orphaned entry costs nothing but staleness.
-   `pytest-xdist` is the one entry that is optional by design: nothing imports
-   it, and it is only needed for the `-n` fast loop in `AGENTS.md` § Commands,
-   so a run without it just cannot use `-n`.
+2. **Test-run deps.** The `test` group in `pyproject.toml` — locked in
+   `uv.lock`. Add: `uv add --group test LIB` and the suite must **skip, not
+   error**, without it (`pytest.importorskip` at module level — the jinja2
+   pattern in `tests/herdr/test_user_acceptance.py`). Remove: `uv remove
+   --group test LIB`. `pytest-xdist` is optional by design: a `fast` group or
+   a `--with` overlay, since a run without it just cannot use `-n`.
 3. **Toolchain and tools.** `dotfiles/apps/mise/files/config.toml` — the
    captured state. Add/remove by editing the entry and committing it (the
    `github:` backend convention, never `ubi:`); upgrades come from
