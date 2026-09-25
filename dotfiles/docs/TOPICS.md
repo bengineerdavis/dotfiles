@@ -247,6 +247,20 @@ Rules for writing one — the longer version is in `roles/guards/README.md`:
 - **Prefix parameters `guard_`** so a caller's `vars:` cannot collide with the
   topic's own variables.
 
+## Restarting what an upgrade left running (`roles/restart-stale`)
+
+Replacing a binary does not restart the process that runs it. The replacement
+often happens in a different topic from the one that owns the service:
+`apps/homebrew` upgrades every formula, so `apps/ollama` never sees a `changed`
+result it could notify a handler on. A topic that owns a long-running service
+or GUI app therefore calls `roles/restart-stale`. The role compares the process
+start time with the binary's ctime and restarts the process if it is older.
+
+Call it with `import_role` at the end of `install.yaml`, tagged `upgrade`. It
+supports launchd agents, systemd units and macOS GUI apps. It never force-quits
+an app. Parameters, the reason for ctime rather than mtime, and a worked call
+are in `roles/restart-stale/README.md`.
+
 ## Fully qualified module names
 
 Use fully qualified collection names (FQCNs) for every module. A bare `apt` or

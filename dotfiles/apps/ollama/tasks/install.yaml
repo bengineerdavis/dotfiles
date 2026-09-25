@@ -854,6 +854,47 @@
     - ollama_model_check_enabled | bool
   tags: [ollama_models, ollama_model_check]
 
+# ── Restart the server if an upgrade left it on the old binary ───────────────
+# On macOS the binary is upgraded by apps/homebrew, an earlier tier, so this
+# topic never sees the change: on 2026-09-22 brew moved ollama 0.33.3 -> 0.34.3
+# and com.ollama.server ran 0.33.3 until restarted by hand. roles/restart-stale
+# compares the server's start time with the binary's ctime instead. It is last
+# in the file so a plist change reloaded above and an upgrade in the same run
+# cost one restart, not two. Tagged `upgrade` so `--tags upgrade` reaches it.
+#
+# On Debian this topic swaps the tarball itself and restarts the unit when it
+# does, so the check there only catches a swap made some other way — the
+# ollama-update-check timer with _apply=true, or a hand install. Per-GPU
+# instances (ollama_linux_instances_enabled) are not checked: they are the
+# case where the plain unit is stopped, and each instance is restarted by the
+# tasks above whenever this topic changes the binary.
+- name: "Restart the ollama server agent if it predates its binary (macOS)"
+  ansible.builtin.import_role:
+    name: "roles/restart-stale"
+  vars:
+    restart_stale_caller: "apps/ollama"
+    restart_stale_kind: launchd
+    restart_stale_launchd_label: com.ollama.server
+    # The same expression the plist renders as Program, so the file checked is
+    # the file launchd runs.
+    restart_stale_binary: "{{ ollama_bin | default('/opt/homebrew/bin/ollama') }}"
+  when: ansible_facts['os_family'] == 'Darwin'
+  tags: [ollama_service, upgrade]
+
+- name: "Restart the ollama service if it predates its binary (Debian)"
+  ansible.builtin.import_role:
+    name: "roles/restart-stale"
+  vars:
+    restart_stale_caller: "apps/ollama"
+    restart_stale_kind: systemd
+    restart_stale_systemd_unit: ollama
+    restart_stale_systemd_scope: system
+    restart_stale_binary: /usr/bin/ollama
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - not (ollama_linux_instances_enabled | default(false) | bool)
+  tags: [ollama_linux, upgrade]
+
 # NOTE: the actual model pull (`ollama-models sync`) is intentionally NOT here.
 # Models are hundreds of GB, so they must download LAST — after every tier and
 # topic. That runs as a post_tasks step in the root playbook.yaml, gated on
