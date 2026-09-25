@@ -53,15 +53,62 @@ inspection:
 2. **Fan-out** — sub-worktrees off the parent branch, named as above.
 3. **Provision** — venvs with `UV_LINK_MODE=copy`; consumers offline
    (`UV_OFFLINE=1 --frozen`), provisioners serialised.
-4. **Collect** — merge serially, suite after each, ordered inert → behaviour →
+4. **Bucket** — when finished work needs more reviewable merges than the task
+   planned, split it into buckets before publishing. See § Bucketing below.
+5. **Collect** — merge serially, suite after each, ordered inert → behaviour →
    activating. Merging uses an **ephemeral scratch worktree**
    `.worktrees/<sid>_merge_<n>`, recreated per attempt from (base + input
    SHAs): re-running `git merge` in a conflicted tree is not idempotent;
    rebuilding from SHAs is.
-5. **Reap** — a branch is deleted only after
+6. **Reap** — a branch is deleted only after
    `git merge-base --is-ancestor <branch> main` proves the work landed. Never
-   `git branch -D` before that check. Crash recovery is
-   `git worktree remove --force <path>` plus `git worktree prune`.
+   `git branch -D` before that check. A branch whose commits were
+   cherry-picked into buckets never becomes an ancestor, because the copies
+   have new SHAs; prove it landed with `git cherry main <branch>` instead,
+   where every line starting `-` means that patch is already on main. Crash
+   recovery is `git worktree remove --force <path>` plus `git worktree prune`.
+
+## Bucketing
+
+A bucket is one set of commits that merges as one pull request. Most
+bucketing happens earlier, when a task is written: AGENTS.md § Decomposing
+work into items cuts the queue so that one task is one merge. This section
+covers the case the plan missed — a task whose finished work turns out to
+hold more than one merge.
+
+**The test for a bucket: describe it in one sentence without "and".** The
+sentence names one outcome for one thing — a topic, a role, a script or a
+document. One topic can need several buckets: owning 1Password's desktop app
+and restarting it when stale are two features of one topic, and each could
+merge alone. Whether to split them is a judgment call: PR #12 keeps them
+together by the author's choice. CONTRIBUTING.md § Commit granularity applies the same test to a
+single commit.
+
+1. **Bucket.** Sort the commits by outcome. Split a commit that fails the
+   test. Keep a commit's tests in the same bucket as the commit.
+2. **Order.** Classify each bucket's dependency (AGENTS.md § What kind of
+   dependency is it). A bucket that stands alone branches from `main`; one
+   that needs another's code stacks on it. Stack two deep freely.
+3. **Build.** Give each bucket its own branch and worktree, named for its
+   outcome, and copy commits in with `git cherry-pick -x` so each records its
+   original SHA. Revise `TASKS.md` so each bucket has a line.
+4. **Check each alone.** Every commit passes its focused tests, so
+   `git bisect` works across the bucket. The tip passes the full suite.
+5. **Check them together.** Merge every open bucket with `git merge-tree`,
+   which writes no refs and touches no worktree, in more than one order.
+   Every order must produce the same tree. Run the full suite on that tree in
+   a scratch worktree. When the buckets replace an existing branch, diff the
+   combined tree against that branch merged into `main`: only intended
+   differences may remain.
+   Expect one kind of conflict: task lines that two buckets appended to the
+   same section end of `TASKS.md`. Keep both lines; the bucket that merges
+   second resolves it.
+6. **Publish.** Push, and open each PR against its parent bucket (or `main`).
+   The description names the stack and the merge order.
+7. **Supersede.** Close whatever the buckets replace, with links to them;
+   update handoffs; reap with `git cherry` as in step 6 of the lifecycle.
+
+PR #5 (split into #11 and #12 on 2026-09-24) is the worked example.
 
 ## chezmoi from a worktree
 

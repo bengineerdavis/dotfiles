@@ -160,6 +160,11 @@ a plan quietly diverging from the work is how the queue stops describing
 reality. Anything that turns out to be bigger than expected and unscheduled
 goes to `ROADMAP.md` rather than growing the item.
 
+When a task's finished work holds more than one merge — the test is whether
+each part can be described in one sentence without "and" — split it into
+buckets before publishing: `docs/WORKTREES.md` § Bucketing has the steps,
+including how each bucket is checked alone and all of them together.
+
 ## What this repo is
 
 A chezmoi-managed dotfiles repo with an Ansible layer for system state.

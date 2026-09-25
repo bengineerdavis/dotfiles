@@ -1650,6 +1650,14 @@ nothing is.
   can carve reads out of its `Bash(gh *)` ask; splitting that rule is left
   to the permission-rules review above.
 
+- **Document bucketing a task into PRs.** [agent: OpenCode restart-review,
+  2026-09-24; author-requested] `docs/WORKTREES.md` gains a Bucket lifecycle
+  step and § Bucketing: the one-sentence-without-"and" test, dependency
+  ordering, one branch per bucket, each checked alone and all checked
+  together, then publish and supersede; reaping cherry-picked branches uses
+  `git cherry`. AGENTS.md § Decomposing points to it for tasks that need more
+  merges than planned. Done when the docs gate passes and a PR is open.
+  Branch and worktree `docs_bucketing`.
 - **Label meld's panes from sections git actually reads.** [agent: OpenCode
   restart-review, 2026-09-24; author-requested] The deployed `~/.gitconfig`
   carried pane labels in `[mergetool ""]`/`[difftool ""]`, which git never
@@ -3310,6 +3318,17 @@ author rather than the machine.
   **Both since resolved on main:** the identity now prompts through
   `promptStringOnce` (`gitconfig: parameterize the user identity`), and the
   empty-named mergetool/difftool sections were confirmed dead and deleted.
+
+- **Promote the bucketing procedure to a skill in `ai-prompt-library`.**
+  Author-chosen 2026-09-24 over docs-only and a tool requirement. The steps in
+  `docs/WORKTREES.md` § Bucketing are repo-agnostic, so a skill carries them to
+  every repo an agent works in. Per AGENTS.md § Observations are deliverables,
+  promote once the practice has earned its keep: trigger is PR #11 and #12
+  reaching merge through the procedure, so the skill is written from two real
+  cycles (PR #5's split, and that merge) rather than one. Lives in
+  `ai-prompt-library`, not here. Automating the checks (bucket detection,
+  merge-tree in every order, combined suite) is a separate, later requirement
+  for the merge-gate checker above.
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 
