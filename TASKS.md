@@ -3502,6 +3502,11 @@ and `chezmoi status` before editing.
   tree (reverted; the pin is deliberate, see the comment above the fabric
   line) and the `npm:@openai/codex` install failed with Permission denied
   (os error 13) on `/tmp/fslock/...`. Standing machine issue, not a one-off.
+- `pyproject.toml` / `uv.lock` — the root project's declaration pair. A
+  lockfile conflict is resolved by merging `pyproject.toml` and re-running
+  `uv lock`, never by editing the lock. Both are ignored by chezmoi (never
+  deploy); `.gitattributes` carries `uv.lock merge=binary`. Register any
+  dependency change here.
 
 ## Standing reminders
 

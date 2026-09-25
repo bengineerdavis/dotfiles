@@ -37,12 +37,13 @@ GOVERNANCE = ["AGENTS.md", "PRD.md", "ROADMAP.md", "spec.md", "TASKS.md"]
 # not deploy) with dotfiles documentation (which must). Named files only.
 GOVERNANCE_FILES_IN_DOCS = [
     "docs/PERMISSIONS.md", "docs/PYTHON.md", "docs/REFERENCES.md",
-    "docs/README.md",
+    "docs/README.md", "docs/LANGUAGES.md", "docs/GLOSSARY.md",
+    "docs/WORKTREES.md",
     # A changelog is a governance artefact, not a dotfile. Both of these were
     # managed when first added and would have landed in $HOME.
     "CHANGELOG.md",
 ]
-GOVERNANCE_DIRS = []
+GOVERNANCE_DIRS = ["scripts/", "tools/"]
 
 pytestmark = pytest.mark.skipif(
     shutil.which("chezmoi") is None, reason="chezmoi not installed"
@@ -52,7 +53,7 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture(scope="module")
 def managed() -> set[str]:
     out = subprocess.run(
-        ["chezmoi", "managed"],
+        ["chezmoi", "-S", str(REPO), "managed"],
         cwd=REPO, capture_output=True, text=True, timeout=60,
     )
     assert out.returncode == 0, f"chezmoi managed failed: {out.stderr}"
