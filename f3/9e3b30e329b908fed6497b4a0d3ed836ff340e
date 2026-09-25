@@ -1,0 +1,19 @@
+dotfiles/docs/research/repo-manager/AUTHOR-ANSWERS.md
+  s_31eebb5f8d64dd::t_9049345d1cd85c 1-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f39e3b30e329b908fed6497b4a0d3ed836ff340e",
+  "prompts": {},
+  "sessions": {
+    "s_31eebb5f8d64dd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2e8b9380ffeaOipeAC5iKuAXK",
+        "model": "openai/gpt-6-astra-pro"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
