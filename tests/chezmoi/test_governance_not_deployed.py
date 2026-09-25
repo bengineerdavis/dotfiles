@@ -45,6 +45,9 @@ GOVERNANCE_FILES_IN_DOCS = [
 ]
 GOVERNANCE_DIRS = ["scripts/", "tools/"]
 
+# Project files at the root — not governance docs, but must not deploy either.
+PROJECT_FILES = ["pyproject.toml", "uv.lock"]
+
 pytestmark = pytest.mark.skipif(
     shutil.which("chezmoi") is None, reason="chezmoi not installed"
 )
@@ -109,3 +112,11 @@ def test_a_real_dotfile_is_still_deployed(managed):
     assert "dotfiles/zsh/aliases.zsh" in managed, (
         "a genuinely deployed file is not managed — the ignore rules are too broad"
     )
+
+
+@pytest.mark.parametrize("path", PROJECT_FILES)
+def test_project_files_are_not_deployed(managed, path):
+    """Root project files would be found by uv and pytest from anywhere under
+    $HOME if deployed. The failure is silent — no error, just wrong config."""
+    assert (REPO / path).exists(), f"{path} is missing from the repo"
+    assert path not in managed, f"{path} would be written to $HOME"

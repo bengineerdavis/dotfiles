@@ -51,6 +51,8 @@ tools/
 tools/**
 bin/archive.bk
 bin/READMD.archive.md
+pyproject.toml
+uv.lock
 .gitignore
 .mailmap
 .hypothesis
