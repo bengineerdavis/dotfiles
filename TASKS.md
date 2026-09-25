@@ -1635,6 +1635,16 @@ nothing is.
   merges than planned. Done when the docs gate passes and a PR is open.
   Branch and worktree `docs_bucketing`.
 
+- **Define "outcome" — the unit a bucket, a task and a PR each carry.**
+  [agent: OpenCode restart-review, 2026-09-24; author-requested] `docs/WORKTREES.md`
+  § Bucketing says a bucket is one outcome, tested by a one-sentence
+  description without "and", but never says what an outcome is. Gather the
+  leading candidates, put them to an advisor council (sub-items below), and
+  bring a recommendation to the author, who has a candidate of their own.
+  Done when the author has chosen a definition and it is recorded — in
+  `docs/GLOSSARY.md` and § Bucketing — with the council's dissent kept beside
+  it. Branch and worktree `outcome_definition`, stacked on `docs_bucketing`.
+
 ## Planned
 
 
