@@ -1,0 +1,22 @@
+changelog.d/20260924_python_project.md
+  s_547f006da5461f::t_953969235146c3 1-13
+AGENTS.md
+  s_547f006da5461f::t_d937dcef06bc2e 671
+  s_547f006da5461f::t_a4620516d31f25 635-636,639,646,648
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f626e5e21d0398664f92123ea26dc2732535c95b",
+  "prompts": {},
+  "sessions": {
+    "s_547f006da5461f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2e9af15bffecKXp8mu1INMWM1",
+        "model": "anthropic/claude-opus-5.5"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
