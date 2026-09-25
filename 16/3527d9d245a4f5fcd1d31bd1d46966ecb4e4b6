@@ -1,0 +1,21 @@
+dotfiles/docs/research/repo-manager/ROUNDS.md
+  s_31eebb5f8d64dd::t_229153300980bd 1-10
+dotfiles/docs/research/repo-manager/README.md
+  s_31eebb5f8d64dd::t_ff77914d293a88 1-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "163527d9d245a4f5fcd1d31bd1d46966ecb4e4b6",
+  "prompts": {},
+  "sessions": {
+    "s_31eebb5f8d64dd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2e8b9380ffeaOipeAC5iKuAXK",
+        "model": "openai/gpt-6-astra-pro"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
