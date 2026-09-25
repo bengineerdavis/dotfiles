@@ -1654,6 +1654,10 @@ nothing is.
   - **O3 — reviewer advisor.** [agent: general/outcome-o3] Judge the
     candidates by what a reviewer who was not in the session can hold and
     decide on. Research only; same done-condition as O1.
+  - **O4 — agent-operability advisor.** [agent: general/outcome-o4] Judge
+    whether an agent can apply each candidate consistently, and what a
+    mechanical check (a future determinant function) could and could not
+    decide. Research only; same done-condition as O1.
 
 ## Planned
 
