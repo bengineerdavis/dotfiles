@@ -1626,6 +1626,15 @@ nothing is.
   can carve reads out of its `Bash(gh *)` ask; splitting that rule is left
   to the permission-rules review above.
 
+- **Document bucketing a task into PRs.** [agent: OpenCode restart-review,
+  2026-09-24; author-requested] `docs/WORKTREES.md` gains a Bucket lifecycle
+  step and § Bucketing: the one-sentence-without-"and" test, dependency
+  ordering, one branch per bucket, each checked alone and all checked
+  together, then publish and supersede; reaping cherry-picked branches uses
+  `git cherry`. AGENTS.md § Decomposing points to it for tasks that need more
+  merges than planned. Done when the docs gate passes and a PR is open.
+  Branch and worktree `docs_bucketing`.
+
 ## Planned
 
 
