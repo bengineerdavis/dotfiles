@@ -17,3 +17,15 @@ dev = [
 package = false             # never build or install the repo itself
 environments = ["sys_platform == 'darwin'", "sys_platform == 'linux'"]
 # required-version is added after U1 makes the uv pin real (post-PR-1).
+
+[tool.pytest]
+testpaths = ["tests", "tools"]
+# Makes tools/<name>/ importable when the repo suite collects its tests,
+# without a conftest.py whose module name would collide with another one.
+pythonpath = ["tools/skill-trust"]
+python_files = ["test_*.py"]
+# Model-calling tests are opt-in. Run with `pytest -m llm_judge` to override.
+addopts = ["-m", "not llm_judge"]
+markers = [
+    "llm_judge: tests that call real LLM APIs — slow, costs tokens (run with -m llm_judge)",
+]
