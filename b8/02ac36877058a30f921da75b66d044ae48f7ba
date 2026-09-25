@@ -1,0 +1,21 @@
+pyproject.toml
+  s_547f006da5461f::t_019ea4956e6abc 20-25,27,29-31
+  s_547f006da5461f::t_50929f2519ced8 26
+  s_547f006da5461f::t_a3bc2d452685ee 28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b802ac36877058a30f921da75b66d044ae48f7ba",
+  "prompts": {},
+  "sessions": {
+    "s_547f006da5461f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2e9af15bffecKXp8mu1INMWM1",
+        "model": "anthropic/claude-opus-5.5"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
