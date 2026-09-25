@@ -1,0 +1,19 @@
+dotfiles/docs/research/repo-manager/PLAN.md
+  s_31eebb5f8d64dd::t_5b8931ba6b4ef8 1-257
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "28dc0168d0bc8db64c9ccd5db4cf085dda187a6c",
+  "prompts": {},
+  "sessions": {
+    "s_31eebb5f8d64dd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2e8b9380ffeaOipeAC5iKuAXK",
+        "model": "openai/gpt-6-astra-pro"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
