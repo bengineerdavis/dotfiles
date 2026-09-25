@@ -1,0 +1,23 @@
+dotfiles/docs/BACKUP-RESEARCH.md
+  s_c4be7edb5e752c::t_71f26748df9fbe 19-21,46,240,242
+  s_c4be7edb5e752c::t_b667e27010fcb7 1-18,26-45,47-81,83-115,118-139,147-239,243-248
+  s_c4be7edb5e752c::t_a2d7d12fd68b78 116-117
+  s_c4be7edb5e752c::t_cd276f98ab2b16 22-25,140-146
+  s_c4be7edb5e752c::t_a97cadf2ea3c1d 82,241
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5b2880dad9fedc63c88fbc5fcf2d1d8435d3b424",
+  "prompts": {},
+  "sessions": {
+    "s_c4be7edb5e752c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2e0cb7c2ffeQRpDIVFwNczsiw",
+        "model": "openai/gpt-6-luna"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
