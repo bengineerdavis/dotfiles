@@ -112,3 +112,65 @@ def test_ollama_checks_the_binary_its_unit_runs():
     _, call = only_call(OLLAMA, restart_stale_kind="systemd")
 
     assert call["vars"]["restart_stale_binary"] == exec_start
+
+
+# ── apps/1password ───────────────────────────────────────────────────────────
+
+OP_TASKS = APPS / "1password" / "tasks"
+OP_INSTALL = OP_TASKS / "install.yaml"
+OP_DEFAULTS = APPS / "1password" / "defaults" / "main.yaml"
+CASK = "community.general.homebrew_cask"
+
+
+def cask_tasks(path: pathlib.Path) -> list[tuple[int, dict]]:
+    return [(i, t) for i, t in enumerate(tasks(path)) if CASK in t]
+
+
+def test_1password_app_lives_in_slash_applications():
+    """1Password's own support article requires the app in /Applications for
+    browser integration — the documented exception to ~/Applications."""
+    assert yaml.safe_load(OP_DEFAULTS.read_text())["onepassword_appdir"] == "/Applications"
+
+
+def test_1password_cask_adopts_the_existing_app_in_place():
+    """Without --adopt, brew refuses because the app is already there; with
+    ~/Applications from HOMEBREW_CASK_OPTS it would install a second copy."""
+    [(_, task)] = [(i, t) for i, t in cask_tasks(OP_INSTALL) if t[CASK]["name"] == "1password"]
+    options = task[CASK]["install_options"]
+
+    assert task[CASK]["state"] == "present"
+    assert "adopt" in options
+    assert "appdir={{ onepassword_appdir }}" in options
+    assert "force" not in options, "force would overwrite the app instead of adopting it"
+
+
+def test_1password_checks_the_app_it_installed():
+    at, call = only_call(OP_INSTALL, restart_stale_kind="app")
+    [(cask_at, _)] = cask_tasks(OP_INSTALL)
+
+    assert call["vars"]["restart_stale_app_name"] == "1Password"
+    assert call["vars"]["restart_stale_binary"] == (
+        "{{ onepassword_appdir }}/1Password.app/Contents/MacOS/1Password")
+    assert call["when"] == "ansible_facts['os_family'] == 'Darwin'"
+    assert at > cask_at
+
+
+def test_1password_is_not_upgraded_greedily():
+    """The cask is auto_updates: 1Password's own updater keeps it current.
+    Neither this topic nor the homebrew tier may add brew as a second updater;
+    the restart check catches a self-update that left the old process up."""
+    for path in [*OP_TASKS.glob("*.yaml"), APPS / "homebrew" / "tasks" / "upgrade.yaml"]:
+        for _, task in cask_tasks(path):
+            assert not task[CASK].get("greedy"), f"{path.relative_to(DOTFILES)} upgrades greedily"
+        assert "--greedy" not in path.read_text(), f"{path.relative_to(DOTFILES)} passes --greedy"
+
+
+def test_1password_removes_the_app_only_when_asked():
+    defaults = yaml.safe_load(OP_DEFAULTS.read_text())
+    [(_, task)] = cask_tasks(OP_TASKS / "remove.yaml")
+
+    assert defaults["onepassword_remove_app"] is False
+    assert task[CASK]["state"] == "absent"
+    assert "onepassword_remove_app | bool" in task["when"]
+    assert "zap" not in str(task[CASK].get("install_options", "")), \
+        "zap would delete the vault data under ~/Library"
