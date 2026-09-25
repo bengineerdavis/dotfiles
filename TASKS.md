@@ -1644,6 +1644,10 @@ nothing is.
   Done when the author has chosen a definition and it is recorded — in
   `docs/GLOSSARY.md` and § Bucketing — with the council's dissent kept beside
   it. Branch and worktree `outcome_definition`, stacked on `docs_bucketing`.
+  - **O1 — domain-modelling advisor.** [agent: general/outcome-o1] Judge the
+    candidates through bounded contexts and aggregates, mapped onto this
+    repo's topics and roles. Research only; done when a written verdict names
+    a preferred definition, its failure cases, and what it rejects.
 
 ## Planned
 
