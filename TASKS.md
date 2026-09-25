@@ -73,6 +73,10 @@ delete the line and say so in your commit.
   `skill-trust-foreign-buckets`, worktree
   `~/code/wt-skill-trust-foreign-buckets`) — `tools/skill-trust/**`,
   `dotfiles/apps/opencode/**`, `dotfiles/roles/guards/**`
+- 2026-09-24T14:42Z — repo-manager research handoff: seeding
+  `dotfiles/docs/research/repo-manager/` and pushing branch
+  `agent/repo-manager` (worktree `.worktrees/repo-manager`) — TASKS.md,
+  `dotfiles/docs/research/repo-manager/**`
 
 
 ## Where things stand — 2026-09-23 (the session handoff)
@@ -413,6 +417,23 @@ nothing is.
   left implicit; and running it against a real recent commit in this repo
   produces output an agent could act on without a human translating it.
   [unclaimed]
+
+- **Repo-manager research: find or compose the repository-fleet manager, then
+  decide Path A (Ansible now + upstream contributions until the tool absorbs
+  the work) vs Path B (our own tool in a new repo).** The approved plan is
+  written in full at `dotfiles/docs/research/repo-manager/PLAN.md` on branch
+  `agent/repo-manager` (worktree `.worktrees/repo-manager`, based on main at
+  `1e5d099`) — read it before starting. `HANDOFF.md` in the same directory is
+  the session entry point and states the orchestrator authority. Supersedes
+  the tool-choice half of G1 below; G1's comparison report is an input (a
+  durable copy lives in the same directory). Council: 4 critics + a recruiter
+  persona-scout, Round 0 before any sonar spend, $5 critic cap plus a separate
+  $5 recruiter cap. Done when: REQUIREMENTS.md R1–R11 is finalized after
+  Round 0; the sonar deep-research run is saved and source-verified into
+  SOURCES.md; the combination ledger and Path A/B cost sketch exist; the
+  author records the decision with dissent notes; TASKS.md/ROADMAP.md are
+  updated; and Path B queues a new-repo bootstrap outside this repo.
+  [agent: repo-manager / OpenCode — orchestrator session]
 
 - **G1 — find a maintainable existing repository manager before selecting
   the Gita/Ansible path.** After G0, alongside BK1 and the existing
