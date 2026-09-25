@@ -1636,8 +1636,14 @@ nothing is.
   Branch and worktree `docs_bucketing`.
 
 - **Define "outcome" — the unit a bucket, a task and a PR each carry.**
-  [handoff ready, unclaimed — moved to another session 2026-09-24; pickup:
-  `.worktrees/outcome_definition/.claude/HANDOFF-outcome-definition.md`]
+  [question for the author, 2026-09-24 — no session holds it] Ask: adopt the
+  definition drafted since in another of the author's repositories (local,
+  unpublished; it grew out of the council below), and if so, share it or
+  keep a local copy here? That draft settles "outcome" as the part of the
+  work a reviewer accepts or rejects for one reason, with everything needed
+  to judge it (split rule, join rule, the "and" sentence as a smell), and
+  adds riders, merge-gate classes and a task/change nesting. Review it
+  against the verdicts below before recording anything.
   `docs/WORKTREES.md` § Bucketing says a bucket is one outcome, tested by a one-sentence
   description without "and", but never says what an outcome is. Gather the
   leading candidates, put them to an advisor council (sub-items below), and
