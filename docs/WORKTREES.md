@@ -104,7 +104,12 @@ single commit.
    same section end of `TASKS.md`. Keep both lines; the bucket that merges
    second resolves it.
 6. **Publish.** Push, and open each PR against its parent bucket (or `main`).
-   The description names the stack and the merge order.
+   The description names the stack and the merge order. **Before merging a
+   stacked PR, check that its base now says `main`.** GitHub only retargets a
+   child PR when the parent's branch is deleted on merge, and this repo has
+   `delete_branch_on_merge` off. Otherwise the child merges into the parent's
+   old branch and never reaches `main`. PR #12 did exactly that and had to be
+   re-landed as #15. Retarget with `gh pr edit <n> --base main`.
 7. **Supersede.** Close whatever the buckets replace, with links to them;
    update handoffs; reap with `git cherry` as in step 6 of the lifecycle.
 
