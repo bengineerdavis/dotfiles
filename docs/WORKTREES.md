@@ -100,6 +100,9 @@ single commit.
    a scratch worktree. When the buckets replace an existing branch, diff the
    combined tree against that branch merged into `main`: only intended
    differences may remain.
+   Expect one kind of conflict: task lines that two buckets appended to the
+   same section end of `TASKS.md`. Keep both lines; the bucket that merges
+   second resolves it.
 6. **Publish.** Push, and open each PR against its parent bucket (or `main`).
    The description names the stack and the merge order.
 7. **Supersede.** Close whatever the buckets replace, with links to them;
