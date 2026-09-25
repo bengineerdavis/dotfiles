@@ -3288,6 +3288,17 @@ author rather than the machine.
   `promptStringOnce` (`gitconfig: parameterize the user identity`), and the
   empty-named mergetool/difftool sections were confirmed dead and deleted.
 
+- **Promote the bucketing procedure to a skill in `ai-prompt-library`.**
+  Author-chosen 2026-09-24 over docs-only and a tool requirement. The steps in
+  `docs/WORKTREES.md` § Bucketing are repo-agnostic, so a skill carries them to
+  every repo an agent works in. Per AGENTS.md § Observations are deliverables,
+  promote once the practice has earned its keep: trigger is PR #11 and #12
+  reaching merge through the procedure, so the skill is written from two real
+  cycles (PR #5's split, and that merge) rather than one. Lives in
+  `ai-prompt-library`, not here. Automating the checks (bucket detection,
+  merge-tree in every order, combined suite) is a separate, later requirement
+  for the merge-gate checker above.
+
 ## History was rewritten on 2026-08-21 — reset before you resume
 
 `main` was force-pushed. Every SHA from `bc72f5c` onward is new. Two mixed
