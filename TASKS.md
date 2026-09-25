@@ -775,6 +775,13 @@ nothing is.
     []` makes one guard test dead code; `required-version` ships post-U1
     not in PR 1; P4 (AGENTS.md commands) moves to PR 1 tail. Full
     critiques in `.worktrees/pyproject/.council/`.
+    **Landed 2026-09-25:** PR #17 (guard fix + leak cleanup), #18/#19
+    (project: `pyproject.toml` + `uv.lock` + docs + commands) and #22 (P3:
+    pytest config into `pyproject.toml`, `pytest.ini` deleted). P1–P4 done.
+    Frozen run verified from main: `UV_OFFLINE=1 uv run --frozen pytest`
+    resolves from the lockfile — the done-condition is met. Remaining: U1
+    (author on both machines), C5 (blocked on the Exa key), strict-markers
+    and `importlib` import mode (separate decisions, not started).
     - **(p) C1 — architect advisor.** [agent: fresh-context read-only
       subagent] Critiques the (p) brief on layering (chezmoi/Ansible/zsh),
       the `PRD.md` provision-versus-logic rule, `.chezmoiroot` versus the
