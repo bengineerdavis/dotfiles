@@ -1,0 +1,19 @@
+[project]
+name = "dotfiles"
+version = "0"               # never released; the spec requires a version
+requires-python = ">=3.14"  # what both machines run; scripts keep their own floors
+dependencies = []           # nothing installs this; scripts declare their own deps
+
+[dependency-groups]
+test = ["pytest>=9", "hypothesis", "typer", "questionary", "pyyaml", "pillow", "jinja2"]
+test-llm = ["llm", "files-to-prompt"]   # opt-in: pulls ~34 packages
+lint = ["ruff", "ty"]
+dev = [
+    { include-group = "test" },
+    { include-group = "lint" },
+]
+
+[tool.uv]
+package = false             # never build or install the repo itself
+environments = ["sys_platform == 'darwin'", "sys_platform == 'linux'"]
+# required-version is added after U1 makes the uv pin real (post-PR-1).
