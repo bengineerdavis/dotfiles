@@ -1658,6 +1658,10 @@ nothing is.
     whether an agent can apply each candidate consistently, and what a
     mechanical check (a future determinant function) could and could not
     decide. Research only; same done-condition as O1.
+  - **O5 — skeptic.** [agent: general/outcome-o5] Argue against every
+    candidate: solo-developer cost, messy existing history, the transition
+    period, where each definition over- or under-splits. Research only; same
+    done-condition as O1.
 
 ## Planned
 
