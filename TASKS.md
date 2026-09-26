@@ -1773,6 +1773,11 @@ nothing is.
   for the author: turn on `delete_branch_on_merge`, which makes GitHub
   retarget children automatically. Done when the docs gate passes and a PR is
   open. Branch and worktree `docs_stacked_pr_base`.
+  Revised 2026-09-24 by the author: rather than warn, open pull requests only
+  into `main`. Feature branches may still stack and take commits from each
+  other with no PR; a child opens its PR after its parent merges and it is
+  rebased onto `main`. The `delete_branch_on_merge` question is moot, since
+  no PR targets a branch that could be deleted.
 
 ## Planned
 
