@@ -384,7 +384,10 @@ Two exceptions, and both must be stated in the task itself:
   one.
 - **Dependent items stack.** Branch off the parent item's branch, not main, and
   rebase when the parent merges. A3 builds on A2's CLI, so it cannot start from
-  main and still compile.
+  main and still compile. The stack lives in branches only: **pull requests go
+  into `main` and nowhere else.** A child gets its PR after its parent has
+  merged and it has been rebased onto `main`; `docs/WORKTREES.md` § Bucketing
+  step 6 has the sequence and the failure that prompted it.
 
 ### What kind of dependency is it
 
