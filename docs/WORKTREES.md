@@ -88,7 +88,8 @@ single commit.
    test. Keep a commit's tests in the same bucket as the commit.
 2. **Order.** Classify each bucket's dependency (AGENTS.md § What kind of
    dependency is it). A bucket that stands alone branches from `main`; one
-   that needs another's code stacks on it. Stack two deep freely.
+   that needs another's code branches from that bucket's branch. Stack two
+   deep freely.
 3. **Build.** Give each bucket its own branch and worktree, named for its
    outcome, and copy commits in with `git cherry-pick -x` so each records its
    original SHA. Revise `TASKS.md` so each bucket has a line.
@@ -103,13 +104,18 @@ single commit.
    Expect one kind of conflict: task lines that two buckets appended to the
    same section end of `TASKS.md`. Keep both lines; the bucket that merges
    second resolves it.
-6. **Publish.** Push, and open each PR against its parent bucket (or `main`).
-   The description names the stack and the merge order. **Before merging a
-   stacked PR, check that its base now says `main`.** GitHub only retargets a
-   child PR when the parent's branch is deleted on merge, and this repo has
-   `delete_branch_on_merge` off. Otherwise the child merges into the parent's
-   old branch and never reaches `main`. PR #12 did exactly that and had to be
-   re-landed as #15. Retarget with `gh pr edit <n> --base main`.
+6. **Publish.** Pull requests go into `main` and nowhere else. Feature
+   branches may take commits and merges from each other freely, with no PR.
+   A PR opened against another feature branch merges into that branch, not
+   `main`: PR #12 did, after its parent #11 had landed, and had to be
+   re-landed as #15.
+   - A bucket that branches from `main`: push it and open its PR with
+     `gh pr create --base main`.
+   - A bucket that branches from another bucket: push it, but open no PR yet.
+     When the parent merges, rebase the child onto `main` (or merge `main`
+     into it), re-run step 4, then open its PR against `main`.
+   - To let the reviewer see a child early, link its branch from the parent's
+     PR description, for reading only.
 7. **Supersede.** Close whatever the buckets replace, with links to them;
    update handoffs; reap with `git cherry` as in step 6 of the lifecycle.
 
