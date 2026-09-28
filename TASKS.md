@@ -1740,6 +1740,11 @@ nothing is.
   itself. Done when a fresh machine starts from a minimal chezmoi install and
   chezmoi runs the full provision chain.
 
+- **Add a chezmoi topic so Ansible updates chezmoi post-bootstrap.**
+  Decision (author, 2026-09-28): bootstrap uses chezmoi to pull and begin the
+  install; Ansible then maintains chezmoi through its own topic. Done when a
+  `--tags upgrade` run bumps chezmoi and the topic's remove is defined.
+
 - **Watch the `pytest-agent-*` ecosystem — reopen trigger, not a standing
   task.** `pytest-agentkit`, `pytest-agentprobe`, `pytest-agent-eval`,
   `pytest-agent-health` verified real on PyPI 2026-09-22 but too immature to
