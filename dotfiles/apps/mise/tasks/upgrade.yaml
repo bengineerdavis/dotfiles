@@ -1,7 +1,7 @@
 # apps/mise/tasks/upgrade.yaml
 # Refresh mise-managed runtimes and global tools.
 # `brew upgrade` (tier 0) bumps the mise binary itself; this task bumps the
-# tools mise manages (python, node, llm, uv, uvx, etc.).
+# tools mise manages (python, node, llm, etc. — not uv, which is system-level).
 #
 # Idempotent. Safe to re-run.
 

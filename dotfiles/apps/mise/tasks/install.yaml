@@ -56,7 +56,8 @@
     mode: "0755"
 
 # Fixes the pre-existing gap: nothing previously ran `mise install`, so the
-# tools in config.toml (uv, python, ...) were never explicitly materialized.
+# tools in config.toml (python, node, ...) were never explicitly materialized.
+# uv is deliberately absent — it is astral-installed at the system level.
 - name: "Materialize mise-managed tools from config.toml"
   ansible.builtin.command:
     cmd: mise install --yes
