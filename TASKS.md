@@ -827,11 +827,12 @@ nothing is.
       side finding 1); this is the one task for it. Done when `command -v
       uv` is the system install on both machines, mise declares no uv, and
       `required-version` enforces the pin.
-      **2026-09-28:** source half is merged (PR #25) — system uv 0.12.17
-      installed on Linux, mise line removed, `required-version` added.
-      `command -v uv` still resolves to mise's shim until the config is
-      deployed and mise reshims; the Mac's uv state is unverified. Apply
-      and reshim are the author's.
+      **2026-09-28:** done on Linux — PR #25 merged, then `chezmoi init` +
+      `mise reshim`; fresh shells resolve `uv` to system 0.12.17 and the
+      `required-version` pin holds. The Mac's uv state is still unverified;
+      it needs the same install-and-reshim. The stale mise uv installs
+      (0.12.5, 0.12.18) remain orphaned on disk — `mise gc` could clear
+      them, left as-is for now.
 
 - **Consolidate the governance docs — PRD as the constitution, spec as the
   derived statutes, conventions as the how-to.** [#2, was #1 until the author
