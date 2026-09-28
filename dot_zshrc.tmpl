@@ -264,7 +264,7 @@ zinit snippet OMZP::command-not-found
 
 ## From bashrc
 # make man pages use color for easier reading
-# shellcheck source=~/.LESS_TERMCAP
+# shellcheck source={{ .chezmoi.homeDir }}/.LESS_TERMCAP
 source ~/.LESS_TERMCAP
 export MANPAGER='less -s -M +Gg'
 
