@@ -1708,6 +1708,13 @@ nothing is.
   projects pin their own version and mise syncs to it. Done when a fresh run
   installs uv idempotently and remove tears it down.
 
+- **Make mise declare `topic_requires: [uv]` and add an idempotent `mise
+  reshim`.** Decision (author, 2026-09-28): a runtime tool mise calls is a
+  declared dependency of the mise topic. The reshim lands after "Materialize
+  mise-managed tools" so stale shims (the U1 edge case) self-heal on every
+  provision. Done when mise resolves uv first in the dependency graph and a
+  stale-shim machine converges to system uv on a normal run.
+
 - **Watch the `pytest-agent-*` ecosystem — reopen trigger, not a standing
   task.** `pytest-agentkit`, `pytest-agentprobe`, `pytest-agent-eval`,
   `pytest-agent-health` verified real on PyPI 2026-09-22 but too immature to
