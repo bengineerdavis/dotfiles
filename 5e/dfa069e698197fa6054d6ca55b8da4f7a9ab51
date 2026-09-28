@@ -1,0 +1,14 @@
+dot_gitconfig.tmpl
+  h_59b6d8805640da 10-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5edfa069e698197fa6054d6ca55b8da4f7a9ab51",
+  "prompts": {},
+  "humans": {
+    "h_59b6d8805640da": {
+      "author": "{{ .name }} <{{ .email }}>"
+    }
+  }
+}
