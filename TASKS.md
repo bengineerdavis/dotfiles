@@ -1710,9 +1710,12 @@ nothing is.
   ai-prompt-library is bidirectional: a generally-useful skill developed here
   is pushed upstream, while a library skill that applies here is vendored in
   (copy + attribution + license) so the repo stays self-contained and
-  upgrades happen here. Declared and installed via dotagents (`agents.toml` +
-  `agents.lock`); facts stay in `docs/`. Done when the process is written and
-  the first skill — the council critique — lands and is declared.
+  upgrades happen here. Classify each capture with one question — does this
+  help in a repo that is not dotfiles? — and record the answer when it lands:
+  general pushes upstream, repo-local vendors in. Declared and installed via
+  dotagents (`agents.toml` + `agents.lock`); facts stay in `docs/`. Done when
+  the process is written and the first skill — the council critique — lands
+  and is declared.
 
 - **Add a `uv` topic — the astral-installed runtime-manager mise consumes.**
   [agent: pyproject] `topic_name: uv`, `topic_provides: [uv]`, `topic_os:
