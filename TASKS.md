@@ -827,8 +827,8 @@ nothing is.
       side finding 1); this is the one task for it. Done when `command -v
       uv` is the system install on both machines, mise declares no uv, and
       `required-version` enforces the pin.
-      **2026-09-28:** source half done on the Linux box — system uv 0.12.17
-      installed, mise line removed, `required-version` added — as PR #25.
+      **2026-09-28:** source half is merged (PR #25) — system uv 0.12.17
+      installed on Linux, mise line removed, `required-version` added.
       `command -v uv` still resolves to mise's shim until the config is
       deployed and mise reshims; the Mac's uv state is unverified. Apply
       and reshim are the author's.
