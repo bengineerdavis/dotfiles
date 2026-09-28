@@ -79,7 +79,6 @@ node = "lts"
 # backend (pipx.uvx = true) therefore uses a stable system uvx that `mise
 # upgrade` never churns — which is what previously caused ansible to self-upgrade
 # mid-playbook-run.
-uv = "latest"
 python = "3.14"
 "pipx:pre-commit" = "latest"
 "pipx:git-filter-repo" = "latest"
