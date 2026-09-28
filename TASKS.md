@@ -1726,6 +1726,12 @@ nothing is.
   via uv, is available to mise via sync, and the two no longer fight over the
   version. [blocked: the uv topic lands first]
 
+- **Rename `pipx.uvx` to `pypi.uvx` in the mise config.** `mise doctor`
+  reads our `pipx.uvx = true` as `pypi.uvx` — the setting was renamed. Verify
+  the rename is safe first (a wrong rename breaks the pipx backend that builds
+  `pipx:ansible`), then update the comment in `bootstrap.sh`. Done when the
+  config reads `pypi.uvx` and `mise doctor` reports no rename alias.
+
 - **Watch the `pytest-agent-*` ecosystem — reopen trigger, not a standing
   task.** `pytest-agentkit`, `pytest-agentprobe`, `pytest-agent-eval`,
   `pytest-agent-health` verified real on PyPI 2026-09-22 but too immature to
