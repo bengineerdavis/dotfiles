@@ -33,11 +33,17 @@ fi
 #    precedes mise. Kept OUT of mise on purpose: mise's pipx backend
 #    (pipx.uvx = true) auto-discovers uv/uvx on PATH, so `mise upgrade` never
 #    churns the uvx that backs ansible (which used to self-upgrade mid-run).
-#    Pinned, not "latest": uv.lock carries a format revision, so a version skew
-#    churns every lockfile in the repo. Bump deliberately, with a re-lock.
-UV_VERSION=0.12.17
+#    Installed LATEST, not pinned: the repo's uv runs use --frozen, which never
+#    rewrites uv.lock, so a floating uv does not churn lockfiles (and latest
+#    carries the security fixes). To pin instead, set UV_VERSION — the installer
+#    then targets astral.sh/uv/<UV_VERSION>/install.sh.
+UV_VERSION="${UV_VERSION:-latest}"
 if ! command -v uv >/dev/null 2>&1; then
-    curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" | sh
+    if [ "$UV_VERSION" = "latest" ]; then
+        curl -LsSf "https://astral.sh/uv/install.sh" | sh
+    else
+        curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" | sh
+    fi
 fi
 # uv installs into ~/.local/bin; put it on PATH so mise can discover it below.
 export PATH="$HOME/.local/bin:$PATH"
