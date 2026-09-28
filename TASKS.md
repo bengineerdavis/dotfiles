@@ -65,6 +65,8 @@ is exactly the collision it exists to prevent.
 
 Format: `- <UTC start> — <what> — <files or resource>`
 
+- 2026-09-28 03:53 UTC — U1: remove mise's uv line, add required-version — dotfiles/apps/mise/files/config.toml, pyproject.toml
+
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
