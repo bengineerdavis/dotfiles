@@ -86,7 +86,7 @@ setopt autocd beep nomatch
 bindkey -v
 # End of lines configured by zsh-newuser-install
 # The following lines were added by compinstall
-zstyle :compinstall filename '/home/bdavis/.zshrc'
+zstyle :compinstall filename '~/.zshrc'
 
 autoload -U +X compinit && compinit
 autoload -U +X bashcompinit && bashcompinit
@@ -264,7 +264,7 @@ zinit snippet OMZP::command-not-found
 
 ## From bashrc
 # make man pages use color for easier reading
-# shellcheck source=/home/bdavis/.LESS_TERMCAP
+# shellcheck source={{ .chezmoi.homeDir }}/.LESS_TERMCAP
 source ~/.LESS_TERMCAP
 export MANPAGER='less -s -M +Gg'
 
@@ -328,7 +328,7 @@ fi
 export PATH="$HOME/usr/local/bin:$PATH"
 
 # # Created by `pipx` on 2023-03-07 16:42:51
-export PATH="/home/bdavis/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
 eval "$(register-python-argcomplete pipx)"
 
 # rustup config
@@ -352,7 +352,7 @@ MANGOHUD=1
 # testing MangoHUD settings ...
 
 # Created by `pipx` on 2024-04-09 06:09:58
-export PATH="$PATH:/home/bdavis/.local/bin"
+export PATH="$PATH:$HOME/.local/bin"
 
 # setup autocomplete for fzf in bash environment
 # [ -f ~/.fzf.bash ] && source ~/.fzf.bash
@@ -378,7 +378,7 @@ eval "$(zoxide init zsh --cmd cd)"
 # Generated for envman. Do not edit.
 [ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
 
-source /home/bdavis/.config/broot/launcher/bash/br
+source ~/.config/broot/launcher/bash/br
 
 # ROCm setup
 # docs: https://rocm.docs.amd.com/projects/install-on-linux/en/latest/install/post-install.html
