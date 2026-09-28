@@ -1726,12 +1726,6 @@ nothing is.
   via uv, is available to mise via sync, and the two no longer fight over the
   version. [blocked: the uv topic lands first]
 
-- **Rename `pipx.uvx` to `pypi.uvx` in the mise config.** `mise doctor`
-  reads our `pipx.uvx = true` as `pypi.uvx` — the setting was renamed. Verify
-  the rename is safe first (a wrong rename breaks the pipx backend that builds
-  `pipx:ansible`), then update the comment in `bootstrap.sh`. Done when the
-  config reads `pypi.uvx` and `mise doctor` reports no rename alias.
-
 - **Move the bootstrap into chezmoi — a minimal `curl | sh` fetches chezmoi,
   and chezmoi runs the rest.** Decision (author, 2026-09-28):
   `dotfiles/bootstrap/bootstrap.sh`'s install chain becomes chezmoi
