@@ -1765,6 +1765,20 @@ nothing is.
     (policy, deployed files) and loosest where it can (docs, TASKS.md); apply
     to new buckets only, never rewrite merged history.
 
+- **Warn that a stacked PR can merge into its parent's branch.** [agent:
+  OpenCode restart-review, 2026-09-24] PR #12 merged into
+  `restart_stale_role_ollama` after #11 had landed, so `main` never got it
+  (re-landed as #15). `docs/WORKTREES.md` § Bucketing step 6 now says to
+  check that a stacked PR's base is `main` before merging it. Open question
+  for the author: turn on `delete_branch_on_merge`, which makes GitHub
+  retarget children automatically. Done when the docs gate passes and a PR is
+  open. Branch and worktree `docs_stacked_pr_base`.
+  Revised 2026-09-24 by the author: rather than warn, open pull requests only
+  into `main`. Feature branches may still stack and take commits from each
+  other with no PR; a child opens its PR after its parent merges and it is
+  rebased onto `main`. The `delete_branch_on_merge` question is moot, since
+  no PR targets a branch that could be deleted.
+
 ## Planned
 
 
