@@ -1,0 +1,22 @@
+dot_zshrc.tmpl
+  s_547f006da5461f::t_d174cea2edcb42 5
+  s_547f006da5461f::t_2f9a1d62fd199f 69
+.chezmoi.toml.tmpl
+  s_547f006da5461f::t_f22f5fdd2c870d 13,17-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "92622b2fd626d26869255f2464a6d855e536ec9e",
+  "prompts": {},
+  "sessions": {
+    "s_547f006da5461f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2e9af15bffecKXp8mu1INMWM1",
+        "model": "anthropic/claude-opus-5.5"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
