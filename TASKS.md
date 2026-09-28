@@ -1714,8 +1714,9 @@ nothing is.
   help in a repo that is not dotfiles? — and record the answer when it lands:
   general pushes upstream, repo-local vendors in. Declared and installed via
   dotagents (`agents.toml` + `agents.lock`); facts stay in `docs/`. Done when
-  the process is written and the first skill — the council critique — lands
-  and is declared.
+  the process is written, the first skill — the council critique — lands and
+  is declared, and the `AGENTS.md` ladder is amended to permit vendoring
+  (authoring goes out; a finished, applicable skill may be copied in).
 
 - **Add a `uv` topic — the astral-installed runtime-manager mise consumes.**
   [agent: pyproject] `topic_name: uv`, `topic_provides: [uv]`, `topic_os:
