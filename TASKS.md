@@ -1699,18 +1699,20 @@ nothing is.
 ## Planned
 
 
-- **Define the reference-capture process — distill decisions into docs,
-  skills, and agents, each in its own file, with progressive disclosure.**
-  [me] The first question a capture answers is what KIND it is: a decision is
-  a fact → `docs/`; a reusable how-to is a method → a skill; a reusable
-  judgment role is an agent. Skills and agents use the open formats
-  (agentskills.io; `skills/<name>/SKILL.md` + `SPEC.md`, `agents/<name>.md`),
-  and the `description` frontmatter is the progressive-disclosure trigger —
-  surface stays small because only the matching skill/agent loads. Reference
-  https://github.com/getsentry/skills for the layout and its scoping rule
-  (global / domain / repo-specific). Done when the process is written, the
-  getsentry/skills layout is a REFERENCES row, and one real capture from a
-  recent session is produced through it.
+- **Grow a dotfiles agent + skill set — an additive agentic layer that
+  compounds one capture per session, over the unchanged determinant layer.**
+  [me] `spec.md`/`AGENTS.md`/the guards keep constraining; this adds skills
+  and agents that encode the reusable capability each session produces, so
+  working here gets faster rather than more constrained. A skill captures a
+  method (candidate first: the council critique — fresh advisors plus a
+  second-vendor model, disagreements to the author), an agent captures a
+  role; each lives in its own file with a `description` that is the
+  progressive-disclosure trigger, so the surface stays small. Skills home
+  where the ladder says (ai-prompt-library) and are declared here as
+  dependencies (spec.md § Dependencies); facts stay in `docs/`. Reference
+  https://github.com/getsentry/skills for the layout. Done when the process
+  is written and the first skill — the council critique — lands and is
+  declared.
 
 - **Add a `uv` topic — the astral-installed runtime-manager mise consumes.**
   [agent: pyproject] `topic_name: uv`, `topic_provides: [uv]`, `topic_os:
