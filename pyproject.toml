@@ -16,7 +16,7 @@ dev = [
 [tool.uv]
 package = false             # never build or install the repo itself
 environments = ["sys_platform == 'darwin'", "sys_platform == 'linux'"]
-# required-version is added after U1 makes the uv pin real (post-PR-1).
+required-version = "==0.12.17"
 
 [tool.pytest]
 testpaths = ["tests", "tools"]
