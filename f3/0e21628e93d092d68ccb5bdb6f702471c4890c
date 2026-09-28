@@ -1,0 +1,19 @@
+TASKS.md
+  s_547f006da5461f::t_208e64ea36a783 830-831
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f30e21628e93d092d68ccb5bdb6f702471c4890c",
+  "prompts": {},
+  "sessions": {
+    "s_547f006da5461f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2e9af15bffecKXp8mu1INMWM1",
+        "model": "anthropic/claude-opus-5.5"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
