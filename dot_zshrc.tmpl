@@ -2,7 +2,7 @@
 export ZSH="$HOME/dotfiles"
 export PROJECTS=~/code
 
-{{- if eq .chezmoi.os "darwin" }}
+{{- if .isMac }}
 ## ---- New .zshrc config ---- ##
 
 # On macOS: use chezmoi to add local config if available
@@ -66,7 +66,7 @@ export PROJECTS=~/code
 
 {{- end }}
 
-{{- if eq .chezmoi.os "linux" }}
+{{- if not .isMac }}
 ## ---- Old linux .zshrc TODO: PLEASE REFACTOR ---- ##
 
 # On Linux: keep legacy local config loading and project shortcuts

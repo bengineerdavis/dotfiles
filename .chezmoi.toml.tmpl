@@ -10,9 +10,15 @@ pager = "bat -l help"
 # Example: email = "your@email.com"
 {{ $email := promptStringOnce . "email" "Git email — use a work address on a work machine" "bengineerdavis@gmail.com" }}
 {{ $name := promptStringOnce . "name" "Git full name" "Ben Davis" }}
+{{ $machine := promptStringOnce . "machine" "Machine label — a short name for per-machine config switches" .chezmoi.hostname }}
 [data]
     email = "{{ $email }}"
     name = "{{ $name }}"
+    machine = "{{ $machine }}"
+    # Computed facts, not prompts: the machine already knows these.
+    arch = "{{ .chezmoi.arch }}"
+    isMac = {{ eq .chezmoi.os "darwin" }}
+    distro = "{{ if eq .chezmoi.os "linux" }}{{ .chezmoi.osRelease.id }}{{ end }}"
 
 [diff]
     # Graphical side-by-side comparison using Meld
