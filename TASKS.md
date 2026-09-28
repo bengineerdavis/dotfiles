@@ -1715,6 +1715,17 @@ nothing is.
   provision. Done when mise resolves uv first in the dependency graph and a
   stale-shim machine converges to system uv on a normal run.
 
+- **Shift Python ownership from mise to uv, mise syncing.** Decision
+  (author, 2026-09-28): uv is the better Python env manager. `uv python
+  install X` installs, `mise sync python --uv` shares it, `mise use -g
+  python@X` selects it; mise runs uv beneath and integrates Python with the
+  other runtimes. Today `python = "3.14"` is mise-managed and mise
+  `topic_provides: [python]`. Also set `python.uv_venv_auto = "source"` — the
+  cookbook's non-deprecated form, which clears the stray deprecation warning
+  (traced to `pypi.uvx = true`, not a config key). Done when Python installs
+  via uv, is available to mise via sync, and the two no longer fight over the
+  version. [blocked: the uv topic lands first]
+
 - **Watch the `pytest-agent-*` ecosystem — reopen trigger, not a standing
   task.** `pytest-agentkit`, `pytest-agentprobe`, `pytest-agent-eval`,
   `pytest-agent-health` verified real on PyPI 2026-09-22 but too immature to
