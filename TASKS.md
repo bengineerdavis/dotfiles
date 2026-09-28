@@ -1699,6 +1699,19 @@ nothing is.
 ## Planned
 
 
+- **Define the reference-capture process — distill decisions into docs,
+  skills, and agents, each in its own file, with progressive disclosure.**
+  [me] The first question a capture answers is what KIND it is: a decision is
+  a fact → `docs/`; a reusable how-to is a method → a skill; a reusable
+  judgment role is an agent. Skills and agents use the open formats
+  (agentskills.io; `skills/<name>/SKILL.md` + `SPEC.md`, `agents/<name>.md`),
+  and the `description` frontmatter is the progressive-disclosure trigger —
+  surface stays small because only the matching skill/agent loads. Reference
+  https://github.com/getsentry/skills for the layout and its scoping rule
+  (global / domain / repo-specific). Done when the process is written, the
+  getsentry/skills layout is a REFERENCES row, and one real capture from a
+  recent session is produced through it.
+
 - **Add a `uv` topic — the astral-installed runtime-manager mise consumes.**
   [agent: pyproject] `topic_name: uv`, `topic_provides: [uv]`, `topic_os:
   [Darwin, Debian]`, `topic_tier: runtime-manager`. install/upgrade run the
