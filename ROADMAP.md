@@ -81,6 +81,25 @@ layers for machine-local rules, `bin/policy` as the resolver — and no new
 policy home is created. This line is deleted only when the over-arching
 question is answered and the answer is recorded in `PRD.md`.
 
+### A dotfiles template, with its agent and skills as part of the format
+
+The end state this repository is drifting toward. The dotfiles pattern ships
+as a template a user installs; from then on an agent — usable from anywhere
+in their user environment — adds, modifies, or removes the configuration they
+capture for their machine(s), then syncs. Eventually a CLI sends instructions
+to a background agent that reliably does chezmoi repo and topic management.
+
+The load-bearing requirement: the full agent file and skill set are part of
+the template's format, not an add-on, so a fresh install carries its own
+management capability. This is why the skill set is a first-class piece
+(TASKS.md § Planned) and why skills sync bidirectionally with the AI library:
+general skills push upstream, applicable ones vendor in.
+
+Composes the pieces already on the map — the copier template, the `topic` CLI
+(A1–A7), the "policy-aware CLI agent" item below, and the agent + skill set —
+into the management layer that PRD.md's "machine ready to use" implies for
+the repository itself.
+
 ### A policy-aware CLI agent, or the topic CLI growing one more job
 
 `AGENTS.md` § What agents do here makes build-versus-configure routing agent
