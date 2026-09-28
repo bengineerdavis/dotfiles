@@ -829,6 +829,11 @@ nothing is.
       side finding 1); this is the one task for it. Done when `command -v
       uv` is the system install on both machines, mise declares no uv, and
       `required-version` enforces the pin.
+      **2026-09-28:** source half done on the Linux box — system uv 0.12.17
+      installed, mise line removed, `required-version` added — as PR #25.
+      `command -v uv` still resolves to mise's shim until the config is
+      deployed and mise reshims; the Mac's uv state is unverified. Apply
+      and reshim are the author's.
 
 - **Consolidate the governance docs — PRD as the constitution, spec as the
   derived statutes, conventions as the how-to.** [#2, was #1 until the author
@@ -1781,10 +1786,13 @@ nothing is.
   it — mise warned the deprecation during the herdr work (2026-09-19:
   `python.uv_venv_auto=true` must become `python.uv_venv_auto="create|source"`
   or `"source"` in `apps/mise/files/config.toml`).
-  **Premise suspect, 2026-09-23:** the key is in no tracked file, and
-  `mise settings get python.uv_venv_auto` returns `false` on the Linux box.
-  Find where the warning came from (another config, an env var, the Mac)
-  before acting.
+  **Premise suspect, 2026-09-23; refined 2026-09-28:** the key is in no
+  tracked file, and `mise settings get python.uv_venv_auto` returns `false`
+  on the Linux box — yet `mise ls` and `mise settings` DO still emit the
+  `python.uv_venv_auto=true is deprecated` warning. So the `true` value is
+  injected from somewhere unseen (a settings file, env var, or default),
+  while `settings get` reads a different layer. Track down the source before
+  acting.
 
 - **Stop repo tooling leaking into `$HOME`.** `chezmoi managed
   --include=files` on 2026-09-23 (700 paths) lists `docs/LANGUAGES.md`,
