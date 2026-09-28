@@ -1732,6 +1732,14 @@ nothing is.
   `pipx:ansible`), then update the comment in `bootstrap.sh`. Done when the
   config reads `pypi.uvx` and `mise doctor` reports no rename alias.
 
+- **Move the bootstrap into chezmoi — a minimal `curl | sh` fetches chezmoi,
+  and chezmoi runs the rest.** Decision (author, 2026-09-28):
+  `dotfiles/bootstrap/bootstrap.sh`'s install chain becomes chezmoi
+  run-once / `.pre-apply` hooks so `chezmoi apply` drives Homebrew, uv, and
+  the rest. The only step outside chezmoi is fetching the chezmoi binary
+  itself. Done when a fresh machine starts from a minimal chezmoi install and
+  chezmoi runs the full provision chain.
+
 - **Watch the `pytest-agent-*` ecosystem — reopen trigger, not a standing
   task.** `pytest-agentkit`, `pytest-agentprobe`, `pytest-agent-eval`,
   `pytest-agent-health` verified real on PyPI 2026-09-22 but too immature to
