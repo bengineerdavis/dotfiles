@@ -66,11 +66,29 @@ aggregate-only status does not count.
 
 Persistent per-repo last-fetch and blocked-since records (machine-written,
 separate from hand-edited files, never backed up) feeding a staleness warning
-(12h discipline). "Good run" must be defined independently of exit 0.
+(12h discipline). "Good run" is defined independently of exit 0 — it is derived
+from the state records, never from the process exit code.
 
-**Source:** handoff decisions 21, 23; G0b open questions (G4/G5).
+Settled semantics (2026-09-29 architecture inspection):
+
+- `last-fetch` advances only on a successful fetch of that repo; a failed or
+  unknown fetch leaves the prior timestamp intact (never advances, never claims
+  freshness). Missing / first-run is a distinct "never fetched, warned" state.
+- `blocked-since` records when a repo stopped being mergeable (dirty / diverged /
+  detached / no-upstream) and resets only when a clean `ff-only` merge clears the
+  reason — not when the timer fires.
+- The staleness warning reads state only (timestamps; no git, no network), so it
+  can never alter the state it reports on.
+
+Ownership constraint (PRD § architecture): this store is a tool's *state*, and
+"good run ≢ exit 0" is a tool's *logic* — so per the provisioning rule (install
+and trigger, never contain logic or state) the store must belong to a real tool
+(adopted, or Path B), not to Ansible tasks or templates.
+
+**Source:** handoff decisions 21, 23; G0b open questions (G4/G5); author answer
+#26; ARCHITECTURE-INSPECTION.md § 3.
 **Verification:** timestamps written per run; failure leaves prior evidence
-intact rather than advancing it.
+intact rather than advancing it; a 0-fetch exit-0 run is not recorded "good".
 
 ## R7 — Remote-identity adoption
 

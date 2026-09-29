@@ -277,3 +277,30 @@ research (`TASKS.md` § Now #1 (p)). Cost: nearly every tracked file moves
 path changes, and it collides with every open branch. Benefit: the ignore
 list and its guard stop being the only defence. The root-project-plus-
 ignore-list option passed the same rule-outs for far less, so it went first.
+
+### Topic-architecture cleanup (from the 2026-09-29 inspection)
+
+Five findings from `dotfiles/docs/research/repo-manager/ARCHITECTURE-INSPECTION.md`,
+triaged here rather than in any thread. None are scheduled; several fold into
+work already queued.
+
+- **Redact the committed machine identity.** `dotfiles/machines.yml:14` commits
+  a value (`L37V3P6GQ3`, "this Mac") that looks like an Apple hardware serial and
+  contradicts `MULTI-MACHINE.md` ("hostnames appear nowhere in git data"). G2
+  drops hostnames from current files; the history scrub remains a separate
+  "bounds future exposure" decision.
+- **Pick one local-state home for machine data.** The unversioned machine seam
+  has three namespaces — `~/.local/state/chezmoi/machines.toml`,
+  `~/.local/state/layout/machines.local.yaml`, `~/.local/state/machine/` — and
+  nothing says which is authoritative. Retire two, or document the ownership.
+- **Fix `TOPICS.md`'s metadata-location contradiction.** Three statements
+  disagree on where `topic_name`/`topic_tier`/… live (role-root `topic.yml` vs
+  "we do not use topic.yml" vs editing `meta/main.yml`). The intent is clear; the
+  doc is wrong in two places.
+- **Document `topic_subscribes`.** The catalogue subscription mechanism is
+  exercised (`apps/visual-studio-code/tasks/install.yaml`) and described in
+  `config/editors.yaml` / `config/agents.yaml`, but `TOPICS.md` and
+  `ARCHITECTURE.md` never name the key or the mechanism.
+- **Fold the rest into Refactor A / Topic bundles.** The remaining "mess" (a topic
+  system mid-refactor, `managers.yaml` drift) is already queued under § Scheduled;
+  do not open a parallel cleanup.
