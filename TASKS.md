@@ -73,6 +73,9 @@ delete the line and say so in your commit.
   `skill-trust-foreign-buckets`, worktree
   `~/code/wt-skill-trust-foreign-buckets`) — `tools/skill-trust/**`,
   `dotfiles/apps/opencode/**`, `dotfiles/roles/guards/**`
+- 2026-09-29T15:00Z — repo-manager orchestrator takeover — TASKS.md § Now
+  repo-manager line, `dotfiles/docs/research/repo-manager/**` (branch
+  `agent/repo-manager`, worktree `.worktrees/repo-manager`)
 
 
 ## Where things stand — 2026-09-23 (the session handoff)
@@ -429,7 +432,7 @@ nothing is.
   SOURCES.md; the combination ledger and Path A/B cost sketch exist; the
   author records the decision with dissent notes; TASKS.md/ROADMAP.md are
   updated; and Path B queues a new-repo bootstrap outside this repo.
-  [agent: repo-manager / OpenCode — orchestrator session]
+  [agent: repo-manager / OpenCode — orchestrator session] [blocked: OpenRouter key for sonar + hosted council]
 
 - **G1 — find a maintainable existing repository manager before selecting
   the Gita/Ansible path.** After G0, alongside BK1 and the existing
