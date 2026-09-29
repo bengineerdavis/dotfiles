@@ -1,0 +1,21 @@
+ROADMAP.md
+  s_6b84435db451de::t_25b582f08ea5b8 280-306
+dotfiles/docs/research/repo-manager/REQUIREMENTS.md
+  s_6b84435db451de::t_004f2786693919 69-89,91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1e263011f96210d0b159b99976d9f457a899827c",
+  "prompts": {},
+  "sessions": {
+    "s_6b84435db451de": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f28f59f75ffeYKB7iInOnBwVbo",
+        "model": "~deepseek/deepseek-pro-latest"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
