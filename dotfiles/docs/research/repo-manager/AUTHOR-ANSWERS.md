@@ -71,6 +71,22 @@ rather than re-asking cold.
 | 34 | R6 state store URL/token-free? | "agreed" | Agreed: R6 state carries no URLs/userinfo. |
 | 35 | Accept macOS/Linux keychain asymmetry? | "defer, but yes likely we should accept" | Deferred; likely accept as a documented constraint. |
 
+## 2026-09-29 (post-sonar candidate notes)
+
+Author's standing observations after the sonar round (recorded, not questions):
+
+- **mu-repo** — "while I like mu-repo as an option, it looks like it's not
+  really an active project or, to put it kindly, barely in 'maintenance mode',
+  risking becoming abandonware." Effect: deprioritize; verify maintenance status
+  for the record, revisit only if a later round needs it.
+- **repoman (basti1302)** — "the repoman found is plain JavaScript and also
+  doesn't seem that well maintained, which are a turnoff." Effect: dropped as a
+  candidate (wrong language per R11 + maintenance signal).
+- **Multi-tool composition** — "I see us having to learn and use a lot more tools
+  — using more than one tool to cover one job looks concerning, but not off the
+  table in terms of my options." Effect: a multi-tool Path A composition carries
+  a real integration/learning cost that weighs against it; it is not disqualified.
+
 ## Standing context the answers imply
 
 - Commit authority granted to the orchestrator covers faithful
