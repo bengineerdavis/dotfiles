@@ -1779,6 +1779,12 @@ nothing is.
   rebased onto `main`. The `delete_branch_on_merge` question is moot, since
   no PR targets a branch that could be deleted.
 
+- **Record who the everything-is-branched rule covers.** [agent: OpenCode
+  restart-review, 2026-09-28; author-answered] The author confirmed the rule
+  covers them and every session, with a manual override for their own
+  commits only. AGENTS.md § Everything is branched now says so. Done when the
+  docs gate passes and a PR is open. Branch `agents_author_override`.
+
 ## Planned
 
 
