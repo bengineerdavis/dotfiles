@@ -60,9 +60,9 @@ def row(pid: int, start: float, comm: str = "/opt/homebrew/bin/ollama") -> dict:
 
 
 def test_the_2026_09_22_server_is_stale_by_ctime():
-    started = pdt("2026-09-20 09:00:00")      # running 0.33.3
-    ctime = pdt("2026-09-22 17:52:10")        # brew installed 0.34.3
-    mtime = pdt("2026-09-18 17:15:35")        # what a naive check would read
+    started = pdt("2026-09-20 09:00:00")  # running 0.33.3
+    ctime = pdt("2026-09-22 17:52:10")  # brew installed 0.34.3
+    mtime = pdt("2026-09-18 17:15:35")  # what a naive check would read
 
     verdict = rs.verdict([row(37089, started)], ctime)
 
@@ -75,8 +75,9 @@ def test_the_2026_09_22_server_is_stale_by_ctime():
 
 def test_the_server_restarted_at_19_03_is_fresh():
     """The machine's state when this was written: restarted onto 0.34.3."""
-    verdict = rs.verdict([row(37089, pdt("2026-09-22 19:03:34"))],
-                         pdt("2026-09-22 17:52:10"))
+    verdict = rs.verdict(
+        [row(37089, pdt("2026-09-22 19:03:34"))], pdt("2026-09-22 17:52:10")
+    )
     assert verdict["stale"] is False
     assert verdict["running"] is True
 
@@ -168,7 +169,9 @@ def test_only_the_main_binary_counts_for_an_app():
     assert verdict["stale"] is False, "a helper's age decided the verdict"
 
 
-@given(suffix=st.text(alphabet=string.ascii_letters + " -_.()/", min_size=1, max_size=12))
+@given(
+    suffix=st.text(alphabet=string.ascii_letters + " -_.()/", min_size=1, max_size=12)
+)
 def test_a_path_that_merely_starts_with_the_binary_never_matches(suffix):
     rows = [row(1, 0, OP + suffix)]
     assert rs.verdict(rows, 1.0, comm=OP)["running"] is False
@@ -201,12 +204,15 @@ def test_no_output_is_no_processes():
     assert rs.ps_rows("\n  \n") == []
 
 
-@pytest.mark.parametrize("line", [
-    "37089",                                        # truncated
-    "37089 Wed Sep 23 02:03:34 2026",               # no command
-    "abc Wed Sep 23 02:03:34 2026 /bin/x",          # pid not a number
-    "37089 Mitt Sep 23 02:03:34 2026 /bin/x",       # a locale ps was not run in
-])
+@pytest.mark.parametrize(
+    "line",
+    [
+        "37089",  # truncated
+        "37089 Wed Sep 23 02:03:34 2026",  # no command
+        "abc Wed Sep 23 02:03:34 2026 /bin/x",  # pid not a number
+        "37089 Mitt Sep 23 02:03:34 2026 /bin/x",  # a locale ps was not run in
+    ],
+)
 def test_an_unreadable_row_is_an_error_not_a_skip(line):
     """Dropping a row would read as "not running", which is a verdict. An
     unreadable row is an unknown, and unknowns must not become verdicts."""
@@ -214,15 +220,24 @@ def test_an_unreadable_row_is_an_error_not_a_skip(line):
         rs.ps_rows(line)
 
 
-comms = st.text(
-    alphabet=string.ascii_letters + string.digits + " ()-_./", min_size=1, max_size=40
-).map(str.strip).filter(bool)
+comms = (
+    st.text(
+        alphabet=string.ascii_letters + string.digits + " ()-_./",
+        min_size=1,
+        max_size=40,
+    )
+    .map(str.strip)
+    .filter(bool)
+)
 
 
-@given(entries=st.lists(
-    st.tuples(st.integers(1, 99999), st.integers(0, 4_000_000_000), comms),
-    max_size=6,
-), pad=st.integers(0, 6))
+@given(
+    entries=st.lists(
+        st.tuples(st.integers(1, 99999), st.integers(0, 4_000_000_000), comms),
+        max_size=6,
+    ),
+    pad=st.integers(0, 6),
+)
 def test_ps_rows_round_trips_what_ps_prints(entries, pad):
     text = "".join(
         f"{pid:>{pad}} {lstart(start)}{' ' * pad} {comm}\n"

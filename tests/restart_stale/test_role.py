@@ -51,9 +51,12 @@ def launchd(machine, run_role, *, started_offset: float | None, flags=()):
     else:
         machine.state["launchd"] = {LABEL: 4242}
         machine.process(4242, machine.ctime(binary) + started_offset, str(binary))
-    return run_role(*flags, restart_stale_kind="launchd",
-                    restart_stale_launchd_label=LABEL,
-                    restart_stale_binary=str(binary))
+    return run_role(
+        *flags,
+        restart_stale_kind="launchd",
+        restart_stale_launchd_label=LABEL,
+        restart_stale_binary=str(binary),
+    )
 
 
 @darwin_only
@@ -61,7 +64,11 @@ def test_launchd_stale_agent_is_kickstarted(machine, run_role):
     result = ok(launchd(machine, run_role, started_offset=-HOUR))
 
     assert machine.calls("launchctl")[-1] == [
-        "launchctl", "kickstart", "-k", f"gui/{UID}/{LABEL}"]
+        "launchctl",
+        "kickstart",
+        "-k",
+        f"gui/{UID}/{LABEL}",
+    ]
     assert said(result, "RESTARTED because pid 4242 started")
 
 
@@ -97,7 +104,7 @@ def test_ctime_is_read_through_the_symlink(machine, run_role):
     after the file it points at, so its own ctime is later. Judged by the link,
     a process started between the two would look stale when it is not."""
     target = machine.binary("Cellar/thing/2/thing")
-    time.sleep(2.1)                         # lstart has one-second resolution
+    time.sleep(2.1)  # lstart has one-second resolution
     link = machine.root / "bin" / "thing"
     link.parent.mkdir()
     link.symlink_to(target)
@@ -106,9 +113,13 @@ def test_ctime_is_read_through_the_symlink(machine, run_role):
 
     machine.state["launchd"] = {LABEL: 4242}
     machine.process(4242, between, str(link))
-    result = ok(run_role(restart_stale_kind="launchd",
-                         restart_stale_launchd_label=LABEL,
-                         restart_stale_binary=str(link)))
+    result = ok(
+        run_role(
+            restart_stale_kind="launchd",
+            restart_stale_launchd_label=LABEL,
+            restart_stale_binary=str(link),
+        )
+    )
 
     assert not [c for c in machine.calls("launchctl") if "kickstart" in c]
     assert said(result, "after the binary changed")
@@ -130,9 +141,12 @@ def systemd(machine, run_role, *, started_offset: float | None, flags=()):
     else:
         machine.state["systemd"] = {UNIT: 4343}
         machine.process(4343, machine.ctime(binary) + started_offset, "thing")
-    return run_role(*flags, restart_stale_kind="systemd",
-                    restart_stale_systemd_unit=UNIT,
-                    restart_stale_binary=str(binary))
+    return run_role(
+        *flags,
+        restart_stale_kind="systemd",
+        restart_stale_systemd_unit=UNIT,
+        restart_stale_binary=str(binary),
+    )
 
 
 def restarts(machine):
@@ -178,9 +192,13 @@ def test_a_bottle_dated_mtime_does_not_hide_a_stale_process(machine, run_role):
 
     machine.state["systemd"] = {UNIT: 4343}
     machine.process(4343, started, "thing")
-    result = ok(run_role(restart_stale_kind="systemd",
-                         restart_stale_systemd_unit=UNIT,
-                         restart_stale_binary=str(binary)))
+    result = ok(
+        run_role(
+            restart_stale_kind="systemd",
+            restart_stale_systemd_unit=UNIT,
+            restart_stale_binary=str(binary),
+        )
+    )
 
     assert restarts(machine), "judged the process by mtime, not ctime"
     assert said(result, "RESTARTED")
@@ -191,8 +209,7 @@ def test_a_bottle_dated_mtime_does_not_hide_a_stale_process(machine, run_role):
 APP_PID = 5151
 
 
-def app(machine, run_role, *, started_offset: float, quits=True, quit_rc=0,
-        flags=()):
+def app(machine, run_role, *, started_offset: float, quits=True, quit_rc=0, flags=()):
     binary = machine.binary("Apps/Thing.app/Contents/MacOS/Thing")
     start = machine.ctime(binary) + started_offset
     machine.process(APP_PID, start, str(binary))
@@ -202,10 +219,13 @@ def app(machine, run_role, *, started_offset: float, quits=True, quit_rc=0,
     machine.state["exits_on_quit"] = [APP_PID] if quits else []
     machine.state["quit_rc"] = quit_rc
     machine.state["quit_stderr"] = "Not authorised to send Apple events (-1743)"
-    return run_role(*flags, restart_stale_kind="app",
-                    restart_stale_app_name="Thing",
-                    restart_stale_binary=str(binary),
-                    restart_stale_quit_timeout=2)
+    return run_role(
+        *flags,
+        restart_stale_kind="app",
+        restart_stale_app_name="Thing",
+        restart_stale_binary=str(binary),
+        restart_stale_quit_timeout=2,
+    )
 
 
 @darwin_only
@@ -215,8 +235,7 @@ def test_app_stale_is_quit_gracefully_then_reopened(machine, run_role):
     quit = machine.calls("osascript")
     bundle = str(machine.root / "Apps" / "Thing.app")
     assert quit and f'quit app "{bundle}"' in quit[0]
-    assert machine.calls("open") == [
-        ["open", "-a", bundle]]
+    assert machine.calls("open") == [["open", "-a", bundle]]
     assert said(result, "RESTARTED (quit and reopened)")
 
 
@@ -245,8 +264,9 @@ def test_app_whose_quit_is_refused_is_left_running(machine, run_role):
     result = ok(app(machine, run_role, started_offset=-HOUR, quit_rc=1))
 
     assert not machine.calls("open")
-    assert all("pid=" not in c for c in machine.calls("ps")), \
+    assert all("pid=" not in c for c in machine.calls("ps")), (
         "waited for an exit that was never requested"
+    )
     assert said(result, "STALE but NOT restarted: the graceful quit failed")
     assert said(result, "-1743")
 
@@ -254,7 +274,10 @@ def test_app_whose_quit_is_refused_is_left_running(machine, run_role):
 @darwin_only
 @pytest.mark.parametrize("rc", [1, 2])
 def test_an_exit_probe_error_cannot_authorize_reopening(machine, run_role, rc):
-    machine.state["exit_probe_error"] = {"rc": rc, "stderr": "process probe unavailable"}
+    machine.state["exit_probe_error"] = {
+        "rc": rc,
+        "stderr": "process probe unavailable",
+    }
     result = app(machine, run_role, started_offset=-HOUR)
 
     assert result.returncode != 0, result.stdout + result.stderr
@@ -265,7 +288,10 @@ def test_an_exit_probe_error_cannot_authorize_reopening(machine, run_role, rc):
 
 @darwin_only
 def test_an_unreadable_process_table_is_not_a_stopped_app(machine, run_role):
-    machine.state["process_probe_error"] = {"rc": 1, "stderr": "process table unavailable"}
+    machine.state["process_probe_error"] = {
+        "rc": 1,
+        "stderr": "process table unavailable",
+    }
     result = app(machine, run_role, started_offset=-HOUR)
 
     assert result.returncode != 0, result.stdout + result.stderr

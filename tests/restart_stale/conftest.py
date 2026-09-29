@@ -123,8 +123,9 @@ class Machine:
             stub.chmod(0o755)
         self.state: dict = {"procs": []}
 
-    def binary(self, relpath: str = "Cellar/thing/2/thing",
-               bottle_age: float = 0) -> pathlib.Path:
+    def binary(
+        self, relpath: str = "Cellar/thing/2/thing", bottle_age: float = 0
+    ) -> pathlib.Path:
         """A real file to stand in for the binary.
 
         `bottle_age` backdates its mtime the way a Homebrew bottle does. Setting
@@ -176,8 +177,15 @@ def run_role(ansible_playbook, tmp_path, machine):
         play.write_text(HARNESS, encoding="utf-8")
         params.setdefault("restart_stale_caller", "tests/restart_stale")
         return subprocess.run(
-            [ansible_playbook, "-i", "localhost,", str(play),
-             "-e", json.dumps(params), *flags],
+            [
+                ansible_playbook,
+                "-i",
+                "localhost,",
+                str(play),
+                "-e",
+                json.dumps(params),
+                *flags,
+            ],
             cwd=DOTFILES,
             env=machine.env(),
             capture_output=True,

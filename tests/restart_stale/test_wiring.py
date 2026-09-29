@@ -31,14 +31,16 @@ def tasks(path: pathlib.Path) -> list[dict]:
 def calls(path: pathlib.Path) -> list[tuple[int, dict]]:
     """(position, task) for every import of the role in a task file."""
     return [
-        (i, t) for i, t in enumerate(tasks(path))
+        (i, t)
+        for i, t in enumerate(tasks(path))
         if (t.get("ansible.builtin.import_role") or {}).get("name") == ROLE
     ]
 
 
 def only_call(path: pathlib.Path, **match) -> tuple[int, dict]:
     found = [
-        (i, t) for i, t in calls(path)
+        (i, t)
+        for i, t in calls(path)
         if all(t.get("vars", {}).get(k) == v for k, v in match.items())
     ]
     assert len(found) == 1, f"expected one {match} call in {path}, found {len(found)}"
@@ -58,7 +60,8 @@ def test_every_caller_uses_a_static_import():
         for task in tasks(path):
             for key in ("ansible.builtin.include_role", "include_role"):
                 assert (task.get(key) or {}).get("name") != ROLE, (
-                    f"{path.relative_to(DOTFILES)} includes {ROLE} dynamically")
+                    f"{path.relative_to(DOTFILES)} includes {ROLE} dynamically"
+                )
 
 
 def test_every_call_runs_under_upgrade():
@@ -67,7 +70,8 @@ def test_every_call_runs_under_upgrade():
     for path in sorted(APPS.glob("*/tasks/*.yaml")):
         for _, task in calls(path):
             assert "upgrade" in (task.get("tags") or []), (
-                f"{path.relative_to(DOTFILES)}: {task.get('name')!r} is not tagged upgrade")
+                f"{path.relative_to(DOTFILES)}: {task.get('name')!r} is not tagged upgrade"
+            )
 
 
 # ── apps/ollama ──────────────────────────────────────────────────────────────
@@ -89,8 +93,13 @@ def test_ollama_checks_the_binary_its_agent_runs():
     """The agent's Program and the checked binary must be one expression, or
     the check can judge a file the server never runs."""
     plist = (APPS / "ollama" / "templates" / "com.ollama.server.plist.j2").read_text()
-    program = re.search(r"<key>ProgramArguments</key>\s*<array>\s*<string>\{\{(.+?)\}\}",
-                        plist).group(1).strip()
+    program = (
+        re.search(
+            r"<key>ProgramArguments</key>\s*<array>\s*<string>\{\{(.+?)\}\}", plist
+        )
+        .group(1)
+        .strip()
+    )
     _, call = only_call(OLLAMA, restart_stale_kind="launchd")
 
     assert call["vars"]["restart_stale_binary"] == "{{ " + program + " }}"
@@ -103,7 +112,9 @@ def test_ollama_checks_its_systemd_unit_last():
     # /etc/systemd/system/ollama.service: a system unit, not a user one.
     assert call["vars"]["restart_stale_systemd_scope"] == "system"
     assert call["vars"]["restart_stale_binary"] == "/usr/bin/ollama"
-    assert at > position_of(OLLAMA, "ollama (Debian): enable + (re)start ollama service")
+    assert at > position_of(
+        OLLAMA, "ollama (Debian): enable + (re)start ollama service"
+    )
 
 
 def test_ollama_checks_the_binary_its_unit_runs():
@@ -129,19 +140,25 @@ def cask_tasks(path: pathlib.Path) -> list[tuple[int, dict]]:
 def test_1password_app_lives_in_slash_applications():
     """1Password's own support article requires the app in /Applications for
     browser integration — the documented exception to ~/Applications."""
-    assert yaml.safe_load(OP_DEFAULTS.read_text())["onepassword_appdir"] == "/Applications"
+    assert (
+        yaml.safe_load(OP_DEFAULTS.read_text())["onepassword_appdir"] == "/Applications"
+    )
 
 
 def test_1password_cask_adopts_the_existing_app_in_place():
     """Without --adopt, brew refuses because the app is already there; with
     ~/Applications from HOMEBREW_CASK_OPTS it would install a second copy."""
-    [(_, task)] = [(i, t) for i, t in cask_tasks(OP_INSTALL) if t[CASK]["name"] == "1password"]
+    [(_, task)] = [
+        (i, t) for i, t in cask_tasks(OP_INSTALL) if t[CASK]["name"] == "1password"
+    ]
     options = task[CASK]["install_options"]
 
     assert task[CASK]["state"] == "present"
     assert "adopt" in options
     assert "appdir={{ onepassword_appdir }}" in options
-    assert "force" not in options, "force would overwrite the app instead of adopting it"
+    assert "force" not in options, (
+        "force would overwrite the app instead of adopting it"
+    )
 
 
 def test_1password_checks_the_app_it_installed():
@@ -150,7 +167,8 @@ def test_1password_checks_the_app_it_installed():
 
     assert call["vars"]["restart_stale_app_name"] == "1Password"
     assert call["vars"]["restart_stale_binary"] == (
-        "{{ onepassword_appdir }}/1Password.app/Contents/MacOS/1Password")
+        "{{ onepassword_appdir }}/1Password.app/Contents/MacOS/1Password"
+    )
     assert call["when"] == "ansible_facts['os_family'] == 'Darwin'"
     assert at > cask_at
 
@@ -159,10 +177,17 @@ def test_1password_is_not_upgraded_greedily():
     """The cask is auto_updates: 1Password's own updater keeps it current.
     Neither this topic nor the homebrew tier may add brew as a second updater;
     the restart check catches a self-update that left the old process up."""
-    for path in [*OP_TASKS.glob("*.yaml"), APPS / "homebrew" / "tasks" / "upgrade.yaml"]:
+    for path in [
+        *OP_TASKS.glob("*.yaml"),
+        APPS / "homebrew" / "tasks" / "upgrade.yaml",
+    ]:
         for _, task in cask_tasks(path):
-            assert not task[CASK].get("greedy"), f"{path.relative_to(DOTFILES)} upgrades greedily"
-        assert "--greedy" not in path.read_text(), f"{path.relative_to(DOTFILES)} passes --greedy"
+            assert not task[CASK].get("greedy"), (
+                f"{path.relative_to(DOTFILES)} upgrades greedily"
+            )
+        assert "--greedy" not in path.read_text(), (
+            f"{path.relative_to(DOTFILES)} passes --greedy"
+        )
 
 
 def test_1password_removes_the_app_only_when_asked():
@@ -172,5 +197,6 @@ def test_1password_removes_the_app_only_when_asked():
     assert defaults["onepassword_remove_app"] is False
     assert task[CASK]["state"] == "absent"
     assert "onepassword_remove_app | bool" in task["when"]
-    assert "zap" not in str(task[CASK].get("install_options", "")), \
+    assert "zap" not in str(task[CASK].get("install_options", "")), (
         "zap would delete the vault data under ~/Library"
+    )
