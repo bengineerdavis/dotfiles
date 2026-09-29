@@ -35,6 +35,21 @@ challenge earlier answers but never silently re-ask them.
 | 19 | Recruiter budget? | "Separate small budget" → then "$5 cap" | Recruiter cap $5, separate from the critics' $5 |
 | 20 | Execute the handoff? | "Approved — execute" (+ "beware a lot of changes are coming from main") | This branch and HANDOFF exist; main was fast-forwarded 87 commits first; next session syncs main before starting |
 
+## 2026-09-29 (session-start blockers)
+
+The three setup questions (git reconciliation, model access, process rule) were
+asked and the author dismissed the prompt, then directed: "update handoff after
+resolving and pushing resolution to blockers", "Be aware a lot of changes have
+come to main", and "Keep all three. Plan approved." The rows below record how
+each blocker resolved on that directive — as adopted defaults, not verbatim
+answers.
+
+| # | Question | Resolution | Effect |
+|---|---|---|---|
+| 21 | How to reconcile main before rebasing the branch? | Main had already fast-forwarded to `origin/main@61c50ff` (65 new commits since the branch's original base). `agent/repo-manager` rebased onto it; none of the 65 touched `dotfiles/docs/research/repo-manager/`. | Branch is current; nothing to reconcile main-side beyond the rebase. |
+| 22 | Which process rule governs this thread's TASKS.md edits — the handoff's "main-side" wording or current main's branched rule? | Current main's rule (everything branched, append-only) governs. The handoff's wording predates it. | This thread's TASKS.md edits land on `agent/repo-manager` and merge promptly. |
+| 23 | Sonar deep-research and the hosted council need OpenRouter, but only `claude` + `openai` keys are configured. Provide a key or block? | No key provided; block. Recorded, not treated as resolved-by-default. | Sonar + hosted council steps carry `[blocked: OpenRouter key]` until a key is supplied. |
+
 ## Standing context the answers imply
 
 - Commit authority granted to the orchestrator covers faithful
