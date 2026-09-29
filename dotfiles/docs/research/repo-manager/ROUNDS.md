@@ -36,14 +36,15 @@ under a dollar of the separate $5 recruiter cap.
   token or writes plaintext (e.g. `~/.netrc`); note R6'd persistent state is itself
   a leak vector.
 
-### Proposed addition (pending author approval)
+### Proposed addition (approved 2026-09-29 — panel is now five)
 
 **"GitHub API truncation / rate-limit correctness reviewer"** — R3 is unowned by
 the four critics and is the most easily-botched requirement (Search returns
 `incomplete_results: true` silently; rate-limit and pagination-truncation must read
 UNKNOWN, never "empty"). Grounded in GitHub's own API reference rather than a named
 individual — a stronger, neutral anchor. Discriminates the live candidates directly:
-ghq/ghorg enumerate via API, gitup is local-only.
+ghq/ghorg enumerate via API, gitup is local-only. Author approved; joins the panel
+for Round 0.
 
 ### Open questions (feed REQUIREMENTS.md + later rounds)
 
