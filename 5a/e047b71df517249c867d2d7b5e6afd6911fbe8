@@ -1,0 +1,19 @@
+dotfiles/docs/research/repo-manager/AUTHOR-ANSWERS.md
+  s_6b84435db451de::t_0dc6fb63921dfe 74-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5ae047b71df517249c867d2d7b5e6afd6911fbe8",
+  "prompts": {},
+  "sessions": {
+    "s_6b84435db451de": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f28f59f75ffeYKB7iInOnBwVbo",
+        "model": "~deepseek/deepseek-pro-latest"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
