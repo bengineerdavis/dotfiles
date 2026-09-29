@@ -1,0 +1,23 @@
+dotfiles/docs/research/repo-manager/HANDOFF.md
+  s_6b84435db451de::t_52fcb7d8a37692 113,115-124
+  s_6b84435db451de::t_7e74b9efbcf7b9 137-139
+  s_6b84435db451de::t_d7de26466f8aed 15-20
+  s_6b84435db451de::t_ec8b3dca88c075 43-46
+  s_6b84435db451de::t_ed4b6547699edc 55-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8423ac3162824c554c513549875734a9167fc120",
+  "prompts": {},
+  "sessions": {
+    "s_6b84435db451de": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f28f59f75ffeYKB7iInOnBwVbo",
+        "model": "~deepseek/deepseek-pro-latest"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
