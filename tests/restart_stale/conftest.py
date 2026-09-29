@@ -22,7 +22,6 @@ import sys
 import textwrap
 
 import pytest
-
 from restart_stale_harness import DOTFILES, HARNESS
 
 STUB = textwrap.dedent('''\
@@ -191,6 +190,7 @@ def run_role(ansible_playbook, tmp_path, machine):
             capture_output=True,
             text=True,
             timeout=180,
+            check=False,  # callers assert on failing runs too
         )
 
     return _run

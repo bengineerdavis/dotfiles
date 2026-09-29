@@ -22,7 +22,6 @@ import sys
 import time
 
 import pytest
-
 from restart_stale_harness import said
 
 darwin_only = pytest.mark.skipif(

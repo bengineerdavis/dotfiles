@@ -29,9 +29,9 @@ import pytest
 
 pytest.importorskip("hypothesis", reason="hypothesis not installed")
 
-from hypothesis import given, strategies as st  # noqa: E402
-
-from restart_stale_harness import load_filters  # noqa: E402
+from hypothesis import given
+from hypothesis import strategies as st
+from restart_stale_harness import load_filters
 
 rs = load_filters()
 
@@ -151,10 +151,14 @@ OP = "/Applications/1Password.app/Contents/MacOS/1Password"
 # shares its directory, so each is a near-miss a prefix match would accept.
 OP_NEIGHBOURS = [
     "/Applications/1Password.app/Contents/MacOS/1Password-Crash-Handler",
-    "/Applications/1Password.app/Contents/Frameworks/1Password Helper.app"
-    "/Contents/MacOS/1Password Helper",
-    "/Applications/1Password.app/Contents/Library/LoginItems/1Password Browser"
-    " Helper.app/Contents/MacOS/1Password-BrowserSupport",
+    (
+        "/Applications/1Password.app/Contents/Frameworks/1Password Helper.app"
+        "/Contents/MacOS/1Password Helper"
+    ),
+    (
+        "/Applications/1Password.app/Contents/Library/LoginItems/1Password Browser"
+        " Helper.app/Contents/MacOS/1Password-BrowserSupport"
+    ),
 ]
 
 

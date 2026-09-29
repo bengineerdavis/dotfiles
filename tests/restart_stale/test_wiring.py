@@ -18,7 +18,7 @@ import pytest
 
 yaml = pytest.importorskip("yaml", reason="pyyaml not installed")
 
-from restart_stale_harness import DOTFILES  # noqa: E402
+from restart_stale_harness import DOTFILES
 
 APPS = DOTFILES / "apps"
 ROLE = "roles/restart-stale"
@@ -69,8 +69,9 @@ def test_every_call_runs_under_upgrade():
     `install` would miss the run that causes staleness."""
     for path in sorted(APPS.glob("*/tasks/*.yaml")):
         for _, task in calls(path):
+            where = f"{path.relative_to(DOTFILES)}: {task.get('name')!r}"
             assert "upgrade" in (task.get("tags") or []), (
-                f"{path.relative_to(DOTFILES)}: {task.get('name')!r} is not tagged upgrade"
+                f"{where} is not tagged upgrade"
             )
 
 
@@ -119,7 +120,7 @@ def test_ollama_checks_its_systemd_unit_last():
 
 def test_ollama_checks_the_binary_its_unit_runs():
     unit = (APPS / "ollama" / "templates" / "ollama.service.j2").read_text()
-    exec_start = re.search(r"^ExecStart=(\S+)", unit, re.M).group(1)
+    exec_start = re.search(r"^ExecStart=(\S+)", unit, re.MULTILINE).group(1)
     _, call = only_call(OLLAMA, restart_stale_kind="systemd")
 
     assert call["vars"]["restart_stale_binary"] == exec_start
