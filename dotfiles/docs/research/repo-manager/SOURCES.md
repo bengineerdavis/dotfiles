@@ -98,6 +98,26 @@ west to "closest" alongside mani.
 The sonar's Outcome A/B framing is recorded in SONAR-RAW.md; neither is decided —
 that is the author's call after verification.
 
+## Sonar candidates verified (2026-09-29)
+
+The sonar's new candidates, checked against fresh GitHub metadata + pinned
+source. The author's post-sonar maintenance filter is folded in.
+
+| Candidate | Verdict | Evidence |
+|---|---|---|
+| **west** (zephyrproject-rtos/west) | VERIFIED (source-pinned) — **R4 MISSING** | Python, 369★, pushed 2026-09-24 (active — the one genuinely live new candidate). But `west update` is manifest-convergence, not fetch-then-ff-only: default detaches HEAD at the manifest revision (`src/west/app/project.py` checkout --detach), with `--rebase`/`--keep-descendants` as the alternatives. Same model as Google `repo`, already rejected on R4. Active + Python, but the sync engine does not fit. |
+| **mu-repo** (fabioz/mu-repo) | VERIFIED (metadata) — **maintenance-mode confirmed** | Python, 368★, last push 2024-02-12 (~19 months). `mu rb` stash+rebases, `mu upd` not ff-only. Author flagged abandonware risk; metadata confirms dormant. De-prioritize; revisit only if a later round needs it. |
+| **repoman (basti1302)** | **DROPPED** | JavaScript (R11 wrong), 43★, last push 2024-03-04. Author turnoff (JS + unmaintained) confirmed. |
+| **github_repo** contradiction | **Resolved — sonar was wrong** | GITA-RESEARCH pinned `community.general.github_repo` 13.4.0: requires a known repo name, no owner-list discovery. Sonar's R3=MET is not supported by source; treat the sonar's other R3 verdicts as suspect. |
+
+**Consequence for the combination ledger:** with mu-repo dormant and
+repoman(basti1302) dropped, no *new* active candidate supplies R4/R5/R6/R7. The
+borrowing set is unchanged in substance — `mani` (Go, active, sync-not-a-contract)
+and `west` (Python, active, manifest-only). The "no tool meets end-to-end; R4/R5/
+R6/R7 must be owned" conclusion holds, and the author's note that a multi-tool
+composition carries real learning/integration cost now weighs more precisely:
+the only composition left is glue over tools that each miss the core semantics.
+
 ## Rules for this ledger
 
 - Nothing enters "verified" from a README's word; load-bearing claims get
