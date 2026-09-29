@@ -56,3 +56,83 @@ for Round 0.
 4. R6 state-store durability/format across two OSes is unowned.
 5. R8 cross-OS parity (macOS keychain vs Linux Secret Service) is unproven.
 6. The true null hypothesis — continued manual operation — is uncosted.
+
+## Round 0 — Council critique (2026-09-29, five critics)
+
+Five critics ran fresh-context against the R1–R11 draft, the candidate ledger, and
+the C1–C4 combination hypotheses. Spend: five hosted runs, well within the $5 critcap.
+
+### Verdicts by critic
+
+- **Adoption skeptic** — favours **C3 (Path B)**. R4/R5 don't shrink under adoption:
+  you still hand-roll fetch-then-ff-only-then-verdict in `command:`/`failed_when:`,
+  so Path A *duplicates* that work beside a tool you now also maintain glue for. R6
+  is hand-rolled in every path. Calls C1/C4 false economies; "contribute until the
+  tool absorbs the work" against repoman (1★) means *you* become maintainer.
+- **Contribution pragmatist** — favours **C2**. Path A's core PRs are
+  *behavioral-default* changes (the hardest to merge); smallest/safest is gitup's
+  exit-report (additive, non-breaking), but gitup/earwig is single-maintainer with
+  no redundancy, and ghorg/gabrie30 is responsive yet scope-misaligned. Trap: R10
+  conflates "responsive to bug PRs" with "will merge a default-behavior change" — no
+  candidate scores high on both. Upstream absorption is "unfundable"; treat
+  contribution as nice-to-have, not the plan.
+- **Build-cost skeptic** — favours **C2**, warns hard against C3. repoman is proof:
+  a solo tool already got R4 and R7 wrong. R3 tri-state, R5 partial-failure matrix,
+  R6 durable state, R7 normalization are each a hidden multi-hour cost; maintenance
+  is forever against a user count of ~one.
+- **Security/secrets reviewer** — favours **C3** (thin owned tool centralises
+  "never persist, always inject"). Flags: ghorg reads `GHORG_GITHUB_TOKEN` from
+  `conf.yaml` (persisted plaintext); `gh auth login` writes `hosts.yml`; R6 state
+  must be URL/userinfo-free (fetch-failure records are the classic token-leak slot);
+  headless Linux timers cannot unlock Secret Service (cross-OS parity gap).
+- **API truncation/rate-limit reviewer** — favours **C3** for R3 correctness. Three
+  distinct UNKNOWN signals: Search `incomplete_results:true` (not exposed by
+  `gh search --json`); `--paginate` partial-walk emitting a truncated list as
+  complete; secondary rate-limit 403+`Retry-After` with no `X-RateLimit-*`. ghq does
+  no enumeration (neutral); ghorg's exit semantics must be verified.
+
+### Cross-critic disagreement (dissent to preserve)
+
+- **Path B (C3)** — endorsed by adoption, security, and API-correctness critics.
+- **C2 (thin Ansible engine + ghq/ghorg discovery, upstream = nice-to-have)** —
+  endorsed by contribution and build-cost critics.
+- Nobody advocates adopting any single tool as-is. The honest split is *"own the
+  R4/R5/R6/R7 core"* (B) vs *"own a thin engine, borrow discovery"* (C2).
+
+### Author-decision questions (batched to the author)
+
+The council's individual questions are merged and re-keyed below; answers are
+recorded verbatim in AUTHOR-ANSWERS.md.
+
+1. **(null baseline, was Q-l)** what is the current manual repo-sync cost (approx.
+   time/week)? Without it no automation can be shown to pay off.
+2. **(good run, Q-c)** define "last good run" independent of exit 0 — including
+   first-run/missing timestamps and when `blocked-since` resets.
+3. **(no local pick, Q-a)** prevent tool install too, or only repo actions?
+4. **(source files, Q-b)** which of `machine.yaml`/`private.yaml` are required vs
+   optional — and confirm neither may ever hold a token (security critic).
+5. **(timers, Q-d)** does discovery mode `off` stay off; may timers clone
+   newly-declared explicit repos; fork-vs-template type precedence? Plus: how do
+   headless Linux timers unlock Secret Service without a plaintext fallback?
+6. **(backup guard, Q-e)** what counts as an "empty required source" — and is a
+   discovery UNKNOWN distinct from it?
+7. **(permissions, Q-f)** confirm G2 machine-path read denial and BK2 backup-store
+   denial.
+8. **(remote normalization, Q-h)** who owns the R7 normalizer, and write the
+   algorithm (SSH vs HTTPS, trailing `.git`, host aliases) before any build estimate.
+9. **(contribution weight, Q-i)** does R10 distinguish "responsive to bug PRs" from
+   "will merge a default-behavior change", and how much weight vs contract-fit?
+10. **(state store, Q-j)** R6 location + format; must be URL/userinfo-free.
+11. **(keychain parity, Q-k)** accept the macOS/Linux credential asymmetry as a
+    documented constraint rather than a runtime surprise?
+
+### Research questions (for sonar + source verification, not the author)
+
+- Does ghorg expose partial-page / `incomplete_results` on its discovery path, or
+  collapse auth/rate-limit failure into "zero repos"?
+- Does `gh search repo --json` expose `incomplete_results` (critic asserts it does
+  not) — forcing `gh api search/repositories` instead?
+- Any precedent PR in gitup/ghorg where the maintainer merged a *default* safety
+  change (not an opt-in flag)?
+- Confirm ghorg `conf.yaml` / `gh hosts.yml` credential persistence, and whether
+  env-only injection is a supported path.
