@@ -1784,6 +1784,19 @@ nothing is.
   rebased onto `main`. The `delete_branch_on_merge` question is moot, since
   no PR targets a branch that could be deleted.
 
+- **Inspect the current topic dotfile architecture; ground the repo-manager
+  "good run" definition; record cleanup findings.** Read-only. The author asked
+  (2026-09-29) for a deep inspection of "how the architecture works right now
+  for the topic-based advanced dotfile format", noting "the architecture is messy
+  and needs to be cleaned up, too." Done when `dotfiles/docs/research/repo-manager/`
+  gains a written model of the topic system as it works today (topic.yml schema,
+  role/topic resolution, `roles/topic-resolution`, the catalogue pattern, the
+  chezmoi/Ansible deploy layers, the `machines.yml`/machine-state seam) plus its
+  mess/collision points; a concrete R6 `last-fetch`/`blocked-since` + "good run"
+  recommendation (independent of exit 0) is written; and any cleanup is captured
+  as separate `ROADMAP.md`/task lines, not implemented here.
+  [agent: repo-manager / OpenCode — orchestrator session]
+
 ## Planned
 
 
