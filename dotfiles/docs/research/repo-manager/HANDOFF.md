@@ -12,11 +12,12 @@ links them. Read in the order given in [README.md](README.md).
 
 - Authored 2026-09-24 by the gita-plan orchestrator session (OpenCode,
   z-ai/glm-5.3-flash) at the author's request to compact and hand off.
-- This branch is based on **main at `1e5d099`** (post fast-forward of 87
-  commits from other sessions — restart-stale role, skill-trust buckets,
-  opencode tiers). **Rebase/merge onto current main before starting**; main
-  is active.
-- The author was told: "beware a lot of changes are coming from main."
+- This branch was based on **main at `1e5d099`** and was **re-based onto
+  `origin/main@61c50ff` on 2026-09-29** (65 further commits landed on main in
+  between; none touched this directory). **Do not re-rebase** — sync main when
+  resuming, not this branch.
+- The author was told: "beware a lot of changes are coming from main" — and
+  on 2026-09-29: "Be aware a lot of changes have come to main."
 
 ## Read first (in order)
 
@@ -39,9 +40,10 @@ External inputs (committed on their own branches):
 ## Task queue state (main)
 
 - Queued: "Repo-manager research: find or compose the repository-fleet
-  manager…" in TASKS.md § Now (commit `ee1ac75` on main). **Your first
-  action**: sync main, rebase this branch, re-read TASKS.md (it moves fast),
-  claim the line, and delete your claim when you stop.
+  manager…" in TASKS.md § Now (commit `ee1ac75` on main). **Session-start
+  sync/rebase/claim is done (2026-09-29)**: branch onto `origin/main@61c50ff`,
+  § Claimed re-added, and the line marked `[blocked: OpenRouter key]` for the
+  sonar + hosted-council stages. Delete your claim when you stop.
 - Superseded: the tool-choice half of G1 (TASKS.md § Now) is consumed by this
   thread; resolve G1 when the decision lands.
 - BK1 (backup host/install/keys) is **separate scope** — gita-plan thread,
@@ -50,8 +52,9 @@ External inputs (committed on their own branches):
 ## Contract (from PLAN.md § 5 — binding)
 
 - Orchestrator: `.worktrees/repo-manager`, branch `agent/repo-manager`.
-  TASKS.md updates land main-side per TASKS.md § Conventions; work happens
-  here.
+  TASKS.md updates follow current main rules (everything branched, append-only
+  — AUTHOR-ANSWERS.md #22 supersedes the older "main-side" wording); research
+  work happens here.
 - Every writer task: own worktree + branch, task-id prepended, subtask
   marker explicit:
   - `.worktrees/repo-manager_t<nn>_<slug>` / `agent/repo-manager_t<nn>_<slug>`
@@ -107,13 +110,18 @@ updates; Path B queues a new-repo bootstrap **outside this repo**.
 
 | SHA | Where | What |
 |---|---|---|
+| `61c50ff` | main | branch's base after the 2026-09-29 rebase (prev. `1e5d099`) |
 | `ee1ac75` | main | queue repo-manager thread + claim |
-| `28dc016` | this branch | PLAN.md (full plan) |
-| `f39e3b3` | this branch | AUTHOR-ANSWERS.md |
-| `f85c349` | this branch | SOURCES.md |
-| `9ef9ce6` | this branch | REQUIREMENTS.md draft |
-| `163527d` | this branch | README + ROUNDS scaffold |
-| `e9ba530` | this branch | GITA-RESEARCH.md canonical copy |
+| `d270642` | this branch | PLAN.md (full plan) |
+| `ab6e093` | this branch | AUTHOR-ANSWERS.md |
+| `e75ceda` | this branch | SOURCES.md |
+| `415fbde` | this branch | REQUIREMENTS.md draft |
+| `39f3736` | this branch | README + ROUNDS scaffold |
+| `8ebb09a` | this branch | GITA-RESEARCH.md canonical copy |
+| `2e96501` | this branch | HANDOFF.md (orchestrator handoff) |
+| `323e711` | this branch | AUTHOR-ANSWERS.md session-start resolutions |
+| `3757a86` | this branch | TASKS.md claim + `[blocked: OpenRouter key]` |
+| HEAD | this branch | HANDOFF.md updated for the resolved blockers |
 | `ebb82e9` | agent/gita-plan_sub_g1 | G1 research (provenance) |
 | `5b2880d` | agent/gita-plan_sub_bk1 | BK1 research (provenance) |
 
@@ -126,8 +134,9 @@ are the durable memory — if the compacted transcript and this file disagree,
 
 ## First actions checklist
 
-1. Sync main; rebase this branch; read TASKS.md fresh (87+ commits landed
-   recently; more are coming — claim your line, work path-scoped).
+1. ~~Sync main; rebase this branch~~ — done 2026-09-29 (branch onto
+   `origin/main@61c50ff`). Before resuming: `git fetch`, re-read TASKS.md
+   fresh (it moves fast), and confirm your § Claimed line still stands.
 2. Read PLAN.md → REQUIREMENTS.md → AUTHOR-ANSWERS.md → SOURCES.md.
 3. Run the recruiter (public research, personas only, never contact anyone).
 4. Convene Council Round 0 on the requirements draft + seeds + combination
