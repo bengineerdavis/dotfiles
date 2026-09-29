@@ -255,7 +255,7 @@ nothing is.
   workspace and runtime choices. Next evidence needed: a low-configuration
   Sandcastle/container walkthrough against the native-wrapper baseline.
 
-  Report: `.worktrees/wt-restart/.claude/RESEARCH-modular-agent-runtime.md`
+  Report: `.worktrees/agent_components_containers/.claude/RESEARCH-modular-agent-runtime.md`
   (local, uncommitted). The research agent mapped local prior work, verified
   queue/runtime interfaces, and ran macOS synthetic probes. Coordinator review
   reproduced SRT 0.0.77's false-success signal exit and mise 2026.9.12's failed
@@ -266,8 +266,8 @@ nothing is.
   and resume/retention ownership. The completed research unit is archived in
   `TASKS-RESOLVED.md`; implementation remains a separate decision.
 
-  **Pickup:** `.worktrees/wt-restart/.claude/HANDOFF-modular-agent-runtime.md`
-  on `review/topic-restart-stale`. The initial research and coordinator review
+  **Pickup:** `.worktrees/agent_components_containers/.claude/HANDOFF-modular-agent-runtime.md`
+  on branch `agent_components_containers`. The initial research and coordinator review
   are complete; no research agent remains running. The author clarified that
   low-configuration non-root containers are primary options. Next: compare
   Sandcastle's shipped container setup, workmux's container workflow and a
@@ -312,12 +312,15 @@ nothing is.
   `restart_stale_role_ollama` (worktree of the same name); the 1Password
   desktop app is `onepassword_desktop_app`, stacked on it. PR #5 is closed
   with pointers. The author's design review continues on the role PR from
-  the PEP 8 question; see `.worktrees/wt-restart/.claude/HANDOFF-restart-review.md`.
+  the PEP 8 question; see `.worktrees/restart_stale_style/.claude/HANDOFF-restart-review.md`.
   Landed since: #11 (`af02574`, role and ollama) and #15 (`2a1d009`, the
   1Password desktop app, re-landed after #12 merged into #11's branch). The
   code is on main; the only open part is the author's design walkthrough,
   paused at the PEP 8 question. Resolve this item when the author closes or
   drops that walkthrough.
+  Author, 2026-09-28: continue, with a scoped style cleanup first. Both now
+  run in worktree `restart_stale_style`; the old `wt-restart` worktree and
+  branch `review/topic-restart-stale` are retired.
 
 - **Build a machine-assisted merge-gate checker — turn the diff-derived
   design in `AGENTS.md` § Merge gates (2026-09-22, fusion council) into a
@@ -3534,7 +3537,7 @@ makes that expensive.
 measurements below do not establish capabilities on the current macOS host.
 The September 24 comparison measured macOS only; Debian verification remains
 open. Its local report is
-`.worktrees/wt-restart/.claude/RESEARCH-modular-agent-runtime.md`.
+`.worktrees/agent_components_containers/.claude/RESEARCH-modular-agent-runtime.md`.
 
 - **This box supports unprivileged bubblewrap.** `bwrap`, `podman`, `docker`,
   `systemd-run`, `unshare` and `qemu-system-x86_64` are all on `PATH`;
