@@ -1,0 +1,21 @@
+dotfiles/docs/research/repo-manager/SOURCES.md
+  s_6b84435db451de::t_8898463fa39302 56-100
+dotfiles/docs/research/repo-manager/SONAR-RAW.md
+  s_6b84435db451de::t_86b4cf6cebd4ed 1-330
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0c5768e1f2f49729258b6b668351435865aa7cf8",
+  "prompts": {},
+  "sessions": {
+    "s_6b84435db451de": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f28f59f75ffeYKB7iInOnBwVbo",
+        "model": "~deepseek/deepseek-pro-latest"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
