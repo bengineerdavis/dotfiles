@@ -136,3 +136,58 @@ recorded verbatim in AUTHOR-ANSWERS.md.
   change (not an opt-in flag)?
 - Confirm ghorg `conf.yaml` / `gh hosts.yml` credential persistence, and whether
   env-only injection is a supported path.
+
+## Round 2 — Council (2026-09-29, five critics)
+
+Convened by the author: re-critique after research, and review policy direction.
+
+### Unanimous convergence
+
+All five critics independently reach the same reading: the PRD rule
+("provisioning may install a tool and trigger it; it must never contain that
+tool's logic or its state") forces the manager to be a **real tool**, not Ansible
+glue. R4 sync semantics are *logic*; R6 persistent state is *state* — so the
+Ansible fallback is off the table as the sync/state owner. **Path B (thin owned
+tool) becomes the default by elimination, not preference.** Upstream contribution
+("until the tool absorbs the work") is dead for R4–R7 (west is manifest-
+convergence, mani declares sync-not-a-contract); it survives only as block-level
+borrowing: discovery, path convention, credential injection.
+
+### Requirements under-specified (tighten before any build)
+
+- R4: "non-diverged" undefined (ahead-only vs ahead+behind); force-push-upstream
+  (fetch ok, ff-only fails) → blocked or dirty?; no-upstream; detached HEAD;
+  submodules.
+- R6: state-file location + schema unnamed; must be machine-local/gitignored and
+  pass § Data; "good run" boundary vs the R5 report.
+- R7: normalization algorithm (SSH vs HTTPS, trailing `.git`, case) unspecified.
+- R3: list vs search split — Search carries `incomplete_results` + 1000-result cap
+  and must not be authoritative; secondary rate-limit (403+`Retry-After`);
+  `--paginate` partial-walk ⇒ UNKNOWN.
+- R10: near-dead for whole-tool merge (no qualifying target); demote to
+  block-level viability.
+- Missing: concurrency / partial-network-failure as distinct from per-repo failure.
+
+### Policy rulings to order (the "policy review" the author sensed)
+
+1. **Egress** — does `gh`/API owner-list discovery count as permitted
+   "public-facts-research", or does listing a private org need per-run human review?
+2. **§ Data** — is the R6 state file (repo names + timestamps) a machine/employer
+   identity leak, and where must it live so it is never committed/synced?
+3. **R8** — does `gh`'s cached OAuth token (`~/.config/gh/hosts.yml`) satisfy
+   "no plaintext / keychain", or must discovery credentials also come from
+   1Password / OS keychain?
+4. **R8 cross-OS keychain parity** — headless Linux (no Secret Service) must
+   degrade to `op`/`bw`, never to plaintext.
+
+### New author questions (batched)
+
+1. Is Path B (owned thin tool) now the default — or is a thin wrapper over
+   mani/ghq acceptable despite the two-tool cost?
+2. R4 precise definition: force-push and ahead+behind cases; detached-HEAD and
+   submodule handling.
+3. R6 state location/schema (`XDG_STATE_HOME`?), never committed/synced.
+4. Is gh/API discovery "public-facts-research" under the egress policy, and does
+   reusing `gh` auth satisfy R8?
+5. Headless Linux: is `op`/`bw` CLI a hard dependency, or is `gh auth` the primary
+   credential path?
