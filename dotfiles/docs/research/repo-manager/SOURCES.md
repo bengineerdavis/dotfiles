@@ -53,6 +53,51 @@ Bitwarden recovery-code mechanics. Full report:
 for durability. Status: agent-reported with doc citations; **PENDING** spot
 verification before BK1 decision.
 
+## Sonar round (raw-pending) — 2026-09-29
+
+One `openrouter/perplexity/sonar-deep-research` run of the PLAN.md § 8 brief;
+full transcript in [SONAR-RAW.md](SONAR-RAW.md). **Every claim below is PENDING
+source verification.** Two cautions recorded up front:
+
+- The transcript's `[1]…[20]` markers are **unbound** — no footnote/URL list
+  was returned — so every source must be re-derived during verification.
+- It **contradicts a pinned finding**: the summary table marks
+  `community.general.github_repo` R3 (discovery) `MET`, but GITA-RESEARCH
+  verified it has **no owner-list discovery** ("requires a known repository
+  name… no owner-list discovery interface"). Treat the sonar's R3 verdicts as
+  suspect until re-checked.
+
+### New candidates surfaced (all PENDING source-verify)
+
+The sonar added these beyond the existing ledger; verdicts are its doc-level
+claims, not ours:
+
+| Candidate | Language | Sonar's headline | Verify (load-bearing) |
+|---|---|---|---|
+| mu-repo | Python | `.mu_repo` manifest + `mu group` (R1/R2 MET); `mu upd`/`mu rb` rebase (R4 MISSING); no R3/R6/R7; delegates auth to git | `mu rb` really stashes+rebases? `mu upd` fetch-but-no-ff? any exit-code/JSON contract? |
+| Zephyr west | Python | manifest+workspace (R1/PARTIAL R2); `west update` detached-head, `--rebase` (R4 PARTIAL); no R3/R6; R7 partial | `west update` semantics vs fetch-then-ff-only; machine-readable output? |
+| repoman (basti1302) | ? | a *different* repoman than ledger's klokie/repoman | confirm identity; does it update via pull/rebase? |
+| Linkorb multi-repo | ? | `lib` multi-repo runner; `git pull` (R4 MISSING) | pull semantics; group story |
+| DevSwarm Multi-Repo | ? | GUI-ish; R5 MET claimed | verify machine-readable verdicts |
+| GitKraken Workspaces | GUI | R3 MET (discovery); R8 MISSING (stores secrets); proprietary | discovery semantics + secrets storage |
+| grm / gitws / polyrepo | — | "general knowledge to 2024-10 only" — thin | still UNKNOWN; needs a fresh look |
+
+### Sonar's closest three (re-verify each)
+
+**mani**, **mu-repo**, **west** — each meets R1/R2/R8/R9 and misses R3/R4/R5/R6/R7
+to varying degrees; none satisfies the full contract. This matches the
+GITA-RESEARCH conclusion (no tool meets end-to-end) while promoting mu-repo and
+west to "closest" alongside mani.
+
+### Combination hypotheses (to carry into the ledger)
+
+1. **mani + ghq + Ansible discovery** — glue in Python scripts/Ansible for R4/R5/R6.
+2. **mu-repo + vcstool + ghq + a thin Python tool** — the tool owns R3–R7.
+3. **west + myrepos + a Python wrapper** — wrapper owns safe sync + staleness.
+
+The sonar's Outcome A/B framing is recorded in SONAR-RAW.md; neither is decided —
+that is the author's call after verification.
+
 ## Rules for this ledger
 
 - Nothing enters "verified" from a README's word; load-bearing claims get
