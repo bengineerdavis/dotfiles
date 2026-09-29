@@ -51,6 +51,26 @@ answers.
 | 23 | Sonar deep-research and the hosted council need OpenRouter, but only `claude` + `openai` keys are configured. Provide a key or block? | No key provided; block. Recorded, not treated as resolved-by-default. | Sonar + hosted council steps carry `[blocked: OpenRouter key]` until a key is supplied. |
 | 24 | Authorize the paid stages (recruiter, Round 0, one sonar run) once the key is set? | "Let's sync the task lists for now; then ack (I also authorize another \$25 in spend reserve if we need it for any paid stages, but ask first if you need more for the research project)." | Recruiter (\$5) + Round 0 critics (\$5) + one sonar run authorized, plus a \$25 reserve above the stage caps; exceeding it requires asking first. The OpenRouter key is set and smoke-tested, clearing #23's block. |
 
+## 2026-09-29 (Round 0 council questions)
+
+Answers to the 11 batched decisions in ROUNDS.md § Round 0. Deferrals are
+tracked below so Round 2 (or the requirements-finalize diff) re-raises them
+rather than re-asking cold.
+
+| # | Question | Answer (verbatim, lightly normalized) | Effect |
+|---|---|---|---|
+| 25 | Null baseline: current manual repo-sync cost? | "this a guess, but I end up having to resolve repo syncs via opencode and chezmoi directly at least once a day and for almost every AI agent session I run. Some of this is expected and desired. But let's call it at least 15–30 mins a day, maybe as much as 1+ hrs." | Baseline ≈15–30 min/day, up to 1+ hrs; frames whether any automation clears its own cost. |
+| 26 | Define a "good run" independent of exit 0? | "defer with recommendations, along with a deep inspection of how the architecture works right now for the topic-based advanced dotfile format (yes the architecture is messy and needs to be cleaned up, too)" | Deferred; gated on an architecture inspection of the current topic dotfile format — a distinct task. |
+| 27 | "No local pick" → block install or only actions? | "defer and then review again with the council" | Deferred; re-raised with the council (Round 2). |
+| 28 | Which source files required vs optional? | "yes required. defer for holding tokens, but no probably not — secrets managers instead" | Files required = yes; token-holding deferred, leaning "no — use secrets managers". |
+| 29 | Timers: `off`-stays-off, clone-new, fork/template, keyring? | "defer" | Deferred. |
+| 30 | "Empty required source" for the backup guard? | "defer — I don't remember or know what that means." | Deferred; explanation owed to author (see orchestrator elaboration). |
+| 31 | Permission allocation (G2/BK2 read denials)? | "defer and elaborate to help me remember this." | Deferred; explanation owed to author (see orchestrator elaboration). |
+| 32 | R7 remote-normalization algorithm? | "defer, but preference for ssh and host aliases" | Deferred; preference recorded: SSH + host aliases. |
+| 33 | R10 contribution-viability weight vs contract-fit? | "defer" | Deferred. |
+| 34 | R6 state store URL/token-free? | "agreed" | Agreed: R6 state carries no URLs/userinfo. |
+| 35 | Accept macOS/Linux keychain asymmetry? | "defer, but yes likely we should accept" | Deferred; likely accept as a documented constraint. |
+
 ## Standing context the answers imply
 
 - Commit authority granted to the orchestrator covers faithful
