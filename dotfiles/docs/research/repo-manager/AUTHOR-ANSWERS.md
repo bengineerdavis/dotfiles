@@ -49,6 +49,7 @@ answers.
 | 21 | How to reconcile main before rebasing the branch? | Main had already fast-forwarded to `origin/main@61c50ff` (65 new commits since the branch's original base). `agent/repo-manager` rebased onto it; none of the 65 touched `dotfiles/docs/research/repo-manager/`. | Branch is current; nothing to reconcile main-side beyond the rebase. |
 | 22 | Which process rule governs this thread's TASKS.md edits — the handoff's "main-side" wording or current main's branched rule? | Current main's rule (everything branched, append-only) governs. The handoff's wording predates it. | This thread's TASKS.md edits land on `agent/repo-manager` and merge promptly. |
 | 23 | Sonar deep-research and the hosted council need OpenRouter, but only `claude` + `openai` keys are configured. Provide a key or block? | No key provided; block. Recorded, not treated as resolved-by-default. | Sonar + hosted council steps carry `[blocked: OpenRouter key]` until a key is supplied. |
+| 24 | Authorize the paid stages (recruiter, Round 0, one sonar run) once the key is set? | "Let's sync the task lists for now; then ack (I also authorize another \$25 in spend reserve if we need it for any paid stages, but ask first if you need more for the research project)." | Recruiter (\$5) + Round 0 critics (\$5) + one sonar run authorized, plus a \$25 reserve above the stage caps; exceeding it requires asking first. The OpenRouter key is set and smoke-tested, clearing #23's block. |
 
 ## Standing context the answers imply
 
