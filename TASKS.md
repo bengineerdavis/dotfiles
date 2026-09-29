@@ -421,18 +421,20 @@ nothing is.
   decide Path A (Ansible now + upstream contributions until the tool absorbs
   the work) vs Path B (our own tool in a new repo).** The approved plan is
   written in full at `dotfiles/docs/research/repo-manager/PLAN.md` on branch
-  `agent/repo-manager` (worktree `.worktrees/repo-manager`, based on main at
-  `1e5d099`) — read it before starting. `HANDOFF.md` in the same directory is
+  `agent/repo-manager` (worktree `.worktrees/repo-manager`, rebased onto
+  `origin/main@61c50ff` 2026-09-29) — read it before starting. `HANDOFF.md` in
+  the same directory is
   the session entry point and states the orchestrator authority. Supersedes
   the tool-choice half of G1 below; G1's comparison report is an input (a
   durable copy lives in the same directory). Council: 4 critics + a recruiter
   persona-scout, Round 0 before any sonar spend, $5 critic cap plus a separate
-  $5 recruiter cap. Done when: REQUIREMENTS.md R1–R11 is finalized after
+  $5 recruiter cap, plus a $25 author-authorized spend reserve (2026-09-29).
+  Done when: REQUIREMENTS.md R1–R11 is finalized after
   Round 0; the sonar deep-research run is saved and source-verified into
   SOURCES.md; the combination ledger and Path A/B cost sketch exist; the
   author records the decision with dissent notes; TASKS.md/ROADMAP.md are
   updated; and Path B queues a new-repo bootstrap outside this repo.
-  [agent: repo-manager / OpenCode — orchestrator session] [blocked: OpenRouter key for sonar + hosted council]
+  [agent: repo-manager / OpenCode — orchestrator session] [spend authorized 2026-09-29]
 
 - **G1 — find a maintainable existing repository manager before selecting
   the Gita/Ansible path.** After G0, alongside BK1 and the existing
