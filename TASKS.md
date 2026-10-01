@@ -67,12 +67,14 @@ Format: `- <UTC start> — <what> — <files or resource>`
 
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
-delete the line and say so in your commit.
 
-- 2026-09-24T00:25Z — skill-trust foreign buckets (branch
-  `skill-trust-foreign-buckets`, worktree
-  `~/code/wt-skill-trust-foreign-buckets`) — `tools/skill-trust/**`,
-  `dotfiles/apps/opencode/**`, `dotfiles/roles/guards/**`
+
+- 2026-10-01T00:53Z — buckets 1-4 of the python-tooling plan: uv topic, ruff
+  standard, gitattributes, pyrefly (branches of the same names) —
+  `dotfiles/apps/uv/**`, `dot_config/uv/**`, `.chezmoidata/uv.yaml`,
+  `pyproject.toml`, `.pre-commit-config.yaml`, `.gitattributes`, `docs/PYTHON.md`,
+  `docs/LANGUAGES.md`, `docs/REFERENCES.md`, `tests/uv/**`, `TASKS.md`delete the line and say so in your commit.
+
 
 
 ## Where things stand — 2026-09-23 (the session handoff)
@@ -1778,6 +1780,41 @@ nothing is.
   other with no PR; a child opens its PR after its parent merges and it is
   rebased onto `main`. The `delete_branch_on_merge` question is moot, since
   no PR targets a branch that could be deleted.
+
+- **Own uv's machine lifecycle and the private-index capture (`apps/uv`).**
+  [agent: OpenCode restart-review, 2026-10-01; author-approved plan] New
+  Ansible topic `apps/uv`: astral-installer install on both OSes, `uv self
+  update` on upgrade, a version-floor assert matching `pyproject.toml`'s
+  required-version, opt-in removal. Work machines: the topic reads the
+  per-host work flag from `.chezmoidata/uv.yaml`, pulls the private index URL
+  and credentials from the vault (secrets-session patterns, `no_log`), and
+  writes an idempotent marker block into `~/.localrc` — the URL never enters
+  git. chezmoi renders `dot_config/uv/uv.toml.tmpl`: private index
+  `default = true` on flagged work hosts, public PyPI otherwise; a work host
+  applying without the captured URL fails loudly instead of silently
+  rendering public-only (fail-open dependency confusion). Guard test:
+  committed lock files may reference public PyPI only. Unblocks the
+  python-via-uv ownership shift. Done when the template tests, the guard
+  test, the topic metadata play, and the suite pass, mutations are recorded,
+  and a PR is open. Branch and worktree `uv_topic_machine_config`.
+
+- **R1 — research human vs agent files, skills and prompts.** [research
+  only; agent: general/uv-r1] What belongs where across `AGENTS.md`,
+  READMEs, skills, prompts, editor configs and agent configs — which files
+  humans read, which agents read, what to include in each, what to skip,
+  and how repos signal the split. Feeds the governance consolidation and
+  the editor-config buckets. Done when a written report names the split,
+  cites at least three sources, and lists what this repo should change.
+
+- **R2 — research on-save tooling and tool-level ignores.** [research only;
+  agent: general/uv-r2] Rank on-save/LSP candidates for this repo's file
+  types — ruff, pyrefly and shellharden named by the author; consider
+  ansible-lint, yamllint, taplo, actionlint, typos, markdownlint, gitleaks
+  and peers — and derive per-tool ignore lists (vendored `zim` bundle,
+  `changelog.d/` fragments, fixtures, migration-backups). Feeds the VS Code
+  and opencode on-save buckets. Done when a written report ranks tools with
+  evidence, gives per-tool ignore patterns, and names the wiring for VS
+  Code and opencode.
 
 ## Planned
 
