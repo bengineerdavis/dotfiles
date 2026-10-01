@@ -1779,6 +1779,15 @@ nothing is.
   rebased onto `main`. The `delete_branch_on_merge` question is moot, since
   no PR targets a branch that could be deleted.
 
+- **Enforce LF per-repo via .gitattributes.** [agent: OpenCode
+  restart-review, 2026-10-01; author-approved plan] `* text=auto eol=lf`
+  plus the existing `uv.lock merge=binary`: makes the core-config line rules
+  (5485b77: autocrlf=false, eol=lf, safecrlf=warn) survive across machines,
+  where core config does not. Verified: zero CRLF in tracked files today, so
+  renormalizing is a no-op. Done when the file lands, `git status` stays
+  clean after `git add --renormalize .`, and a PR is open. Branch
+  `gitattributes_lf`.
+
 ## Planned
 
 
