@@ -57,8 +57,7 @@ DISCOVERY_HARNESS = """\
 
     - name: "Collect topic.yml paths (sorted)"
       ansible.builtin.set_fact:
-        topic_meta_paths: "{{ meta_find_result.files | map(attribute='path') "
-        "| list | sort }}"
+        topic_meta_paths: "{{ meta_find_result.files | map(attribute='path') | list | sort }}"
 
     - name: "Load each topic.yml"
       ansible.builtin.slurp:

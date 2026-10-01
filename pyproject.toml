@@ -52,6 +52,8 @@ max-doc-length = 72
 "tests/restart_stale/**" = ["E", "W", "D", "W505"]
 # Trace fixtures are verbatim third-party output - the long lines ARE the
 # data, and an end-of-line noqa would become part of the traced content.
+# Same for embedded Ansible/YAML fixture strings: splitting them changes the
+# fixture the test asserts on.
 # ── doc-line campaign grandfather (2026-10-01) ──────────────────────────
 # W505 (72-col doc lines) and D205 (blank line after summary) are selected
 # and enforced; these paths still fail them. Each entry shrinks as the
@@ -74,7 +76,7 @@ max-doc-length = 72
 "tests/quarantine/**" = ["W505", "D205"]
 "tests/suite/**" = ["W505", "D205"]
 "tests/tasks_doc/**" = ["W505", "D205"]
-"tests/topic_resolution/**" = ["W505", "D205"]
+"tests/topic_resolution/**" = ["E501", "W505", "D205"]
 "tests/topics/**" = ["W505", "D205"]
 "tests/trace_public/**" = ["E501", "W505", "D205"]
 "tests/triage/**" = ["W505", "D205"]
