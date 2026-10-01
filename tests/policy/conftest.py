@@ -1,5 +1,4 @@
-"""
-Shared fixtures for the policy resolver suite.
+"""Shared fixtures for the policy resolver suite.
 
 Runs the script as a subprocess, black-box, because that is the contract callers
 actually depend on: `policy check <key>` and its exit status. The three layers
@@ -40,8 +39,11 @@ def policy_env(tmp_path):
     (zsh / "policy").mkdir(parents=True)
     (state / "ai-policy").mkdir(parents=True)
 
-    def build(ethics: str | None = None, company: str | None = None,
-              personal: str | None = None):
+    def build(
+        ethics: str | None = None,
+        company: str | None = None,
+        personal: str | None = None,
+    ):
         for text, path in (
             (ethics, zsh / "policy" / "ethics.yaml"),
             (company, state / "ai-policy" / "company.yaml"),
@@ -69,7 +71,7 @@ def policy_env(tmp_path):
 
 
 def _path_with_uv() -> str:
-    """uv runs the PEP 723 shebang, so it must stay on PATH in the stripped env."""
+    """Uv runs the PEP 723 shebang, so it must stay on PATH in the stripped env."""
     import os
     import shutil
 

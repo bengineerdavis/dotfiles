@@ -30,10 +30,20 @@ pytestmark = pytest.mark.skipif(
 def test_config_template_keeps_its_data_section():
     tmpl = REPO / ".chezmoi.toml.tmpl"
     out = subprocess.run(
-        ["chezmoi", "execute-template", "--init", "--file",
-         "--promptString", "email=x@y.z", "--promptString", "name=Test",
-         str(tmpl)],
-        capture_output=True, text=True, timeout=60,
+        [
+            "chezmoi",
+            "execute-template",
+            "--init",
+            "--file",
+            "--promptString",
+            "email=x@y.z",
+            "--promptString",
+            "name=Test",
+            str(tmpl),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
     )
     assert out.returncode == 0, out.stderr
 

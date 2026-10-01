@@ -17,8 +17,14 @@ import json
 from skill_trust.buckets import ForeignBucket, classify, deduce_aliases, find_buckets
 
 
-def _bucket(root, bucket_id: str, *, marker: bool = True, manifest: bool = True,
-            skills: tuple[str, ...] = ("one", "two")):
+def _bucket(
+    root,
+    bucket_id: str,
+    *,
+    marker: bool = True,
+    manifest: bool = True,
+    skills: tuple[str, ...] = ("one", "two"),
+):
     """Build a bucket-shaped directory under `root/synced/`."""
     synced = root / "synced"
     synced.mkdir(parents=True, exist_ok=True)
@@ -28,7 +34,8 @@ def _bucket(root, bucket_id: str, *, marker: bool = True, manifest: bool = True,
         (synced / f".bucket-{bucket_id}").write_text("")
     if manifest:
         (bucket / "manifest.json").write_text(
-            json.dumps({"skills": [{"name": s} for s in skills]}))
+            json.dumps({"skills": [{"name": s} for s in skills]})
+        )
     return bucket
 
 
@@ -46,8 +53,9 @@ def test_classify_requires_all_three_pieces_of_evidence():
 def test_a_manifest_that_does_not_parse_is_not_evidence():
     assert not classify("id", marker_exists=True, manifest_text="not json")
     assert not classify("id", marker_exists=True, manifest_text="[]")
-    assert not classify("id", marker_exists=True,
-                        manifest_text=json.dumps({"skills": "nope"}))
+    assert not classify(
+        "id", marker_exists=True, manifest_text=json.dumps({"skills": "nope"})
+    )
 
 
 # --- aliases -----------------------------------------------------------------
@@ -78,8 +86,7 @@ def test_no_synced_directory_no_buckets(tmp_path):
 
 def test_an_evidenced_bucket_is_found(tmp_path):
     _bucket(tmp_path, "org_user")
-    assert find_buckets(tmp_path) == [
-        ForeignBucket(id="org_user", alias="claude-sync")]
+    assert find_buckets(tmp_path) == [ForeignBucket(id="org_user", alias="claude-sync")]
 
 
 def test_a_dir_without_evidence_is_not_a_bucket(tmp_path):
@@ -89,8 +96,10 @@ def test_a_dir_without_evidence_is_not_a_bucket(tmp_path):
 
 def test_a_rogue_dir_does_not_disambiguate_the_real_bucket(tmp_path):
     """A directory merely named like a bucket must not inflate the alias count
-    and graduate a lone bucket to a disambiguated alias."""
+    and graduate a lone bucket to a disambiguated alias.
+    """
     _bucket(tmp_path, "real_bucket")
     _bucket(tmp_path, "rogue", marker=False)
     assert find_buckets(tmp_path) == [
-        ForeignBucket(id="real_bucket", alias="claude-sync")]
+        ForeignBucket(id="real_bucket", alias="claude-sync")
+    ]

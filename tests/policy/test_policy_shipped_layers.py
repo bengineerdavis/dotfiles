@@ -1,5 +1,4 @@
-"""
-Invariants on the layers this repo actually ships.
+"""Invariants on the layers this repo actually ships.
 
 The resolver above is generic; these assert the real files still hold the design
 property they were written for. The important one is restrictions-only: if a
@@ -70,8 +69,9 @@ def test_company_layer_grants_nothing_when_present():
 
 
 def test_precedence_is_a_total_order():
-    """ethics < company < personal, with no ties — otherwise 'first to speak
-    wins' has no defined answer when two layers both hold a key."""
+    """Ethics < company < personal, with no ties — otherwise 'first to speak
+    wins' has no defined answer when two layers both hold a key.
+    """
     seen = {}
     for name, path in VERSIONED.items():
         meta = (yaml.safe_load(path.read_text()) or {}).get("meta", {})

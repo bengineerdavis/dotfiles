@@ -57,10 +57,12 @@ class CatalogueInvalidError(ValueError):
 
 # ── catalogue validation (TOTAL: never raises, never coerces) ────────────────
 
+
 def validate_catalogue(data, source: str = "dotfiles/config/agents.yaml") -> list[str]:
     """Validate a parsed agents.yaml document. Returns human-readable errors,
     each naming the source file and the offending field (and entry id/index
-    where an entry is involved). Empty list = valid. Never raises."""
+    where an entry is involved). Empty list = valid. Never raises.
+    """
     errors: list[str] = []
 
     def err(message: str) -> None:
@@ -76,48 +78,66 @@ def validate_catalogue(data, source: str = "dotfiles/config/agents.yaml") -> lis
 
     entries = data.get("agent_integrations")
     if not isinstance(entries, list):
-        err("`agent_integrations` must be a list, got "
-            + type(entries).__name__)
+        err("`agent_integrations` must be a list, got " + type(entries).__name__)
         entries = []
 
     seen_ids: dict[str, int] = {}
     for index, entry in enumerate(entries):
-        _validate_entry(entry, index, "agent_integrations", err, seen_ids,
-                        require_probe_and_dir=True)
+        _validate_entry(
+            entry,
+            index,
+            "agent_integrations",
+            err,
+            seen_ids,
+            require_probe_and_dir=True,
+        )
 
     ignored = data.get("agent_integrations_ignored")
     if not isinstance(ignored, list):
-        err("`agent_integrations_ignored` must be a list, got "
-            + type(ignored).__name__)
+        err(
+            "`agent_integrations_ignored` must be a list, got " + type(ignored).__name__
+        )
         ignored = []
     for index, entry in enumerate(ignored):
-        _validate_entry(entry, index, "agent_integrations_ignored", err,
-                        seen_ids, require_probe_and_dir=False)
+        _validate_entry(
+            entry,
+            index,
+            "agent_integrations_ignored",
+            err,
+            seen_ids,
+            require_probe_and_dir=False,
+        )
 
     return errors
 
 
-def _validate_entry(entry, index, list_name, err, seen_ids,
-                    *, require_probe_and_dir: bool) -> None:
+def _validate_entry(
+    entry, index, list_name, err, seen_ids, *, require_probe_and_dir: bool
+) -> None:
     """Validate one catalogue entry; errors name the field, id and index."""
     where = f"{list_name}[{index}]"
     if not isinstance(entry, dict):
-        err(f"{where} must be a mapping with an `id` field, got "
-            + type(entry).__name__)
+        err(
+            f"{where} must be a mapping with an `id` field, got " + type(entry).__name__
+        )
         return
 
     entry_id = entry.get("id")
     if entry_id is None:
         err(f"{where} is missing required field `id`")
     elif not isinstance(entry_id, str) or not ID_RE.fullmatch(entry_id):
-        err(f"{where} field `id` must match {ID_RE.pattern} "
-            f"(spelled as herdr spells it), got {entry_id!r}")
+        err(
+            f"{where} field `id` must match {ID_RE.pattern} "
+            f"(spelled as herdr spells it), got {entry_id!r}"
+        )
         entry_id = None
     else:
         if entry_id in seen_ids:
-            err(f"{where} field `id` duplicates id `{entry_id}` first seen at "
+            err(
+                f"{where} field `id` duplicates id `{entry_id}` first seen at "
                 f"{list_name}[{seen_ids[entry_id]}] — duplicate ids would "
-                "double-install")
+                "double-install"
+            )
         else:
             seen_ids[entry_id] = index
 
@@ -125,90 +145,128 @@ def _validate_entry(entry, index, list_name, err, seen_ids,
     if why is None:
         err(f"{where} ({entry_id!r}) is missing required field `why`")
     elif not isinstance(why, str) or not why.strip():
-        err(f"{where} ({entry_id!r}) field `why` must be a non-empty string, "
-            f"got {why!r}")
+        err(
+            f"{where} ({entry_id!r}) field `why` must be a non-empty string, "
+            f"got {why!r}"
+        )
 
     checked = entry.get("checked")
     if checked is not None and not _is_iso_date(checked):
-        err(f"{where} ({entry_id!r}) field `checked` must be an ISO date, "
-            f"got {checked!r}")
+        err(
+            f"{where} ({entry_id!r}) field `checked` must be an ISO date, "
+            f"got {checked!r}"
+        )
 
     if require_probe_and_dir:
         probe = entry.get("probe")
         if probe is None:
             err(f"{where} ({entry_id!r}) is missing required field `probe`")
-        elif (not isinstance(probe, str) or not probe.strip()
-              or "/" in probe or _CONTROL_RE.search(probe)):
-            err(f"{where} ({entry_id!r}) field `probe` must be a non-empty "
-                f"binary NAME resolvable on PATH (no separators), got {probe!r}")
+        elif (
+            not isinstance(probe, str)
+            or not probe.strip()
+            or "/" in probe
+            or _CONTROL_RE.search(probe)
+        ):
+            err(
+                f"{where} ({entry_id!r}) field `probe` must be a non-empty "
+                f"binary NAME resolvable on PATH (no separators), got {probe!r}"
+            )
 
         config_dir = entry.get("config_dir")
         if config_dir is None:
-            err(f"{where} ({entry_id!r}) is missing required field "
-                "`config_dir`")
-        elif (not isinstance(config_dir, str) or not config_dir.startswith("~/")
-              or _CONTROL_RE.search(config_dir)):
-            err(f"{where} ({entry_id!r}) field `config_dir` must be a "
-                f"home-relative path starting with `~/`, got {config_dir!r}")
+            err(f"{where} ({entry_id!r}) is missing required field `config_dir`")
+        elif (
+            not isinstance(config_dir, str)
+            or not config_dir.startswith("~/")
+            or _CONTROL_RE.search(config_dir)
+        ):
+            err(
+                f"{where} ({entry_id!r}) field `config_dir` must be a "
+                f"home-relative path starting with `~/`, got {config_dir!r}"
+            )
 
         kind = entry.get("kind")
         if kind is not None and kind not in ("lifecycle", "session"):
-            err(f"{where} ({entry_id!r}) field `kind` must be lifecycle or "
-                f"session, got {kind!r}")
+            err(
+                f"{where} ({entry_id!r}) field `kind` must be lifecycle or "
+                f"session, got {kind!r}"
+            )
 
         topics = entry.get("topics")
-        if topics is not None and (not isinstance(topics, list)
-                                   or not all(isinstance(t, str) for t in topics)):
-            err(f"{where} ({entry_id!r}) field `topics` must be a list of "
-                f"subscriber names, got {topics!r}")
+        if topics is not None and (
+            not isinstance(topics, list) or not all(isinstance(t, str) for t in topics)
+        ):
+            err(
+                f"{where} ({entry_id!r}) field `topics` must be a list of "
+                f"subscriber names, got {topics!r}"
+            )
 
         min_version = entry.get("min_version")
         if min_version is not None:
             if not isinstance(min_version, dict):
-                err(f"{where} ({entry_id!r}) field `min_version` must be a "
-                    f"dated verdict mapping, got {min_version!r}")
+                err(
+                    f"{where} ({entry_id!r}) field `min_version` must be a "
+                    f"dated verdict mapping, got {min_version!r}"
+                )
             else:
                 ver = min_version.get("version")
                 if not isinstance(ver, int) or isinstance(ver, bool) or ver < 1:
-                    err(f"{where} ({entry_id!r}) field `min_version.version` "
-                        f"must be a positive int, got {ver!r}")
+                    err(
+                        f"{where} ({entry_id!r}) field `min_version.version` "
+                        f"must be a positive int, got {ver!r}"
+                    )
                 checked_at = min_version.get("checked")
                 if not _is_iso_date(checked_at):
-                    err(f"{where} ({entry_id!r}) field `min_version.checked` "
-                        f"must be an ISO date, got {checked_at!r}")
+                    err(
+                        f"{where} ({entry_id!r}) field `min_version.checked` "
+                        f"must be an ISO date, got {checked_at!r}"
+                    )
 
     verdicts = entry.get("verdicts")
     if verdicts is not None:
         if not isinstance(verdicts, dict):
-            err(f"{where} ({entry_id!r}) field `verdicts` must be a mapping "
-                f"of consumer -> verdict, got {verdicts!r}")
+            err(
+                f"{where} ({entry_id!r}) field `verdicts` must be a mapping "
+                f"of consumer -> verdict, got {verdicts!r}"
+            )
         else:
             for consumer, verdict in verdicts.items():
                 if not isinstance(verdict, dict):
-                    err(f"{where} ({entry_id!r}) verdict for `{consumer}` "
-                        f"must be a mapping, got {verdict!r}")
+                    err(
+                        f"{where} ({entry_id!r}) verdict for `{consumer}` "
+                        f"must be a mapping, got {verdict!r}"
+                    )
                     continue
                 status = verdict.get("status")
                 if status not in KNOWN_STATUSES:
-                    err(f"{where} ({entry_id!r}) verdict for `{consumer}` "
+                    err(
+                        f"{where} ({entry_id!r}) verdict for `{consumer}` "
                         f"field `status` must be one of "
-                        f"{sorted(KNOWN_STATUSES)}, got {status!r}")
+                        f"{sorted(KNOWN_STATUSES)}, got {status!r}"
+                    )
                 if not _is_iso_date(verdict.get("checked")):
-                    err(f"{where} ({entry_id!r}) verdict for `{consumer}` "
+                    err(
+                        f"{where} ({entry_id!r}) verdict for `{consumer}` "
                         f"field `checked` must be an ISO date, got "
-                        f"{verdict.get('checked')!r}")
+                        f"{verdict.get('checked')!r}"
+                    )
 
 
 def _is_iso_date(value) -> bool:
-    return (isinstance(value, str)
-            and re.fullmatch(r"\d{4}-\d{2}-\d{2}", value) is not None)
+    return (
+        isinstance(value, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", value) is not None
+    )
 
 
 # ── planned install commands ────────────────────────────────────────────────
 
-def planned_install_commands(data, source: str = "dotfiles/config/agents.yaml") -> list[str]:
+
+def planned_install_commands(
+    data, source: str = "dotfiles/config/agents.yaml"
+) -> list[str]:
     """One `herdr integration install <id>` per entry, catalogue order, no
-    duplicates. Invalid input raises ValueError naming the validation errors."""
+    duplicates. Invalid input raises ValueError naming the validation errors.
+    """
     errors = validate_catalogue(data, source)
     if errors:
         raise CatalogueInvalidError(
@@ -285,14 +343,13 @@ def parse_integration_status(text: str) -> dict[str, dict]:
         if "(experimental)" in line:
             record["experimental"] = True
         if record_id in out:
-            raise StatusUnknownError(
-                f"status output claims id {record_id!r} twice"
-            )
+            raise StatusUnknownError(f"status output claims id {record_id!r} twice")
         out[record_id] = record
     return out
 
 
 # ── the install loop (skip-and-report; raise for the required dependency) ────
+
 
 class InstallReport:
     """What the thin install-and-report loop accumulated."""
@@ -346,17 +403,22 @@ def install_loop(entries, probes, *, herdr_present: bool, run_install) -> Instal
             rc = run_install(entry_id)
             report.attempts.append((entry_id, rc))
         else:
-            report.skips.append((
-                entry_id,
-                f"skipped {entry_id} — probe `{probe_name}` {probe_state}; "
-                f"config dir {config_dir} {dir_state}",
-            ))
+            report.skips.append(
+                (
+                    entry_id,
+                    f"skipped {entry_id} — probe `{probe_name}` {probe_state}; "
+                    f"config dir {config_dir} {dir_state}",
+                )
+            )
     return report
 
 
 # ── the gated intersection remove ───────────────────────────────────────────
 
-def remove_plan(status_rc: int, status_stdout: str, catalogue_ids, *, gate: bool) -> list[str]:
+
+def remove_plan(
+    status_rc: int, status_stdout: str, catalogue_ids, *, gate: bool
+) -> list[str]:
     """Plan the integration teardown from actual machine state.
 
     gate False -> [] (the documented default; status is not even consulted).

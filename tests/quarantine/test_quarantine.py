@@ -1,5 +1,4 @@
-"""
-Contract tests for the encrypted holding area.
+"""Contract tests for the encrypted holding area.
 
 Grouped by the property each one defends, because the properties are the reason
 the tool exists: the key never lands on disk, the sidecar never leaks a path,
@@ -93,8 +92,13 @@ def test_sidecar_contains_no_paths_or_filenames(initialised, tmp_path):
         assert leak not in raw, f"sidecar leaked {leak!r}"
     meta = json.loads(raw)
     assert set(meta) == {
-        "id", "created", "expires", "retention_days",
-        "retention_source", "items", "bytes",
+        "id",
+        "created",
+        "expires",
+        "retention_days",
+        "retention_source",
+        "items",
+        "bytes",
     }
 
 

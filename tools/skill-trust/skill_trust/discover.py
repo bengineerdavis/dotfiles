@@ -96,9 +96,11 @@ def licence_from_repo(source: str, gh: str | None = None) -> str | None:
     try:
         done = subprocess.run(
             [gh, "api", f"repos/{source}", "--jq", ".license.spdx_id"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
-    except (OSError, subprocess.SubprocessError):
+    except OSError, subprocess.SubprocessError:
         return None
     if done.returncode != 0:
         return None

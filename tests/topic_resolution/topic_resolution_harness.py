@@ -57,7 +57,8 @@ DISCOVERY_HARNESS = """\
 
     - name: "Collect topic.yml paths (sorted)"
       ansible.builtin.set_fact:
-        topic_meta_paths: "{{ meta_find_result.files | map(attribute='path') | list | sort }}"
+        topic_meta_paths: "{{ meta_find_result.files | map(attribute='path') "
+        "| list | sort }}"
 
     - name: "Load each topic.yml"
       ansible.builtin.slurp:
@@ -92,5 +93,8 @@ def said(result, phrase: str) -> bool:
     Asserting on raw text would make the test pass or fail on where the wrap
     lands, which is not a property of the role at all.
     """
-    collapse = lambda s: " ".join(s.split())
+
+    def collapse(s: str) -> str:
+        return " ".join(s.split())
+
     return collapse(phrase) in collapse(result.stdout)

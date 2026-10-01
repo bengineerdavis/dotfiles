@@ -44,7 +44,8 @@ def test_run_panel_reports_failures_instead_of_swallowing_them():
 
 def test_run_panel_bounds_concurrent_judges():
     """Two local models loading at once can kill the shared Ollama daemon, so
-    the fan-out must never exceed MAX_CONCURRENT_JUDGES in flight."""
+    the fan-out must never exceed MAX_CONCURRENT_JUDGES in flight.
+    """
     lock = threading.Lock()
     in_flight = 0
     peak = 0

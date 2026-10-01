@@ -1,5 +1,4 @@
-"""
-Contract tests for the stack-trace reducer.
+"""Contract tests for the stack-trace reducer.
 
 The property under test is one-directional: nothing site-specific may survive.
 So most cases assert on what is *absent* from the output, and the leak fixtures
@@ -27,36 +26,46 @@ SCRIPT = REPO / "bin" / "executable_trace-public"
 
 # Tokens that must never appear in output, whatever the input format.
 LEAK_TOKENS = (
-    "ben.davis", "acme-corp", "acmecorp", "/Users/", "jane@",
-    "180776", "InvoiceJob", "internal/billing", ".venv",
+    "ben.davis",
+    "acme-corp",
+    "acmecorp",
+    "/Users/",
+    "jane@",
+    "180776",
+    "InvoiceJob",
+    "internal/billing",
+    ".venv",
 )
 
-PY_TRACE = '''Traceback (most recent call last):
+PY_TRACE = """Traceback (most recent call last):
   File "/Users/ben.davis/code/work/acme-corp/billing/tasks.py", line 88, in run_invoice
     customer = Customer.objects.get(email="jane@acme-corp.example")
   File "/Users/ben.davis/code/work/acme-corp/.venv/lib/python3.12/site-packages/django/db/models/query.py", line 496, in get
     raise self.model.DoesNotExist(
 django.core.exceptions.ObjectDoesNotExist: Customer matching query does not exist. id=180776
-'''
+"""
 
-JS_TRACE = '''TypeError: Cannot read properties of undefined (reading 'id')
+JS_TRACE = """TypeError: Cannot read properties of undefined (reading 'id')
     at resolveCustomer (/Users/ben.davis/code/work/acme-corp/src/billing.ts:42:19)
     at /Users/ben.davis/code/work/acme-corp/node_modules/express/lib/router/route.js:149:13
-'''
+"""
 
-JAVA_TRACE = '''java.lang.NullPointerException: Cannot invoke "Customer.getId()" because customer is null
+JAVA_TRACE = """java.lang.NullPointerException: Cannot invoke "Customer.getId()" because customer is null
 \tat com.acmecorp.billing.InvoiceJob.run(InvoiceJob.java:88)
 \tat org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
-'''
+"""
 
-GO_TRACE = '''panic: runtime error: invalid memory address or nil pointer dereference
+GO_TRACE = """panic: runtime error: invalid memory address or nil pointer dereference
 goroutine 42 [running]:
 \t/Users/ben.davis/code/work/acme-corp/internal/billing/invoice.go:71 +0x1a
 \t/opt/homebrew/Cellar/go/1.24/libexec/src/net/http/server.go:2136 +0x2f
-'''
+"""
 
 ALL_TRACES = {
-    "python": PY_TRACE, "js": JS_TRACE, "java": JAVA_TRACE, "go": GO_TRACE,
+    "python": PY_TRACE,
+    "js": JS_TRACE,
+    "java": JAVA_TRACE,
+    "go": GO_TRACE,
 }
 
 
@@ -76,7 +85,9 @@ def run(text: str, *args: str, gated: bool = False) -> subprocess.CompletedProce
     extra = () if gated or "--explain" in args else ("--assume-reviewed",)
     return subprocess.run(
         ["python3", str(SCRIPT), *args, *extra],
-        input=text, capture_output=True, text=True,
+        input=text,
+        capture_output=True,
+        text=True,
     )
 
 
@@ -249,8 +260,15 @@ class _FakeTTY:
 
 @pytest.mark.parametrize(
     "answer,approved",
-    [("y\n", True), ("Y\n", True), ("yes\n", True),
-     ("n\n", False), ("\n", False), ("maybe\n", False), ("", False)],
+    [
+        ("y\n", True),
+        ("Y\n", True),
+        ("yes\n", True),
+        ("n\n", False),
+        ("\n", False),
+        ("maybe\n", False),
+        ("", False),
+    ],
 )
 def test_gate_honours_the_answer_and_fails_closed(answer, approved):
     """Anything that is not an explicit yes declines, including a bare Enter."""

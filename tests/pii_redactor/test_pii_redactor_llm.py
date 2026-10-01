@@ -1,5 +1,4 @@
-"""
-Real-model tests for pii-redactor.
+"""Real-model tests for pii-redactor.
 
 Marked llm_judge so they stay out of the default run: they load a local model
 and cost real time. Run them with:
@@ -11,6 +10,7 @@ gone and a placeholder appeared, deliberately without pinning the exact wording
 — the model chooses the placeholder, and asserting on its phrasing would make
 the test fail on a model change rather than on a regression.
 """
+
 from __future__ import annotations
 
 import os
@@ -32,7 +32,8 @@ def real_env():
 
 def test_redacts_email_from_stdin(run_script, real_env):
     r = run_script(
-        "-m", INTEGRATION_MODEL,
+        "-m",
+        INTEGRATION_MODEL,
         stdin="Please contact support at john.doe@example.com for help.\n",
         env=real_env,
     )
@@ -47,7 +48,9 @@ def test_redacts_name_and_phone_from_file(run_script, real_env, tmp_path):
         "Hi, my name is Jane Smith and you can reach me at 555-867-5309.\n"
         "I live at 123 Maple Street, Springfield.\n"
     )
-    r = run_script("-i", str(src), "-o", str(dst), "-m", INTEGRATION_MODEL, env=real_env)
+    r = run_script(
+        "-i", str(src), "-o", str(dst), "-m", INTEGRATION_MODEL, env=real_env
+    )
     assert r.returncode == 0, r.stderr
 
     result = dst.read_text()

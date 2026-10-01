@@ -1,5 +1,4 @@
-"""
-The global opencode template renders a valid, correctly layered config.
+"""The global opencode template renders a valid, correctly layered config.
 
 Models, providers and agents come from .chezmoidata/opencode.yaml, merged as
 common -> os.<os> -> hosts.<hostname>. The permission block stays literal in
@@ -57,8 +56,12 @@ def render(hostname: str, os_name: str, extra: dict | None = None) -> dict:
         data.update(extra)
     result = subprocess.run(
         [
-            "chezmoi", "-S", str(REPO), "execute-template",
-            "--override-data", json.dumps(data),
+            "chezmoi",
+            "-S",
+            str(REPO),
+            "execute-template",
+            "--override-data",
+            json.dumps(data),
         ],
         input=TEMPLATE.read_text(),
         capture_output=True,
@@ -76,9 +79,9 @@ def test_renders_deep_agent_on_both_oses(hostname, os_name):
     deep = cfg["agent"]["deep"]
     assert deep["model"] == "openrouter/anthropic/claude-opus-5"
     assert deep["variant"] == "max"
-    variants = cfg["provider"]["openrouter"]["models"][
-        "anthropic/claude-opus-5"
-    ]["variants"]
+    variants = cfg["provider"]["openrouter"]["models"]["anthropic/claude-opus-5"][
+        "variants"
+    ]
     assert variants["max"] == {"reasoning": {"effort": "max"}}
     assert cfg["model"] == "openrouter/z-ai/glm-5.3-flash"
 

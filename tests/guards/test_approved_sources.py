@@ -37,9 +37,12 @@ def trust_scope(tmp_path):
             self.bin.mkdir()
             self.list_cmd = "true"
 
-        def skill_trust(self, *, rc: int, stdout: str = "", present: bool = True) -> str:
+        def skill_trust(
+            self, *, rc: int, stdout: str = "", present: bool = True
+        ) -> str:
             """A stand-in for the real program, so the guard's handling of each
-            exit code is testable without building a skill tree per case."""
+            exit code is testable without building a skill tree per case.
+            """
             if not present:
                 return str(self.bin / "definitely-not-installed")
             stub = self.bin / "fake-skill-trust"
@@ -110,7 +113,8 @@ def test_the_override_lets_the_run_continue(run_guard, trust_scope):
 
 def test_a_missing_tool_is_reported_rather_than_skipped(run_guard, trust_scope):
     """An absent checker must not look like a clean audit — the failure mode the
-    whole guard exists to prevent, one level up."""
+    whole guard exists to prevent, one level up.
+    """
     cmd = trust_scope.skill_trust(rc=0, present=False)
     result = _run(run_guard, trust_scope, cmd)
     assert result.returncode != 0

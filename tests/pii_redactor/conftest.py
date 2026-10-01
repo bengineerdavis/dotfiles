@@ -1,5 +1,4 @@
-"""
-Shared fixtures for the pii-redactor suite.
+"""Shared fixtures for the pii-redactor suite.
 
 Converted from bin/pii-redactor.bats when the script moved from bash to Python.
 The bats suite could only drive the CLI as a black box; now that the script is
@@ -13,6 +12,7 @@ Run everything except the real-model tests:
 Run the real-model tests (slow, loads a local model):
     pytest -m llm_judge tests/pii_redactor -v -s
 """
+
 from __future__ import annotations
 
 import importlib.machinery
@@ -74,8 +74,10 @@ def run_script():
     Merged because the bats suite asserted against combined output, and several
     cases care that a message reaches the user without caring which stream.
     """
-    def _run(*args: str, stdin: str | None = None, cwd=None, env=None,
-             gated: bool = False):
+
+    def _run(
+        *args: str, stdin: str | None = None, cwd=None, env=None, gated: bool = False
+    ):
         # Capturing output means stdout is not a terminal, which is exactly what
         # arms the pre-release review gate — so without this every success-path
         # case would fail on a prompt it cannot answer. `gated=True` leaves the
@@ -102,4 +104,5 @@ def run_script():
             env=env,
             timeout=300,
         )
+
     return _run

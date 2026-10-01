@@ -47,7 +47,8 @@ def _code(path: pathlib.Path) -> str:
     certifies nothing.
     """
     return "\n".join(
-        line for line in path.read_text(encoding="utf-8").splitlines()
+        line
+        for line in path.read_text(encoding="utf-8").splitlines()
         if not line.lstrip().startswith("#")
     )
 
@@ -57,7 +58,8 @@ def _code(path: pathlib.Path) -> str:
 
 def test_the_guard_role_is_callable():
     """`tasks_from` needs the file at exactly this path, and `defaults_from`
-    needs main.yaml beside it, or the import fails at parse time."""
+    needs main.yaml beside it, or the import fails at parse time.
+    """
     assert (GUARDS / "tasks" / "dotagents-skills-migration.yaml").is_file()
     assert GUARD_DEFAULTS.is_file()
     assert (GUARDS / "README.md").is_file()
@@ -78,7 +80,8 @@ def test_opencode_imports_the_guard_before_syncing_skills():
 def test_guard_callers_use_a_static_import():
     """`import_role` keeps the guard's tasks visible at parse time, so the
     lifecycle tags in tasks/main.yaml still select them. `include_role` would
-    need an `apply:` block and silently drops out of tag-filtered runs."""
+    need an `apply:` block and silently drops out of tag-filtered runs.
+    """
     for path in _task_files():
         text = _code(path)
         if "roles/guards" not in text:
@@ -92,7 +95,8 @@ def test_guard_callers_use_a_static_import():
 def test_the_foreign_bucket_flag_is_plumbed_end_to_end():
     """`opencode_skill_foreign` -> `guard_foreign_buckets` -> the trust rules,
     and on by default. A break anywhere along that chain silently turns 'not
-    mine to rule on' back into a denial that fails provisioning."""
+    mine to rule on' back into a denial that fails provisioning.
+    """
     topic_defaults = _code(APPS / "opencode" / "defaults" / "main.yaml")
     install = _code(APPS / "opencode" / "tasks" / "install.yaml")
     guard_defaults = _code(GUARD_DEFAULTS)
@@ -107,7 +111,8 @@ def test_the_foreign_bucket_flag_is_plumbed_end_to_end():
 def test_the_approved_sources_guard_is_the_last_task():
     """The gate must not block unrelated topics from finishing. Running last is
     the direct fix for 'one undeclared skill blocks my whole install' — every
-    other task converges before the gate can fail."""
+    other task converges before the gate can fail.
+    """
     text = _code(APPS / "opencode" / "tasks" / "install.yaml")
 
     report_at = text.find("Report skill sync results")
@@ -140,16 +145,17 @@ def test_every_dotagents_caller_reports_stderr():
     assert not offenders, (
         "these task files run dotagents but would discard its error message; "
         "each needs `failed_when: false` on the command plus a following task "
-        "that reports `.stderr`:\n  "
-        + "\n  ".join(str(p) for p in offenders)
+        "that reports `.stderr`:\n  " + "\n  ".join(str(p) for p in offenders)
     )
 
 
 def test_the_rule_has_something_to_check():
     """Guards against the test above passing vacuously if the tasks are renamed
-    or the topic is removed."""
+    or the topic is removed.
+    """
     callers = [
-        p for p in _task_files()
+        p
+        for p in _task_files()
         if "dotagents" in _code(p) and "ansible.builtin.command" in _code(p)
     ]
     assert callers, "no task file shells out to dotagents — did the topic move?"
@@ -164,7 +170,9 @@ KNOWN_RELOCATION_TARGETS = {
     "[copilotHome]": "COPILOT_HOME",
 }
 
-DEFINITIONS_GLOB = ".npm/_npx/*/node_modules/@sentry/dotagents/dist/targets/definitions/*.js"
+DEFINITIONS_GLOB = (
+    ".npm/_npx/*/node_modules/@sentry/dotagents/dist/targets/definitions/*.js"
+)
 
 
 def _installed_definitions() -> list[pathlib.Path]:
