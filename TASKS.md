@@ -1797,6 +1797,14 @@ nothing is.
   as separate `ROADMAP.md`/task lines, not implemented here.
   [agent: repo-manager / OpenCode — orchestrator session]
 
+- **Reserve the `redge-cli` namespace on PyPI and crates.io.** [me] The
+  repo-manager tool is named `redge` (binary) / `redge-cli` (registry namespace),
+  decided 2026-09-29. Both are verified free today; publish a placeholder
+  `redge-cli` 0.0.1 to each to hold the name before the tool ships. Done when
+  `pip install redge-cli` and `cargo add redge-cli` resolve to our package.
+  (Accounts are the author's; the orchestrator supplies the packaging steps, not
+  the credentials.)
+
 ## Planned
 
 
