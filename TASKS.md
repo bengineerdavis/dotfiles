@@ -1816,6 +1816,16 @@ nothing is.
   evidence, gives per-tool ignore patterns, and names the wiring for VS
   Code and opencode.
 
+- **Main-trunk policy suite is red under uv 0.12.21 — separate from any
+  branch.** [observed 2026-10-01, agent: OpenCode restart-review] 19
+  `tests/policy` failures reproduce on a clean `main` checkout with no local
+  changes (uv 0.12.21; green on 2026-09-28 under the previous run). Smells
+  like YAML-parsing drift: `test_null_value_is_silent`,
+  `test_todo_placeholder_is_silent`, `test_unparseable_layer_*` — a resolver
+  that now treats some layers as speaking instead of silent. Needs its own
+  investigation, not a per-branch workaround; branch gates compare against
+  this baseline until it lands.
+
 ## Planned
 
 
