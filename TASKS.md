@@ -1779,6 +1779,23 @@ nothing is.
   rebased onto `main`. The `delete_branch_on_merge` question is moot, since
   no PR targets a branch that could be deleted.
 
+- **Make ruff the written, enforced Python standard.** [agent: OpenCode
+  restart-review, 2026-10-01; author-approved plan] `[tool.ruff]` in
+  `pyproject.toml`: line-length 88, pycodestyle E/W, pydocstyle under the
+  Google convention, doc lines wrapped at 72 (W505), E203 ignored (ruff
+  format conflict), missing-docstring rules deliberately unselected (a
+  content campaign, not a fix). Land = repo-wide `ruff format` (70 files,
+  AST-checked on the restart-stale six) + auto-fixes + ~40 hand fixes
+  (lambda-to-def, r-strings, message splits; one real bug: a duplicated
+  comment on `check_commit_proportionality.py`'s CEILING). Plan change
+  recorded: the doc-line campaign (1,510 W505 + 123 D205 across ~100 files)
+  is grandfathered per-directory by the author's choice — rules are ON, each
+  entry shrinks as files are next edited, delete when clean. ruff + ruff-
+  format prek hooks activate last. pycodestyle is retired (ruff implements
+  it). Done when `ruff check` and `ruff format --check` exit 0 repo-wide,
+  the hooks pass on this commit, and a PR is open. Branch
+  `ruff_standard`.
+
 ## Planned
 
 
