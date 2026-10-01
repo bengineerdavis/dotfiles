@@ -87,6 +87,20 @@ Author's standing observations after the sonar round (recorded, not questions):
   table in terms of my options." Effect: a multi-tool Path A composition carries
   a real integration/learning cost that weighs against it; it is not disqualified.
 
+## 2026-09-29 (naming decided)
+
+The tool is named **`redge`** (the binary / command), with **`redge-cli`** as the
+full namespace for package registries.
+
+- Author: "i've decided it has to be redge. redge-cli will be the full tool
+  namespace for package registries and i'll want to grab both the crate and pypi
+  spaces asap." `redge-git` was raised and rejected ("don't like that name as much").
+- Verified free (2026-09-29): `redge-cli` on PyPI and on crates.io. Bare `redge` is
+  taken on PyPI by an unrelated denoising-diffusion research package — the `-cli`
+  compound is the disambiguation that keeps the `redge` binary.
+- Effect: the naming thread is closed. Reserve `redge-cli` on PyPI + crates.io as
+  an immediate author action; design/architecture/SPEC/bootstrap proceed as `redge`.
+
 ## Standing context the answers imply
 
 - Commit authority granted to the orchestrator covers faithful

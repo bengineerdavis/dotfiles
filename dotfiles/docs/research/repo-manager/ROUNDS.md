@@ -225,3 +225,8 @@ Surviving shortlist (available on PyPI):
 
 Open: the author's final pick — decision pending, not recorded here (it lands in
 AUTHOR-ANSWERS.md when chosen).
+
+**Decided 2026-09-29:** `redge` (binary) / `redge-cli` (PyPI + crates.io
+namespace); `redge-git` considered and rejected. Bare `redge` is taken on PyPI, so
+the `-cli` compound keeps the binary name. Recorded in AUTHOR-ANSWERS.md § naming
+decided.
