@@ -191,3 +191,37 @@ borrowing: discovery, path convention, credential injection.
    reusing `gh` auth satisfy R8?
 5. Headless Linux: is `op`/`bw` CLI a hard dependency, or is `gh auth` the primary
    credential path?
+
+## Naming sessions (2026-09-29)
+
+Four passes over the tool name (council stress-test, then researcher rounds), at
+the author's request. All names collision-checked against PyPI + GitHub before
+listing. Converged criteria (from the advisors): **legibility** (a stranger infers
+"manages a collection of git repos"), **metaphor-integrity** (holds
+`update/upgrade/lock/pin/sync/status` and carries the persistent-record idea),
+**ownability** (single clean token, not a `git`/`repo` prefix-mash), and
+**author taste** (spanning-layer / story-of-change / tidal-flow-and-record).
+
+Findings that shaped it:
+
+- Almost every evocative single word is claimed — `canopy` (PyPI client +
+  `github.com/canopy` org), `grove` (a git-worktree tool), `garden`, `coppice`
+  (git-worktree), `overstory` (AI orchestration), `radix`, `radicle` (a P2P git
+  project), `watermark`, `driftwood`, `cairn`, `ledgerline`, `slackwater`-. . .
+- The literal "record-keeper" family is mined too (`codex` → OpenAI Codex,
+  `chronicle`, `folio`, `scribe`, `tome`, `vellum`, `palimpsest`).
+- Bare `canopy` is **unownable** — the advisors were unambiguous; `gitcanopy` is
+  the surviving way to keep the word.
+
+Surviving shortlist (available on PyPI):
+
+| Name | Lens | Note |
+|---|---|---|
+| **tideline** | tidal + record | the mark the tide leaves = persistent state; rhymes with timeline/baseline |
+| **gitcanopy** | canopy compd | keeps the author's favorite; legible via `git-`; weak GH hit only |
+| **repoledger** | literal/record | "the standing book of repos"; strongest legibility + record |
+| **distributary** | water | "flows OUT" to the fleet; legible root, long word |
+| **repofolio** | historian | "portfolio of repos"; clean |
+
+Open: the author's final pick — decision pending, not recorded here (it lands in
+AUTHOR-ANSWERS.md when chosen).
