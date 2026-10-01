@@ -1,5 +1,13 @@
 repos:
-  # 1. Lint all shell scripts found anywhere in the repo
+  # 1. Lint and format all Python (config: [tool.ruff] in pyproject.toml).
+  #    Pinned to the same ruff the machine runs (mise: 0.16.9).
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.9
+    hooks:
+      - id: ruff-check
+      - id: ruff-format
+
+  # 2. Lint all shell scripts found anywhere in the repo
   - repo: https://github.com/shellcheck-py/shellcheck-py
     rev: v0.10.0.1
     hooks:

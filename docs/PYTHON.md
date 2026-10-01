@@ -27,9 +27,15 @@ groups; the repo is never built or installed (`package = false`).
   not been seen to fail is not yet a test.
 - **Share fixtures through `conftest.py`.** `tests/ollama_evals/conftest.py`
   loads the harness as a module so every suite in that directory gets it once.
-- **ruff lints.** Installed, but not yet in `.pre-commit-config.yaml` — the hooks
-  currently run shellcheck and bats only, so no Python file is linted on commit.
-  Queued in `TASKS.md`.
+- **ruff lints and formats, enforced on commit.** `[tool.ruff]` in
+  `pyproject.toml` is the written standard: lines at 88 (ruff format, Black
+  style), pycodestyle E/W, docstrings under the Google convention with their
+  lines wrapped at 72 (W505; missing-docstring rules are deliberately
+  unselected — that is a content campaign, not a fix). The ruff and
+  ruff-format pre-commit hooks run on every commit. Paths still failing the
+  doc-line rules carry per-path grandfathers in the config; each entry
+  shrinks as the file is next edited and is deleted when its directory is
+  clean. pycodestyle is retired — ruff implements it.
 - **ty typechecks.** Not installed yet, and not referenced anywhere in the repo.
   Also queued. Treat any claim that the Python here is typechecked as false until
   that lands.
