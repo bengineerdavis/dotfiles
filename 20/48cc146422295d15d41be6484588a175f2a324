@@ -1,0 +1,27 @@
+dotfiles/docs/research/repo-manager/PRIOR-ART.md
+  s_6b84435db451de::t_2bdfd2a13a636f 1-100
+dotfiles/docs/research/repo-manager/README.md
+  s_6b84435db451de::t_4173eae3874616 1,3-7,13-24,26-27
+dotfiles/docs/research/repo-manager/REDGE-ARCHITECTURE.md
+  s_6b84435db451de::t_c14e8813ebfa8e 1-102
+dotfiles/docs/research/repo-manager/SPEC.md
+  s_6b84435db451de::t_b98a187d747fd3 1-123
+dotfiles/docs/research/repo-manager/BOOTSTRAP.md
+  s_6b84435db451de::t_5a8071d9a1bed7 1-87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2048cc146422295d15d41be6484588a175f2a324",
+  "prompts": {},
+  "sessions": {
+    "s_6b84435db451de": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f28f59f75ffeYKB7iInOnBwVbo",
+        "model": "~deepseek/deepseek-pro-latest"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
