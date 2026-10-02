@@ -1779,6 +1779,20 @@ nothing is.
   rebased onto `main`. The `delete_branch_on_merge` question is moot, since
   no PR targets a branch that could be deleted.
 
+- **Wire pyrefly's LSP into this repo's opencode config; retire the stale
+  opencode.json.** [agent: OpenCode restart-review, 2026-10-01;
+  author-approved plan] `opencode.jsonc` gains a top-level `lsp` block:
+  a custom `pyrefly` server (`pyrefly lsp`, verified subcommand) for
+  `.py`/`.pyi`, with the built-in `pyright` explicitly disabled (the
+  pyrefly-only decision). Built-ins stay enabled where their requirements
+  are met (bash/yaml auto-install; pyright requires the pyright package,
+  which is not installed - hence the explicit disable). Also deletes the
+  stale root `opencode.json` (1508 bytes, superseded by `opencode.jsonc`'s
+  rules; both tracked since ef6a934, the .json frozen at 2026-09-16). Done
+  when the permission-tier tests still pass, `opencode debug config` shows
+  the server (author-side), and a PR is open (policy path: human review).
+  Branch `opencode_lsp_pyrefly`.
+
 ## Planned
 
 
