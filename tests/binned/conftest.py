@@ -1,13 +1,14 @@
-"""
-Shared pytest fixtures and configuration for binned test suite.
+"""Shared pytest fixtures and configuration for binned test suite.
 
 Run property tests:
     pytest tests/test_binned_property.py -v
 
 Run LLM judge panel (requires real API calls):
     pytest -m llm_judge tests/test_binned_llm_judge.py -v -s
-    pytest -m llm_judge --gen-model claude-4-sonnet --judges "claude-4-sonnet,gpt-4.1,gemini-2.5-flash" -v -s
+    pytest -m llm_judge --gen-model claude-4-sonnet \
+        --judges "claude-4-sonnet,gpt-4.1,gemini-2.5-flash" -v -s
 """
+
 from __future__ import annotations
 
 import importlib.machinery
@@ -37,14 +38,14 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
         "--judges",
         default="devstral-small-2,qwen3.5,claude-4-sonnet",
-        help="Comma-separated llm aliases for the judge panel (default: 2 local + 1 cloud)",
+        help="Comma-separated llm aliases for the judge panel "
+        "(default: 2 local + 1 cloud)",
     )
 
 
 @pytest.fixture(scope="session")
 def binned_module():
-    """
-    Import binned as a Python module so tests can call its functions directly.
+    """Import binned as a Python module so tests can call its functions directly.
     Skips the entire session if typer/questionary are not installed in this
     environment (install with: pip install typer questionary).
     """
@@ -54,12 +55,16 @@ def binned_module():
         # binned has no .py extension so spec_from_file_location returns None;
         # SourceFileLoader tells Python to treat it as Python source regardless.
         loader = importlib.machinery.SourceFileLoader("binned", str(BINNED_PATH))
-        spec = importlib.util.spec_from_loader("binned", loader, origin=str(BINNED_PATH))
+        spec = importlib.util.spec_from_loader(
+            "binned", loader, origin=str(BINNED_PATH)
+        )
         mod = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
         loader.exec_module(mod)
         return mod
     except ImportError as exc:
-        pytest.skip(f"binned deps not installed ({exc}). Run: pip install typer questionary")
+        pytest.skip(
+            f"binned deps not installed ({exc}). Run: pip install typer questionary"
+        )
 
 
 @pytest.fixture(scope="session")

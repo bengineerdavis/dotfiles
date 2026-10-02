@@ -40,6 +40,7 @@ catalogue keys mirror editors.yaml's ``editor_extensions`` /
 subscriber topic names, absent = shared by default — the editors.yaml
 ``editors:`` pattern).
 """
+
 from __future__ import annotations
 
 import datetime
@@ -65,11 +66,28 @@ from hypothesis import strategies as st  # noqa: E402
 # Integration ids are spelled exactly as herdr's own install commands spell
 # them (`herdr integration install <id>`).
 
-HC_UPSTREAM_IDS = frozenset({
-    "pi", "omp", "claude", "codex", "copilot", "devin", "droid", "kimi",
-    "opencode", "kilo", "hermes", "qodercli", "qwen", "letta", "cursor",
-    "mastracode", "antigravity-cli", "grok",
-})
+HC_UPSTREAM_IDS = frozenset(
+    {
+        "pi",
+        "omp",
+        "claude",
+        "codex",
+        "copilot",
+        "devin",
+        "droid",
+        "kimi",
+        "opencode",
+        "kilo",
+        "hermes",
+        "qodercli",
+        "qwen",
+        "letta",
+        "cursor",
+        "mastracode",
+        "antigravity-cli",
+        "grok",
+    }
+)
 
 # Native session restore requires current herdr integrations (upstream table):
 # OpenCode version 5, Claude Code version 6, Cursor Agent CLI version 1.
@@ -114,6 +132,7 @@ HC_SUBSCRIBER = "herdr"
 
 
 # ── Artifact gate and catalogue loaders ─────────────────────────────────────
+
 
 def hc_require_catalogue():
     """Fail NAMED while dotfiles/config/agents.yaml is absent. Never skip."""
@@ -183,8 +202,12 @@ def hc_is_iso_date(value):
 
 # ── Executable contract: the integration loop (fake state, no ansible) ──────
 
+
 class hc_HerdrMissing(RuntimeError):
-    """The loop ran without herdr installed — the contract says RAISE, naming the fix."""
+    """The loop ran without herdr installed — the contract says RAISE.
+
+    Naming the fix is part of the contract.
+    """
 
 
 def hc_run_integration_loop(entries, probes, dirs, *, herdr_present=True):
@@ -261,24 +284,34 @@ def hc_synthetic_catalogue(draw):
     n_other = draw(st.integers(min_value=1, max_value=3))
     n_mixed = draw(st.integers(min_value=1, max_value=2))
     total = n_shared + n_herdr + n_other + n_mixed
-    ids = draw(st.lists(
-        st.text(alphabet=string.ascii_lowercase, min_size=3, max_size=8),
-        min_size=total, max_size=total, unique=True,
-    ))
+    ids = draw(
+        st.lists(
+            st.text(alphabet=string.ascii_lowercase, min_size=3, max_size=8),
+            min_size=total,
+            max_size=total,
+            unique=True,
+        )
+    )
     shared = ids[:n_shared]
-    herdr_only = ids[n_shared:n_shared + n_herdr]
-    other_only = ids[n_shared + n_herdr:n_shared + n_herdr + n_other]
-    mixed = ids[n_shared + n_herdr + n_other:]
+    herdr_only = ids[n_shared : n_shared + n_herdr]
+    other_only = ids[n_shared + n_herdr : n_shared + n_herdr + n_other]
+    mixed = ids[n_shared + n_herdr + n_other :]
     entries = [{"id": entry_id} for entry_id in shared]
     entries += [{"id": entry_id, "topics": [HC_SUBSCRIBER]} for entry_id in herdr_only]
-    entries += [{
-        "id": entry_id,
-        "topics": [draw(st.sampled_from(HC_OTHER_SUBSCRIBERS))],
-    } for entry_id in other_only]
-    entries += [{
-        "id": entry_id,
-        "topics": [HC_SUBSCRIBER, draw(st.sampled_from(HC_OTHER_SUBSCRIBERS))],
-    } for entry_id in mixed]
+    entries += [
+        {
+            "id": entry_id,
+            "topics": [draw(st.sampled_from(HC_OTHER_SUBSCRIBERS))],
+        }
+        for entry_id in other_only
+    ]
+    entries += [
+        {
+            "id": entry_id,
+            "topics": [HC_SUBSCRIBER, draw(st.sampled_from(HC_OTHER_SUBSCRIBERS))],
+        }
+        for entry_id in mixed
+    ]
     protected = {shared[0], herdr_only[0], mixed[0]}
     pool = [entry_id for entry_id in ids if entry_id not in protected]
     ignored = draw(st.sets(st.sampled_from(pool), min_size=1, max_size=len(pool)))
@@ -293,6 +326,7 @@ def hc_synthetic_catalogue(draw):
 
 
 # ── Catalogue schema conformance ─────────────────────────────────────────────
+
 
 def test_catalogue_exists_parses_with_pattern_shape():
     """The catalogue exists, parses, and carries the editors.yaml pattern shape.
@@ -365,8 +399,7 @@ def test_wired_entries_carry_every_required_field():
         floor = entry.get("min_version")
         assert isinstance(floor, dict), (
             f"entry `{entry_id}` needs `min_version` as a dated verdict "
-            "{version, checked} (editors.yaml verdict style); got "
-            + repr(floor)
+            "{version, checked} (editors.yaml verdict style); got " + repr(floor)
         )
         assert isinstance(floor.get("version"), int) and floor["version"] >= 1, (
             f"entry `{entry_id}` min_version.version must be a positive int"
@@ -400,9 +433,7 @@ def test_wired_set_is_exactly_the_readme_three():
     )
     ignored_ids = {e.get("id") for e in hc_ignored(doc)}
     overlap = set(wired) & ignored_ids
-    assert not overlap, (
-        f"an id must not be both wired and ignored: {sorted(overlap)}"
-    )
+    assert not overlap, f"an id must not be both wired and ignored: {sorted(overlap)}"
 
 
 def test_wired_entry_facts_match_upstream_docs():
@@ -455,9 +486,7 @@ def test_ignored_list_covers_codex_and_upstream_ids():
     wired = {e.get("id") for e in entries}
     ignored = hc_ignored(doc)
     ignored_ids = [e.get("id") for e in ignored]
-    assert len(ignored_ids) == len(set(ignored_ids)), (
-        "ignored ids must be unique"
-    )
+    assert len(ignored_ids) == len(set(ignored_ids)), "ignored ids must be unique"
     assert "codex" in ignored_ids, (
         "codex must be in agent_integrations_ignored (README: candidate, "
         "not wired — mise-owned npm binary, no topic)"
@@ -516,6 +545,7 @@ def test_native_restore_floors_recorded_dated():
 
 # ── Slice resolution (pure rule, stated independently) ──────────────────────
 
+
 def test_real_catalogue_slice_matches_first_principles():
     """The slice herdr consumes, computed from first principles on the real file.
 
@@ -537,14 +567,16 @@ def test_real_catalogue_slice_matches_first_principles():
     ignored = {e.get("id") for e in hc_ignored(doc)}
     all_ids = {e.get("id") for e in entries}
     additive = {
-        e["id"] for e in entries
+        e["id"]
+        for e in entries
         if (e.get("topics") is None or HC_SUBSCRIBER in e["topics"])
         and e["id"] not in ignored
     }
     # The same rule stated subtractively — two independent constructions of
     # the expected set must agree on the real file.
     scoped_away = {
-        e["id"] for e in entries
+        e["id"]
+        for e in entries
         if e.get("topics") is not None and HC_SUBSCRIBER not in e["topics"]
     }
     subtractive = all_ids - ignored - scoped_away
@@ -566,7 +598,9 @@ def test_real_catalogue_slice_matches_first_principles():
         f"{sorted(additive - all_ids)}"
     )
     assert additive, "the resolved slice must not be empty"
-    assert "codex" not in additive, "codex is a candidate, not wired — never in the slice"
+    assert "codex" not in additive, (
+        "codex is a candidate, not wired — never in the slice"
+    )
 
 
 @settings(max_examples=100, deadline=None)
@@ -592,7 +626,8 @@ def test_slice_resolution_idempotent_property(catalogue_data):
     assert catalogue_data["keep_shared"] in {e["id"] for e in entries}
     # The rule, applied once (additive, per entry, from first principles):
     selected = {
-        e["id"] for e in entries
+        e["id"]
+        for e in entries
         if (e.get("topics") is None or HC_SUBSCRIBER in e["topics"])
         and e["id"] not in ignored
     }
@@ -600,11 +635,13 @@ def test_slice_resolution_idempotent_property(catalogue_data):
     # resolve to itself — scope facts and ignored membership do not change
     # between applications.
     reselected = {
-        entry_id for entry_id in selected
+        entry_id
+        for entry_id in selected
         if entry_id not in ignored
         and any(
             (e.get("topics") is None or HC_SUBSCRIBER in e["topics"])
-            for e in entries if e["id"] == entry_id
+            for e in entries
+            if e["id"] == entry_id
         )
     }
     assert reselected == selected, (
@@ -630,13 +667,13 @@ def test_slice_subset_and_ignored_disjoint_property(catalogue_data):
     all_ids = catalogue_data["all_ids"]
     assert entries and ignored, "generator produced an empty catalogue"
     selected = {
-        e["id"] for e in entries
+        e["id"]
+        for e in entries
         if (e.get("topics") is None or HC_SUBSCRIBER in e["topics"])
         and e["id"] not in ignored
     }
     assert selected <= all_ids, (
-        f"slice invented ids outside the catalogue: "
-        f"{sorted(selected - all_ids)}"
+        f"slice invented ids outside the catalogue: {sorted(selected - all_ids)}"
     )
     assert selected.isdisjoint(ignored), (
         f"ignored ids leaked into the slice: {sorted(selected & ignored)}"
@@ -675,12 +712,14 @@ def test_slice_membership_agrees_across_two_procedures(catalogue_data):
     all_ids = catalogue_data["all_ids"]
     assert entries and ignored, "generator produced an empty catalogue"
     additive = {
-        e["id"] for e in entries
+        e["id"]
+        for e in entries
         if (e.get("topics") is None or HC_SUBSCRIBER in e["topics"])
         and e["id"] not in ignored
     }
     scoped_away = {
-        e["id"] for e in entries
+        e["id"]
+        for e in entries
         if e.get("topics") is not None and HC_SUBSCRIBER not in e["topics"]
     }
     subtractive = all_ids - ignored - scoped_away
@@ -700,6 +739,7 @@ def test_slice_membership_agrees_across_two_procedures(catalogue_data):
 
 
 # ── The integration loop (simulated against fake state) ─────────────────────
+
 
 def test_loop_installs_entries_when_probe_and_dir_present():
     """The gate PROCEEDS: present probe + config dir installs, run stays green.
@@ -755,8 +795,7 @@ def test_loop_skips_absent_agents_reports_and_stays_green():
             f"{entry_id} must be reported skipped exactly once; got {lines}"
         )
     assert "cursor-agent" in report_text, (
-        "the skip line names the missing probe (cursor-agent), per the "
-        "README's why"
+        "the skip line names the missing probe (cursor-agent), per the README's why"
     )
 
 
@@ -794,7 +833,7 @@ def test_loop_gate_requires_probe_and_config_dir():
 
 
 def test_loop_raises_naming_the_fix_when_herdr_missing():
-    """herdr absent RAISES with the named fix — it is not a fourth skip.
+    """Herdr absent RAISES with the named fix — it is not a fourth skip.
 
     Dimension: skip-vs-raise, raise direction. Sources: TOPIC-RECIPES.md
     skip-vs-raise recipe (a required provider absent raises — a run that
@@ -834,7 +873,8 @@ def test_loop_acts_on_slice_never_on_ignored_ids():
     entries = hc_entries(doc)
     ignored = {e.get("id") for e in hc_ignored(doc)}
     slice_entries = [
-        e for e in entries
+        e
+        for e in entries
         if (e.get("topics") is None or HC_SUBSCRIBER in e.get("topics", []))
         and e["id"] not in ignored
     ]
@@ -853,12 +893,12 @@ def test_loop_acts_on_slice_never_on_ignored_ids():
     )
     for unclaimed in HC_UNCLAIMED_FACTS:
         assert unclaimed not in result["installed"], (
-            f"{unclaimed} is not wired — the catalogue must never hand it "
-            "to the loop"
+            f"{unclaimed} is not wired — the catalogue must never hand it to the loop"
         )
 
 
 # ── Gated teardown ───────────────────────────────────────────────────────────
+
 
 def test_remove_defaults_to_no_uninstall():
     """`herdr_remove_integrations` defaults false: a plain remove uninstalls nothing.
@@ -884,7 +924,9 @@ def test_remove_defaults_to_no_uninstall():
 
 
 def test_remove_intersection_leaves_unclaimed_and_absent_alone():
-    """Gate on: only claimed∩installed uninstalls; unclaimed held ids and absent claims are safe.
+    """Gate on: only claimed∩installed uninstalls.
+
+    Unclaimed held ids and absent claims are safe.
 
     Dimension: gated teardown, intersection semantics. Sources:
     TOPIC-RECIPES.md shared-catalogue recipe — teardown uninstalls only the

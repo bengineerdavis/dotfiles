@@ -27,8 +27,8 @@ PERMITTED, DENIED, UNKNOWN, ERROR = 0, 1, 2, 3
 class ConfigError(Exception):
     """A rules file that could not be read. Distinct from a denial on purpose:
     "I could not tell you" and "I told you no" mean different things to a
-    caller, and collapsing them lets a mistyped path read as a clean refusal."""
-
+    caller, and collapsing them lets a mistyped path read as a clean refusal.
+    """
 
 
 def require(*commands: str) -> None:
@@ -40,7 +40,9 @@ def require(*commands: str) -> None:
     """
     missing = [c for c in commands if not shutil.which(c)]
     if missing:
-        print(f"skill-trust: missing dependencies: {' '.join(missing)}", file=sys.stderr)
+        print(
+            f"skill-trust: missing dependencies: {' '.join(missing)}", file=sys.stderr
+        )
         raise SystemExit(127)
 
 
@@ -58,10 +60,16 @@ def load_config(path: pathlib.Path | None) -> dict:
     return loaded
 
 
-def _judge(source: str, skill: str | None, config: dict,
-           skill_dir: pathlib.Path | None, offline: bool) -> Decision:
+def _judge(
+    source: str,
+    skill: str | None,
+    config: dict,
+    skill_dir: pathlib.Path | None,
+    offline: bool,
+) -> Decision:
     """Decide once without a licence, and only look one up if that was the
-    level that would have decided it."""
+    level that would have decided it.
+    """
     provisional = decide(source, skill, config, spdx=None)
     if provisional.rule != "default":
         return provisional
@@ -95,7 +103,7 @@ def _external_line(bucket: ForeignBucket, config: dict, today: str) -> str:
     denial = _deny_rule_naming_bucket(config, bucket.id)
     if denial is not None:
         return (
-            f'EXTERNAL [foreign_bucket] {bucket.id} ({bucket.alias}): a deny '
+            f"EXTERNAL [foreign_bucket] {bucket.id} ({bucket.alias}): a deny "
             f'rule names "{denial}", but deny is refused here. This bucket is '
             "owned by another program's sync, and deleting its skills only "
             "makes the sync recreate them byte-identical on the next session, "
@@ -138,8 +146,11 @@ def cmd_audit(args) -> int:
     # a call to any particular tool: `dotagents list --json` produces it today,
     # and anything that can emit {"skills":[{"name","source"}]} works tomorrow.
     if args.declared_json:
-        raw = sys.stdin.read() if args.declared_json == "-" else \
-            pathlib.Path(args.declared_json).read_text(encoding="utf-8")
+        raw = (
+            sys.stdin.read()
+            if args.declared_json == "-"
+            else pathlib.Path(args.declared_json).read_text(encoding="utf-8")
+        )
         try:
             payload = json.loads(raw)
         except json.JSONDecodeError as exc:
@@ -177,13 +188,19 @@ def cmd_audit(args) -> int:
                 if child_name in bucket_ids:
                     continue
                 seen += 1
-                problems.append((child_name, Decision(
-                    Verdict.DENIED, "undeclared",
-                    f'"{child_name}" sits under synced/ but carries no bucket '
-                    "evidence — no sibling .bucket-<id> marker, or a "
-                    "manifest.json that does not parse to a skills[] array. "
-                    "Named like a bucket is not being one; it fails closed.",
-                )))
+                problems.append(
+                    (
+                        child_name,
+                        Decision(
+                            Verdict.DENIED,
+                            "undeclared",
+                            f'"{child_name}" sits under synced/ but carries no bucket '
+                            "evidence — no sibling .bucket-<id> marker, or a "
+                            "manifest.json that does not parse to a skills[] array. "
+                            "Named like a bucket is not being one; it fails closed.",
+                        ),
+                    )
+                )
             continue
         seen += 1
         if name in vendored:
@@ -191,10 +208,15 @@ def cmd_audit(args) -> int:
         source = declared.get(name)
         if source is None:
             spdx = licence_from_dir(path)
-            decision = decide(name, None, config, spdx=spdx) if spdx else Decision(
-                Verdict.DENIED, "undeclared",
-                f'"{name}" is installed but nothing declares it, and it carries '
-                "no licence of its own. Every agent on this machine loads it.",
+            decision = (
+                decide(name, None, config, spdx=spdx)
+                if spdx
+                else Decision(
+                    Verdict.DENIED,
+                    "undeclared",
+                    f'"{name}" is installed but nothing declares it, and it carries '
+                    "no licence of its own. Every agent on this machine loads it.",
+                )
             )
         else:
             decision = _judge(source, name, config, path, args.offline)
@@ -216,12 +238,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="skill-trust",
         description="Decide whether an agent skill may be installed, by source "
-                    "ban, approval, or licence. Exit: 0 permitted, 1 denied, "
-                    "2 unknown, 3 error (matching bin/policy).",
+        "ban, approval, or licence. Exit: 0 permitted, 1 denied, "
+        "2 unknown, 3 error (matching bin/policy).",
     )
     parser.add_argument("--config", type=pathlib.Path, help="trust rules, YAML")
-    parser.add_argument("--offline", action="store_true",
-                        help="never consult the network; an unknown licence then denies")
+    parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="never consult the network; an unknown licence then denies",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     check = sub.add_parser("check", help="judge one source, optionally one skill")
@@ -232,9 +257,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     audit = sub.add_parser("audit", help="judge every installed skill directory")
     audit.add_argument("--skills-dir", required=True)
-    audit.add_argument("--declared-json", metavar="FILE",
-                       help="a manager's inventory as {\"skills\":[{name,source}]}; "
-                            "'-' reads stdin (e.g. dotagents list --json | ...)")
+    audit.add_argument(
+        "--declared-json",
+        metavar="FILE",
+        help='a manager\'s inventory as {"skills":[{name,source}]}; '
+        "'-' reads stdin (e.g. dotagents list --json | ...)",
+    )
     audit.set_defaults(func=cmd_audit)
     return parser
 

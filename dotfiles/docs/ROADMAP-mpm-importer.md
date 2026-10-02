@@ -158,33 +158,69 @@ On a Debian box:
 ```python
 #!/usr/bin/env python3
 """bin/import-pkg-state — discover explicit packages, scaffold bulk topics."""
+
 import argparse, json, subprocess, pathlib, sys
 from dataclasses import dataclass
 
+
 @dataclass
 class Manager:
-    name: str            # "brew-formulae"
-    probe: list[str]     # ["command", "-v", "brew"]
-    enumerate: list[str] # ["brew", "leaves"]
-    os: list[str]        # ["Darwin"]
-    requires: str        # "homebrew"
+    name: str  # "brew-formulae"
+    probe: list[str]  # ["command", "-v", "brew"]
+    enumerate: list[str]  # ["brew", "leaves"]
+    os: list[str]  # ["Darwin"]
+    requires: str  # "homebrew"
+
 
 MANAGERS = [
-    Manager("homebrew-formulae", ["command","-v","brew"], ["brew","leaves"], ["Darwin"], "homebrew"),
-    Manager("homebrew-casks",    ["command","-v","brew"], ["brew","list","--cask"], ["Darwin"], "homebrew"),
-    Manager("apt",               ["command","-v","apt-mark"], ["apt-mark","showmanual"], ["Debian"], "apt"),
-    Manager("flatpak",           ["command","-v","flatpak"], ["flatpak","list","--app","--columns=application"], ["Debian"], "flatpak"),
-    Manager("mas",               ["command","-v","mas"], ["mas","list"], ["Darwin"], "homebrew"),
-    Manager("mise-tools",        ["command","-v","mise"], ["mise","ls","--installed","--global","--json"], ["Darwin","Debian"], "mise"),
+    Manager(
+        "homebrew-formulae",
+        ["command", "-v", "brew"],
+        ["brew", "leaves"],
+        ["Darwin"],
+        "homebrew",
+    ),
+    Manager(
+        "homebrew-casks",
+        ["command", "-v", "brew"],
+        ["brew", "list", "--cask"],
+        ["Darwin"],
+        "homebrew",
+    ),
+    Manager(
+        "apt",
+        ["command", "-v", "apt-mark"],
+        ["apt-mark", "showmanual"],
+        ["Debian"],
+        "apt",
+    ),
+    Manager(
+        "flatpak",
+        ["command", "-v", "flatpak"],
+        ["flatpak", "list", "--app", "--columns=application"],
+        ["Debian"],
+        "flatpak",
+    ),
+    Manager("mas", ["command", "-v", "mas"], ["mas", "list"], ["Darwin"], "homebrew"),
+    Manager(
+        "mise-tools",
+        ["command", "-v", "mise"],
+        ["mise", "ls", "--installed", "--global", "--json"],
+        ["Darwin", "Debian"],
+        "mise",
+    ),
     # ... etc
 ]
+
 
 def probe(m: Manager) -> bool:
     return subprocess.run(m.probe, capture_output=True).returncode == 0
 
+
 def enumerate_pkgs(m: Manager) -> list[str]:
     r = subprocess.run(m.enumerate, capture_output=True, text=True, check=True)
     return parse(m.name, r.stdout)  # per-manager parser
+
 
 def report(detected: dict[Manager, list[str]]) -> None:
     print("Detected package managers and explicit packages:")
@@ -193,7 +229,8 @@ def report(detected: dict[Manager, list[str]]) -> None:
         for p in pkgs[:5]:
             print(f"    - {p}")
         if len(pkgs) > 5:
-            print(f"    ... ({len(pkgs)-5} more)")
+            print(f"    ... ({len(pkgs) - 5} more)")
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -213,6 +250,7 @@ def main():
 
     if args.batch:
         write_suggestions_md(detected)
+
 
 if __name__ == "__main__":
     main()

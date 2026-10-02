@@ -30,15 +30,19 @@ def ansible_playbook() -> str:
     return exe
 
 
-def _invoke(ansible_playbook, tmp_path, harness, extra_vars) -> subprocess.CompletedProcess:
+def _invoke(
+    ansible_playbook, tmp_path, harness, extra_vars
+) -> subprocess.CompletedProcess:
     play = tmp_path / "harness.yaml"
     play.write_text(harness, encoding="utf-8")
     return subprocess.run(
         [
             ansible_playbook,
-            "-i", "localhost,",
+            "-i",
+            "localhost,",
             str(play),
-            "-e", json.dumps(extra_vars),
+            "-e",
+            json.dumps(extra_vars),
         ],
         cwd=DOTFILES,
         capture_output=True,

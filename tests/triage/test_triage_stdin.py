@@ -4,6 +4,7 @@ The prompt is observed through the stub `llm`, which records its argv — so
 'content is read' is proven on the text that would have gone to the model,
 without calling one.
 """
+
 from __future__ import annotations
 
 

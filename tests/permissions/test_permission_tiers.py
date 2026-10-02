@@ -42,7 +42,7 @@ def _matches(rule: str, cmd: str) -> bool:
 
 
 def _tier(perms: dict, cmd: str) -> str:
-    for tier in ("deny", "ask", "allow"):        # deny > ask > allow
+    for tier in ("deny", "ask", "allow"):  # deny > ask > allow
         if any(_matches(r, cmd) for r in perms.get(tier, [])):
             return tier
     return "prompt"
@@ -54,10 +54,17 @@ CASES = [
     ("chezmoi apply --dry-run", "deny", "same, with any argument"),
     ("git push --force origin main", "deny", "spec.md § Change records"),
     ("git push -f origin main", "deny", "short form of the same thing"),
-    ("git push --force-with-lease=main:abc123 origin main", "deny",
-     "the = form slipped past `--force-with-lease *` on 2026-09-24"),
+    (
+        "git push --force-with-lease=main:abc123 origin main",
+        "deny",
+        "the = form slipped past `--force-with-lease *` on 2026-09-24",
+    ),
     ("git worktree add .worktrees/x -b x", "allow", "creating a worktree is additive"),
-    ("git filter-repo --path x", "ask", "history rewriting — irreversible but legitimate, per docs/PERMISSIONS.md"),
+    (
+        "git filter-repo --path x",
+        "ask",
+        "history rewriting — irreversible but legitimate, per docs/PERMISSIONS.md",
+    ),
     ("git push origin main", "ask", "publishing is outward-facing"),
     ("git -C /tmp/x push --force", "ask", "the -C form must not bypass the tiers"),
     ("gh pr create", "ask", "writes to GitHub"),
@@ -71,7 +78,11 @@ CASES = [
     ("git commit -m x", "allow", "local and undoable"),
     ("uv run --with pytest pytest tests -q", "allow", "the documented test command"),
     ("chezmoi status", "allow", "read-only"),
-    ("chezmoi add ~/dotfiles/zsh/aliases.zsh", "allow", "captures into git-tracked source"),
+    (
+        "chezmoi add ~/dotfiles/zsh/aliases.zsh",
+        "allow",
+        "captures into git-tracked source",
+    ),
     ("cat README.md", "allow", "read-only"),
     ("python3 -", "allow", "interpreters allowed deliberately"),
 ]
@@ -85,24 +96,30 @@ def test_command_lands_in_the_intended_tier(perms, cmd, want, why):
 
 def test_every_tier_is_populated(perms):
     """The config this replaced had 88 allow rules and nothing else. An empty
-    deny or ask is the state that made a permission file decorative."""
+    deny or ask is the state that made a permission file decorative.
+    """
     for tier in ("allow", "ask", "deny"):
         assert perms.get(tier), f"{tier} is empty"
 
 
 def test_no_allow_rule_shadows_a_whole_command(perms):
     """A bare `Bash(git *)` or `Bash(chezmoi *)` in allow would swallow every
-    ask and deny rule for that command while looking like one harmless line."""
+    ask and deny rule for that command while looking like one harmless line.
+    """
     shadowing = [
-        r for r in perms.get("allow", [])
-        if re.fullmatch(r"Bash\((git|chezmoi|gh|rm|curl|brew|pip|npm|op|sudo) ?\*?\)", r)
+        r
+        for r in perms.get("allow", [])
+        if re.fullmatch(
+            r"Bash\((git|chezmoi|gh|rm|curl|brew|pip|npm|op|sudo) ?\*?\)", r
+        )
     ]
     assert not shadowing, f"allow rules shadow a whole command: {shadowing}"
 
 
 def test_the_doc_and_the_config_ship_together(perms):
     """settings.json is JSON and cannot hold its own reasoning, so the doc is
-    the only place the reasoning lives. A config with no doc is unreviewable."""
+    the only place the reasoning lives. A config with no doc is unreviewable.
+    """
     assert DOC.exists(), "docs/PERMISSIONS.md is missing"
     text = DOC.read_text(encoding="utf-8")
     assert "does not contain a misaligned agent" in text, (

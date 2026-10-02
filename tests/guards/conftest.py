@@ -20,6 +20,7 @@ import pytest
 
 from guard_harness import DOTFILES, GUARDS, HARNESS, said  # noqa: F401
 
+
 @pytest.fixture(scope="session")
 def ansible_playbook() -> str:
     exe = shutil.which("ansible-playbook")
@@ -38,22 +39,24 @@ def run_guard(ansible_playbook, tmp_path):
     else is the failure this reproduces rather than papers over.
     """
 
-    def _run(tasks_from: str = "dotagents-skills-migration.yaml",
-             gather_facts: bool = False,
-             **extra_vars) -> subprocess.CompletedProcess:
+    def _run(
+        tasks_from: str = "dotagents-skills-migration.yaml",
+        gather_facts: bool = False,
+        **extra_vars,
+    ) -> subprocess.CompletedProcess:
         play = tmp_path / "harness.yaml"
         play.write_text(
-            HARNESS.format(
-                gather=str(gather_facts).lower(), tasks_from=tasks_from
-            ),
+            HARNESS.format(gather=str(gather_facts).lower(), tasks_from=tasks_from),
             encoding="utf-8",
         )
         return subprocess.run(
             [
                 ansible_playbook,
-                "-i", "localhost,",
+                "-i",
+                "localhost,",
                 str(play),
-                "-e", json.dumps(extra_vars),
+                "-e",
+                json.dumps(extra_vars),
             ],
             cwd=DOTFILES,
             capture_output=True,
@@ -109,8 +112,10 @@ def scope(tmp_path):
             """Every entry under the scope, as (relative path, kind)."""
             out = []
             for p in sorted(self.root.rglob("*")):
-                kind = "link->" + str(p.readlink()) if p.is_symlink() else (
-                    "dir" if p.is_dir() else "file"
+                kind = (
+                    "link->" + str(p.readlink())
+                    if p.is_symlink()
+                    else ("dir" if p.is_dir() else "file")
                 )
                 out.append((str(p.relative_to(self.root)), kind))
             return out

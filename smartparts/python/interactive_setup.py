@@ -1,5 +1,4 @@
-"""
-interactive_setup — reusable first-run wizard and preflight check pattern.
+"""interactive_setup — reusable first-run wizard and preflight check pattern.
 
 Used in: model-bench, (future scripts)
 
@@ -7,8 +6,10 @@ Used in: model-bench, (future scripts)
 Add this near the top of any ~/bin script that needs it:
 
     import sys, pathlib
-    sys.path.insert(0, str(pathlib.Path.home() / ".local/share/chezmoi/smartparts/python"))
-    from interactive_setup import CheckItem, run_preflight, run_tutorial, run_setup_wizard
+    sys.path.insert(0, str(pathlib.Path.home()
+                           / ".local/share/chezmoi/smartparts/python"))
+    from interactive_setup import (
+        CheckItem, run_preflight, run_tutorial, run_setup_wizard)
 
 ── Pattern summary ────────────────────────────────────────────────────────────
 1. Define your requirements as a list[CheckItem] — each has a test(), a hint,
@@ -20,6 +21,7 @@ Add this near the top of any ~/bin script that needs it:
 4. On subsequent runs, call run_quick_preflight(checks, console) for a
    non-interactive version that just warns on failures.
 """
+
 from __future__ import annotations
 
 import json
@@ -46,17 +48,19 @@ class CheckItem:
         fix_hint    Human-readable instructions (may be multi-line).
         fix_cmd     A shell command to suggest / run (None if too context-specific).
     """
-    name:        str
+
+    name: str
     description: str
-    optional:    bool
-    test:        Callable[[], bool]
-    fix_hint:    str
-    fix_cmd:     str | None = None
+    optional: bool
+    test: Callable[[], bool]
+    fix_hint: str
+    fix_cmd: str | None = None
 
 
 def run_interactive_check(item: CheckItem, console: Console) -> bool:
-    """
-    Show status for one CheckItem.  If failing, enter an interactive fix loop:
+    """Show the status of one CheckItem.
+
+    If failing, enter an interactive fix loop:
       [R] run fix_cmd now  |  [C] custom command  |  [M] manual  |  [S] skip
 
     Returns True when the check passes (or after a successful fix), False if skipped.
@@ -66,7 +70,7 @@ def run_interactive_check(item: CheckItem, console: Console) -> bool:
         return True
 
     marker = "[yellow]~[/yellow]" if item.optional else "[red]✗[/red]"
-    flag   = "  [dim](optional)[/dim]" if item.optional else ""
+    flag = "  [dim](optional)[/dim]" if item.optional else ""
     console.print(f"  {marker}  {item.name}{flag}")
     console.print(f"      [dim]{item.description}[/dim]")
     console.print()
@@ -79,7 +83,9 @@ def run_interactive_check(item: CheckItem, console: Console) -> bool:
         if item.fix_cmd:
             options.append(("R", f"Run:  {item.fix_cmd}"))
         options.append(("C", "Custom command  (type the command yourself)"))
-        options.append(("M", "Manual  (I'll run it in another terminal — press Enter when done)"))
+        options.append(
+            ("M", "Manual  (I'll run it in another terminal — press Enter when done)")
+        )
         skip_note = "optional" if item.optional else "may cause errors later"
         options.append(("S", f"Skip  [{skip_note}]"))
 
@@ -96,14 +102,20 @@ def run_interactive_check(item: CheckItem, console: Console) -> bool:
             if custom:
                 run_cmd = custom
         elif raw in ("m", "manual", ""):
-            console.print("      Run the command above, then press [bold]Enter[/bold] to re-check…")
+            console.print(
+                "      Run the command above, then press [bold]Enter[/bold]"
+                " to re-check…"
+            )
             try:
                 input()
-            except (EOFError, KeyboardInterrupt):
+            except EOFError, KeyboardInterrupt:
                 pass
         elif raw in ("s", "skip"):
             if not item.optional:
-                console.print(f"      [yellow]Warning:[/yellow] {item.name} is required; some features may fail.")
+                console.print(
+                    f"      [yellow]Warning:[/yellow] {item.name} is required; "
+                    f"some features may fail."
+                )
             console.print()
             return False
         else:
@@ -117,19 +129,20 @@ def run_interactive_check(item: CheckItem, console: Console) -> bool:
         if item.test():
             console.print(f"      [green]✓[/green]  {item.name} — ready!\n")
             return True
-        console.print(f"      [yellow]Still not detected.[/yellow] Try again or skip.\n")
+        console.print(
+            f"      [yellow]Still not detected.[/yellow] Try again or skip.\n"
+        )
 
 
 def run_preflight(checks: list[CheckItem], console: Console) -> bool:
-    """
-    Run all checks interactively.
+    """Run all checks interactively.
     Returns False if any required (non-optional) check remains unmet after the loop.
     """
     console.print(Rule("[bold]Preflight checks[/bold]", style="dim"))
     console.print()
 
-    skipped:  list[str] = []
-    all_good: bool      = True
+    skipped: list[str] = []
+    all_good: bool = True
 
     for item in checks:
         if not run_interactive_check(item, console):
@@ -150,15 +163,16 @@ def run_preflight(checks: list[CheckItem], console: Console) -> bool:
 
 
 def run_quick_preflight(checks: list[CheckItem], console: Console) -> bool:
-    """
-    Non-interactive preflight — just checks and warns.  Used on subsequent runs
+    """Non-interactive preflight — just checks and warns.  Used on subsequent runs
     (after first-run setup is done).  Returns False if any required check fails.
     """
     failed = [c for c in checks if not c.optional and not c.test()]
     warned = [c for c in checks if c.optional and not c.test()]
 
     for c in warned:
-        console.print(f"[yellow]⚠[/yellow]  {c.name} not available  [dim](optional)[/dim]")
+        console.print(
+            f"[yellow]⚠[/yellow]  {c.name} not available  [dim](optional)[/dim]"
+        )
     for c in failed:
         console.print(f"[red]✗[/red]  {c.name} not available  [dim](required)[/dim]")
         console.print(f"   {c.fix_hint.splitlines()[0]}")
@@ -167,8 +181,7 @@ def run_quick_preflight(checks: list[CheckItem], console: Console) -> bool:
 
 
 def run_tutorial(pages: list[tuple[str, str]], console: Console) -> None:
-    """
-    Display a paginated tutorial.  Each page is a (title, rich-markup-content) tuple.
+    """Display a paginated tutorial.  Each page is a (title, rich-markup-content) tuple.
     User presses Enter to advance; Ctrl-C or EOF exits early without error.
     """
     total = len(pages)
@@ -186,7 +199,7 @@ def run_tutorial(pages: list[tuple[str, str]], console: Console) -> None:
         if i < total:
             try:
                 console.input("[dim]  Press Enter for next…[/dim]  ")
-            except (EOFError, KeyboardInterrupt):
+            except EOFError, KeyboardInterrupt:
                 console.print()
                 break
         else:
@@ -194,15 +207,14 @@ def run_tutorial(pages: list[tuple[str, str]], console: Console) -> None:
 
 
 def run_setup_wizard(
-    title:       str,
+    title: str,
     description: str,
-    checks:      list[CheckItem],
-    pages:       list[tuple[str, str]],
-    setup_file:  pathlib.Path,
-    console:     Console,
+    checks: list[CheckItem],
+    pages: list[tuple[str, str]],
+    setup_file: pathlib.Path,
+    console: Console,
 ) -> bool:
-    """
-    Full first-run experience: welcome panel → preflight checks → optional tutorial
+    """Full first-run experience: welcome panel → preflight checks → optional tutorial
     → write setup_file.
 
     Returns True if all required checks passed.
@@ -222,11 +234,15 @@ def run_setup_wizard(
 
     if pages:
         try:
-            ans = console.input(
-                "[bold]Show the quick-start guide?[/bold]  "
-                "[[bold]Y[/bold]]es / [[bold]N[/bold]]o  → "
-            ).strip().lower()
-        except (EOFError, KeyboardInterrupt):
+            ans = (
+                console.input(
+                    "[bold]Show the quick-start guide?[/bold]  "
+                    "[[bold]Y[/bold]]es / [[bold]N[/bold]]o  → "
+                )
+                .strip()
+                .lower()
+            )
+        except EOFError, KeyboardInterrupt:
             ans = "n"
             console.print()
 
@@ -234,13 +250,22 @@ def run_setup_wizard(
             run_tutorial(pages, console)
 
     setup_file.parent.mkdir(parents=True, exist_ok=True)
-    setup_file.write_text(json.dumps({
-        "setup_completed_at": datetime.datetime.utcnow().isoformat(),
-        "preflight_ok": ok,
-    }, indent=2))
+    setup_file.write_text(
+        json.dumps(
+            {
+                "setup_completed_at": datetime.datetime.utcnow().isoformat(),
+                "preflight_ok": ok,
+            },
+            indent=2,
+        )
+    )
 
     rule_style = "green" if ok else "yellow"
-    rule_text  = "[bold green]Setup complete[/bold green]" if ok else "[bold yellow]Setup complete with warnings[/bold yellow]"
+    rule_text = (
+        "[bold green]Setup complete[/bold green]"
+        if ok
+        else "[bold yellow]Setup complete with warnings[/bold yellow]"
+    )
     console.print(Rule(rule_text, style=rule_style))
     console.print()
 

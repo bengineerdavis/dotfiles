@@ -93,29 +93,62 @@ FILE_CREATING_MODULES = {
 LAUNCHD_MODULE = "community.general.launchd"
 
 _RESERVED_KEYS = {
-    "name", "when", "tags", "register", "vars", "loop", "become",
-    "become_user", "become_method", "become_flags", "changed_when",
-    "failed_when", "args", "loop_control", "until", "retries", "delay",
-    "notify", "ignore_errors", "delegate_to", "environment", "no_log",
-    "check_mode", "block", "rescue", "always", "any_errors_fatal",
-    "run_once", "connection", "listen", "throttle", "order",
-    "vars_files", "module_defaults",
+    "name",
+    "when",
+    "tags",
+    "register",
+    "vars",
+    "loop",
+    "become",
+    "become_user",
+    "become_method",
+    "become_flags",
+    "changed_when",
+    "failed_when",
+    "args",
+    "loop_control",
+    "until",
+    "retries",
+    "delay",
+    "notify",
+    "ignore_errors",
+    "delegate_to",
+    "environment",
+    "no_log",
+    "check_mode",
+    "block",
+    "rescue",
+    "always",
+    "any_errors_fatal",
+    "run_once",
+    "connection",
+    "listen",
+    "throttle",
+    "order",
+    "vars_files",
+    "module_defaults",
 }
 
 
 # ── helpers (hl_ prefix; self-contained, no conftest.py) ────────────────────
 
+
 def hl_load_yaml(relpath: str):
     """Load a topic YAML file, failing with the artifact named if absent."""
     path = TOPIC / relpath
     if not path.is_file():
-        pytest.fail(f"{TOPIC.relative_to(REPO) / relpath} missing — herdr topic not implemented")
+        pytest.fail(
+            f"{TOPIC.relative_to(REPO) / relpath} missing — herdr topic not implemented"
+        )
     try:
         data = yaml.safe_load(path.read_text())
     except yaml.YAMLError as exc:
         pytest.fail(f"{TOPIC.relative_to(REPO) / relpath} is not valid YAML: {exc}")
     if data is None:
-        pytest.fail(f"{TOPIC.relative_to(REPO) / relpath} is empty — herdr topic not implemented")
+        pytest.fail(
+            f"{TOPIC.relative_to(REPO) / relpath} is empty — "
+            f"herdr topic not implemented"
+        )
     return data
 
 
@@ -123,7 +156,9 @@ def hl_text(relpath: str) -> str:
     """Raw text of a topic file, failing with the artifact named if absent."""
     path = TOPIC / relpath
     if not path.is_file():
-        pytest.fail(f"{TOPIC.relative_to(REPO) / relpath} missing — herdr topic not implemented")
+        pytest.fail(
+            f"{TOPIC.relative_to(REPO) / relpath} missing — herdr topic not implemented"
+        )
     return path.read_text()
 
 
@@ -243,7 +278,9 @@ def hl_created_paths(install_tasks):
         # 2026-09-19.)
         module_args = task.get(mod)
         args = module_args if isinstance(module_args, dict) else {}
-        raw = task.get("dest") or task.get("path") or args.get("dest") or args.get("path")
+        raw = (
+            task.get("dest") or task.get("path") or args.get("dest") or args.get("path")
+        )
         if not raw:
             continue
         raw = str(raw)
@@ -275,10 +312,17 @@ def hl_command_arg_lines(task: dict):
 
 # ── tests ───────────────────────────────────────────────────────────────────
 
+
 def test_topic_yml_exists_with_five_convention_fields():
     # mutation: drop any one of the five keys from topic.yml
     meta = hl_load_yaml("topic.yml")
-    fields = ("topic_name", "topic_provides", "topic_requires", "topic_os", "topic_tier")
+    fields = (
+        "topic_name",
+        "topic_provides",
+        "topic_requires",
+        "topic_os",
+        "topic_tier",
+    )
     for field in fields:
         assert field in meta, (
             f"topic.yml is missing '{field}' — TOPICS.md § topic.yml schema "
@@ -316,7 +360,8 @@ def test_topic_yml_values_match_the_written_contract():
         f"topic_os {meta['topic_os']} must cover both Darwin and Debian"
     )
     assert meta["topic_tier"] == "app", (
-        f"topic_tier must be 'app' (README: topic_tier: app), got '{meta['topic_tier']}'"
+        f"topic_tier must be 'app' (README: topic_tier: app), "
+        f"got '{meta['topic_tier']}'"
     )
 
 
@@ -331,8 +376,7 @@ def test_topic_requires_resolve_against_the_mise_topic():
     meta = hl_load_yaml("topic.yml")
     for dep in meta["topic_requires"]:
         provided = any(
-            dep in other.get("topic_provides", [])
-            for other in _all_topic_meta()
+            dep in other.get("topic_provides", []) for other in _all_topic_meta()
         )
         assert provided, (
             f"topic_requires entry '{dep}' resolves as NO_TOPIC: no topic in "
@@ -343,7 +387,10 @@ def test_topic_requires_resolve_against_the_mise_topic():
 def hl_load_yaml_reldir(base: Path, relpath: str):
     path = base / relpath
     if not path.is_file():
-        pytest.fail(f"{base.relative_to(REPO) / relpath} missing — required for dependency resolution")
+        pytest.fail(
+            f"{base.relative_to(REPO) / relpath} missing — required for "
+            f"dependency resolution"
+        )
     data = yaml.safe_load(path.read_text())
     if data is None:
         pytest.fail(f"{base.relative_to(REPO) / relpath} is empty")
@@ -436,10 +483,7 @@ def test_standalone_playbook_targets_the_role():
         "playbook.yaml must run on localhost (standalone runner, ollama precedent)"
     )
     roles = play.get("roles", [])
-    role_names = [
-        r if isinstance(r, str) else str(r.get("role", ""))
-        for r in roles
-    ]
+    role_names = [r if isinstance(r, str) else str(r.get("role", "")) for r in roles]
     assert any("apps/herdr" in name for name in role_names), (
         f"playbook.yaml roles {role_names} must include the herdr role "
         f"'apps/herdr' (README § Structure: standalone runner)"
@@ -495,14 +539,21 @@ def test_every_created_state_has_a_teardown_counterpart():
 
     counterpart_of = [
         (ENTRY_INSTALL, ENTRY_REMOVE, "mise use -g herdr", "mise unuse --global herdr"),
-        (INTEGRATION_INSTALL, INTEGRATION_UNINSTALL,
-         "herdr integration install", "herdr integration uninstall"),
-        (COMPLETION_INSTALL, r"herdr_completion_path",
-         "herdr completion zsh",
-         "removal via the herdr_completion_path var (post-report 2026-09-19: "
-         "the path moved from ~/.zfunc — on nobody's fpath here — to "
-         "~/.local/share/zsh/completions, which dot_zshrc.tmpl:96 puts on "
-         "fpath; defaults must point it at completions/_herdr)"),
+        (
+            INTEGRATION_INSTALL,
+            INTEGRATION_UNINSTALL,
+            "herdr integration install",
+            "herdr integration uninstall",
+        ),
+        (
+            COMPLETION_INSTALL,
+            r"herdr_completion_path",
+            "herdr completion zsh",
+            "removal via the herdr_completion_path var (post-report 2026-09-19: "
+            "the path moved from ~/.zfunc — on nobody's fpath here — to "
+            "~/.local/share/zsh/completions, which dot_zshrc.tmpl:96 puts on "
+            "fpath; defaults must point it at completions/_herdr)",
+        ),
     ]
     defaults = hl_load_yaml("defaults/main.yaml")
     assert str(defaults.get("herdr_completion_path", "")).endswith(
@@ -541,8 +592,7 @@ def test_teardown_order_integrations_then_service_then_entry():
         ("the mise unuse entry removal", idx_entry),
     ]:
         assert idx is not None, (
-            f"tasks/remove.yaml has no {label} — teardown cannot be ordered "
-            f"without it"
+            f"tasks/remove.yaml has no {label} — teardown cannot be ordered without it"
         )
     assert idx_integrations < idx_service < idx_entry, (
         f"remove.yaml teardown order is wrong: integrations at index "
@@ -556,13 +606,17 @@ def test_service_stopped_before_unit_files_removed():
     # mutation: move the plist/unit removal ahead of the stop/bootout
     remove_tasks = hl_tasks(hl_load_yaml("tasks/remove.yaml"))
     idx_stop = hl_first_index(remove_tasks, SERVICE_STOP)
-    unit_removal = [i for i, t in enumerate(remove_tasks)
-                    if ("com.herdr.server.plist" in hl_task_text(t)
-                        or "herdr-server.service" in hl_task_text(t))
-                    and ("absent" in hl_task_text(t) or "rm " in hl_task_text(t))]
+    unit_removal = [
+        i
+        for i, t in enumerate(remove_tasks)
+        if (
+            "com.herdr.server.plist" in hl_task_text(t)
+            or "herdr-server.service" in hl_task_text(t)
+        )
+        and ("absent" in hl_task_text(t) or "rm " in hl_task_text(t))
+    ]
     assert idx_stop is not None, (
-        "tasks/remove.yaml never stops the service (no bootout/bootctl/"
-        "stopped task)"
+        "tasks/remove.yaml never stops the service (no bootout/bootctl/stopped task)"
     )
     assert unit_removal, (
         "tasks/remove.yaml never removes the service unit files "
@@ -609,7 +663,9 @@ def test_no_orphan_teardown_state_in_remove():
         mod = hl_module(task)
         module_args = task.get(mod)
         args = module_args if isinstance(module_args, dict) else {}
-        raw = task.get("dest") or task.get("path") or args.get("dest") or args.get("path")
+        raw = (
+            task.get("dest") or task.get("path") or args.get("dest") or args.get("path")
+        )
         if not raw:
             continue
         raw = str(raw)
@@ -645,9 +701,11 @@ def test_playbook_passes_ansible_syntax_check():
         # machine with a private system index (/etc/uv/uv.toml) that writes
         # employer URLs into the committed lock - caught live by
         # tests/uv/test_lock_sources.py on 2026-10-01.
-        probe = subprocess.run(["uv", "run", "--frozen", "--with", "ansible-core",
-                                candidate, "--version"],
-                               capture_output=True, text=True)
+        probe = subprocess.run(
+            ["uv", "run", "--frozen", "--with", "ansible-core", candidate, "--version"],
+            capture_output=True,
+            text=True,
+        )
         if probe.returncode == 0:
             ansible = candidate
             break
@@ -656,10 +714,19 @@ def test_playbook_passes_ansible_syntax_check():
         "syntax check cannot run; run the suite with --with ansible-core"
     )
     proc = subprocess.run(
-        ["uv", "run", "--frozen", "--with", "ansible-core", "ansible-playbook",
-         "--syntax-check", "apps/herdr/playbook.yaml"],
+        [
+            "uv",
+            "run",
+            "--frozen",
+            "--with",
+            "ansible-core",
+            "ansible-playbook",
+            "--syntax-check",
+            "apps/herdr/playbook.yaml",
+        ],
         cwd=REPO / "dotfiles",  # roles path is the dotfiles root, as run-role.sh
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     assert proc.returncode == 0, (
         f"ansible-playbook --syntax-check failed (rc={proc.returncode}, read "
@@ -682,12 +749,12 @@ def test_darwin_service_managed_by_the_launchd_module():
     # module back for raw bootout/bootstrap (the fact-semantics bug class).
     install_text = hl_text("tasks/install.yaml")
     assert LAUNCHD_MODULE in install_text, (
-        "tasks/install.yaml does not manage the launchd agent through "
-        f"{LAUNCHD_MODULE}"
+        f"tasks/install.yaml does not manage the launchd agent through {LAUNCHD_MODULE}"
     )
     install_block = re.search(
         r"- name:.*launchd agent.*?\n(.*?)(?=\n- name:|\Z)",
-        install_text, re.S,
+        install_text,
+        re.S,
     )
     assert install_block, "install.yaml launchd agent task not found"
     block = install_block.group(1)
@@ -706,7 +773,8 @@ def test_darwin_service_managed_by_the_launchd_module():
     remove_text = hl_text("tasks/remove.yaml")
     remove_block = re.search(
         r"- name:.*native module.*?\n(.*?)(?=\n- name:|\Z)",
-        remove_text, re.S,
+        remove_text,
+        re.S,
     )
     assert remove_block, "remove.yaml launchd stop task not found"
     block = remove_block.group(1)
@@ -747,9 +815,7 @@ def test_integration_loop_keys_changed_on_preinstall_status_read():
     # pre-read — every converge then reports the integration loop changed,
     # breaking the changed=0 idempotence pass.
     install_text = hl_text("tasks/install.yaml")
-    status_read = re.search(
-        r"herdr integration status", install_text
-    )
+    status_read = re.search(r"herdr integration status", install_text)
     assert status_read, (
         "tasks/install.yaml never reads `herdr integration status` before "
         "the loop — no pre-read, no honest changed_when"
@@ -762,13 +828,11 @@ def test_integration_loop_keys_changed_on_preinstall_status_read():
     )
     idx_read = install_text.index("herdr integration status")
     idx_loop = install_text.index("herdr integration install")
-    assert idx_read < idx_loop, (
-        "the pre-read must precede the install loop"
-    )
+    assert idx_read < idx_loop, "the pre-read must precede the install loop"
     # the pre-read is a probe: failed reads must not fail the run (additive
     # phase), falling back to conservative changed=true
     assert re.search(
-        r"failed_when:\s*false", install_text[idx_read: idx_read + 400]
+        r"failed_when:\s*false", install_text[idx_read : idx_read + 400]
     ), "the pre-read must be a non-fatal probe (failed_when: false)"
 
 
@@ -786,8 +850,7 @@ def test_upgrade_enforces_integration_version_floors():
     # a stale integration would silently break native session restore.
     upgrade_text = hl_text("tasks/upgrade.yaml")
     assert "--outdated-only" in upgrade_text, (
-        "tasks/upgrade.yaml never checks integration currency "
-        "(--outdated-only)"
+        "tasks/upgrade.yaml never checks integration currency (--outdated-only)"
     )
     assert re.search(r"ansible\.builtin\.fail", upgrade_text), (
         "the outdated check must RAISE, not report — a stale integration "
@@ -816,9 +879,9 @@ def test_upgrade_tolerates_the_removed_state_and_splits_the_raise():
     assert presence < first_currency, (
         "the presence probe must precede the upgrade currency check"
     )
-    assert re.search(
-        r"when: herdr_upgrade_presence\.rc == 0", upgrade_text
-    ), "the currency tasks must be gated on the presence probe"
+    assert re.search(r"when: herdr_upgrade_presence\.rc == 0", upgrade_text), (
+        "the currency tasks must be gated on the presence probe"
+    )
     assert "skipping the upgrade-phase currency checks" in upgrade_text, (
         "the absent case must be a report line, not a failure"
     )
@@ -849,9 +912,9 @@ def test_remove_integrations_gate_defaults_off():
         f"default off, got {defaults[GATE_VAR]!r}"
     )
     remove_tasks = hl_tasks(hl_load_yaml("tasks/remove.yaml"))
-    assert any(
-        GATE_VAR in hl_task_text(t) for t in remove_tasks
-    ), f"tasks/remove.yaml never references '{GATE_VAR}' — the gate gates nothing"
+    assert any(GATE_VAR in hl_task_text(t) for t in remove_tasks), (
+        f"tasks/remove.yaml never references '{GATE_VAR}' — the gate gates nothing"
+    )
 
 
 def test_every_gate_off_task_referencing_gate_derived_vars_is_gated():
@@ -897,7 +960,8 @@ def test_every_integration_uninstall_task_relents_through_the_gate():
     remove_doc = hl_load_yaml("tasks/remove.yaml")
     gated = hl_tasks_with_gates(remove_doc)
     uninstall = [
-        (task, gates) for task, gates in gated
+        (task, gates)
+        for task, gates in gated
         if re.search(INTEGRATION_UNINSTALL, hl_task_text(task))
     ]
     assert uninstall, (
@@ -924,8 +988,13 @@ def test_upgrade_routes_through_mise_and_never_self_updates():
         tasks = hl_tasks(hl_load_yaml(relpath))
         for task in tasks:
             mod = hl_module(task)
-            if mod in ("ansible.builtin.command", "ansible.builtin.shell",
-                       "ansible.builtin.script", "command", "shell"):
+            if mod in (
+                "ansible.builtin.command",
+                "ansible.builtin.shell",
+                "ansible.builtin.script",
+                "command",
+                "shell",
+            ):
                 body = "\n".join(hl_command_arg_lines(task))
                 assert not re.search(r"\bherdr\s+update\b", body), (
                     f"{relpath} task '{task.get('name')}' calls 'herdr update' — "
@@ -967,8 +1036,10 @@ def test_topic_never_writes_another_topics_files_directly():
     # only change through mise's own first-party command (TOPIC-RECIPES.md
     # tool-entry ownership)
     for relpath in (
-        "tasks/install.yaml", "tasks/remove.yaml",
-        "tasks/upgrade.yaml", "tasks/bootstrap.yaml",
+        "tasks/install.yaml",
+        "tasks/remove.yaml",
+        "tasks/upgrade.yaml",
+        "tasks/bootstrap.yaml",
         "tasks/prerequisites.yaml",
     ):
         tasks = hl_tasks(hl_load_yaml(relpath))
