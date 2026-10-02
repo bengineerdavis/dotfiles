@@ -122,7 +122,7 @@ def test_ollama_checks_the_binary_its_unit_runs():
     assert exec_start is not None, "the unit lost its ExecStart"
     _, call = only_call(OLLAMA, restart_stale_kind="systemd")
 
-    assert call["vars"]["restart_stale_binary"] == exec_start
+    assert call["vars"]["restart_stale_binary"] == exec_start.group(1)
 
 
 # ── apps/1password ───────────────────────────────────────────────────────────
