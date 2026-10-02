@@ -423,3 +423,27 @@ deleted.
   both enforcing tested filesystem scopes. Debian, queue contention, session
   restore and full swaps remain unrun. Pilot selection remains in § Now;
   no live component was selected by the research report.
+
+## 2026-09-28
+
+- **Allow worktree creation and read-only `gh`; deny `--force-with-lease=`.**
+  [agent: OpenCode restart-review] Landed as PR #8 (`5b62dfd`) in three
+  commits, one per decision, plus the carried branch/worktree narrowing.
+  `tests/permissions/test_opencode_tiers.py` now models opencode's
+  last-match-wins tiers; four mutations were each caught. The Claude Code
+  `gh` carve-out was left to the permission-rules review, because deny > ask
+  > allow precedence cannot carve reads out of `Bash(gh *)`. Real enforcement
+  in a fresh session was not verified.
+- **Label meld's panes from sections git actually reads.** [agent: OpenCode
+  restart-review] Landed as PR #10 (`caa041b`): `[mergetool "meld"]` and
+  `[difftool "meld"]` carry the labels; a test renders the template and asks
+  git what it resolves. Git now judges a merge by whether `$MERGED` changed.
+  No live `git mergetool` session was run.
+- **Document bucketing a task into PRs.** [agent: OpenCode restart-review]
+  Landed as PR #13 (`1e5d099`): `docs/WORKTREES.md` § Bucketing, a Bucket
+  lifecycle step, and reaping cherry-picked branches with `git cherry`.
+- **Open pull requests only into `main`.** [agent: OpenCode restart-review]
+  Began as a warning after PR #12 merged into its parent's branch and had to
+  be re-landed as #15; the author replaced the warning with the rule. Landed
+  as PR #23 (`7b855cd`) in `docs/WORKTREES.md` § Bucketing step 6 and
+  AGENTS.md § Branches and integration.
