@@ -11,6 +11,7 @@ from __future__ import annotations
 import threading
 import time
 
+# pyrefly: ignore [missing-import]
 from judge_panel_harness import MAX_CONCURRENT_JUDGES, panel_is_trustworthy, run_panel
 
 

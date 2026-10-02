@@ -22,6 +22,7 @@ import pathlib
 
 import pytest
 
+# pyrefly: ignore [missing-import]
 from pii_redactor_harness import SCRIPT
 
 # A model that returns already-clean text, so layers 2 and 3 both pass and
@@ -128,6 +129,7 @@ def test_assume_reviewed_is_documented(run_script):
 
 def _module():
     spec = importlib.util.spec_from_loader("pr", loader=None)
+    # pyrefly: ignore [bad-argument-type]
     mod = importlib.util.module_from_spec(spec)
     src = pathlib.Path(SCRIPT).read_text().split("if __name__ ==")[0]
     exec(compile(src, str(SCRIPT), "exec"), mod.__dict__)

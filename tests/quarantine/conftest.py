@@ -21,6 +21,7 @@ import subprocess
 
 import pytest
 
+# pyrefly: ignore [missing-import]
 from quarantine_harness import REPO, SCRIPT, SECRET_RE
 
 

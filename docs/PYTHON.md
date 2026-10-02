@@ -36,9 +36,13 @@ groups; the repo is never built or installed (`package = false`).
   doc-line rules carry per-path grandfathers in the config; each entry
   shrinks as the file is next edited and is deleted when its directory is
   clean. pycodestyle is retired — ruff implements it.
-- **ty typechecks.** Not installed yet, and not referenced anywhere in the repo.
-  Also queued. Treat any claim that the Python here is typechecked as false until
-  that lands.
+- **pyrefly typechecks, enforced on commit.** `[tool.pyrefly]` in
+  `pyproject.toml` (full checking via `pyrefly init`). Installed once by mise
+  (`pipx:pyrefly`, pinned) so the CLI, the IDE language server and the
+  pre-commit hook run the same version. The baseline of 69 suppressions
+  (`# pyrefly: ignore`, from `pyrefly suppress`) shrinks over time; the
+  official pre-commit hook fails the commit on new type errors. `pyrefly lsp`
+  is the language server the editor configs wire.
 - **prek runs the hooks.** Both `prek` and `pre-commit` are installed and both
   read `.pre-commit-config.yaml`; which one is authoritative is unsettled and
   queued.

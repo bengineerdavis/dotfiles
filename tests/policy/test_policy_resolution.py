@@ -7,6 +7,7 @@ is corrupt, a key nobody wrote, a field left as TODO. All of them must deny.
 
 from __future__ import annotations
 
+# pyrefly: ignore [missing-import]
 from policy_harness import DENIED, ERROR, PERMITTED, UNKNOWN
 
 FORBIDS = """

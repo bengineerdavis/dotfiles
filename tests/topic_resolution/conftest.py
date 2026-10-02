@@ -19,6 +19,7 @@ import subprocess
 
 import pytest
 
+# pyrefly: ignore [missing-import]
 from topic_resolution_harness import DISCOVERY_HARNESS, DOTFILES, HARNESS
 
 

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import pytest
 
+# pyrefly: ignore [missing-import]
 from skill_trust.decide import Tier, decide, licence_tier, source_matches
 
 APPROVED = {"approved_sources": ["owner/lib"]}

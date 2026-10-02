@@ -17,8 +17,13 @@ import sys
 
 import yaml
 
+# pyrefly: ignore [missing-import]
 from .buckets import ForeignBucket, find_buckets
+
+# pyrefly: ignore [missing-import]
 from .decide import Decision, Verdict, decide
+
+# pyrefly: ignore [missing-import]
 from .discover import licence_from_dir, licence_from_repo
 
 PERMITTED, DENIED, UNKNOWN, ERROR = 0, 1, 2, 3

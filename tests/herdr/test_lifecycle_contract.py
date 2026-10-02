@@ -594,6 +594,7 @@ def test_teardown_order_integrations_then_service_then_entry():
         assert idx is not None, (
             f"tasks/remove.yaml has no {label} — teardown cannot be ordered without it"
         )
+    # pyrefly: ignore [unsupported-operation]
     assert idx_integrations < idx_service < idx_entry, (
         f"remove.yaml teardown order is wrong: integrations at index "
         f"{idx_integrations}, service at {idx_service}, mise entry at "

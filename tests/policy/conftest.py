@@ -24,6 +24,7 @@ import textwrap
 
 import pytest
 
+# pyrefly: ignore [missing-import]
 from policy_harness import PERMITTED, DENIED, UNKNOWN, ERROR, REPO, SCRIPT
 
 

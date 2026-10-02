@@ -36,6 +36,7 @@ from typing import NamedTuple
 
 import pytest
 
+# pyrefly: ignore [missing-import]
 from judge_panel_harness import panel_is_trustworthy, run_panel
 
 pytestmark = pytest.mark.llm_judge

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 
+# pyrefly: ignore [missing-import]
 from quarantine_harness import SECRET_RE
 
 

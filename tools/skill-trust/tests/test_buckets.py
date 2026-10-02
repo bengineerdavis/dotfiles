@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 
+# pyrefly: ignore [missing-import]
 from skill_trust.buckets import ForeignBucket, classify, deduce_aliases, find_buckets
 
 

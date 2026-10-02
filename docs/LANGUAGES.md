@@ -28,7 +28,7 @@ open.
 
 | Language | Formatter | Linter | Typecheck | Test | LSP |
 |---|---|---|---|---|---|
-| Python | ruff (enforced on commit) | ruff (enforced on commit) | pyrefly (queued) | pytest + hypothesis; xdoctest (queued) | pyrefly (queued) |
+| Python | ruff (enforced on commit) | ruff (enforced on commit) | pyrefly 1.3.2 (enforced on commit) | pytest + hypothesis; xdoctest (queued) | pyrefly (editor wiring queued) |
 | bash | — | shellcheck | — | bats | bash-language-server (TBD) |
 | zsh | — | shellcheck (bash standard, interim) | — | — | — |
 | YAML / Ansible | — | — | — | molecule (queued) | yaml-ls (TBD) |
@@ -40,9 +40,10 @@ Notes:
   the open question owned by the queued "Configure opencode LSP profiles" task in
   `TASKS.md`. This file records the candidates; it does not wire them. Until that
   task lands, opencode has no `lsp` section and LSP is off.
-- **ruff enforces on commit** (ruff + ruff-format hooks); the doc-line rules it
-  selects carry per-path grandfathers while the docstring campaign runs. The
-  type checker (pyrefly) is queued and not installed.
+- **ruff and pyrefly enforce on commit** (ruff-check, ruff-format and
+  pyrefly-check hooks). The doc-line rules ruff selects carry per-path
+  grandfathers while the docstring campaign runs; pyrefly carries a 69-comment
+  suppress baseline that shrinks over time.
   See `docs/PYTHON.md`.
 - **`.zsh` marks how a file is used, not a different language.** These files are
   zsh lifecycle fragments sourced into the shell config; the extension says where

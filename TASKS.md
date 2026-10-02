@@ -1796,6 +1796,22 @@ nothing is.
   the hooks pass on this commit, and a PR is open. Branch
   `ruff_standard`.
 
+- **Replace ty with pyrefly — one type checker, enforced on commit.**
+  [agent: OpenCode restart-review, 2026-10-01; author-approved plan]
+  ty was never installed; docs named it queued, LANGUAGES carried
+  "pyright or pyrefly (TBD)". Now: `[tool.pyrefly]` in pyproject.toml via
+  `pyrefly init` (full checking, project-includes default); baseline
+  established with `pyrefly suppress` (69 `# pyrefly: ignore` comments, 35
+  files; check reports 0 errors) — shrink over time. Installed by mise
+  `pipx:pyrefly` pinned 1.3.2 (uv-tool-backed, one pyrefly for CLI/IDE/hook);
+  official pre-commit hook facebook/pyrefly-pre-commit rev 1.3.2
+  (`pyrefly-check`, system install, full-repo per its pass_filenames: false).
+  `pyrefly lsp` verified for the editor buckets. Done when `pyrefly check`
+  exits 0, the hook is seen to fail on an injected type error, docs land
+  (PYTHON/LANGUAGES/REFERENCES/AGENTS pointer), and a PR is open. Branch
+  `pyrefly_migrate`, stacked on `ruff_standard` (PR #33) — PR opens after
+  #33 merges.
+
 ## Planned
 
 
