@@ -12,6 +12,16 @@
   // tier plus the opt-in autonomous agent.
   "$schema": "https://opencode.ai/config.json",
 
+  // Language servers feed diagnostics to the agent. pyrefly is the house
+  // typechecker ([tool.pyrefly] in pyproject.toml); pyright is explicitly
+  // disabled - the pyrefly-only decision, made deterministic. Built-ins
+  // stay enabled where their requirements are met (bash auto-installs its
+  // server; pyright would need the pyright package, which is absent).
+  "lsp": {
+    "pyrefly": { "command": ["pyrefly", "lsp"], "extensions": [".py", ".pyi"] },
+    "pyright": { "disabled": true }
+  },
+
   "permission": {
     "bash": {
       "*": "ask",
