@@ -59,11 +59,13 @@ def ps_rows(text: str) -> list[dict]:
         if len(fields) < _PS_FIELDS or not fields[0].isdigit():
             raise ValueError(f"unexpected ps row: {line!r}")
         pid, *start, comm = fields
-        rows.append({
-            "pid": int(pid),
-            "start": parse_lstart(" ".join(start)),
-            "comm": comm.rstrip(),
-        })
+        rows.append(
+            {
+                "pid": int(pid),
+                "start": parse_lstart(" ".join(start)),
+                "comm": comm.rstrip(),
+            }
+        )
     return rows
 
 
@@ -91,23 +93,37 @@ def verdict(rows: list[dict], ctime: float | None, comm: str | None = None) -> d
     """
     candidates = [r for r in rows if comm is None or r["comm"] == comm]
     if not candidates:
-        return {"running": False, "stale": False, "pid": 0, "started": None,
-                "reason": "not running, so it will start on the current binary"}
+        return {
+            "running": False,
+            "stale": False,
+            "pid": 0,
+            "started": None,
+            "reason": "not running, so it will start on the current binary",
+        }
 
     oldest = min(candidates, key=lambda r: r["start"])
     base = {"running": True, "pid": oldest["pid"], "started": _utc(oldest["start"])}
 
     if ctime is None:
-        return {**base, "stale": False,
-                "reason": "binary not found, so there is nothing to restart onto"}
+        return {
+            **base,
+            "stale": False,
+            "reason": "binary not found, so there is nothing to restart onto",
+        }
 
     if oldest["start"] < ctime:
-        return {**base, "stale": True,
-                "reason": f"pid {oldest['pid']} started {_utc(oldest['start'])}, "
-                          f"before the binary changed at {_utc(ctime)}"}
-    return {**base, "stale": False,
+        return {
+            **base,
+            "stale": True,
             "reason": f"pid {oldest['pid']} started {_utc(oldest['start'])}, "
-                      f"after the binary changed at {_utc(ctime)}"}
+            f"before the binary changed at {_utc(ctime)}",
+        }
+    return {
+        **base,
+        "stale": False,
+        "reason": f"pid {oldest['pid']} started {_utc(oldest['start'])}, "
+        f"after the binary changed at {_utc(ctime)}",
+    }
 
 
 class FilterModule:
