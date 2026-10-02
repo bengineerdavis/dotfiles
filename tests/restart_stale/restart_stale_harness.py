@@ -42,5 +42,8 @@ def load_filters():
 
 def said(result, phrase: str) -> bool:
     """Whether the run's output contains `phrase`, ignoring line wrapping."""
-    collapse = lambda s: " ".join(s.split())  # noqa: E731
+
+    def collapse(s: str) -> str:
+        return " ".join(s.split())
+
     return collapse(phrase) in collapse(result.stdout)

@@ -1781,6 +1781,23 @@ nothing is.
   rebased onto `main`. The `delete_branch_on_merge` question is moot, since
   no PR targets a branch that could be deleted.
 
+- **Record who the everything-is-branched rule covers.** [agent: OpenCode
+  restart-review, 2026-09-28; author-answered] The author confirmed the rule
+  covers them and every session, with a manual override for their own
+  commits only. AGENTS.md § Everything is branched now says so. Done when the
+  docs gate passes and a PR is open. Branch `agents_author_override`.
+
+- **Bring the restart-stale Python to an agreed style standard.** [agent:
+  OpenCode restart-review, 2026-09-28; author-requested] Scope: the six files
+  (`dotfiles/roles/restart-stale/filter_plugins/restart_stale.py` and
+  `tests/restart_stale/`), not the repo. First ask the author to choose strict
+  PEP 8 (79 columns) or Ruff (88 plus its rules); the repo has no Ruff config.
+  On main now: pycodestyle 52 findings, Ruff lint 11, Ruff format would change
+  5 of 6 files. Done when the chosen checker reports zero on those files,
+  `tests/restart_stale` and the full suite pass unchanged, and a PR is open.
+  Branch and worktree `restart_stale_style`; handoff in its `.claude/`, which
+  also carries the design walkthrough that resumes after the cleanup.
+
 - **Own uv's machine lifecycle and the private-index capture (`apps/uv`).**
   [agent: OpenCode restart-review, 2026-10-01; author-approved plan] New
   Ansible topic `apps/uv`: astral-installer install on both OSes, `uv self
