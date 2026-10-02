@@ -641,8 +641,13 @@ def test_playbook_passes_ansible_syntax_check():
 
     ansible = None
     for candidate in ("ansible-playbook", "ansible"):
-        probe = subprocess.run(["uv", "run", "--with", "ansible-core", candidate,
-                                "--version"], capture_output=True, text=True)
+        # --frozen: without it uv re-locks THIS repo's uv.lock, and on a
+        # machine with a private system index (/etc/uv/uv.toml) that writes
+        # employer URLs into the committed lock - caught live by
+        # tests/uv/test_lock_sources.py on 2026-10-01.
+        probe = subprocess.run(["uv", "run", "--frozen", "--with", "ansible-core",
+                                candidate, "--version"],
+                               capture_output=True, text=True)
         if probe.returncode == 0:
             ansible = candidate
             break
@@ -651,7 +656,7 @@ def test_playbook_passes_ansible_syntax_check():
         "syntax check cannot run; run the suite with --with ansible-core"
     )
     proc = subprocess.run(
-        ["uv", "run", "--with", "ansible-core", "ansible-playbook",
+        ["uv", "run", "--frozen", "--with", "ansible-core", "ansible-playbook",
          "--syntax-check", "apps/herdr/playbook.yaml"],
         cwd=REPO / "dotfiles",  # roles path is the dotfiles root, as run-role.sh
         capture_output=True, text=True,
