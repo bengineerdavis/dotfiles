@@ -1,5 +1,4 @@
-"""
-User-acceptance tests for the herdr topic (test-first; the topic does not
+"""User-acceptance tests for the herdr topic (test-first; the topic does not
 exist yet — only dotfiles/apps/herdr/README.md does).
 
 Dimension: what a user of this repo would check before trusting the topic.
@@ -97,7 +96,8 @@ def hu_topic_file(rel: str, what: str) -> str:
 
 def hu_code_lines(text: str) -> str:
     """Full-line comments dropped, so a comment *naming* a forbidden thing
-    (e.g. 'never call herdr update') does not trip a substring check."""
+    (e.g. 'never call herdr update') does not trip a substring check.
+    """
     return "\n".join(
         line for line in text.splitlines() if not line.lstrip().startswith("#")
     )
@@ -113,7 +113,8 @@ def hu_template(rel: str) -> str:
 def hu_topic_vars() -> dict:
     """Variables the topic's defaults/vars would provide. Derived from the
     topic's own files, never invented here; ansible always supplies the
-    ansible_* facts, which are stubbed."""
+    ansible_* facts, which are stubbed.
+    """
     ctx: dict = {}
     for rel in ("defaults/main.yaml", "vars/main.yaml"):
         path = TOPIC / rel
@@ -151,7 +152,8 @@ def hu_topic_vars() -> dict:
 
 def hu_render(rel: str, os_family: str) -> str:
     """Render a template with StrictUndefined. A missing variable must raise,
-    not render blank (spec.md § Verification)."""
+    not render blank (spec.md § Verification).
+    """
     env = jinja2.Environment(
         undefined=jinja2.StrictUndefined, keep_trailing_newline=True
     )
@@ -198,8 +200,10 @@ def hu_bash_scripts() -> list[pathlib.Path]:
         if not p.is_file():
             continue
         text = p.read_text(errors="replace")
-        if p.suffix == ".sh" or text.startswith("#!/bin/bash") or text.startswith(
-            "#!/usr/bin/env bash"
+        if (
+            p.suffix == ".sh"
+            or text.startswith("#!/bin/bash")
+            or text.startswith("#!/usr/bin/env bash")
         ):
             out.append(p)
     return out
@@ -208,20 +212,20 @@ def hu_bash_scripts() -> list[pathlib.Path]:
 def hu_config_template() -> pathlib.Path:
     """The chezmoi source for ~/.config/herdr/config.toml. The README says it
     'deploys as a chezmoi template'; chezmoi source naming is
-    dot_config/herdr/config.toml.tmpl at the repo (source) root."""
+    dot_config/herdr/config.toml.tmpl at the repo (source) root.
+    """
     d = REPO / "dot_config" / "herdr"
     return d / "config.toml.tmpl"
 
 
 def hu_topic_tree_files() -> list[pathlib.Path]:
     """Code files only — prose (.md) may legitimately *name* a forbidden
-    literal as an anti-pattern example, and the rule is about code."""
+    literal as an anti-pattern example, and the rule is about code.
+    """
     return [
         p
         for p in TOPIC.rglob("*")
-        if p.is_file()
-        and "__pycache__" not in p.parts
-        and p.suffix not in (".md",)
+        if p.is_file() and "__pycache__" not in p.parts and p.suffix not in (".md",)
     ]
 
 
@@ -235,7 +239,8 @@ def test_structure_files_exist():
     missing = [rel for rel in STRUCTURE_FILES if not (TOPIC / rel).is_file()]
     if missing:
         pytest.fail(
-            "MISSING: " + ", ".join(missing)
+            "MISSING: "
+            + ", ".join(missing)
             + " — named in dotfiles/apps/herdr/README.md § Structure",
             pytrace=False,
         )
@@ -250,7 +255,8 @@ def test_structure_files_exist():
 def test_agents_yaml_catalogue_exists_with_wired_entries():
     """dotfiles/config/agents.yaml exists (editors.yaml pattern) and carries
     the wired integration ids herdr spells them (cli-reference): opencode,
-    claude, cursor; codex listed as a not-wired candidate."""
+    claude, cursor; codex listed as a not-wired candidate.
+    """
     # mutation: delete agents.yaml, or drop the claude entry / the codex
     # why-not row — each must fail here by name.
     text = hu_read(CATALOGUE, "shared agent-integration catalogue")
@@ -281,11 +287,13 @@ def test_agents_yaml_catalogue_exists_with_wired_entries():
 
 @pytest.mark.parametrize("os_family", OS_FAMILIES)
 @pytest.mark.parametrize(
-    "template", ["templates/com.herdr.server.plist.j2", "templates/herdr-server.service.j2"]
+    "template",
+    ["templates/com.herdr.server.plist.j2", "templates/herdr-server.service.j2"],
 )
 def test_templates_render_under_both_os_families(template, os_family):
     """Every topic template renders under BOTH os_family values with
-    StrictUndefined; a missing variable raises (never renders blank)."""
+    StrictUndefined; a missing variable raises (never renders blank).
+    """
     # mutation: reference an undefined var in a template, or delete a default
     # from defaults/main.yaml — the render must raise naming the variable.
     out = hu_render(template, os_family)
@@ -298,7 +306,8 @@ def test_templates_render_under_both_os_families(template, os_family):
 def test_launchd_plist_shim_runatload_keepalive():
     """Rendered Darwin plist: Label com.herdr.server, ProgramArguments[0] at
     the stable mise shim path with 'server' as the subcommand, RunAtLoad and
-    KeepAlive both true (README service-unit decisions)."""
+    KeepAlive both true (README service-unit decisions).
+    """
     # mutation: point ProgramArguments at a version-pinned install path, drop
     # RunAtLoad/KeepAlive, or rename the label — each must fail here.
     out = hu_render("templates/com.herdr.server.plist.j2", "Darwin")
@@ -309,9 +318,7 @@ def test_launchd_plist_shim_runatload_keepalive():
     assert "<key>KeepAlive</key>" in out, (
         "launchd agent must have KeepAlive per the README"
     )
-    args = re.search(
-        r"<key>ProgramArguments</key>\s*<array>(.*?)</array>", out, re.S
-    )
+    args = re.search(r"<key>ProgramArguments</key>\s*<array>(.*?)</array>", out, re.S)
     assert args, "rendered plist has no ProgramArguments array"
     strings = re.findall(r"<string>(.*?)</string>", args.group(1))
     assert strings, "ProgramArguments array is empty"
@@ -334,7 +341,8 @@ def test_systemd_user_unit_shim_and_no_system_unit_markers():
     """Rendered Debian unit: ExecStart at the stable mise shim with the
     `server` subcommand, no version-pinned install path, and no system-unit
     markers (a per-user unit under ~/.config/systemd/user/ is
-    WantedBy=default.target, not multi-user.target, and takes no User=)."""
+    WantedBy=default.target, not multi-user.target, and takes no User=).
+    """
     # mutation: swap ExecStart to a mise/installs/ path or copy a system unit
     # (User=/multi-user.target) — the per-OS distinction must hold.
     out = hu_render("templates/herdr-server.service.j2", "Debian")
@@ -360,12 +368,15 @@ def test_systemd_user_unit_shim_and_no_system_unit_markers():
 def test_never_herdr_update_and_upgrade_routes_through_mise():
     """No topic task/template invokes `herdr update` (valid for self-installs
     only; mise installs upgrade via mise — TOPIC-RECIPES, README). Positive
-    counterpart: upgrade.yaml routes through `mise upgrade`."""
+    counterpart: upgrade.yaml routes through `mise upgrade`.
+    """
     # mutation: replace `mise upgrade` with `herdr update` in upgrade.yaml —
     # this test must go red.
-    scan_files = list((TOPIC / "tasks").glob("*.yaml")) + list(
-        (TOPIC / "templates").glob("*.j2")
-    ) + [TOPIC / "playbook.yaml"]
+    scan_files = (
+        list((TOPIC / "tasks").glob("*.yaml"))
+        + list((TOPIC / "templates").glob("*.j2"))
+        + [TOPIC / "playbook.yaml"]
+    )
     for p in scan_files:
         if not p.is_file():
             continue
@@ -394,7 +405,8 @@ def test_install_contains_exact_mise_use_invocation():
 def test_entry_probe_precedes_mise_use():
     """The entry-probe comes FIRST in install.yaml so `mise use` is a no-op
     once converged: something is registered (probed) before the `mise use`
-    task, and the `mise use` task is guarded on that probe with `when:`."""
+    task, and the `mise use` task is guarded on that probe with `when:`.
+    """
     # mutation: reorder — move the mise use task above the probe, or delete
     # the `when:` guard — idempotence is lost and this goes red.
     code = hu_code_lines(hu_install_text())
@@ -424,7 +436,8 @@ def test_remove_contains_mise_unuse():
 
 def test_remove_ordered_and_gated():
     """remove.yaml is gated and ordered: integrations → service → entry.
-    Integration teardown is gated by herdr_remove_integrations (default off)."""
+    Integration teardown is gated by herdr_remove_integrations (default off).
+    """
     # mutation: reorder teardown (entry before service) or delete the
     # herdr_remove_integrations gate — either must go red here.
     code = hu_code_lines(hu_remove_text())
@@ -449,7 +462,8 @@ def test_config_template_minimal_and_clean():
     """~/.config/herdr/config.toml is captured as a chezmoi template
     (dot_config/herdr/config.toml.tmpl) with exactly the opinionated keys:
     update.channel = "stable" and [session] resume_agents_on_restore = true.
-    No secrets, no employer-identifying strings."""
+    No secrets, no employer-identifying strings.
+    """
     # mutation: drop update.channel, or add a secret/employer literal to the
     # config template — each direction must fail here.
     path = hu_config_template()
@@ -459,7 +473,7 @@ def test_config_template_minimal_and_clean():
         "captured, minimally)",
     )
     assert re.search(r'update\.channel\s*=\s*"stable"', text), (
-        f"{path}: update.channel = \"stable\" missing"
+        f'{path}: update.channel = "stable" missing'
     )
     assert re.search(r"\[session\]", text) and re.search(
         r"resume_agents_on_restore\s*=\s*true", text
@@ -478,14 +492,15 @@ def test_config_template_minimal_and_clean():
 
 
 def test_zsh_completion_topic_owned_not_zsh_tree_owned():
-    """install writes `herdr completion zsh` output to the completions dir the
+    """Install writes `herdr completion zsh` output to the completions dir the
     repo's zsh runtime already puts on fpath
     (~/.local/share/zsh/completions/_herdr, dot_zshrc.tmpl:96) and nothing
     lands in the chezmoi-managed zsh tree (the _ollama_zsh_completion
     dual-ownership trap); remove takes the file back out. Deliberately NOT
     herdr's documented ~/.zfunc recipe — nothing here puts ~/.zfunc on
     fpath, so that completion would be generated and never loaded (found
-    post-report 2026-09-19; the README and the topic moved together)."""
+    post-report 2026-09-19; the README and the topic moved together).
+    """
     # mutation: write the completion into dotfiles/zsh/ instead of the
     # on-fpath completions dir, or drop the remove-side cleanup — either
     # must go red.
@@ -518,12 +533,15 @@ def test_zsh_completion_topic_owned_not_zsh_tree_owned():
 def test_no_machine_specific_literals_in_topic_tree():
     """No /home/bdavis-style or employer-identifying literal anywhere in the
     topic tree (AGENTS.md: machine-specific values are resolved, never
-    written out; the silent-allow-list failure mode)."""
+    written out; the silent-allow-list failure mode).
+    """
     # mutation: hardcode /Users/ben.davis or the shim path with a literal
     # home dir in a template — this scan goes red.
     offenders = []
     for p in hu_topic_tree_files() + list(
-        (REPO / "dot_config" / "herdr").glob("*") if (REPO / "dot_config" / "herdr").is_dir() else []
+        (REPO / "dot_config" / "herdr").glob("*")
+        if (REPO / "dot_config" / "herdr").is_dir()
+        else []
     ):
         text = hu_code_lines(p.read_text(errors="replace"))
         for literal in EMPLOYER_LITERALS:
@@ -539,15 +557,14 @@ def test_bash_scripts_render_and_pass_bash_n_or_absence_is_recorded():
     """If the topic ships files/ shell scripts, each passes `bash -n`. The
     design ships none, so absence is only accepted when the README structure
     section lists no files/ dir — a script added without the README recording
-    it fails here rather than escaping review."""
+    it fails here rather than escaping review.
+    """
     # mutation: add a files/ script with a syntax error, or add files/ to the
     # README structure without shipping it — both go red.
     scripts = hu_bash_scripts()
     if not scripts:
         readme = hu_read(TOPIC / "README.md", "the design record")
-        assert "files/" not in readme.split("## Structure")[-1].split("##")[
-            0
-        ], (
+        assert "files/" not in readme.split("## Structure")[-1].split("##")[0], (
             "README § Structure lists a files/ dir but none is shipped — "
             "the decision must be explicit either way"
         )
@@ -565,7 +582,8 @@ def test_bash_scripts_render_and_pass_bash_n_or_absence_is_recorded():
 def test_readme_cross_links_and_named_paths():
     """The README links to the TOPIC-RECIPES.md rows it instantiates and to
     TOPICS.md, and names the catalogue path (dotfiles/config/agents.yaml) —
-    the cross-links the design record promises."""
+    the cross-links the design record promises.
+    """
     # mutation: strip the TOPICS.md/TOPIC-RECIPES.md references from the
     # README — the design record stops linking its authority.
     readme = hu_read(TOPIC / "README.md", "the design record")

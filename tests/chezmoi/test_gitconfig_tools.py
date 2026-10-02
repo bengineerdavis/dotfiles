@@ -29,7 +29,9 @@ pytestmark = pytest.mark.skipif(
 def gitconfig(tmp_path_factory) -> pathlib.Path:
     out = subprocess.run(
         ["chezmoi", "execute-template", "--file", str(REPO / "dot_gitconfig.tmpl")],
-        capture_output=True, text=True, timeout=60,
+        capture_output=True,
+        text=True,
+        timeout=60,
     )
     assert out.returncode == 0, out.stderr
     assert "[merge]" in out.stdout, "rendered nothing recognisable"
@@ -41,7 +43,8 @@ def gitconfig(tmp_path_factory) -> pathlib.Path:
 def _get(cfg: pathlib.Path, key: str) -> str:
     out = subprocess.run(
         ["git", "config", "--file", str(cfg), "--get", key],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     assert out.returncode == 0, f"{key} is not set"
     return out.stdout.strip()
@@ -64,8 +67,15 @@ def test_difftool_labels_both_panes(gitconfig):
 
 def test_no_empty_named_tool_sections(gitconfig):
     out = subprocess.run(
-        ["git", "config", "--file", str(gitconfig), "--get-regexp",
-         r"^(merge|diff)tool\.\."],
-        capture_output=True, text=True,
+        [
+            "git",
+            "config",
+            "--file",
+            str(gitconfig),
+            "--get-regexp",
+            r"^(merge|diff)tool\.\.",
+        ],
+        capture_output=True,
+        text=True,
     )
     assert out.stdout == "", f"empty-named sections git never reads:\n{out.stdout}"

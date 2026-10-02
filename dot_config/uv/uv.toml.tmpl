@@ -1,0 +1,34 @@
+{{- /* Managed by chezmoi (dot_config/uv/uv.toml.tmpl). Hand-edits are
+     overwritten by apply. The private index URL lives in ~/.localrc
+     (UV_PRIVATE_INDEX_URL, written by the apps/uv topic from the vault),
+     never in this repo; credentials stay env-only. */}}
+{{- $hosts := get (get . "uv" | default dict) "hosts" | default dict }}
+{{- $hostcfg := get $hosts .chezmoi.hostname | default dict }}
+{{- $flagged := get $hostcfg "work" | default false }}
+{{- $url := env "UV_PRIVATE_INDEX_URL" | trim }}
+{{- if and $flagged (not $url) }}
+{{- fail (printf "uv: %s is flagged work in .chezmoidata/uv.yaml but UV_PRIVATE_INDEX_URL is not set - source ~/.localrc (the apps/uv topic writes it) and re-run apply" .chezmoi.hostname) }}
+{{- end }}
+# Managed by chezmoi - dot_config/uv/uv.toml.tmpl. Hand-edits are overwritten
+# by apply; machine-local values belong in ~/.localrc, not in this file.
+required-version = ">=0.12.17"
+
+{{- if and $flagged $url }}
+# The private index is the default: names resolve here first and public PyPI
+# is only the non-default fallback, which is the dependency-confusion guard.
+# Credentials are env-only: UV_INDEX_PRIVATE_USERNAME and
+# UV_INDEX_PRIVATE_PASSWORD, exported from ~/.localrc - never written here.
+[[index]]
+name = "private"
+url = "{{ $url }}"
+default = true
+
+[[index]]
+name = "public"
+url = "https://pypi.org/simple"
+{{- else }}
+# Personal machine: public PyPI is the only index.
+[[index]]
+name = "public"
+url = "https://pypi.org/simple"
+{{- end }}

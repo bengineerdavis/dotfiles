@@ -29,14 +29,13 @@ EXEMPT = {"README.md", "ARCHITECTURE.md", "USAGE.md", "CONTRIBUTING.md"}
 
 
 def convention_files() -> list[pathlib.Path]:
-    return sorted(
-        p for p in CONVENTIONS.glob("*.md") if p.name not in EXEMPT
-    )
+    return sorted(p for p in CONVENTIONS.glob("*.md") if p.name not in EXEMPT)
 
 
 def test_there_are_conventions_to_check():
     """Guards against the whole suite passing vacuously if the directory is
-    emptied or renamed."""
+    emptied or renamed.
+    """
     assert CONVENTIONS.is_dir(), "docs/ is missing"
     assert convention_files(), "docs/ holds no convention files"
 
@@ -54,8 +53,10 @@ def test_convention_is_referenced_from_agents_md(path):
 
 def test_agents_md_does_not_reference_a_missing_convention():
     """The other direction: a bullet pointing at a file that was renamed or
-    deleted sends an agent to read something that is not there."""
+    deleted sends an agent to read something that is not there.
+    """
     import re
+
     text = AGENTS.read_text(encoding="utf-8")
     # Anchored so it does not also match the tail of `dotfiles/docs/...`,
     # which is a different tree and legitimately holds other documents.

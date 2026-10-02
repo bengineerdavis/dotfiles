@@ -1,5 +1,4 @@
-"""
-tests/herdr/test_edge_stress.py — EDGE/STRESS dimension of the herdr swarm suite.
+"""tests/herdr/test_edge_stress.py — EDGE/STRESS dimension of the herdr swarm suite.
 
 Author: edge/stress test author (one of four independent swarm authors,
 2026-09-19). This suite attacks the herdr topic with malformed catalogue
@@ -82,6 +81,7 @@ Required API of the contract module (the contract this file states):
 
 Assumptions are recorded inline where made (search "ASSUMPTION").
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -131,9 +131,7 @@ HE_ID_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 # Exit-status doctrine: an rc-bearing command must not be read through a
 # pipeline (spec.md § Verification — exit status is read directly). These are
 # the classic rc-masking pipes; `2>&1` and `> file` redirects are not pipes.
-HE_RC_MASKING_PIPES = re.compile(
-    r"\|\s*(head|tail|grep|wc|awk|sed|sort|true|xargs)\b"
-)
+HE_RC_MASKING_PIPES = re.compile(r"\|\s*(head|tail|grep|wc|awk|sed|sort|true|xargs)\b")
 
 # ── contract-module and repo-artifact locators (all fail NAMED) ──────────────
 
@@ -144,7 +142,9 @@ def he_contract():
     if existing:
         for path in existing:
             spec = importlib.util.spec_from_file_location("he_agents_contract", path)
+            # pyrefly: ignore [bad-argument-type]
             mod = importlib.util.module_from_spec(spec)
+            # pyrefly: ignore [missing-attribute]
             spec.loader.exec_module(mod)
             return mod
     pytest.fail(
@@ -245,6 +245,7 @@ def he_recorder(rcs):
         calls.append((eid, rc))
         return rc
 
+    # pyrefly: ignore [missing-attribute]
     run.calls = calls
     return run
 
@@ -397,11 +398,21 @@ def test_duplicate_ids_are_rejected():
         (he_valid_entry(why=7), "why"),
     ],
     ids=[
-        "str-entry", "list-entry", "null-entry", "empty-entry",
-        "config_dir-int", "config_dir-list", "config_dir-none",
-        "config_dir-control-chars", "config_dir-not-path-like",
-        "probe-empty", "probe-int", "id-wrong-case", "id-empty",
-        "why-empty", "why-int",
+        "str-entry",
+        "list-entry",
+        "null-entry",
+        "empty-entry",
+        "config_dir-int",
+        "config_dir-list",
+        "config_dir-none",
+        "config_dir-control-chars",
+        "config_dir-not-path-like",
+        "probe-empty",
+        "probe-int",
+        "id-wrong-case",
+        "id-empty",
+        "why-empty",
+        "why-int",
     ],
 )
 def test_hostile_entry_shapes_are_rejected(entry, expected_field):
@@ -460,9 +471,16 @@ def test_real_catalogue_passes_validation():
         "opencode: outdated (v3) (/opt/homebrew/bin/opencode)",  # unmeasured state
     ],
     ids=[
-        "empty", "whitespace", "prose", "truncated",
-        "control-char", "record-missing-path", "duplicated-id", "unknown-state-word",
-        "current-missing-version", "outdated-unmeasured",
+        "empty",
+        "whitespace",
+        "prose",
+        "truncated",
+        "control-char",
+        "record-missing-path",
+        "duplicated-id",
+        "unknown-state-word",
+        "current-missing-version",
+        "outdated-unmeasured",
     ],
 )
 def test_status_garbage_is_unknown_never_a_claim(hostile):
@@ -483,7 +501,8 @@ def test_status_garbage_is_unknown_never_a_claim(hostile):
     # what it says — so the refusals below are proven to relent, not fail
     # closed.
     parsed = mod.parse_integration_status(
-        "opencode: current (v12) (/home/testuser/.config/opencode/plugins/herdr-agent-state.js)\n"
+        "opencode: current (v12) "
+        "(/home/testuser/.config/opencode/plugins/herdr-agent-state.js)\n"
         "claude: not installed (/Users/testuser/.claude/hooks/herdr-agent-state.sh)"
     )
     assert parsed == {
@@ -538,7 +557,8 @@ def test_remove_plan_refuses_nonzero_rc_and_garbage(rc, stdout):
     # only opencode is uninstalled; zed (not owned by the topic) is left alone.
     plan = mod.remove_plan(
         0,
-        "opencode: current (v12) (/home/testuser/.config/opencode/plugins/herdr-agent-state.js)\n"
+        "opencode: current (v12) "
+        "(/home/testuser/.config/opencode/plugins/herdr-agent-state.js)\n"
         "zed-not-ours: current (v1) (/opt/zed/bin/zed)\n"
         "claude: not installed (/Users/testuser/.claude/hooks/herdr-agent-state.sh)",
         ["opencode", "claude"],
@@ -554,7 +574,7 @@ def test_remove_plan_refuses_nonzero_rc_and_garbage(rc, stdout):
 
 
 def test_herdr_binary_absent_raises_named_fix_and_relents():
-    """herdr missing mid-run raises with the fix named; present, it proceeds.
+    """Herdr missing mid-run raises with the fix named; present, it proceeds.
 
     EDGE/STRESS (brief: herdr binary absent mid-run — raise, named fix);
     relents doctrine from spec.md § Verification (a guard is proven to relent
@@ -570,6 +590,7 @@ def test_herdr_binary_absent_raises_named_fix_and_relents():
     with pytest.raises(ValueError) as excinfo:
         mod.install_loop(entries, probes, herdr_present=False, run_install=runner)
     assert "mise use -g herdr" in str(excinfo.value), str(excinfo.value)
+    # pyrefly: ignore [missing-attribute]
     assert runner.calls == [], "no install may be attempted without herdr"
     # relents: herdr present -> the loop installs and reports clean.
     report = mod.install_loop(entries, probes, herdr_present=True, run_install=runner)
@@ -596,10 +617,9 @@ def test_skip_names_both_conditions_and_does_not_fail(probe_present, dir_exists)
     entry = he_valid_entry("cursor", probe="cursor-agent", config_dir="~/.cursor")
     probes = {"cursor": (probe_present, dir_exists)}
     runner = he_recorder([])
-    report = mod.install_loop(
-        [entry], probes, herdr_present=True, run_install=runner
-    )
+    report = mod.install_loop([entry], probes, herdr_present=True, run_install=runner)
     report.raise_if_failed()  # skip must not fail the run
+    # pyrefly: ignore [missing-attribute]
     assert runner.calls == [], "skipped entries must not be installed"
     assert len(report.skips) == 1, report.skips
     _, reason = report.skips[0]
@@ -621,9 +641,8 @@ def test_install_failures_collected_reported_once_raised_after_loop():
     entries = [he_valid_entry(eid) for eid in ("opencode", "claude", "cursor")]
     probes = {e["id"]: (True, True) for e in entries}
     runner = he_recorder([1, 1, 0])
-    report = mod.install_loop(
-        entries, probes, herdr_present=True, run_install=runner
-    )
+    report = mod.install_loop(entries, probes, herdr_present=True, run_install=runner)
+    # pyrefly: ignore [missing-attribute]
     assert [c[1] for c in runner.calls] == [1, 1, 0], (
         "the loop must attempt every entry, continuing past failures"
     )
@@ -647,9 +666,8 @@ def test_usage_error_rc2_collected_not_retried():
     entry = he_valid_entry("not-a-herdr-agent")
     probes = {"not-a-herdr-agent": (True, True)}
     runner = he_recorder([2])
-    report = mod.install_loop(
-        [entry], probes, herdr_present=True, run_install=runner
-    )
+    report = mod.install_loop([entry], probes, herdr_present=True, run_install=runner)
+    # pyrefly: ignore [missing-attribute]
     assert runner.calls == [("not-a-herdr-agent", 2)], runner.calls
     with pytest.raises(ValueError) as excinfo:
         report.raise_if_failed()
@@ -702,7 +720,9 @@ def test_teardown_converges_and_second_run_is_a_noop(state):
     he_apply_teardown(state, first_plan)
     converged = he_snapshot(state)
     second_plan = mod.teardown_plan(state, ids, gate=True)
-    assert second_plan == [], f"second teardown run must plan nothing, got {second_plan}"
+    assert second_plan == [], (
+        f"second teardown run must plan nothing, got {second_plan}"
+    )
     he_apply_teardown(state, second_plan)
     assert he_snapshot(state) == converged, "second teardown run changed state"
 
@@ -746,7 +766,9 @@ def test_remove_gate_defaults_off():
 @settings(max_examples=25, deadline=None)
 @given(
     ids=st.lists(
-        st.text(alphabet="abcdefghijklmnopqrstuvwxyz0123456789-", min_size=1, max_size=20),
+        st.text(
+            alphabet="abcdefghijklmnopqrstuvwxyz0123456789-", min_size=1, max_size=20
+        ),
         min_size=1,
         max_size=200,
         unique=True,
@@ -773,7 +795,9 @@ def test_scale_planned_commands_linear_unique_stable(ids):
 @settings(max_examples=50, deadline=None)
 @given(
     ids=st.lists(
-        st.text(alphabet="abcdefghijklmnopqrstuvwxyz0123456789-", min_size=1, max_size=20),
+        st.text(
+            alphabet="abcdefghijklmnopqrstuvwxyz0123456789-", min_size=1, max_size=20
+        ),
         min_size=2,
         max_size=50,
         unique=True,
@@ -825,7 +849,7 @@ def test_topic_tasks_never_pipe_rc_reads():
 
 
 def test_yaml_status_regexes_match_the_measured_wire():
-    """The Jinja regex strings in the task YAML compile and match the real
+    r"""The Jinja regex strings in the task YAML compile and match the real
     status grammar — the gap static scans could not close, now closed by
     executing the strings.
 
@@ -866,13 +890,11 @@ def test_yaml_status_regexes_match_the_measured_wire():
         compiled = re.compile(pattern)
         matches = [compiled.match(ln) for ln in installed_lines]
         assert all(matches), (
-            f"task YAML extraction regex {pattern!r} fails on a measured "
-            "installed line"
+            f"task YAML extraction regex {pattern!r} fails on a measured installed line"
         )
         ids = [m.group(1) for m in matches if m]
         assert ids == ["claude", "opencode"], (
-            f"extraction must yield the installed ids from the fixture, "
-            f"got {ids}"
+            f"extraction must yield the installed ids from the fixture, got {ids}"
         )
 
 
@@ -884,8 +906,8 @@ def test_yaml_status_regexes_match_the_measured_wire():
 # test is the structure, not the path contents. Re-capture with
 # `herdr integration status` and re-redact when the binary moves.
 
-HE_GOLDEN_STATUS = REPO / "tests" / "herdr" / "fixtures" / (
-    "integration-status-herdr-0.9.1.txt"
+HE_GOLDEN_STATUS = (
+    REPO / "tests" / "herdr" / "fixtures" / ("integration-status-herdr-0.9.1.txt")
 )
 
 
@@ -908,9 +930,24 @@ def test_golden_transcript_parses_as_the_binary_wrote_it():
     transcript = HE_GOLDEN_STATUS.read_text()
     parsed = he_contract().parse_integration_status(transcript)
     expected_ids = {
-        "pi", "omp", "claude", "codex", "copilot", "devin", "droid", "kimi",
-        "opencode", "kilo", "hermes", "qodercli", "qwen", "letta", "cursor",
-        "mastracode", "antigravity-cli", "grok",
+        "pi",
+        "omp",
+        "claude",
+        "codex",
+        "copilot",
+        "devin",
+        "droid",
+        "kimi",
+        "opencode",
+        "kilo",
+        "hermes",
+        "qodercli",
+        "qwen",
+        "letta",
+        "cursor",
+        "mastracode",
+        "antigravity-cli",
+        "grok",
     }
     assert set(parsed) == expected_ids, (
         f"golden transcript parsed to {sorted(parsed)}; expected exactly the "

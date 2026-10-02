@@ -1,10 +1,10 @@
-"""
-Resolution precedence: flag beats environment beats fallback.
+"""Resolution precedence: flag beats environment beats fallback.
 
 The queue named this the obvious first case for bin/triage coverage: platform
 and docs resolve flag -> $TRIAGE_PLATFORM / $TRIAGE_DOCS -> default, and nothing
 pinned that order or the empty-docs warning that follows from it.
 """
+
 from __future__ import annotations
 
 
@@ -25,7 +25,8 @@ def test_platform_falls_back_to_default(triage_module, monkeypatch):
 
 def test_platform_empty_flag_falls_through_to_env(triage_module, monkeypatch):
     """A falsy flag is not a value: `--platform ''` falls through the `or`
-    chain rather than stamping an empty label."""
+    chain rather than stamping an empty label.
+    """
     monkeypatch.setenv("TRIAGE_PLATFORM", "EnvCorp")
     assert triage_module.resolve_platform("") == "EnvCorp"
 

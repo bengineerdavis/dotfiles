@@ -29,25 +29,30 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 LOG_KEY = "boundaries.llm_processing.log_bodies_allowed"
 
 CALLERS = {
-    "triage":  (REPO / "bin" / "executable_triage",  "logging_permitted"),
+    "triage": (REPO / "bin" / "executable_triage", "logging_permitted"),
     "llm-ctx": (REPO / "bin" / "executable_llm-ctx", "policy_permits_logging"),
 }
 
 
 def _company(**rules: bool) -> str:
     body = "\n".join(f"    {k}: {str(v).lower()}" for k, v in rules.items())
-    return textwrap.dedent("""
+    return (
+        textwrap.dedent("""
         meta:
           layer: company
           precedence: 2
         boundaries:
           llm_processing:
-        """).lstrip("\n") + body + "\n"
+        """).lstrip("\n")
+        + body
+        + "\n"
+    )
 
 
 def _load(path: pathlib.Path):
     loader = importlib.machinery.SourceFileLoader(path.stem, str(path))
     spec = importlib.util.spec_from_loader(path.stem, loader)
+    # pyrefly: ignore [bad-argument-type]
     mod = importlib.util.module_from_spec(spec)
     try:
         loader.exec_module(mod)
@@ -72,14 +77,26 @@ def policy_env(tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_STATE_HOME", str(state))
         monkeypatch.setenv("HOME", str(tmp_path))
         base = os.environ.get("PATH", "")
-        monkeypatch.setenv("PATH", f"{shim}:{base}" if resolver_on_path else "/usr/bin:/bin")
+        monkeypatch.setenv(
+            "PATH", f"{shim}:{base}" if resolver_on_path else "/usr/bin:/bin"
+        )
         # sanity: the resolver must actually answer, or every assertion below is vacuous
         if resolver_on_path:
-            probe = subprocess.run(["policy", "check", LOG_KEY],
-                                   capture_output=True, text=True,
-                                   env={**os.environ, "XDG_STATE_HOME": str(state),
-                                        "HOME": str(tmp_path), "PATH": f"{shim}:{base}"})
-            assert probe.returncode in (0, 1, 2), f"resolver not answering: {probe.stderr}"
+            probe = subprocess.run(
+                ["policy", "check", LOG_KEY],
+                capture_output=True,
+                text=True,
+                env={
+                    **os.environ,
+                    "XDG_STATE_HOME": str(state),
+                    "HOME": str(tmp_path),
+                    "PATH": f"{shim}:{base}",
+                },
+            )
+            assert probe.returncode in (0, 1, 2), (
+                f"resolver not answering: {probe.stderr}"
+            )
+
     return configure
 
 
@@ -93,9 +110,10 @@ def test_guard_denies_when_policy_denies(policy_env, caller):
 @pytest.mark.parametrize("caller", sorted(CALLERS))
 def test_guard_denies_when_policy_is_unknown(policy_env, caller):
     """Exit 2 must be treated exactly like exit 1. The layers are
-    restrictions-only, so unknown is the normal answer, not an error state."""
+    restrictions-only, so unknown is the normal answer, not an error state.
+    """
     path, fn = CALLERS[caller]
-    policy_env(_company())          # key absent entirely -> unknown
+    policy_env(_company())  # key absent entirely -> unknown
     assert getattr(_load(path), fn)() is False
 
 
@@ -110,7 +128,8 @@ def test_guard_denies_when_the_resolver_is_missing(policy_env, caller):
 @pytest.mark.parametrize("caller", sorted(CALLERS))
 def test_guard_relents_when_policy_permits(policy_env, caller):
     """The direction that distinguishes a working guard from one that always
-    refuses. Both look identical from a smoke test."""
+    refuses. Both look identical from a smoke test.
+    """
     path, fn = CALLERS[caller]
     policy_env(_company(log_bodies_allowed=True))
     assert getattr(_load(path), fn)() is True
@@ -119,9 +138,12 @@ def test_guard_relents_when_policy_permits(policy_env, caller):
 def test_llm_ctx_translates_the_guard_into_an_actual_flag():
     """The predicate being right is not the point; passing -n is. `-n` is the
     short form of --no-log, which is why grepping bin/ for the long form finds
-    nothing."""
+    nothing.
+    """
     mod = _load(CALLERS["llm-ctx"][0])
+    # pyrefly: ignore [missing-attribute]
     mod._suppress_log = True
     assert mod.no_log_flags() == ["-n"]
+    # pyrefly: ignore [missing-attribute]
     mod._suppress_log = False
     assert mod.no_log_flags() == []

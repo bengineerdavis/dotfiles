@@ -1,5 +1,4 @@
-"""
-Guard the one zsh layout that actually loads.
+"""Guard the one zsh layout that actually loads.
 
 `.zshrc` sources exactly this glob:
 
@@ -58,8 +57,7 @@ def test_no_unsourced_zsh_fragments():
 
 
 def test_no_legacy_zsh_subdirectory_at_all():
-    """
-    The `apps/<topic>/zsh/` layout is dead in its entirety, whatever it holds.
+    """The `apps/<topic>/zsh/` layout is dead in its entirety, whatever it holds.
 
     Guarding only `*.zsh` was not enough. A concurrent rebase reinstated
     `homebrew/zsh/executable_install.sh` and a `.gitkeep` propping open
@@ -74,8 +72,7 @@ def test_no_legacy_zsh_subdirectory_at_all():
         "legacy zsh/ directories exist; nothing inside them is reachable "
         f"(canonical is {CANONICAL}):\n  "
         + "\n  ".join(
-            f"{d.relative_to(REPO)}  ({len(list(d.iterdir()))} entries)"
-            for d in legacy
+            f"{d.relative_to(REPO)}  ({len(list(d.iterdir()))} entries)" for d in legacy
         )
     )
 
@@ -93,8 +90,7 @@ def test_scaffold_only_emits_the_canonical_layout():
 
 
 def test_canonical_fragments_still_exist():
-    """
-    Guards the failure mode where the two tests above pass because someone
+    """Guards the failure mode where the two tests above pass because someone
     deleted the live fragments instead of the dead ones.
     """
     live = sorted(APPS.glob("*/files/zsh/*.zsh"))

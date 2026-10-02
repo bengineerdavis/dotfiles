@@ -1,5 +1,4 @@
-"""
-The release gate: nothing verified is also released without a human.
+"""The release gate: nothing verified is also released without a human.
 
 Kept in its own file rather than folded into the existing suites, because those
 are actively edited by more than one session and this needs no changes to them.
@@ -23,6 +22,7 @@ import pathlib
 
 import pytest
 
+# pyrefly: ignore [missing-import]
 from pii_redactor_harness import SCRIPT
 
 # A model that returns already-clean text, so layers 2 and 3 both pass and
@@ -40,6 +40,7 @@ DIRTY_INPUT = "Dear Jane Doe, your ticket is closed. jane@acme.example\n"
 # imported second won — so `from conftest import SCRIPT` here could silently
 # resolve to ~/bin/clipped and run every release-gate test against the wrong
 # binary. Pin the identity so a regression fails loudly.
+
 
 def test_script_is_the_pii_redactor_binary():
     assert SCRIPT.name == "pii-redactor", (
@@ -76,7 +77,9 @@ def test_piped_stdout_is_withheld_without_approval(run_script, mock_llm, tmp_pat
     assert r.stdout.strip() == "", "content escaped to stdout without review"
 
 
-def test_assume_reviewed_releases_and_announces_the_bypass(run_script, mock_llm, tmp_path):
+def test_assume_reviewed_releases_and_announces_the_bypass(
+    run_script, mock_llm, tmp_path
+):
     mock_llm(CLEAN_MODEL)
     src = tmp_path / "in.md"
     src.write_text(DIRTY_INPUT)
@@ -126,6 +129,7 @@ def test_assume_reviewed_is_documented(run_script):
 
 def _module():
     spec = importlib.util.spec_from_loader("pr", loader=None)
+    # pyrefly: ignore [bad-argument-type]
     mod = importlib.util.module_from_spec(spec)
     src = pathlib.Path(SCRIPT).read_text().split("if __name__ ==")[0]
     exec(compile(src, str(SCRIPT), "exec"), mod.__dict__)
@@ -157,8 +161,15 @@ class _FakeTTY:
 
 @pytest.mark.parametrize(
     "answer,approved",
-    [("y\n", True), ("Y\n", True), ("yes\n", True),
-     ("n\n", False), ("\n", False), ("later\n", False), ("", False)],
+    [
+        ("y\n", True),
+        ("Y\n", True),
+        ("yes\n", True),
+        ("n\n", False),
+        ("\n", False),
+        ("later\n", False),
+        ("", False),
+    ],
 )
 def test_gate_fails_closed_on_anything_but_yes(answer, approved):
     pr = _module()

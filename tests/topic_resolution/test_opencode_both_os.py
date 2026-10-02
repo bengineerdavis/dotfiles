@@ -25,6 +25,7 @@ from __future__ import annotations
 import yaml
 import pytest
 
+# pyrefly: ignore [missing-import]
 from topic_resolution_harness import DEFAULTS
 
 

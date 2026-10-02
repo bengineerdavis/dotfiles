@@ -36,6 +36,7 @@ import re
 
 import pytest
 
+# pyrefly: ignore [missing-import]
 from guard_harness import DOTFILES, GUARDS, said
 
 APPS = DOTFILES / "apps"
@@ -74,7 +75,7 @@ def test_every_conflict_is_named_not_just_the_first(run_guard, scope):
 
 
 def test_hidden_entries_are_conflicts_too(run_guard, scope):
-    """dotagents' readdir does not skip dotfiles, so neither may the guard.
+    """Dotagents' readdir does not skip dotfiles, so neither may the guard.
 
     `~/.codex/skills/.system` is a real directory of this shape on this Mac. It
     is harmless today only because codex declares no userSkillsParentDir — if
@@ -149,7 +150,7 @@ def test_override_lets_the_run_continue(run_guard, scope):
 
 
 def test_the_guard_deletes_nothing(run_guard, scope):
-    """"Nothing has been installed or moved" has to be true when it says so.
+    """The "nothing has been installed or moved" claim has to hold when it says so.
 
     The two sides are two copies of a skill — typically a hand-made symlink into
     a working clone against a pinned upstream checkout — and picking one is a
@@ -167,7 +168,8 @@ def test_the_guard_deletes_nothing(run_guard, scope):
 
 def test_the_failure_names_a_next_action(run_guard, scope):
     """The whole point. The incident's message named none, which is why it cost
-    an afternoon."""
+    an afternoon.
+    """
     scope.install("commit-hygiene")
     scope.agent_dir("commit-hygiene")
 
@@ -184,7 +186,8 @@ def test_the_failure_names_a_next_action(run_guard, scope):
 def test_defaults_resolve_against_real_facts(run_guard, scope):
     """Every other test overrides the defaults, so none of them evaluates the
     Jinja in defaults/main.yaml. A typo there would pass the entire suite above
-    and fail only on a real machine."""
+    and fail only on a real machine.
+    """
     result = run_guard(gather_facts=True)
 
     assert result.returncode == 0, result.stdout

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import pytest
 
+# pyrefly: ignore [missing-import]
 from skill_trust.decide import Tier, decide, licence_tier, source_matches
 
 APPROVED = {"approved_sources": ["owner/lib"]}
@@ -32,7 +33,8 @@ def test_a_ban_outranks_a_permissive_licence():
 
 def test_a_ban_outranks_an_explicit_approval():
     """Both lists naming the same repo is a contradiction someone will
-    eventually write; denying is the only safe way to resolve it."""
+    eventually write; denying is the only safe way to resolve it.
+    """
     config = {"deny_sources": ["owner/lib"], "approved_sources": ["owner/lib"]}
     assert not decide("owner/lib", None, config, spdx="MIT").permitted
 
@@ -57,7 +59,8 @@ def test_a_permissive_licence_admits_an_unnamed_source():
 
 def test_absent_licence_denies():
     """The rule the whole design rests on. Unlicensed means all rights
-    reserved — the most restrictive position, not the least."""
+    reserved — the most restrictive position, not the least.
+    """
     d = decide("stranger/repo", None, APPROVED, spdx=None)
     assert not d.permitted and d.rule == "default"
 
@@ -107,6 +110,7 @@ def test_matching_ignores_case():
 
 def test_boost_is_not_the_business_source_licence():
     """BSL-1.0 is Boost and permissive; BSL-1.1 is Business Source and is not.
-    One character apart, opposite answers."""
+    One character apart, opposite answers.
+    """
     assert licence_tier("BSL-1.0") is Tier.PERMISSIVE
     assert licence_tier("BSL-1.1") is Tier.SOURCE_AVAILABLE
