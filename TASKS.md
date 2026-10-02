@@ -1876,6 +1876,15 @@ nothing is.
   `pyrefly_migrate`, stacked on `ruff_standard` (PR #33) — PR opens after
   #33 merges.
 
+- **Enforce LF per-repo via .gitattributes.** [agent: OpenCode
+  restart-review, 2026-10-01; author-approved plan] `* text=auto eol=lf`
+  plus the existing `uv.lock merge=binary`: makes the core-config line rules
+  (5485b77: autocrlf=false, eol=lf, safecrlf=warn) survive across machines,
+  where core config does not. Verified: zero CRLF in tracked files today, so
+  renormalizing is a no-op. Done when the file lands, `git status` stays
+  clean after `git add --renormalize .`, and a PR is open. Branch
+  `gitattributes_lf`.
+
 ## Planned
 
 
