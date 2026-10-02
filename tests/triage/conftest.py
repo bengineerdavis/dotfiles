@@ -1,5 +1,4 @@
-"""
-Shared fixtures for the triage suite.
+"""Shared fixtures for the triage suite.
 
 Tests target the chezmoi SOURCE (`bin/executable_triage`), not the deployed
 `~/bin/triage`. Source and deployed drift in both directions, and testing the
@@ -14,6 +13,7 @@ stubs record their argv, so tests can assert what the script WOULD have sent.
 Run:
     pytest tests/triage -v
 """
+
 from __future__ import annotations
 
 import importlib.machinery
@@ -81,7 +81,7 @@ class Shims:
         stub.write_text(
             "#!/bin/sh\n"
             'if [ -n "$TRIAGE_TEST_POLICY_CAPTURE" ]; then\n'
-            "    printf '%s\\n' \"$@\" > \"$TRIAGE_TEST_POLICY_CAPTURE\"\n"
+            '    printf \'%s\\n\' "$@" > "$TRIAGE_TEST_POLICY_CAPTURE"\n'
             "fi\n"
             f"exit {exit_code}\n"
         )
@@ -114,7 +114,7 @@ def shims(tmp_path):
 
 @pytest.fixture
 def shim_env(shims, monkeypatch):
-    """shims with THIS process's PATH pointed at them alone.
+    """Shims with THIS process's PATH pointed at them alone.
 
     PATH holds only the shim directory, so a real `policy` or `llm` elsewhere on
     the host PATH cannot stand in for a missing stub — the "resolver missing"

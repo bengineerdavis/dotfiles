@@ -28,14 +28,24 @@ MODEL_TEST_FILES = [
 
 def _collect(extra: list[str]) -> list[str]:
     """Node ids a run would execute. Exit 5 (nothing collected) is a valid
-    empty answer, not a failure — the declines case expects exactly that."""
+    empty answer, not a failure — the declines case expects exactly that.
+    """
     proc = subprocess.run(
         [
-            sys.executable, "-m", "pytest",
-            "--collect-only", "-q", "-p", "no:cacheprovider",
-            *extra, *MODEL_TEST_FILES,
+            sys.executable,
+            "-m",
+            "pytest",
+            "--collect-only",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            *extra,
+            *MODEL_TEST_FILES,
         ],
-        capture_output=True, text=True, cwd=str(REPO), timeout=120,
+        capture_output=True,
+        text=True,
+        cwd=str(REPO),
+        timeout=120,
     )
     # 2=interrupted 3=internal error 4=usage error. Those are defects here, not
     # a decline — assert them away so a broken import cannot masquerade as

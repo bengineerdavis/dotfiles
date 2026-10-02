@@ -1,5 +1,4 @@
-"""
-Contract tests for the capability gate.
+"""Contract tests for the capability gate.
 
 A text-only model handed a vision case used to return HTTP 400, which the table
 showed as an ERROR — indistinguishable from a broken harness. The gate fixed
@@ -54,7 +53,10 @@ def test_undeterminable_capabilities_never_skip(ev):
 
 
 def test_reports_every_missing_capability_not_just_the_first(ev):
-    assert ev.unmet_capabilities({"completion"}, {"vision", "audio"}) == ["audio", "vision"]
+    assert ev.unmet_capabilities({"completion"}, {"vision", "audio"}) == [
+        "audio",
+        "vision",
+    ]
 
 
 def test_partial_match_still_skips(ev):
@@ -70,13 +72,18 @@ def test_unreachable_server_yields_none_not_empty_set(ev, monkeypatch):
     An empty set is a positive claim — "this model has no capabilities" — and
     would skip every case with a requirement. Absence of knowledge must be None.
     """
+
     def boom(*_a, **_k):
         raise urllib.error.URLError("connection refused")
 
     monkeypatch.setattr(ev.urllib.request, "urlopen", boom)
     caps = ev.model_caps("some-local-model")
-    assert caps is None, "an unreachable server must not look like a model with no capabilities"
-    assert ev.unmet_capabilities(caps, {"vision"}) is None, "and must therefore not skip"
+    assert caps is None, (
+        "an unreachable server must not look like a model with no capabilities"
+    )
+    assert ev.unmet_capabilities(caps, {"vision"}) is None, (
+        "and must therefore not skip"
+    )
 
 
 def test_remote_models_are_never_interrogated_or_skipped(ev):
@@ -86,11 +93,16 @@ def test_remote_models_are_never_interrogated_or_skipped(ev):
 
 def test_a_real_capability_list_is_parsed_and_relents(ev, monkeypatch):
     """End of the happy path: a vision model must actually RUN a vision case."""
+
     class FakeResp:
         def read(self):
-            return json.dumps({"capabilities": ["completion", "vision", "tools"]}).encode()
+            return json.dumps(
+                {"capabilities": ["completion", "vision", "tools"]}
+            ).encode()
+
         def __enter__(self):
             return self
+
         def __exit__(self, *_):
             return False
 
@@ -119,7 +131,12 @@ def test_the_real_vision_cases_declare_vision(ev):
     """Guards against a case losing its image and silently becoming text-only."""
     import pathlib
     import yaml
+
     cases = pathlib.Path(ev.__file__).resolve().parents[1] / "evals" / "cases"
-    for name in ("vision-topology", "vision-faithfulness", "vision-instruction-adherence"):
+    for name in (
+        "vision-topology",
+        "vision-faithfulness",
+        "vision-instruction-adherence",
+    ):
         c = yaml.safe_load((cases / f"{name}.yaml").read_text())
         assert ev.case_requires(c) == {"vision"}, f"{name} no longer requires vision"

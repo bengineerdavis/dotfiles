@@ -1,4 +1,4 @@
-"""Property and fuzz tests for the eval harness's pure functions.
+r"""Property and fuzz tests for the eval harness's pure functions.
 
 These complement the example-based suites rather than replacing them. The
 division is by what the test knows: a property knows a RULE that holds for all
@@ -31,7 +31,7 @@ import pytest
 pytest.importorskip("hypothesis", reason="hypothesis not installed")
 
 from hypothesis import given, settings, assume, HealthCheck  # noqa: E402
-from hypothesis import strategies as st                      # noqa: E402
+from hypothesis import strategies as st  # noqa: E402
 
 # Small scalars keep generated dicts readable when a property fails; the shrunk
 # counterexample is meant to be pasted into a regression test by hand.
@@ -45,11 +45,13 @@ dicts = st.dictionaries(keys, nested, max_size=5)
 
 # ── deep_merge ───────────────────────────────────────────────────────────────
 
+
 @given(base=dicts, over=dicts)
 def test_deep_merge_does_not_mutate_its_inputs(ev, base, over):
     """Sweep levels merge onto a shared base case. Mutating it would make level
     N+1 inherit level N's overrides — the ladder would stop being independent
-    rungs and no failure would be attributable to its own level."""
+    rungs and no failure would be attributable to its own level.
+    """
     b, o = copy.deepcopy(base), copy.deepcopy(over)
     ev.deep_merge(base, over)
     assert base == b, "deep_merge mutated base"
@@ -78,6 +80,7 @@ def test_deep_merge_empty_is_identity(ev, d):
 
 # ── set_path ─────────────────────────────────────────────────────────────────
 
+
 @given(
     path=st.lists(keys, min_size=1, max_size=4).map(".".join),
     value=scalars,
@@ -97,7 +100,9 @@ def test_set_path_value_is_readable_back(ev, path, value, start):
     assert cur == value
 
 
-@given(path=st.lists(keys, min_size=1, max_size=3).map(".".join), value=scalars, d=dicts)
+@given(
+    path=st.lists(keys, min_size=1, max_size=3).map(".".join), value=scalars, d=dicts
+)
 def test_set_path_leaves_unrelated_top_level_keys_alone(ev, path, value, d):
     head = path.split(".")[0]
     before = {k: copy.deepcopy(v) for k, v in d.items() if k != head}
@@ -126,7 +131,8 @@ def test_set_path_names_the_path_when_a_segment_is_not_a_mapping(ev):
 
 def test_set_path_still_creates_missing_intermediate_dicts(ev):
     """The relenting direction: rejecting scalars must not stop it building
-    the nested path a sweep normally needs."""
+    the nested path a sweep normally needs.
+    """
     d = {}
     ev.set_path(d, "filler.words", 3000)
     assert d == {"filler": {"words": 3000}}
@@ -134,17 +140,25 @@ def test_set_path_still_creates_missing_intermediate_dicts(ev):
 
 # ── nudge_whitespace ─────────────────────────────────────────────────────────
 
+
 @given(text=st.text(max_size=200), seam=st.integers(min_value=-50, max_value=250))
 def test_nudge_whitespace_preserves_content(ev, text, seam):
     """The retry exists to re-ask the SAME question with different spacing. If
     the nudge could alter non-whitespace content it would be asking a different
-    question, and a passing retry would prove nothing."""
+    question, and a passing retry would prove nothing.
+    """
     out = ev.nudge_whitespace(text, seam)
-    strip = lambda s: re.sub(r"\s+", "", s)
+
+    def strip(s: str) -> str:
+        return re.sub(r"\s+", "", s)
+
     assert strip(out) == strip(text)
 
 
-@given(text=st.text(min_size=2, max_size=200), seam=st.integers(min_value=-50, max_value=250))
+@given(
+    text=st.text(min_size=2, max_size=200),
+    seam=st.integers(min_value=-50, max_value=250),
+)
 def test_nudge_whitespace_adds_one_char_or_nothing(ev, text, seam):
     out = ev.nudge_whitespace(text, seam)
     if 0 < seam < len(text):
@@ -156,14 +170,17 @@ def test_nudge_whitespace_adds_one_char_or_nothing(ev, text, seam):
 
 # ── unmet_capabilities ───────────────────────────────────────────────────────
 
-caps_st = st.sets(st.sampled_from(["vision", "tools", "thinking", "embedding"]), max_size=4)
+caps_st = st.sets(
+    st.sampled_from(["vision", "tools", "thinking", "embedding"]), max_size=4
+)
 
 
 @given(caps=caps_st, need=caps_st)
 def test_unmet_capabilities_relents_whenever_it_can(ev, caps, need):
     """The relenting direction, as a rule rather than an example. A gate that
     skips everything and a gate that skips correctly both produce a clean run;
-    only this direction tells them apart."""
+    only this direction tells them apart.
+    """
     if need <= caps:
         assert ev.unmet_capabilities(caps, need) is None
 
@@ -176,8 +193,9 @@ def test_unmet_capabilities_refuses_whenever_it_must(ev, caps, need):
 
 @given(need=caps_st)
 def test_unmet_capabilities_never_gates_undeterminable_models(ev, need):
-    """caps is None means "could not determine" — remote models report nothing.
-    Gating on that would silently mark every requiring case n/a."""
+    """Caps is None means "could not determine" — remote models report nothing.
+    Gating on that would silently mark every requiring case n/a.
+    """
     assert ev.unmet_capabilities(None, need) is None
 
 
@@ -192,17 +210,20 @@ def test_unmet_capabilities_result_is_a_subset_of_need(ev, caps, need):
 
 # ── build_filler ─────────────────────────────────────────────────────────────
 
+
 @given(n=st.integers(min_value=1, max_value=200), seed=st.integers(0, 1000))
 def test_build_filler_is_deterministic(ev, n, seed):
     """Reproducible haystacks are what make a long-context result comparable
-    across runs and hosts."""
+    across runs and hosts.
+    """
     assert ev.build_filler(n, seed) == ev.build_filler(n, seed)
 
 
 @given(n=st.integers(min_value=1, max_value=200), seed=st.integers(0, 1000))
 def test_build_filler_uses_only_the_fixed_vocabulary(ev, n, seed):
     """spec.md § Data — eval cases are synthesised, enforced mechanically: no
-    token can reach a haystack unless it was written into FILLER_VOCAB."""
+    token can reach a haystack unless it was written into FILLER_VOCAB.
+    """
     vocab = {w.lower() for w in ev.FILLER_VOCAB}
     words = re.findall(r"[A-Za-z]+", ev.build_filler(n, seed))
     assert words, "produced no words"
@@ -212,14 +233,16 @@ def test_build_filler_uses_only_the_fixed_vocabulary(ev, n, seed):
 @given(n=st.integers(min_value=1, max_value=200), seed=st.integers(0, 1000))
 def test_build_filler_meets_the_requested_length(ev, n, seed):
     """Overshoot is by design — whole sentences — but undershoot would mean a
-    needle sitting at a different relative depth than the case declares."""
+    needle sitting at a different relative depth than the case declares.
+    """
     assert len(re.findall(r"[A-Za-z]+", ev.build_filler(n, seed))) >= n
 
 
 # ── cosine ───────────────────────────────────────────────────────────────────
 
-vec = st.lists(st.floats(-1e3, 1e3, allow_nan=False, allow_infinity=False),
-               min_size=1, max_size=8)
+vec = st.lists(
+    st.floats(-1e3, 1e3, allow_nan=False, allow_infinity=False), min_size=1, max_size=8
+)
 
 
 @given(a=vec, b=vec)
@@ -239,7 +262,8 @@ def test_cosine_is_symmetric(ev, a, b):
 @given(a=vec)
 def test_cosine_of_zero_vector_is_zero_not_an_error(ev, a):
     """An all-zero embedding is what a failed embed call returns. Dividing by
-    its norm would raise inside the coverage report."""
+    its norm would raise inside the coverage report.
+    """
     assert ev.cosine([0.0] * len(a), a) == 0.0
 
 
@@ -264,7 +288,10 @@ def test_cosine_denormal_norm_counterexample_is_zero(ev):
 
 # Shapes drawn from real cases in evals/cases/.
 CHECKS = [
-    "import re\nm = re.search(r'ANSWER:\\s*([a-z]+)', response, re.I)\nassert m, 'no answer'\nassert m.group(1).lower() == 'bravo'",
+    "import re\n"
+    "m = re.search(r'ANSWER:\\s*([a-z]+)', response, re.I)\n"
+    "assert m, 'no answer'\n"
+    "assert m.group(1).lower() == 'bravo'",
     "assert 'QF-8831-KX' in response.upper().replace(' ', '')",
     "import re\nn = re.findall(r'\\d+', response)\nassert n and int(n[-1]) == 48",
     "assert 'NOT FOUND' not in response.upper()",
@@ -296,7 +323,8 @@ def test_run_check_never_raises_on_model_output(ev, src, response):
 @settings(max_examples=300)
 def test_run_check_failures_are_always_explainable(ev, src, response):
     """A silent False is unactionable — the failures table would show a blank
-    reason and the run could not be triaged."""
+    reason and the run could not be triaged.
+    """
     ok, msg = ev.run_check(src, response)
     if not ok:
         assert msg.strip(), "check failed with an empty message"
@@ -305,19 +333,20 @@ def test_run_check_failures_are_always_explainable(ev, src, response):
 # Broken sources are curated, never generated: run_check exec()s what it is
 # given, so fuzzing the source itself would be executing arbitrary text.
 BROKEN = [
-    "assert (",                      # SyntaxError
-    "assert undefined_name == 1",    # NameError
-    "assert int('nope') == 1",       # ValueError
-    "assert 1 / 0",                  # ZeroDivisionError
-    "raise KeyboardInterrupt",       # not an Exception subclass in the usual sense
-    "",                              # empty check
+    "assert (",  # SyntaxError
+    "assert undefined_name == 1",  # NameError
+    "assert int('nope') == 1",  # ValueError
+    "assert 1 / 0",  # ZeroDivisionError
+    "raise KeyboardInterrupt",  # not an Exception subclass in the usual sense
+    "",  # empty check
 ]
 
 
 @pytest.mark.parametrize("src", BROKEN)
 def test_run_check_converts_authoring_errors_into_failures(ev, src):
     """A malformed check is a case-authoring bug. It must surface as a named
-    failure, not as a traceback that aborts the run for every later case."""
+    failure, not as a traceback that aborts the run for every later case.
+    """
     try:
         ok, msg = ev.run_check(src, "ANSWER: bravo")
     except KeyboardInterrupt:

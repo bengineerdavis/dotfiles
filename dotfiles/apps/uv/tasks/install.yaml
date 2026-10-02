@@ -1,0 +1,133 @@
+# apps/uv/tasks/install.yaml
+#
+# Two jobs:
+#   1. the binary — present, and new enough for the repo's pyproject.toml
+#   2. work machines — capture the private index into ~/.localrc
+#
+# Config itself lives in chezmoi (dot_config/uv/uv.toml.tmpl); this topic
+# owns the binary and its ~/.localrc block only.
+
+# ── the binary ──────────────────────────────────────────────────────────────
+- name: "Install: probe the astral uv binary"
+  ansible.builtin.stat:
+    path: "{{ uv_bin }}"
+  register: uv_binary
+
+- name: "Install: astral installer (uv absent)"
+  # The same installer bootstrap.sh uses, so topic runs and first-run agree.
+  # bootstrap.sh still owns the fresh-machine ordering (uv → mise → ansible);
+  # this covers machines where the topic runs without a fresh bootstrap.
+  ansible.builtin.shell:
+    cmd: curl -LsSf https://astral.sh/uv/install.sh | sh
+    executable: /bin/bash
+  when: not uv_binary.stat.exists | bool
+
+- name: "Install: read the uv version"
+  ansible.builtin.command: "{{ uv_bin }} --version"
+  register: uv_version_out
+  changed_when: false
+  check_mode: false
+
+- name: "Install: assert the astral install is new enough"
+  vars:
+    uv_found: "{{ uv_version_out.stdout | regex_replace('^uv ([0-9.]+).*$', '\\1') }}"
+  ansible.builtin.assert:
+    that: uv_found is version(uv_min_version, '>=')
+    quiet: true
+    success_msg: "uv {{ uv_found }} >= {{ uv_min_version }}"
+    fail_msg: >-
+      uv {{ uv_found }} is older than the required {{ uv_min_version }}.
+      Fix: run `uv self update` (or `./run-role.sh uv upgrade`), then re-run
+      this topic. The floor mirrors pyproject.toml's required-version, which
+      uv itself enforces inside project runs.
+
+# ── work-machine capture ────────────────────────────────────────────────────
+# Work-ness comes from the same source the uv.toml template uses — the
+# per-host map in the chezmoi source's .chezmoidata/uv.yaml — so chezmoi and
+# Ansible share one signal and no repo file carries the private URL.
+- name: "Install: read the per-host work flag from chezmoi source data"
+  ansible.builtin.slurp:
+    src: "{{ playbook_dir }}/../../../.chezmoidata/uv.yaml"
+  register: uv_hostdata_raw
+  failed_when: false
+
+- name: "Install: resolve the work flag for this hostname"
+  vars:
+    uv_hostdata: "{{ uv_hostdata_raw.content | default('') | b64decode | from_yaml | default({}) }}"
+    uv_hosts: "{{ uv_hostdata.uv.hosts | default({}) }}"
+    uv_thishost: "{{ uv_hosts[ansible_facts['hostname']] | default({}) }}"
+  ansible.builtin.set_fact:
+    uv_work_host: "{{ uv_thishost.work | default(false) | bool }}"
+
+- name: "Install: establish the vault session (work machines)"
+  # The session fact (secrets_onepassword_session / BW_SESSION) is what the
+  # reads below rely on; the role fails loudly with its own fix if neither a
+  # session nor a sign-in path is available.
+  ansible.builtin.import_role:
+    name: roles/secrets-session
+    tasks_from: "{{ uv_secrets_manager }}.yaml"
+  when: uv_work_host | bool
+
+- name: "Install: read the private index URL from the vault"
+  ansible.builtin.command: "op read --no-newline {{ uv_private_index_url_item }}"
+  register: uv_private_index_url_out
+  changed_when: false
+  no_log: true
+  when: uv_work_host | bool
+
+- name: "Install: read the private index username from the vault"
+  ansible.builtin.command: "op read --no-newline {{ uv_private_index_username_item }}"
+  register: uv_private_index_username_out
+  changed_when: false
+  no_log: true
+  when: uv_work_host | bool
+
+- name: "Install: read the private index password from the vault"
+  ansible.builtin.command: "op read --no-newline {{ uv_private_index_password_item }}"
+  register: uv_private_index_password_out
+  changed_when: false
+  no_log: true
+  when: uv_work_host | bool
+
+- name: "Install: assert the vault yielded the index values"
+  vars:
+    uv_url: "{{ uv_private_index_url_out.stdout | default('') | trim }}"
+    uv_user: "{{ uv_private_index_username_out.stdout | default('') | trim }}"
+    uv_pass: "{{ uv_private_index_password_out.stdout | default('') | trim }}"
+  ansible.builtin.assert:
+    that:
+      - uv_url | length > 0
+      - uv_user | length > 0
+      - uv_pass | length > 0
+    quiet: true
+    fail_msg: >-
+      The vault did not yield the uv private index values. Fix: check the
+      item references in apps/uv/defaults/main.yaml against the vault
+      ({{ uv_private_index_url_item }} and siblings), sign in (`op signin`
+      or the desktop app), then re-run `./run-role.sh uv install`. The
+      failing reads are redacted (no_log); this message is the only output.
+  when: uv_work_host | bool
+
+- name: "Install: write the uv block into ~/.localrc"
+  # Marker-delimited: existing ~/.localrc lines are never touched, and
+  # re-runs update the block in place. no_log keeps the values out of any
+  # verbose or failing run.
+  ansible.builtin.blockinfile:
+    path: "{{ uv_localrc_file }}"
+    create: true
+    mode: "0600"
+    marker: "# {mark} {{ uv_localrc_marker }}"
+    block: |
+      export UV_PRIVATE_INDEX_URL="{{ uv_private_index_url_out.stdout | trim }}"
+      export UV_INDEX_PRIVATE_USERNAME="{{ uv_private_index_username_out.stdout | trim }}"
+      export UV_INDEX_PRIVATE_PASSWORD="{{ uv_private_index_password_out.stdout | trim }}"
+  no_log: true
+  when: uv_work_host | bool
+
+- name: "Install: report personal-machine skip"
+  ansible.builtin.debug:
+    msg: >-
+      {{ ansible_facts['hostname'] }} is not flagged work in
+      .chezmoidata/uv.yaml — no private index captured. To make this a work
+      machine, flag it there and re-run with a signed-in vault.
+  when: not uv_work_host | bool

@@ -1,12 +1,12 @@
-"""
-llm_judge_panel — reusable LLM judge panel with round-robin fallback,
+"""llm_judge_panel — reusable LLM judge panel with round-robin fallback,
 session-level failure tracking, and persistent SaaS auth disqualification.
 
 Used in: binned, (future scripts)
 
 ── How to load in a uv script ────────────────────────────────────────────────
     import sys, pathlib
-    sys.path.insert(0, str(pathlib.Path.home() / ".local/share/chezmoi/smartparts/python"))
+    sys.path.insert(0, str(pathlib.Path.home()
+                           / ".local/share/chezmoi/smartparts/python"))
     from llm_judge_panel import (
         JudgeScore, run_judge_panel,
         disqualify_saas, get_disqualified_saas, recheck_disqualified_saas,
@@ -32,6 +32,7 @@ Used in: binned, (future scripts)
     STATE_FILE  (~/.binned/state.json by default, override via BINNED_HOME env)
     Stores { "disqualified_saas": { model: { reason, disqualified_at } } }
 """
+
 from __future__ import annotations
 
 import datetime
@@ -47,14 +48,16 @@ from typing import NamedTuple
 
 # ── State paths ────────────────────────────────────────────────────────────────
 
-_BINNED_DIR = pathlib.Path(os.environ.get("BINNED_HOME", str(pathlib.Path.home() / ".binned")))
-STATE_FILE  = _BINNED_DIR / "state.json"
+_BINNED_DIR = pathlib.Path(
+    os.environ.get("BINNED_HOME", str(pathlib.Path.home() / ".binned"))
+)
+STATE_FILE = _BINNED_DIR / "state.json"
 
 # ── Session-level failure tracking (reset each process) ───────────────────────
 
 _SESSION_FAILURE_COUNTS: dict[str, int] = {}
-_SESSION_SKIP:           set[str]       = set()
-_SESSION_FAIL_THRESHOLD: int            = 2   # failures before a model is skipped this session
+_SESSION_SKIP: set[str] = set()
+_SESSION_FAIL_THRESHOLD: int = 2  # failures before a model is skipped this session
 
 
 def record_session_failure(alias: str) -> None:
@@ -62,8 +65,10 @@ def record_session_failure(alias: str) -> None:
     _SESSION_FAILURE_COUNTS[alias] = _SESSION_FAILURE_COUNTS.get(alias, 0) + 1
     if _SESSION_FAILURE_COUNTS[alias] >= _SESSION_FAIL_THRESHOLD:
         _SESSION_SKIP.add(alias)
-        _warn(f"Judge {alias!r} failed {_SESSION_FAILURE_COUNTS[alias]} times — "
-              f"skipping for the rest of this session.")
+        _warn(
+            f"Judge {alias!r} failed {_SESSION_FAILURE_COUNTS[alias]} times — "
+            f"skipping for the rest of this session."
+        )
 
 
 # ── Auth disqualification (persistent) ────────────────────────────────────────
@@ -101,8 +106,10 @@ def disqualify_saas(model: str, reason: str) -> None:
         "disqualified_at": datetime.datetime.utcnow().isoformat(),
     }
     _save_state(state)
-    _warn(f"SaaS judge {model!r} disqualified ({reason}). "
-          f"Will recheck after judge_recheck_hours.")
+    _warn(
+        f"SaaS judge {model!r} disqualified ({reason}). "
+        f"Will recheck after judge_recheck_hours."
+    )
 
 
 def get_disqualified_saas() -> set[str]:
@@ -110,18 +117,17 @@ def get_disqualified_saas() -> set[str]:
 
 
 def recheck_disqualified_saas(cfg: dict) -> None:
-    """
-    For any SaaS model disqualified longer than cfg['judge_recheck_hours'] ago,
+    """For any SaaS model disqualified longer than cfg['judge_recheck_hours'] ago,
     probe it with a cheap 'llm -m MODEL ping'.  Re-enable if it succeeds.
     """
-    state        = _load_state()
+    state = _load_state()
     disqualified = state.get("disqualified_saas", {})
     if not disqualified:
         return
 
     recheck_hours = int(cfg.get("judge_recheck_hours", 24))
-    now           = datetime.datetime.utcnow()
-    changed       = False
+    now = datetime.datetime.utcnow()
+    changed = False
 
     for model, info in list(disqualified.items()):
         try:
@@ -131,12 +137,16 @@ def recheck_disqualified_saas(cfg: dict) -> None:
         if (now - banned_at).total_seconds() / 3600 < recheck_hours:
             continue
         try:
-            r = subprocess.run(["llm", "-m", model, "ping"],
-                               capture_output=True, text=True, timeout=15)
+            r = subprocess.run(
+                ["llm", "-m", model, "ping"], capture_output=True, text=True, timeout=15
+            )
             if r.returncode == 0:
                 del disqualified[model]
                 changed = True
-                print(f"  SaaS judge {model!r} re-enabled (auth check passed).", flush=True)
+                print(
+                    f"  SaaS judge {model!r} re-enabled (auth check passed).",
+                    flush=True,
+                )
         except Exception:
             pass
 
@@ -146,28 +156,40 @@ def recheck_disqualified_saas(cfg: dict) -> None:
 
 # ── Judge score ────────────────────────────────────────────────────────────────
 
+
 class JudgeScore(NamedTuple):
-    model:       str
-    structure:   int
+    model: str
+    structure: int
     correctness: int
-    safety:      int
-    style:       int
+    safety: int
+    style: int
     completeness: int
-    verdict:     str
-    note:        str
-    mean:        float
+    verdict: str
+    note: str
+    mean: float
 
 
 # ── Model category helpers ────────────────────────────────────────────────────
 
 _SAAS_PREFIXES = (
-    "claude", "gpt", "o1", "o3", "o4", "gemini", "mistral-",
-    "codestral-", "command", "sonar", "llama-api",
+    "claude",
+    "gpt",
+    "o1",
+    "o3",
+    "o4",
+    "gemini",
+    "mistral-",
+    "codestral-",
+    "command",
+    "sonar",
+    "llama-api",
 )
 
 
 def _judge_model_category(alias: str) -> str:
-    return "saas" if any(alias.lower().startswith(p) for p in _SAAS_PREFIXES) else "local"
+    return (
+        "saas" if any(alias.lower().startswith(p) for p in _SAAS_PREFIXES) else "local"
+    )
 
 
 def _is_preapproved_fallback(model: str, cfg: dict) -> bool:
@@ -179,25 +201,32 @@ def _is_preapproved_fallback(model: str, cfg: dict) -> bool:
 
 
 def get_judge_fallback(failed_alias: str, cfg: dict, exclude: set[str]) -> str | None:
-    """
-    Return the next fallback model for a failed judge, skipping session-skipped
+    """Return the next fallback model for a failed judge, skipping session-skipped
     and persistently-disqualified models.
 
     Local failures   → walk local_judge_pool (ordered, up to 8)
     SaaS failures    → walk saas_judge_fallbacks (ordered, up to 3)
     """
-    category     = _judge_model_category(failed_alias)
+    category = _judge_model_category(failed_alias)
     disqualified = get_disqualified_saas()
-    skip         = exclude | _SESSION_SKIP
+    skip = exclude | _SESSION_SKIP
 
     if category == "local":
-        pool = [m.strip() for m in (cfg.get("local_judge_pool", "") or "").split(",") if m.strip()]
+        pool = [
+            m.strip()
+            for m in (cfg.get("local_judge_pool", "") or "").split(",")
+            if m.strip()
+        ]
         for m in pool:
             if m not in skip:
                 return m
         return None
     else:
-        fallbacks = [m.strip() for m in (cfg.get("saas_judge_fallbacks", "") or "").split(",") if m.strip()]
+        fallbacks = [
+            m.strip()
+            for m in (cfg.get("saas_judge_fallbacks", "") or "").split(",")
+            if m.strip()
+        ]
         for m in fallbacks:
             if m not in skip and m not in disqualified:
                 return m
@@ -207,31 +236,32 @@ def get_judge_fallback(failed_alias: str, cfg: dict, exclude: set[str]) -> str |
 # ── Single judge run ──────────────────────────────────────────────────────────
 
 _JSON_FENCE_RE = re.compile(r"^```(?:json)?\s*", re.MULTILINE)
-_FENCE_END_RE  = re.compile(r"```\s*$",          re.MULTILINE)
+_FENCE_END_RE = re.compile(r"```\s*$", re.MULTILINE)
 
 
 def run_single_judge(
-    alias:       str,
-    system:      str,
-    prompt:      str,
-    timeout_s:   int = 180,
+    alias: str,
+    system: str,
+    prompt: str,
+    timeout_s: int = 180,
     max_retries: int = 2,
 ) -> JudgeScore | None:
-    """
-    Ask one judge model to score a prompt.
+    """Ask one judge model to score a prompt.
 
     Auth errors on SaaS models are detected and cause immediate disqualification
     (no retries).  Other failures are retried with exponential backoff.
     Returns None on total failure.
     """
-    category  = _judge_model_category(alias)
+    category = _judge_model_category(alias)
     last_exc: Exception | None = None
 
     for attempt in range(max_retries + 1):
         try:
             result = subprocess.run(
                 ["llm", "-m", alias, "--system", system, prompt],
-                capture_output=True, text=True, timeout=timeout_s,
+                capture_output=True,
+                text=True,
+                timeout=timeout_s,
             )
             if result.returncode != 0:
                 stderr = result.stderr[:400]
@@ -240,12 +270,17 @@ def run_single_judge(
                     return None
                 raise RuntimeError(stderr)
 
-            raw     = result.stdout.strip()
+            raw = result.stdout.strip()
             cleaned = _JSON_FENCE_RE.sub("", raw)
             cleaned = _FENCE_END_RE.sub("", cleaned).strip()
-            data    = json.loads(cleaned)
-            scores  = [data["structure"], data["correctness"], data["safety"],
-                       data["style"], data["completeness"]]
+            data = json.loads(cleaned)
+            scores = [
+                data["structure"],
+                data["correctness"],
+                data["safety"],
+                data["style"],
+                data["completeness"],
+            ]
             return JudgeScore(
                 model=alias,
                 structure=int(data["structure"]),
@@ -260,29 +295,31 @@ def run_single_judge(
         except Exception as exc:
             last_exc = exc
             if attempt < max_retries:
-                wait_s = 2 ** attempt
-                _warn(f"Judge {alias!r} attempt {attempt+1}/{max_retries+1} failed "
-                      f"— retrying in {wait_s}s… ({exc})")
+                wait_s = 2**attempt
+                _warn(
+                    f"Judge {alias!r} attempt {attempt + 1}/{max_retries + 1} failed "
+                    f"— retrying in {wait_s}s… ({exc})"
+                )
                 time.sleep(wait_s)
 
-    _warn(f"Judge {alias!r} exhausted {max_retries+1} attempt(s): {last_exc}")
+    _warn(f"Judge {alias!r} exhausted {max_retries + 1} attempt(s): {last_exc}")
     return None
 
 
 # ── Panel runner ──────────────────────────────────────────────────────────────
 
+
 def run_judge_panel(
-    system:            str,
-    prompt:            str,
-    judges:            list[str],
-    name:              str  = "script",
+    system: str,
+    prompt: str,
+    judges: list[str],
+    name: str = "script",
     fallback_on_error: bool = True,
-    timeout_s:         int  = 180,
-    cfg:               dict | None = None,
-    confirm_fallback:  bool = True,
+    timeout_s: int = 180,
+    cfg: dict | None = None,
+    confirm_fallback: bool = True,
 ) -> list[JudgeScore]:
-    """
-    Run all judges in parallel with retry, fallback, and disqualification logic.
+    """Run all judges in parallel with retry, fallback, and disqualification logic.
 
     Parameters:
         system            LLM system prompt for the judge.
@@ -303,13 +340,18 @@ def run_judge_panel(
     recheck_disqualified_saas(effective_cfg)
 
     # Drop judges that are already session-skipped or disqualified
-    disqualified   = get_disqualified_saas()
-    active_judges  = [m for m in judges if m not in _SESSION_SKIP and m not in disqualified]
-    skipped        = set(judges) - set(active_judges)
+    disqualified = get_disqualified_saas()
+    active_judges = [
+        m for m in judges if m not in _SESSION_SKIP and m not in disqualified
+    ]
+    skipped = set(judges) - set(active_judges)
     if skipped:
-        _warn(f"Skipping judges (session-skip or disqualified): {', '.join(sorted(skipped))}")
+        _warn(
+            f"Skipping judges (session-skip or disqualified): "
+            f"{', '.join(sorted(skipped))}"
+        )
 
-    used:    set[str]        = set(active_judges) | skipped
+    used: set[str] = set(active_judges) | skipped
     results: list[JudgeScore] = []
 
     if not active_judges:
@@ -336,7 +378,13 @@ def run_judge_panel(
                     _info(f"Judge {alias!r} failed — using fallback {fallback!r}")
                     use_it = True
                 else:
-                    ans = input(f"Judge {alias!r} failed. Use fallback {fallback!r}? [Y/n] ").strip().lower()
+                    ans = (
+                        input(
+                            f"Judge {alias!r} failed. Use fallback {fallback!r}? [Y/n] "
+                        )
+                        .strip()
+                        .lower()
+                    )
                     use_it = ans not in ("n", "no")
                 if use_it:
                     used.add(fallback)
@@ -353,6 +401,7 @@ def run_judge_panel(
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
+
 
 def _warn(msg: str) -> None:
     print(f"⚠  {msg}", file=sys.stderr, flush=True)

@@ -55,12 +55,14 @@ def test_section_is_present(text, heading):
 
 def test_the_reset_instructions_survive(text):
     """The most costly thing to lose: a clone that pulls instead of hard
-    resetting resurrects the mixed commits the rewrite existed to unscramble."""
+    resetting resurrects the mixed commits the rewrite existed to unscramble.
+    """
     assert "git reset --hard origin/main" in text
 
 
 def test_sections_are_in_order(text):
     """Catches a section restored into the wrong place, which a presence check
-    alone would pass."""
+    alone would pass.
+    """
     positions = [text.index(h) for h in REQUIRED]
     assert positions == sorted(positions), "TASKS.md sections are out of order"

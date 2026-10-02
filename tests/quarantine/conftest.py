@@ -1,5 +1,4 @@
-"""
-Fixtures for the quarantine suite.
+"""Fixtures for the quarantine suite.
 
 Black-box: the script is run as a subprocess with $XDG_STATE_HOME redirected, so
 no test touches the real store. The `file:` identity backend is used throughout
@@ -22,11 +21,12 @@ import subprocess
 
 import pytest
 
+# pyrefly: ignore [missing-import]
 from quarantine_harness import REPO, SCRIPT, SECRET_RE
 
 
 def _age_dir() -> str | None:
-    """age comes from mise, which may not be on a bare PATH."""
+    """Age comes from mise, which may not be on a bare PATH."""
     if shutil.which("age"):
         return None
     for cand in (pathlib.Path.home() / ".local/share/mise/installs/age").glob("*/age"):
@@ -57,7 +57,10 @@ def quarantine(tmp_path):
             env["QUARANTINE_IDENTITY_FROM"] = identity
         return subprocess.run(
             ["python3", str(SCRIPT), *args],
-            capture_output=True, text=True, env=env, input=stdin,
+            capture_output=True,
+            text=True,
+            env=env,
+            input=stdin,
         )
 
     return run, state

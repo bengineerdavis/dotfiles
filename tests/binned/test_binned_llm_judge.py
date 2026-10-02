@@ -1,5 +1,4 @@
-"""
-LLM panel-of-judges evaluation for binned-generated scripts.
+r"""LLM panel-of-judges evaluation for binned-generated scripts.
 
 Multiple models independently score each generated script on a rubric. The
 panel verdict is the mean across all judges. A failing panel mean fails the test.
@@ -24,6 +23,7 @@ Requirements:
     - llm CLI installed and at least one alias configured
     - pip install pytest
 """
+
 from __future__ import annotations
 
 import json
@@ -36,6 +36,7 @@ from typing import NamedTuple
 
 import pytest
 
+# pyrefly: ignore [missing-import]
 from judge_panel_harness import panel_is_trustworthy, run_panel
 
 pytestmark = pytest.mark.llm_judge
@@ -116,19 +117,27 @@ def _judge_one(judge_model: str, command: str, script: str) -> JudgeScore:
     )
     result = subprocess.run(
         ["llm", "-m", judge_model, "--system", _JUDGE_SYSTEM, prompt],
-        capture_output=True, text=True, timeout=180,
+        capture_output=True,
+        text=True,
+        timeout=180,
     )
     if result.returncode != 0:
         raise RuntimeError(
-            f"llm exited {result.returncode} for judge {judge_model!r}: {result.stderr[:200]}"
+            f"llm exited {result.returncode} for judge {judge_model!r}: "
+            f"{result.stderr[:200]}"
         )
     raw = result.stdout.strip()
     # Strip markdown fences if a model ignores the "no fences" instruction
     raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.MULTILINE)
     raw = re.sub(r"```\s*$", "", raw, flags=re.MULTILINE).strip()
     data = json.loads(raw)
-    scores = [data["structure"], data["correctness"], data["safety"],
-              data["style"], data["completeness"]]
+    scores = [
+        data["structure"],
+        data["correctness"],
+        data["safety"],
+        data["style"],
+        data["completeness"],
+    ]
     return JudgeScore(
         model=judge_model,
         structure=int(data["structure"]),
@@ -148,18 +157,16 @@ def _judge_one(judge_model: str, command: str, script: str) -> JudgeScore:
 # This file supplies _judge_one as the judge implementation.
 
 
-def _print_panel_report(command: str, scores: list[JudgeScore], panel_mean: float,
-                         threshold: float) -> None:
+def _print_panel_report(
+    command: str, scores: list[JudgeScore], panel_mean: float, threshold: float
+) -> None:
     bar = "─" * 64
     print(f"\n{bar}")
     print(f"Command: {command[:70]}{'...' if len(command) > 70 else ''}")
     print(bar)
     for s in scores:
         verdict_icon = {"pass": "✓", "needs-work": "~", "fail": "✗"}.get(s.verdict, "?")
-        print(
-            f"  {verdict_icon} {s.model:<36s}  mean={s.mean:.1f}"
-            f"  [{s.verdict}]"
-        )
+        print(f"  {verdict_icon} {s.model:<36s}  mean={s.mean:.1f}  [{s.verdict}]")
         print(
             f"    struct={s.structure}  correct={s.correctness}  "
             f"safety={s.safety}  style={s.style}  complete={s.completeness}"
@@ -214,9 +221,13 @@ def _llm_available():
 
 @pytest.mark.parametrize("case_id,command,min_mean", _CASES, ids=[c[0] for c in _CASES])
 def test_judge_panel(
-    case_id, command, min_mean,
-    gen_model, judge_models,
-    binned_module, _llm_available,
+    case_id,
+    command,
+    min_mean,
+    gen_model,
+    judge_models,
+    binned_module,
+    _llm_available,
 ):
     """Generate a script with binned, then score it with a panel of LLM judges."""
     # Generate script
@@ -235,7 +246,10 @@ def test_judge_panel(
         print(f"\n  [judge {model!r} failed] {exc}", file=sys.stderr)
 
     if not panel_is_trustworthy(len(scores), len(judge_models)):
-        dead = ", ".join(f"{m!r} ({type(e).__name__}: {e})" for m, e in failures) or "none reported"
+        dead = (
+            ", ".join(f"{m!r} ({type(e).__name__}: {e})" for m, e in failures)
+            or "none reported"
+        )
         pytest.skip(
             f"judge panel degraded: {len(scores)}/{len(judge_models)} answered, "
             f"and a strict majority is required before a mean is evidence. "
@@ -261,11 +275,14 @@ if __name__ == "__main__":
     import importlib.machinery
     import importlib.util
 
-    parser = argparse.ArgumentParser(description="Run the binned LLM judge panel standalone")
+    parser = argparse.ArgumentParser(
+        description="Run the binned LLM judge panel standalone"
+    )
     parser.add_argument("--gen-model", default=None)
     parser.add_argument("--judges", default="devstral-small-2,qwen3.5,claude-4-sonnet")
-    parser.add_argument("command", nargs="?",
-                        default="find . -name '*.log' -mtime +7 -delete")
+    parser.add_argument(
+        "command", nargs="?", default="find . -name '*.log' -mtime +7 -delete"
+    )
     args = parser.parse_args()
 
     binned_path = pathlib.Path.home() / "bin" / "binned"
@@ -276,7 +293,9 @@ if __name__ == "__main__":
     loader.exec_module(mod)
 
     judges = [m.strip() for m in args.judges.split(",") if m.strip()]
-    script = mod.generate_script(args.command, "test-script", args.gen_model, stream=True)
+    script = mod.generate_script(
+        args.command, "test-script", args.gen_model, stream=True
+    )
     print("\n" + "─" * 64)
     print("Generated script:")
     print(script)

@@ -40,9 +40,9 @@ import sys
 # History is a record and stays as written; the rule governs what comes next.
 #
 #   python3 scripts/check_commit_proportionality.py --calibrate <git-range>
-BASE = 30          # a sentence or two, for a one-line change
-SLOPE = 65         # words earned per power-of-ten of changed lines
-CEILING = 250      # past here, split the commit instead      # past here, split the commit instead
+BASE = 30  # a sentence or two, for a one-line change
+SLOPE = 65  # words earned per power-of-ten of changed lines
+CEILING = 250  # past here, split the commit instead
 
 # Trailers are metadata, not prose, and should not spend the budget.
 TRAILER = re.compile(
@@ -62,7 +62,8 @@ def body_words(message: str) -> int:
     lines = message.splitlines()
     body = lines[1:] if lines else []
     kept = [
-        ln for ln in body
+        ln
+        for ln in body
         if not ln.lstrip().startswith("#") and not TRAILER.match(ln.strip())
     ]
     return len(" ".join(kept).split())
@@ -89,7 +90,8 @@ def verdict(message: str, changed_lines: int) -> tuple[bool, str]:
 def staged_lines() -> int:
     out = subprocess.run(
         ["git", "diff", "--cached", "--numstat"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if out.returncode != 0:
         return 0
@@ -103,16 +105,28 @@ def staged_lines() -> int:
 
 def calibrate(rng: str) -> int:
     """Report what these thresholds would do to a range of real commits."""
-    shas = subprocess.run(["git", "log", rng, "--format=%H", "--no-merges"],
-                          capture_output=True, text=True).stdout.split()
+    shas = subprocess.run(
+        ["git", "log", rng, "--format=%H", "--no-merges"],
+        capture_output=True,
+        text=True,
+    ).stdout.split()
     bad = 0
     for sha in shas:
-        msg = subprocess.run(["git", "log", "-1", "--format=%s%n%n%b", sha],
-                             capture_output=True, text=True).stdout
-        ns = subprocess.run(["git", "show", "--numstat", "--format=", sha],
-                            capture_output=True, text=True).stdout
-        lines = sum(sum(int(x) for x in ln.split("\t")[:2] if x.isdigit())
-                    for ln in ns.splitlines() if "\t" in ln)
+        msg = subprocess.run(
+            ["git", "log", "-1", "--format=%s%n%n%b", sha],
+            capture_output=True,
+            text=True,
+        ).stdout
+        ns = subprocess.run(
+            ["git", "show", "--numstat", "--format=", sha],
+            capture_output=True,
+            text=True,
+        ).stdout
+        lines = sum(
+            sum(int(x) for x in ln.split("\t")[:2] if x.isdigit())
+            for ln in ns.splitlines()
+            if "\t" in ln
+        )
         if not verdict(msg, lines)[0]:
             bad += 1
     total = len(shas) or 1
@@ -127,8 +141,12 @@ def main(argv: list[str]) -> int:
         return 0
     # A merge message is generated and summarises many commits; a fixup is
     # amended away. Neither is prose anyone chose to write here.
-    if subprocess.run(["git", "rev-parse", "-q", "--verify", "MERGE_HEAD"],
-                      capture_output=True).returncode == 0:
+    if (
+        subprocess.run(
+            ["git", "rev-parse", "-q", "--verify", "MERGE_HEAD"], capture_output=True
+        ).returncode
+        == 0
+    ):
         return 0
     message = open(argv[1], encoding="utf-8").read()
     if message.lstrip().startswith(("fixup!", "squash!", "Merge ", "Revert ")):

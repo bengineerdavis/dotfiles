@@ -11,6 +11,7 @@ defined after its call site fails closed forever, and only a test that sets the
 policy to PERMIT and asserts the `-n` flag disappears can tell that corpse from
 a working guard. See `tests/policy/test_policy_callers.py` for the incident.
 """
+
 from __future__ import annotations
 
 LOG_KEY = "boundaries.llm_processing.log_bodies_allowed"
@@ -37,14 +38,16 @@ def test_guard_denies_when_policy_denies(triage_module, shim_env, shims):
 
 def test_guard_denies_when_policy_unknown(triage_module, shim_env, shims):
     """Exit 2 (unknown) is a denial, not an error state: the layers are
-    restrictions-only, so 'unknown' cannot mean 'permitted'."""
+    restrictions-only, so 'unknown' cannot mean 'permitted'.
+    """
     shims.install_policy(exit_code=2)
     assert triage_module.logging_permitted() is False
 
 
 def test_guard_denies_when_policy_missing(triage_module, shim_env):
     """Deleting one script must not turn body logging back on for customer
-    data — the ask-research shape exactly (helper not found, 127, refuses)."""
+    data — the ask-research shape exactly (helper not found, 127, refuses).
+    """
     assert triage_module.logging_permitted() is False
 
 
@@ -56,7 +59,8 @@ def test_guard_denies_when_policy_not_executable(triage_module, shim_env, shims)
 def test_policy_is_asked_the_log_bodies_key(triage_module, shim_env, shims):
     """The key is the contract with the policy layers, so it is hardcoded here
     on purpose — asserting against the script's own LOG_BODIES_KEY would pass
-    even if the script asked a key no layer defines."""
+    even if the script asked a key no layer defines.
+    """
     shims.install_policy(exit_code=1)
     triage_module.logging_permitted()
     assert shims.read_policy_args() == ["check", LOG_KEY]

@@ -18,6 +18,72 @@ package = false             # never build or install the repo itself
 environments = ["sys_platform == 'darwin'", "sys_platform == 'linux'"]
 required-version = ">=0.12.17"
 
+[tool.ruff]
+line-length = 88
+# Vendored application bundle, not repo Python.
+extend-exclude = ["dotfiles/apps/zim"]
+
+[tool.ruff.lint]
+# pycodestyle (E/W) plus pydocstyle under the Google convention. The
+# missing-docstring rules (D100-D107) are deliberately not selected: the
+# existing corpus predates the docstring standard, and requiring docstrings
+# everywhere is a content campaign, not a formatting fix.
+select = ["E", "W", "D"]
+ignore = [
+  # Conflicts with ruff format (Black style). W503 does not exist in ruff.
+  "E203",
+  "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.pycodestyle]
+# PEP 8: when the line limit is raised, comments and docstrings still wrap at 72.
+max-doc-length = 72
+
+[tool.ruff.lint.per-file-ignores]
+# Imports after pytest.importorskip are the deliberate optional-dependency
+# pattern; ruff exempts them, but explicit here for reviewers.
+"tests/**" = ["E402"]
+# PR #31 (restart-stale style) owns these six files' cleanup; remove this
+# grandfather when it merges.
+"dotfiles/roles/restart-stale/**" = ["E", "W", "D", "W505"]
+"tests/restart_stale/**" = ["E", "W", "D", "W505"]
+# Trace fixtures are verbatim third-party output - the long lines ARE the
+# data, and an end-of-line noqa would become part of the traced content.
+# Same for embedded Ansible/YAML fixture strings: splitting them changes the
+# fixture the test asserts on.
+# ── doc-line campaign grandfather (2026-10-01) ──────────────────────────
+# W505 (72-col doc lines) and D205 (blank line after summary) are selected
+# and enforced; these paths still fail them. Each entry shrinks as the
+# file is next edited to the standard; delete the entry when its dir is
+# clean (uv run --with ruff ruff check --select W505,D205 <dir>).
+"scripts/**" = ["W505", "D205"]
+"smartparts/python/**" = ["W505", "D205"]
+"tests/binned/**" = ["W505", "D205"]
+"tests/chezmoi/**" = ["W505", "D205"]
+"tests/clipped/**" = ["W505", "D205"]
+"tests/commit_proportionality/**" = ["W505", "D205"]
+"tests/config/**" = ["W505", "D205"]
+"tests/docs/**" = ["W505", "D205"]
+"tests/guards/**" = ["W505", "D205"]
+"tests/herdr/**" = ["W505", "D205"]
+"tests/ollama_evals/**" = ["W505", "D205"]
+"tests/permissions/**" = ["W505", "D205"]
+"tests/pii_redactor/**" = ["W505", "D205"]
+"tests/policy/**" = ["W505", "D205"]
+"tests/quarantine/**" = ["W505", "D205"]
+"tests/suite/**" = ["W505", "D205"]
+"tests/tasks_doc/**" = ["W505", "D205"]
+"tests/topic_resolution/**" = ["E501", "W505", "D205"]
+"tests/topics/**" = ["W505", "D205"]
+"tests/trace_public/**" = ["E501", "W505", "D205"]
+"tests/triage/**" = ["W505", "D205"]
+"tools/skill-trust/skill_trust/**" = ["W505", "D205"]
+"tools/skill-trust/tests/**" = ["W505", "D205"]
+
+
 [tool.pytest]
 testpaths = ["tests", "tools"]
 # Makes tools/<name>/ importable when the repo suite collects its tests,
@@ -28,4 +94,16 @@ python_files = ["test_*.py"]
 addopts = ["-m", "not llm_judge"]
 markers = [
     "llm_judge: tests that call real LLM APIs — slow, costs tokens (run with -m llm_judge)",
+]
+
+[tool.pyrefly]
+# Modules loaded via sys.path at runtime, invisible to packaging: the filter
+# harness beside the restart-stale tests, and skill-trust (pytest resolves it
+# through [tool.pytest] pythonpath; pyrefly needs it named here so the
+# pre-commit hook's environment - which differs from a login shell - resolves
+# the same modules the same way).
+search-path = ["tests/restart_stale", "tools/skill-trust"]
+project-includes = [
+    "**/*.py*",
+    "**/*.ipynb",
 ]

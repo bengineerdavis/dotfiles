@@ -455,6 +455,11 @@ one decision.
 write.** One session, one worktree, one branch — including for `TASKS.md` and
 the governance docs. Conflicts in shared files are resolved at merge.
 
+The rule covers the author as well as every session. The author may override
+it for their own commits, for example a quick fix straight to `main`; that is
+a deliberate choice they make, not an exception an agent can claim. An agent
+never commits to `main` directly, even when the author has recently done so.
+
 This reverses an earlier rule that sent `TASKS.md` straight to main. The reason
 that rule existed has not gone away, so carry it as a working constraint rather
 than losing it:

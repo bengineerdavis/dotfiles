@@ -1,7 +1,7 @@
-"""
-Unit tests for llm_call and llm_continue_call.
+"""Unit tests for llm_call and llm_continue_call.
 Patches subprocess to avoid real LLM calls.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -16,11 +16,13 @@ class _FakeResult:
 
 # ── llm_continue_call ─────────────────────────────────────────────────────────
 
+
 class TestLlmContinueCall:
     def test_uses_cid_when_conv_id_provided(self, binned_module, monkeypatch):
         captured = []
         monkeypatch.setattr(
-            binned_module.subprocess, "run",
+            binned_module.subprocess,
+            "run",
             lambda cmd, **kw: captured.append(cmd) or _FakeResult(),
         )
         binned_module.llm_continue_call("hello", conv_id="abc123", stream=False)
@@ -32,7 +34,8 @@ class TestLlmContinueCall:
     def test_does_not_use_uppercase_c(self, binned_module, monkeypatch):
         captured = []
         monkeypatch.setattr(
-            binned_module.subprocess, "run",
+            binned_module.subprocess,
+            "run",
             lambda cmd, **kw: captured.append(cmd) or _FakeResult(),
         )
         binned_module.llm_continue_call("hello", conv_id="abc123", stream=False)
@@ -41,7 +44,8 @@ class TestLlmContinueCall:
     def test_uses_continue_when_no_conv_id(self, binned_module, monkeypatch):
         captured = []
         monkeypatch.setattr(
-            binned_module.subprocess, "run",
+            binned_module.subprocess,
+            "run",
             lambda cmd, **kw: captured.append(cmd) or _FakeResult(),
         )
         binned_module.llm_continue_call("hello", conv_id=None, stream=False)
@@ -52,7 +56,8 @@ class TestLlmContinueCall:
     def test_passes_model_flag(self, binned_module, monkeypatch):
         captured = []
         monkeypatch.setattr(
-            binned_module.subprocess, "run",
+            binned_module.subprocess,
+            "run",
             lambda cmd, **kw: captured.append(cmd) or _FakeResult(),
         )
         binned_module.llm_continue_call("hello", model="gpt-4o", stream=False)
@@ -63,7 +68,8 @@ class TestLlmContinueCall:
     def test_omits_model_flag_when_none(self, binned_module, monkeypatch):
         captured = []
         monkeypatch.setattr(
-            binned_module.subprocess, "run",
+            binned_module.subprocess,
+            "run",
             lambda cmd, **kw: captured.append(cmd) or _FakeResult(),
         )
         binned_module.llm_continue_call("hello", model=None, stream=False)
@@ -71,7 +77,8 @@ class TestLlmContinueCall:
 
     def test_raises_on_nonzero_exit(self, binned_module, monkeypatch):
         monkeypatch.setattr(
-            binned_module.subprocess, "run",
+            binned_module.subprocess,
+            "run",
             lambda *a, **kw: _FakeResult(returncode=1, stderr="llm error text"),
         )
         with pytest.raises(RuntimeError, match="llm error text"):
@@ -79,7 +86,8 @@ class TestLlmContinueCall:
 
     def test_returns_stdout_on_success(self, binned_module, monkeypatch):
         monkeypatch.setattr(
-            binned_module.subprocess, "run",
+            binned_module.subprocess,
+            "run",
             lambda *a, **kw: _FakeResult(stdout="improved script\n"),
         )
         result = binned_module.llm_continue_call("hello", stream=False)
@@ -88,10 +96,12 @@ class TestLlmContinueCall:
 
 # ── llm_call ──────────────────────────────────────────────────────────────────
 
+
 class TestLlmCall:
     def test_returns_stdout_on_success(self, binned_module, monkeypatch):
         monkeypatch.setattr(
-            binned_module.subprocess, "run",
+            binned_module.subprocess,
+            "run",
             lambda *a, **kw: _FakeResult(stdout="generated script\n"),
         )
         result = binned_module.llm_call("prompt text", stream=False)
@@ -99,7 +109,8 @@ class TestLlmCall:
 
     def test_raises_on_nonzero_exit(self, binned_module, monkeypatch):
         monkeypatch.setattr(
-            binned_module.subprocess, "run",
+            binned_module.subprocess,
+            "run",
             lambda *a, **kw: _FakeResult(returncode=1, stderr="model error"),
         )
         with pytest.raises(RuntimeError, match="model error"):
@@ -108,7 +119,8 @@ class TestLlmCall:
     def test_passes_system_prompt(self, binned_module, monkeypatch):
         captured = []
         monkeypatch.setattr(
-            binned_module.subprocess, "run",
+            binned_module.subprocess,
+            "run",
             lambda cmd, **kw: captured.append(cmd) or _FakeResult(),
         )
         binned_module.llm_call("prompt", system="be concise", stream=False)
@@ -119,7 +131,8 @@ class TestLlmCall:
     def test_omits_system_flag_when_none(self, binned_module, monkeypatch):
         captured = []
         monkeypatch.setattr(
-            binned_module.subprocess, "run",
+            binned_module.subprocess,
+            "run",
             lambda cmd, **kw: captured.append(cmd) or _FakeResult(),
         )
         binned_module.llm_call("prompt", system=None, stream=False)
@@ -128,7 +141,8 @@ class TestLlmCall:
     def test_passes_model_flag(self, binned_module, monkeypatch):
         captured = []
         monkeypatch.setattr(
-            binned_module.subprocess, "run",
+            binned_module.subprocess,
+            "run",
             lambda cmd, **kw: captured.append(cmd) or _FakeResult(),
         )
         binned_module.llm_call("prompt", model="claude-4-sonnet", stream=False)

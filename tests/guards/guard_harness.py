@@ -37,7 +37,8 @@ def said(result, phrase: str) -> bool:
     raw text makes a test pass or fail on where the wrap happens to land, which
     is not a property of the guard at all.
     """
-    collapse = lambda s: " ".join(s.split())
+
+    def collapse(s: str) -> str:
+        return " ".join(s.split())
+
     return collapse(phrase) in collapse(result.stdout)
-
-

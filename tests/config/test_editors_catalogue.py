@@ -17,13 +17,14 @@ import pathlib
 import yaml
 
 CATALOGUE = (
-    pathlib.Path(__file__).resolve().parents[2]
-    / "dotfiles" / "config" / "editors.yaml"
+    pathlib.Path(__file__).resolve().parents[2] / "dotfiles" / "config" / "editors.yaml"
 )
 
 
 def _load() -> dict:
-    assert CATALOGUE.exists(), f"{CATALOGUE} is missing — the topics' install loops have no input"
+    assert CATALOGUE.exists(), (
+        f"{CATALOGUE} is missing — the topics' install loops have no input"
+    )
     data = yaml.safe_load(CATALOGUE.read_text(encoding="utf-8"))
     assert isinstance(data, dict), "catalogue must be a mapping"
     return data
@@ -36,19 +37,26 @@ def test_every_entry_carries_id_why_and_dated_verdicts():
         verdicts = entry.get("verdicts") or {}
         assert verdicts, f"{entry['id']}: verdicts are required"
         for editor, verdict in verdicts.items():
-            assert verdict.get("status"), f"{entry['id']}: {editor} verdict has no status"
-            assert verdict.get("checked"), f"{entry['id']}: {editor} verdict is not dated"
+            assert verdict.get("status"), (
+                f"{entry['id']}: {editor} verdict has no status"
+            )
+            assert verdict.get("checked"), (
+                f"{entry['id']}: {editor} verdict is not dated"
+            )
 
 
 def test_ids_are_unique():
     ids = [entry["id"] for entry in _load()["editor_extensions"]]
-    assert len(ids) == len(set(ids)), f"duplicate ids: {sorted(i for i in ids if ids.count(i) > 1)}"
+    assert len(ids) == len(set(ids)), (
+        f"duplicate ids: {sorted(i for i in ids if ids.count(i) > 1)}"
+    )
 
 
 def test_not_available_verdicts_scope_the_entry_out():
     """A verdict of not-available is the dated evidence for the editors:
     scope — a shared-by-default entry with a not-available verdict for some
-    editor must carry an editors list that excludes it."""
+    editor must carry an editors list that excludes it.
+    """
     for entry in _load()["editor_extensions"]:
         for editor, verdict in (entry.get("verdicts") or {}).items():
             if verdict["status"] != "not-available":

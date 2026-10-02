@@ -1,5 +1,4 @@
-"""
-Unit tests for pii-redactor's pure helpers.
+"""Unit tests for pii-redactor's pure helpers.
 
 These have no bats equivalent — under bash the output templating could only be
 exercised by running the whole CLI and looking at which file appeared. Calling
@@ -7,6 +6,7 @@ default_output() directly makes the path edge cases explicit and fast, which is
 where the real subtlety lives: a dotted directory must not be mistaken for an
 extension, and a dotfile must not lose its name.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -15,18 +15,18 @@ import pytest
 @pytest.mark.parametrize(
     ("given", "expected"),
     [
-        ("mail.md",        "mail-pii-removed.md"),
-        ("a/b/mail.md",    "a/b/mail-pii-removed.md"),
-        ("./notes.txt",    "notes-pii-removed.txt"),
+        ("mail.md", "mail-pii-removed.md"),
+        ("a/b/mail.md", "a/b/mail-pii-removed.md"),
+        ("./notes.txt", "notes-pii-removed.txt"),
         # Dot in a directory, none in the basename — the suffix goes on the end
         # rather than being spliced into the directory name.
-        ("dir.v2/mail",    "dir.v2/mail-pii-removed"),
+        ("dir.v2/mail", "dir.v2/mail-pii-removed"),
         # A leading dot is part of the name, not an extension separator.
-        (".hidden",        ".hidden-pii-removed"),
+        (".hidden", ".hidden-pii-removed"),
         # Multiple dots: only the last one is the extension.
         ("mail.backup.md", "mail.backup-pii-removed.md"),
         # No input at all means stdin, which has no name to reuse.
-        ("",               "stdin-pii-removed.md"),
+        ("", "stdin-pii-removed.md"),
     ],
 )
 def test_default_output_paths(pii_module, given, expected):

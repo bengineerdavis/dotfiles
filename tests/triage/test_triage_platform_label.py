@@ -21,6 +21,7 @@ Not covered: `TRIAGE_PLATFORM` set to the literal string "None" stamps "None"
 into the memo. That is user configuration, and asserting against it would ratify
 a guard the script does not have.
 """
+
 from __future__ import annotations
 
 import itertools
@@ -38,7 +39,9 @@ def _cases():
 
 
 @pytest.mark.parametrize("flag,env", list(_cases()))
-def test_resolve_platform_never_returns_none_or_empty(triage_module, monkeypatch, flag, env):
+def test_resolve_platform_never_returns_none_or_empty(
+    triage_module, monkeypatch, flag, env
+):
     """Totality of the `or` chain: whatever goes in, a real label comes out."""
     if env is None:
         monkeypatch.delenv("TRIAGE_PLATFORM", raising=False)
@@ -61,7 +64,8 @@ def test_rendered_platform_stamp_is_never_empty_or_none(
 ):
     """Roundtrip: resolution output through the unguarded `build_prompt` must
     always produce a real label in both stamp positions — the nearest reachable
-    mis-report (an empty or "None" stamp) can never appear in the prompt."""
+    mis-report (an empty or "None" stamp) can never appear in the prompt.
+    """
     if env is None:
         monkeypatch.delenv("TRIAGE_PLATFORM", raising=False)
     else:
@@ -77,7 +81,8 @@ def test_rendered_platform_stamp_is_never_empty_or_none(
 
 def test_unconfigured_run_stamps_default_platform_not_none(cli, shims, triage_module):
     """The case that would have caught the motivating bug: no flag, no env —
-    exactly the configuration the defect mis-reported."""
+    exactly the configuration the defect mis-reported.
+    """
     proc = cli(input_text="the battery swells", policy_exit=1)
     assert proc.returncode == 0, proc.stderr
     prompt = shims.read_llm_args()[-1]
@@ -92,7 +97,8 @@ def test_unconfigured_run_stamps_default_platform_not_none(cli, shims, triage_mo
 
 def test_build_prompt_stamps_the_platform_it_is_given(triage_module):
     """Faithful rendering: a "None" in the output means "None" was passed in,
-    which locates the bug in resolution rather than in the template."""
+    which locates the bug in resolution rather than in the template.
+    """
     prompt = triage_module.build_prompt("email body", "CorpX", [], "2026-01-01")
     assert "PLATFORM: CorpX" in prompt
     assert "**Platform**: CorpX" in prompt
