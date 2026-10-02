@@ -21,7 +21,11 @@ required-version = ">=0.12.17"
 [tool.ruff]
 line-length = 88
 # Vendored application bundle, not repo Python.
-extend-exclude = ["dotfiles/apps/zim"]
+extend-exclude = [
+    # Vendored application bundles - not repo Python.
+    "dotfiles/apps/zim",
+    ".bats",
+]
 
 [tool.ruff.lint]
 # pycodestyle (E/W) plus pydocstyle under the Google convention. The
