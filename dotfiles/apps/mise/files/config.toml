@@ -113,6 +113,10 @@ python = "3.14"
 # mise uses uv tool install under the hood for pipx: backend
 # https://aider.chat/docs/install.html
 "pipx:aider-chat" = { version = "latest", uvx_args = "--python 3.12 --force" }
+# pyrefly is the repo's type checker (pyproject.toml [tool.pyrefly]); pinned
+# so the CLI, the IDE LSP and the pre-commit hook run one version. The
+# pre-commit hook (facebook/pyrefly-pre-commit) uses the system install.
+"pipx:pyrefly" = { version = "1.3.2" }
 prek = "latest"
 "pipx:trash-cli" = "latest"
 lazygit = "latest"

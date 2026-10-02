@@ -71,13 +71,20 @@ def _blocks(config: dict) -> dict[str, dict]:
 
 # (command, required tier in BOTH blocks, why)
 BOTH = [
-    ("git worktree add .worktrees/x -b x", "allow", "creating a worktree is additive and undoable"),
+    (
+        "git worktree add .worktrees/x -b x",
+        "allow",
+        "creating a worktree is additive and undoable",
+    ),
     ("git worktree list --porcelain", "allow", "read-only"),
     ("git worktree remove .worktrees/x", "ask", "deletion asks"),
     ("git worktree prune", "ask", "prunes admin state"),
     ("git worktree move a b", "ask", "relocates a checkout"),
-    ("git push --force-with-lease=main:abc123 origin main", "deny",
-     "the = form slipped past `--force-with-lease *` on 2026-09-24"),
+    (
+        "git push --force-with-lease=main:abc123 origin main",
+        "deny",
+        "the = form slipped past `--force-with-lease *` on 2026-09-24",
+    ),
     ("git push --force-with-lease origin main", "deny", "spec.md § Change records"),
     ("git push --force origin main", "deny", "spec.md § Change records"),
     ("chezmoi apply ~/dotfiles", "deny", "AGENTS.md § Applying is main-only"),
@@ -132,7 +139,8 @@ def test_top_level_block(config, cmd, want, why):
 
 def test_every_block_starts_with_a_catch_all_ask(config):
     """The file-order model above only holds if nothing global can decide a
-    command: a leading `"*": "ask"` is what guarantees that."""
+    command: a leading `"*": "ask"` is what guarantees that.
+    """
     for name, rules in _blocks(config).items():
         first = next(iter(rules.items()))
         assert first == ("*", "ask"), f"{name} starts with {first}"

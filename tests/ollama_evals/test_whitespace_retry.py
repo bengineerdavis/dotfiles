@@ -1,5 +1,4 @@
-"""
-Contract tests for the whitespace retry.
+"""Contract tests for the whitespace retry.
 
 Measured 2026-09-10: one blank line at the context/prompt seam flips
 glm-4.7-flash between looping to the token cap with an empty reply and answering
@@ -32,10 +31,14 @@ CHECK = "assert response == 'ok', f'got {response!r}'"
 # seam by accident and the seam-targeting test passes even when the nudge is
 # searching rather than being told where to cut — verified by injecting exactly
 # that regression and watching an earlier version of this suite stay green.
-CASE = {"name": "fake", "role": "r", "property": "p",
-        "context": "some context",
-        "prompt": "the question\n\nReply with only: ANSWER: <x>",
-        "check": CHECK}
+CASE = {
+    "name": "fake",
+    "role": "r",
+    "property": "p",
+    "context": "some context",
+    "prompt": "the question\n\nReply with only: ANSWER: <x>",
+    "check": CHECK,
+}
 
 
 def _nudged(text: str) -> bool:
@@ -46,6 +49,7 @@ def _nudged(text: str) -> bool:
 @pytest.fixture
 def capped(ev, monkeypatch):
     """First call hits the cap; the nudged retry returns `retry_answer`."""
+
     def install(retry_answer: str | None):
         calls = {"n": 0, "nudged": 0}
 
@@ -60,12 +64,14 @@ def capped(ev, monkeypatch):
 
         monkeypatch.setattr(ev, "generate", fake)
         return calls
+
     return install
 
 
 def test_marks_whitespace_sensitive_when_the_nudge_works(ev, capped):
     """The relenting direction — and the only thing that distinguishes brittle
-    from incapable."""
+    from incapable.
+    """
     calls = capped("ok")
     out = ev.eval_one("m", [CASE], 8192, 1, 60)
     case = out["cases"][0]
@@ -125,10 +131,11 @@ def test_no_ws_retry_flag_disables_it(ev, capped):
 
 
 def test_the_nudge_targets_the_seam_not_the_last_blank_line(ev):
-    """The bug this had once: rfind('\\n\\n') lands inside the prompt, so the
-    retry perturbed something irrelevant and proved nothing."""
+    r"""The bug this had once: rfind('\\n\\n') lands inside the prompt, so the
+    retry perturbed something irrelevant and proved nothing.
+    """
     text, _images, seam = ev.build_input(CASE)
     alt = ev.nudge_whitespace(text, seam)
     assert len(alt) == len(text) + 1
-    assert alt[seam:seam + 3] == "\n\n\n", "the extra newline is not at the seam"
+    assert alt[seam : seam + 3] == "\n\n\n", "the extra newline is not at the seam"
     assert alt[:seam] == text[:seam], "content before the seam changed"

@@ -27,17 +27,54 @@ groups; the repo is never built or installed (`package = false`).
   not been seen to fail is not yet a test.
 - **Share fixtures through `conftest.py`.** `tests/ollama_evals/conftest.py`
   loads the harness as a module so every suite in that directory gets it once.
-- **ruff lints.** Installed, but not yet in `.pre-commit-config.yaml` — the hooks
-  currently run shellcheck and bats only, so no Python file is linted on commit.
-  Queued in `TASKS.md`.
-- **ty typechecks.** Not installed yet, and not referenced anywhere in the repo.
-  Also queued. Treat any claim that the Python here is typechecked as false until
-  that lands.
+- **ruff lints and formats, enforced on commit.** `[tool.ruff]` in
+  `pyproject.toml` is the written standard: lines at 88 (ruff format, Black
+  style), pycodestyle E/W, docstrings under the Google convention with their
+  lines wrapped at 72 (W505; missing-docstring rules are deliberately
+  unselected — that is a content campaign, not a fix). The ruff and
+  ruff-format pre-commit hooks run on every commit. Paths still failing the
+  doc-line rules carry per-path grandfathers in the config; each entry
+  shrinks as the file is next edited and is deleted when its directory is
+  clean. pycodestyle is retired — ruff implements it.
+- **pyrefly typechecks, enforced on commit.** `[tool.pyrefly]` in
+  `pyproject.toml` (full checking via `pyrefly init`). Installed once by mise
+  (`pipx:pyrefly`, pinned) so the CLI, the IDE language server and the
+  pre-commit hook run the same version. The baseline of 69 suppressions
+  (`# pyrefly: ignore`, from `pyrefly suppress`) shrinks over time; the
+  official pre-commit hook fails the commit on new type errors. `pyrefly lsp`
+  is the language server the editor configs wire.
 - **prek runs the hooks.** Both `prek` and `pre-commit` are installed and both
   read `.pre-commit-config.yaml`; which one is authoritative is unsettled and
   queued.
 - **Log, do not print,** for anything an agent may need to read back while
   debugging.
+
+
+## uv configuration and the private index
+
+Two layers own uv's machine state, per the one-concern-per-layer rule:
+
+- **The binary** — astral-installed at the system level (`~/.local/bin/uv`),
+  deliberately not mise-managed or in Homebrew. The `apps/uv` topic installs
+  and self-updates it; `dotfiles/bootstrap/bootstrap.sh` owns the first
+  install on a fresh machine.
+- **The user config** — `~/.config/uv/uv.toml`, rendered by chezmoi from
+  `dot_config/uv/uv.toml.tmpl`. It pins `required-version` to the same floor
+  as `pyproject.toml`, so an old install is refused everywhere with the fix
+  named.
+
+**The private index never enters this repo.** On work machines the private
+package index is the default and public PyPI the fallback; its URL and
+credentials live in the machine-local `~/.localrc`, captured from the vault
+by the `apps/uv` topic. A host flagged work in `.chezmoidata/uv.yaml` refuses
+to render without the captured URL. Two rules follow:
+
+- **Never commit a re-lock done against a private mirror.** A committed
+  `uv.lock` or `tools/skill-trust/uv.lock` referencing any non-public index
+  fails the suite (`tests/uv/test_lock_sources.py`). Regenerate against
+  public PyPI; day-to-day, always `uv run --frozen`.
+- **Tokens stay env-only.** `uv.toml` never contains credentials; the
+  `UV_INDEX_<NAME>_USERNAME`/`_PASSWORD` variables come from `~/.localrc`.
 
 ## Dependency classes
 

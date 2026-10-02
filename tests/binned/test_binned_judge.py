@@ -1,5 +1,4 @@
-"""
-Unit tests for binned's judge panel internals.
+"""Unit tests for binned's judge panel internals.
 Does NOT make real LLM calls.
 
 Covers:
@@ -9,6 +8,7 @@ Covers:
   - Fallback model selection (_get_judge_fallback)
   - Judge prefs assembly (_ensure_judge_prefs: disabled, no models, minimum-3 top-up)
 """
+
 from __future__ import annotations
 
 import json
@@ -17,6 +17,7 @@ import pytest
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture(autouse=True)
 def _reset_session_state(binned_module):
@@ -41,6 +42,7 @@ def state_dir(binned_module, tmp_path):
 
 
 # ── Session failure tracking ──────────────────────────────────────────────────
+
 
 class TestSessionFailureTracking:
     def test_single_failure_below_threshold(self, binned_module):
@@ -74,36 +76,48 @@ class TestSessionFailureTracking:
 
 # ── Auth error detection ──────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("text", [
-    "Error: no api key configured",
-    "no key found",
-    "HTTP 401 Unauthorized",
-    "403 Forbidden",
-    "authentication failed",
-    "authentication error",
-    "invalid token provided",
-    "invalid key",
-    "access denied",
-    "key not found",
-    "api key missing",
-])
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Error: no api key configured",
+        "no key found",
+        "HTTP 401 Unauthorized",
+        "403 Forbidden",
+        "authentication failed",
+        "authentication error",
+        "invalid token provided",
+        "invalid key",
+        "access denied",
+        "key not found",
+        "api key missing",
+    ],
+)
 def test_is_auth_error_matches(binned_module, text):
-    assert binned_module._is_auth_error(text), f"expected auth error match for: {text!r}"
+    assert binned_module._is_auth_error(text), (
+        f"expected auth error match for: {text!r}"
+    )
 
 
-@pytest.mark.parametrize("text", [
-    "RuntimeError: model not found",
-    "timeout after 30s",
-    "ollama: connection refused",
-    "JSON decode error",
-    "invalid JSON response",
-    "",
-])
+@pytest.mark.parametrize(
+    "text",
+    [
+        "RuntimeError: model not found",
+        "timeout after 30s",
+        "ollama: connection refused",
+        "JSON decode error",
+        "invalid JSON response",
+        "",
+    ],
+)
 def test_is_auth_error_no_match(binned_module, text):
-    assert not binned_module._is_auth_error(text), f"unexpected auth match for: {text!r}"
+    assert not binned_module._is_auth_error(text), (
+        f"unexpected auth match for: {text!r}"
+    )
 
 
 # ── Auth disqualification state persistence ───────────────────────────────────
+
 
 class TestDisqualification:
     def test_disqualify_writes_state_file(self, binned_module, state_dir, capsys):
@@ -127,11 +141,18 @@ class TestDisqualification:
         assert "model-b" in banned
 
     def test_get_disqualified_reads_existing_state(self, binned_module, state_dir):
-        (state_dir / "state.json").write_text(json.dumps({
-            "disqualified_saas": {
-                "model-x": {"reason": "403", "disqualified_at": "2026-01-01T00:00:00+00:00"}
-            }
-        }))
+        (state_dir / "state.json").write_text(
+            json.dumps(
+                {
+                    "disqualified_saas": {
+                        "model-x": {
+                            "reason": "403",
+                            "disqualified_at": "2026-01-01T00:00:00+00:00",
+                        }
+                    }
+                }
+            )
+        )
         assert "model-x" in binned_module._get_disqualified_saas()
 
     def test_get_disqualified_empty_when_no_state(self, binned_module, state_dir):
@@ -147,12 +168,15 @@ class TestDisqualification:
 # _judge_model_category() classifies unknown names as "local" (no SaaS pattern match).
 # Models containing "claude" or "gpt-" are classified as "saas" via heuristic.
 
+
 class TestGetJudgeFallback:
     _POOL = "pool-a,pool-b,pool-c"
 
     def test_returns_first_available_pool_model(self, binned_module):
         cfg = {"local_judge_pool": self._POOL}
-        result = binned_module._get_judge_fallback("failed-local", cfg, exclude={"failed-local"})
+        result = binned_module._get_judge_fallback(
+            "failed-local", cfg, exclude={"failed-local"}
+        )
         assert result == "pool-a"
 
     def test_skips_excluded_models(self, binned_module):
@@ -172,12 +196,16 @@ class TestGetJudgeFallback:
     def test_skips_session_skipped_models(self, binned_module):
         binned_module._SESSION_SKIP.add("pool-a")
         cfg = {"local_judge_pool": self._POOL}
-        result = binned_module._get_judge_fallback("failed-local", cfg, exclude={"failed-local"})
+        result = binned_module._get_judge_fallback(
+            "failed-local", cfg, exclude={"failed-local"}
+        )
         assert result == "pool-b"
 
     def test_empty_pool_returns_none_or_installed(self, binned_module):
         cfg = {"local_judge_pool": ""}
-        result = binned_module._get_judge_fallback("failed-local", cfg, exclude={"failed-local"})
+        result = binned_module._get_judge_fallback(
+            "failed-local", cfg, exclude={"failed-local"}
+        )
         assert result is None or isinstance(result, str)
 
     def test_pool_fully_exhausted_returns_none_or_installed(self, binned_module):
@@ -196,7 +224,9 @@ class TestGetJudgeFallback:
         )
         assert result == "saas-second"
 
-    def test_saas_returns_none_when_all_disqualified(self, binned_module, state_dir, capsys):
+    def test_saas_returns_none_when_all_disqualified(
+        self, binned_module, state_dir, capsys
+    ):
         binned_module._disqualify_saas("saas-first", "401")
         binned_module._disqualify_saas("saas-second", "403")
         cfg = {"saas_judge_fallbacks": "saas-first,saas-second"}
@@ -215,6 +245,7 @@ class TestGetJudgeFallback:
 
 
 # ── _ensure_judge_prefs ───────────────────────────────────────────────────────
+
 
 class TestEnsureJudgePrefs:
     def test_disabled_returns_false_and_empty_lists(self, binned_module):

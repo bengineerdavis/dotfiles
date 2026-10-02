@@ -1,5 +1,4 @@
-"""
-Contract tests for the CALLERS of the policy resolver.
+"""Contract tests for the CALLERS of the policy resolver.
 
 The rest of this suite proves the resolver answers correctly. Nothing proved that
 anything ASKS it — and that gap has a specific, nasty shape:
@@ -43,13 +42,17 @@ REMOTE_KEY = "boundaries.llm_processing.remote_model_allowed"
 def _company(**rules: bool) -> str:
     """A minimal company layer asserting only the rules a test cares about."""
     body = "\n".join(f"    {k}: {str(v).lower()}" for k, v in rules.items())
-    return textwrap.dedent(f"""
+    return (
+        textwrap.dedent(f"""
         meta:
           layer: company
           precedence: 2
         boundaries:
           llm_processing:
-        """).lstrip("\n") + body + "\n"
+        """).lstrip("\n")
+        + body
+        + "\n"
+    )
 
 
 @pytest.fixture
@@ -84,12 +87,25 @@ def caller_env(tmp_path):
             base = os.environ.get("PATH", "")
             path = f"{shim}:{base}" if on_path else "/usr/bin:/bin"
             return subprocess.run(
-                ["bash", str(ASK_RESEARCH), "start", str(brief),
-                 "--no-online", "--dry-run", *args],
-                capture_output=True, text=True,
-                env={"ZSH": str(zsh), "XDG_STATE_HOME": str(state),
-                     "PATH": path, "HOME": str(tmp_path)},
+                [
+                    "bash",
+                    str(ASK_RESEARCH),
+                    "start",
+                    str(brief),
+                    "--no-online",
+                    "--dry-run",
+                    *args,
+                ],
+                capture_output=True,
+                text=True,
+                env={
+                    "ZSH": str(zsh),
+                    "XDG_STATE_HOME": str(state),
+                    "PATH": path,
+                    "HOME": str(tmp_path),
+                },
             )
+
         return run
 
     return build

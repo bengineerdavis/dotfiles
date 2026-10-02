@@ -1,10 +1,10 @@
-"""
-CLI behaviour for pii-redactor — the bats suite's cases, ported to pytest.
+"""CLI behaviour for pii-redactor — the bats suite's cases, ported to pytest.
 
 Covers argument parsing, the optional-argument -o and its templating, the
 staging-file write path, and what actually reaches `llm` in argv and the
 environment.
 """
+
 from __future__ import annotations
 
 import os
@@ -14,6 +14,7 @@ import pytest
 
 
 # ── help and argument errors ──────────────────────────────────────────────────
+
 
 @pytest.mark.parametrize("flag", ["--help", "-h"])
 def test_help_prints_usage_and_exits_zero(run_script, flag):
@@ -44,6 +45,7 @@ def test_missing_input_file_exits_nonzero(run_script):
 
 # ── dry run and verbosity ─────────────────────────────────────────────────────
 
+
 def test_dry_run_with_input_file(run_script, tmp_path):
     src = tmp_path / "in.md"
     src.write_text("Hello John Doe\n")
@@ -67,6 +69,7 @@ def test_verbose_emits_debug_output(run_script, tmp_path):
 
 
 # ── what reaches llm ──────────────────────────────────────────────────────────
+
 
 def test_passes_model_through_to_llm(mock_llm, run_script, tmp_path):
     mock_llm('echo "ARGS: $*"')
@@ -118,6 +121,7 @@ def test_pymupdf_message_is_set_for_the_child(mock_llm, run_script, tmp_path):
 
 
 # ── output routing ────────────────────────────────────────────────────────────
+
 
 def test_stdin_is_processed_without_input_flag(mock_llm, run_script):
     r = run_script(stdin="my name is Alice\n")
@@ -173,6 +177,7 @@ def test_explicit_output_beats_the_template(mock_llm, run_script, tmp_path):
 
 # ── failure handling ──────────────────────────────────────────────────────────
 
+
 def test_failing_llm_leaves_no_output_or_staging_file(mock_llm, run_script, tmp_path):
     mock_llm('echo "partial output"\nexit 1')
     src, dst = tmp_path / "mail.md", tmp_path / "out.md"
@@ -195,8 +200,9 @@ def test_failing_llm_does_not_clobber_existing_output(mock_llm, run_script, tmp_
 
 
 def test_output_honours_umask_not_mktemp_0600(mock_llm, run_script, tmp_path):
-    """mkstemp creates 0600; a redirect used to honour the umask. Sharing the
-    redacted file is the whole point, so the umask must win."""
+    """Mkstemp creates 0600; a redirect used to honour the umask. Sharing the
+    redacted file is the whole point, so the umask must win.
+    """
     src, dst = tmp_path / "mail.md", tmp_path / "out.md"
     src.write_text("Hello World\n")
 

@@ -92,5 +92,8 @@ def said(result, phrase: str) -> bool:
     Asserting on raw text would make the test pass or fail on where the wrap
     lands, which is not a property of the role at all.
     """
-    collapse = lambda s: " ".join(s.split())
+
+    def collapse(s: str) -> str:
+        return " ".join(s.split())
+
     return collapse(phrase) in collapse(result.stdout)

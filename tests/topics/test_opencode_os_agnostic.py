@@ -1,5 +1,4 @@
-"""
-Guard that the opencode topic's lifecycle tasks stay OS-agnostic.
+"""Guard that the opencode topic's lifecycle tasks stay OS-agnostic.
 
 opencode installs on both macOS and Debian, and its cross-OS behaviour must
 come from resolving `brew`/`npx` off PATH plus the dependency resolver, never
@@ -72,8 +71,7 @@ def test_crud_files_exist():
 
 
 def test_no_os_family_branch():
-    """
-    install/upgrade/remove must not branch on the OS.
+    """install/upgrade/remove must not branch on the OS.
 
     The topic's cross-OS behaviour comes from `brew`/`npx` resolving off PATH
     and the dependency resolver. A `when:` keyed on `os_family` (or the
@@ -125,8 +123,7 @@ def test_topic_declares_both_oses():
 
 
 def test_install_uses_homebrew_module_with_pinned_tap():
-    """
-    The binary install is the community.general.homebrew module on a name from
+    """The binary install is the community.general.homebrew module on a name from
     defaults/main.yaml (opencode_tap) — the same tap on both OSes.
 
     This is also the counterweight: it fails if the brew install is renamed or

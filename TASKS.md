@@ -67,12 +67,14 @@ Format: `- <UTC start> — <what> — <files or resource>`
 
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
-delete the line and say so in your commit.
 
-- 2026-09-24T00:25Z — skill-trust foreign buckets (branch
-  `skill-trust-foreign-buckets`, worktree
-  `~/code/wt-skill-trust-foreign-buckets`) — `tools/skill-trust/**`,
-  `dotfiles/apps/opencode/**`, `dotfiles/roles/guards/**`
+
+- 2026-10-01T00:53Z — buckets 1-4 of the python-tooling plan: uv topic, ruff
+  standard, gitattributes, pyrefly (branches of the same names) —
+  `dotfiles/apps/uv/**`, `dot_config/uv/**`, `.chezmoidata/uv.yaml`,
+  `pyproject.toml`, `.pre-commit-config.yaml`, `.gitattributes`, `docs/PYTHON.md`,
+  `docs/LANGUAGES.md`, `docs/REFERENCES.md`, `tests/uv/**`, `TASKS.md`delete the line and say so in your commit.
+
 
 
 ## Where things stand — 2026-09-23 (the session handoff)
@@ -1778,6 +1780,123 @@ nothing is.
   other with no PR; a child opens its PR after its parent merges and it is
   rebased onto `main`. The `delete_branch_on_merge` question is moot, since
   no PR targets a branch that could be deleted.
+
+- **Record who the everything-is-branched rule covers.** [agent: OpenCode
+  restart-review, 2026-09-28; author-answered] The author confirmed the rule
+  covers them and every session, with a manual override for their own
+  commits only. AGENTS.md § Everything is branched now says so. Done when the
+  docs gate passes and a PR is open. Branch `agents_author_override`.
+
+- **Bring the restart-stale Python to an agreed style standard.** [agent:
+  OpenCode restart-review, 2026-09-28; author-requested] Scope: the six files
+  (`dotfiles/roles/restart-stale/filter_plugins/restart_stale.py` and
+  `tests/restart_stale/`), not the repo. First ask the author to choose strict
+  PEP 8 (79 columns) or Ruff (88 plus its rules); the repo has no Ruff config.
+  On main now: pycodestyle 52 findings, Ruff lint 11, Ruff format would change
+  5 of 6 files. Done when the chosen checker reports zero on those files,
+  `tests/restart_stale` and the full suite pass unchanged, and a PR is open.
+  Branch and worktree `restart_stale_style`; handoff in its `.claude/`, which
+  also carries the design walkthrough that resumes after the cleanup.
+
+- **Own uv's machine lifecycle and the private-index capture (`apps/uv`).**
+  [agent: OpenCode restart-review, 2026-10-01; author-approved plan] New
+  Ansible topic `apps/uv`: astral-installer install on both OSes, `uv self
+  update` on upgrade, a version-floor assert matching `pyproject.toml`'s
+  required-version, opt-in removal. Work machines: the topic reads the
+  per-host work flag from `.chezmoidata/uv.yaml`, pulls the private index URL
+  and credentials from the vault (secrets-session patterns, `no_log`), and
+  writes an idempotent marker block into `~/.localrc` — the URL never enters
+  git. chezmoi renders `dot_config/uv/uv.toml.tmpl`: private index
+  `default = true` on flagged work hosts, public PyPI otherwise; a work host
+  applying without the captured URL fails loudly instead of silently
+  rendering public-only (fail-open dependency confusion). Guard test:
+  committed lock files may reference public PyPI only. Unblocks the
+  python-via-uv ownership shift. Done when the template tests, the guard
+  test, the topic metadata play, and the suite pass, mutations are recorded,
+  and a PR is open. Branch and worktree `uv_topic_machine_config`.
+
+- **R1 — research human vs agent files, skills and prompts.** [research
+  only; agent: general/uv-r1] What belongs where across `AGENTS.md`,
+  READMEs, skills, prompts, editor configs and agent configs — which files
+  humans read, which agents read, what to include in each, what to skip,
+  and how repos signal the split. Feeds the governance consolidation and
+  the editor-config buckets. Done when a written report names the split,
+  cites at least three sources, and lists what this repo should change.
+
+- **R2 — research on-save tooling and tool-level ignores.** [research only;
+  agent: general/uv-r2] Rank on-save/LSP candidates for this repo's file
+  types — ruff, pyrefly and shellharden named by the author; consider
+  ansible-lint, yamllint, taplo, actionlint, typos, markdownlint, gitleaks
+  and peers — and derive per-tool ignore lists (vendored `zim` bundle,
+  `changelog.d/` fragments, fixtures, migration-backups). Feeds the VS Code
+  and opencode on-save buckets. Done when a written report ranks tools with
+  evidence, gives per-tool ignore patterns, and names the wiring for VS
+  Code and opencode.
+
+- **Main-trunk policy suite is red under uv 0.12.21 — separate from any
+  branch.** [observed 2026-10-01, agent: OpenCode restart-review] 19
+  `tests/policy` failures reproduce on a clean `main` checkout with no local
+  changes (uv 0.12.21; green on 2026-09-28 under the previous run). Smells
+  like YAML-parsing drift: `test_null_value_is_silent`,
+  `test_todo_placeholder_is_silent`, `test_unparseable_layer_*` — a resolver
+  that now treats some layers as speaking instead of silent. Needs its own
+  investigation, not a per-branch workaround; branch gates compare against
+  this baseline until it lands.
+
+- **Make ruff the written, enforced Python standard.** [agent: OpenCode
+  restart-review, 2026-10-01; author-approved plan] `[tool.ruff]` in
+  `pyproject.toml`: line-length 88, pycodestyle E/W, pydocstyle under the
+  Google convention, doc lines wrapped at 72 (W505), E203 ignored (ruff
+  format conflict), missing-docstring rules deliberately unselected (a
+  content campaign, not a fix). Land = repo-wide `ruff format` (70 files,
+  AST-checked on the restart-stale six) + auto-fixes + ~40 hand fixes
+  (lambda-to-def, r-strings, message splits; one real bug: a duplicated
+  comment on `check_commit_proportionality.py`'s CEILING). Plan change
+  recorded: the doc-line campaign (1,510 W505 + 123 D205 across ~100 files)
+  is grandfathered per-directory by the author's choice — rules are ON, each
+  entry shrinks as files are next edited, delete when clean. ruff + ruff-
+  format prek hooks activate last. pycodestyle is retired (ruff implements
+  it). Done when `ruff check` and `ruff format --check` exit 0 repo-wide,
+  the hooks pass on this commit, and a PR is open. Branch
+  `ruff_standard`.
+
+- **Replace ty with pyrefly — one type checker, enforced on commit.**
+  [agent: OpenCode restart-review, 2026-10-01; author-approved plan]
+  ty was never installed; docs named it queued, LANGUAGES carried
+  "pyright or pyrefly (TBD)". Now: `[tool.pyrefly]` in pyproject.toml via
+  `pyrefly init` (full checking, project-includes default); baseline
+  established with `pyrefly suppress` (69 `# pyrefly: ignore` comments, 35
+  files; check reports 0 errors) — shrink over time. Installed by mise
+  `pipx:pyrefly` pinned 1.3.2 (uv-tool-backed, one pyrefly for CLI/IDE/hook);
+  official pre-commit hook facebook/pyrefly-pre-commit rev 1.3.2
+  (`pyrefly-check`, system install, full-repo per its pass_filenames: false).
+  `pyrefly lsp` verified for the editor buckets. Done when `pyrefly check`
+  exits 0, the hook is seen to fail on an injected type error, docs land
+  (PYTHON/LANGUAGES/REFERENCES/AGENTS pointer), and a PR is open. Branch
+  `pyrefly_migrate`, stacked on `ruff_standard` (PR #33) — PR opens after
+  #33 merges.
+
+- **Enforce LF per-repo via .gitattributes.** [agent: OpenCode
+  restart-review, 2026-10-01; author-approved plan] `* text=auto eol=lf`
+  plus the existing `uv.lock merge=binary`: makes the core-config line rules
+  (5485b77: autocrlf=false, eol=lf, safecrlf=warn) survive across machines,
+  where core config does not. Verified: zero CRLF in tracked files today, so
+  renormalizing is a no-op. Done when the file lands, `git status` stays
+  clean after `git add --renormalize .`, and a PR is open. Branch
+  `gitattributes_lf`.
+
+- **Wire Python on-save into VS Code; retire the stray settings duplicate.**
+  [agent: OpenCode restart-review, 2026-10-01; author-approved plan] The
+  topic's `files/vs_settings.json` gains the `[python]` on-save block
+  (ruff as default formatter, formatOnSave, fixAll + organizeImports code
+  actions — the researcher-recommended shape), loses its duplicated
+  `editor.fontLigatures` key, and the byte-identical stray
+  `dotfiles/apps/visual-studio-code/vs_settings.json` (unreferenced by the
+  topic's tasks) is deleted. `meta.pyrefly` joins the editors catalogue
+  (verified on the marketplace and Open VSX by the R2 researcher,
+  2026-09-30). Done when the catalogue tests pass, the settings file is
+  valid JSON, and a PR is open (deployed file: human review). Branch
+  `vscode_python_on_save`.
 
 - **Wire pyrefly's LSP into this repo's opencode config; retire the stale
   opencode.json.** [agent: OpenCode restart-review, 2026-10-01;

@@ -36,8 +36,12 @@ GOVERNANCE = ["AGENTS.md", "PRD.md", "ROADMAP.md", "spec.md", "TASKS.md"]
 # Not a whole directory any more: docs/ mixes repository conventions (which must
 # not deploy) with dotfiles documentation (which must). Named files only.
 GOVERNANCE_FILES_IN_DOCS = [
-    "docs/PERMISSIONS.md", "docs/PYTHON.md", "docs/REFERENCES.md",
-    "docs/README.md", "docs/LANGUAGES.md", "docs/GLOSSARY.md",
+    "docs/PERMISSIONS.md",
+    "docs/PYTHON.md",
+    "docs/REFERENCES.md",
+    "docs/README.md",
+    "docs/LANGUAGES.md",
+    "docs/GLOSSARY.md",
     "docs/WORKTREES.md",
     # A changelog is a governance artefact, not a dotfile. Both of these were
     # managed when first added and would have landed in $HOME.
@@ -57,7 +61,10 @@ pytestmark = pytest.mark.skipif(
 def managed() -> set[str]:
     out = subprocess.run(
         ["chezmoi", "-S", str(REPO), "managed"],
-        cwd=REPO, capture_output=True, text=True, timeout=60,
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        timeout=60,
     )
     assert out.returncode == 0, f"chezmoi managed failed: {out.stderr}"
     paths = {ln.strip() for ln in out.stdout.splitlines() if ln.strip()}
@@ -92,7 +99,8 @@ def test_governance_dir_contents_are_not_deployed(managed, d):
 @pytest.mark.parametrize("path", GOVERNANCE_FILES_IN_DOCS)
 def test_convention_in_docs_is_not_deployed(managed, path):
     """docs/ is a deployed tree, so moving conventions into it put them one
-    .chezmoiignore line away from landing in $HOME."""
+    .chezmoiignore line away from landing in $HOME.
+    """
     assert (REPO / path).exists(), f"{path} is missing from the repo"
     assert path not in managed, f"{path} would be written to $HOME"
 
@@ -100,7 +108,8 @@ def test_convention_in_docs_is_not_deployed(managed, path):
 def test_dotfiles_documentation_still_deploys(managed):
     """The relenting direction for the same directory: ignoring docs/ wholesale
     would have been the easy fix and would have stopped shipping the docs that
-    are meant to ship."""
+    are meant to ship.
+    """
     assert "docs/ARCHITECTURE.md" in managed, (
         "docs/ARCHITECTURE.md stopped deploying — the ignore rules are too broad"
     )
@@ -108,7 +117,8 @@ def test_dotfiles_documentation_still_deploys(managed):
 
 def test_a_real_dotfile_is_still_deployed(managed):
     """The relenting direction. Ignore rules broad enough to catch everything
-    would make the tests above pass while deploying nothing at all."""
+    would make the tests above pass while deploying nothing at all.
+    """
     assert "dotfiles/zsh/aliases.zsh" in managed, (
         "a genuinely deployed file is not managed — the ignore rules are too broad"
     )
@@ -117,6 +127,7 @@ def test_a_real_dotfile_is_still_deployed(managed):
 @pytest.mark.parametrize("path", PROJECT_FILES)
 def test_project_files_are_not_deployed(managed, path):
     """Root project files would be found by uv and pytest from anywhere under
-    $HOME if deployed. The failure is silent — no error, just wrong config."""
+    $HOME if deployed. The failure is silent — no error, just wrong config.
+    """
     assert (REPO / path).exists(), f"{path} is missing from the repo"
     assert path not in managed, f"{path} would be written to $HOME"
