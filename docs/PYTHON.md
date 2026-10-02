@@ -49,6 +49,33 @@ groups; the repo is never built or installed (`package = false`).
 - **Log, do not print,** for anything an agent may need to read back while
   debugging.
 
+
+## uv configuration and the private index
+
+Two layers own uv's machine state, per the one-concern-per-layer rule:
+
+- **The binary** — astral-installed at the system level (`~/.local/bin/uv`),
+  deliberately not mise-managed or in Homebrew. The `apps/uv` topic installs
+  and self-updates it; `dotfiles/bootstrap/bootstrap.sh` owns the first
+  install on a fresh machine.
+- **The user config** — `~/.config/uv/uv.toml`, rendered by chezmoi from
+  `dot_config/uv/uv.toml.tmpl`. It pins `required-version` to the same floor
+  as `pyproject.toml`, so an old install is refused everywhere with the fix
+  named.
+
+**The private index never enters this repo.** On work machines the private
+package index is the default and public PyPI the fallback; its URL and
+credentials live in the machine-local `~/.localrc`, captured from the vault
+by the `apps/uv` topic. A host flagged work in `.chezmoidata/uv.yaml` refuses
+to render without the captured URL. Two rules follow:
+
+- **Never commit a re-lock done against a private mirror.** A committed
+  `uv.lock` or `tools/skill-trust/uv.lock` referencing any non-public index
+  fails the suite (`tests/uv/test_lock_sources.py`). Regenerate against
+  public PyPI; day-to-day, always `uv run --frozen`.
+- **Tokens stay env-only.** `uv.toml` never contains credentials; the
+  `UV_INDEX_<NAME>_USERNAME`/`_PASSWORD` variables come from `~/.localrc`.
+
 ## Dependency classes
 
 Four surfaces hold dependencies; each has its own add/remove rule. The root

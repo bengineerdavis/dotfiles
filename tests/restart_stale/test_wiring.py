@@ -18,7 +18,7 @@ import pytest
 
 yaml = pytest.importorskip("yaml", reason="pyyaml not installed")
 
-from restart_stale_harness import DOTFILES  # noqa: E402
+from restart_stale_harness import DOTFILES
 
 APPS = DOTFILES / "apps"
 ROLE = "roles/restart-stale"
@@ -69,8 +69,9 @@ def test_every_call_runs_under_upgrade():
     `install` would miss the run that causes staleness."""
     for path in sorted(APPS.glob("*/tasks/*.yaml")):
         for _, task in calls(path):
+            where = f"{path.relative_to(DOTFILES)}: {task.get('name')!r}"
             assert "upgrade" in (task.get("tags") or []), (
-                f"{path.relative_to(DOTFILES)}: {task.get('name')!r} is not tagged upgrade"
+                f"{where} is not tagged upgrade"
             )
 
 
