@@ -681,7 +681,8 @@ that a pattern across months stays visible.
 ```bash
 # Tests — pytest is primary. Dependencies are locked in uv.lock; --frozen
 # rebuilds the environment offline from the cache.
-# Model-calling tests are excluded by default (pytest.ini `addopts`); run them
+# Model-calling tests are excluded by default (`[tool.pytest]` `addopts` in
+# pyproject.toml); run them
 # on request with -m llm_judge, which overrides the filter.
 uv run --frozen pytest tests tools -q
 
