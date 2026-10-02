@@ -1,0 +1,17 @@
+# apps/uv/playbook.yaml
+# Standalone runner for this topic role.
+# Usage: ansible-playbook apps/uv/playbook.yaml [--tags install|provision|remove]
+#   A bare run (no --tags) runs provision; remove is opt-in via --tags remove
+#   (tagged never).
+#
+# Work machines need a signed-in vault before --tags install so the private
+# index can be captured into ~/.localrc; personal machines need nothing.
+
+- name: "Run uv role standalone"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: false
+
+  roles:
+    - role: apps/uv
