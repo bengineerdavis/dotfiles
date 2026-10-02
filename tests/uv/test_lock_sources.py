@@ -26,13 +26,14 @@ def test_committed_locks_reference_public_pypi_only():
         # as `registry = "..."` and artifacts as bare wheel/sdist URLs. A
         # format-specific regex here grepped nothing and passed meaninglessly
         # (caught 2026-10-01 by injecting a leak the old regex never saw).
-        for m in re.finditer(r'https?://([^"\'\s)]+)', lock.read_text(encoding="utf-8")):
+        for m in re.finditer(
+            r'https?://([^"\'\s)]+)', lock.read_text(encoding="utf-8")
+        ):
             host = m.group(1).split("/")[0]
             if host not in ALLOWED:
                 offenders.append(f"{lock.relative_to(REPO)}: {host}")
     assert not offenders, (
         "a committed uv lock references a non-public index — never commit a "
         "work-machine re-lock; regenerate against public PyPI (uv lock with "
-        "the private env unset, or always `uv run --frozen`):\n"
-        + "\n".join(offenders)
+        "the private env unset, or always `uv run --frozen`):\n" + "\n".join(offenders)
     )

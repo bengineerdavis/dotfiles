@@ -28,10 +28,14 @@ pytestmark = pytest.mark.skipif(
 
 
 def _hosts_yaml(work: bool) -> str:
-    return f"uv:\n  hosts:\n    {socket.gethostname()}:\n      work: {str(work).lower()}\n"
+    return (
+        f"uv:\n  hosts:\n    {socket.gethostname()}:\n      work: {str(work).lower()}\n"
+    )
 
 
-def render(tmp_path: pathlib.Path, hosts_yaml: str, *, env_url: str | None) -> subprocess.CompletedProcess:
+def render(
+    tmp_path: pathlib.Path, hosts_yaml: str, *, env_url: str | None
+) -> subprocess.CompletedProcess:
     src = tmp_path / "source"
     (src / ".chezmoidata").mkdir(parents=True)
     (src / ".chezmoidata" / "uv.yaml").write_text(hosts_yaml, encoding="utf-8")
@@ -39,8 +43,19 @@ def render(tmp_path: pathlib.Path, hosts_yaml: str, *, env_url: str | None) -> s
     if env_url is not None:
         env["UV_PRIVATE_INDEX_URL"] = env_url
     return subprocess.run(
-        ["chezmoi", "--source", str(src), "execute-template", "--file", str(TEMPLATE)],
-        capture_output=True, text=True, env=env, cwd=str(tmp_path), timeout=60,
+        [
+            "chezmoi",
+            "--source",
+            str(src),
+            "execute-template",
+            "--file",
+            str(TEMPLATE),
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(tmp_path),
+        timeout=60,
     )
 
 
@@ -53,7 +68,9 @@ def test_personal_renders_public_only(tmp_path):
 
 
 def test_work_host_renders_private_index_as_default(tmp_path):
-    out = render(tmp_path, _hosts_yaml(work=True), env_url="https://pypi.example.internal/simple")
+    out = render(
+        tmp_path, _hosts_yaml(work=True), env_url="https://pypi.example.internal/simple"
+    )
     assert out.returncode == 0, out.stderr
     assert 'name = "private"' in out.stdout
     assert 'url = "https://pypi.example.internal/simple"' in out.stdout
@@ -72,8 +89,13 @@ def test_work_host_without_url_fails_loudly(tmp_path):
 def test_url_without_work_flag_renders_public(tmp_path):
     """Fail-closed by design: the host flag decides, the env alone does not.
     A personal machine that happens to carry ~/.localrc must not silently
-    route through a private index."""
-    out = render(tmp_path, _hosts_yaml(work=False), env_url="https://pypi.example.internal/simple")
+    route through a private index.
+    """
+    out = render(
+        tmp_path,
+        _hosts_yaml(work=False),
+        env_url="https://pypi.example.internal/simple",
+    )
     assert out.returncode == 0, out.stderr
     assert "private" not in out.stdout
     assert "pypi.org/simple" in out.stdout

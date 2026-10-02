@@ -83,6 +83,7 @@ max-doc-length = 72
 "tests/topic_resolution/**" = ["E501", "W505", "D205"]
 "tests/topics/**" = ["W505", "D205"]
 "tests/trace_public/**" = ["E501", "W505", "D205"]
+"tests/uv/**" = ["W505", "D205"]
 "tests/triage/**" = ["W505", "D205"]
 "tools/skill-trust/skill_trust/**" = ["W505", "D205"]
 "tools/skill-trust/tests/**" = ["W505", "D205"]
