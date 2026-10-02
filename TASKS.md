@@ -1779,6 +1779,19 @@ nothing is.
   rebased onto `main`. The `delete_branch_on_merge` question is moot, since
   no PR targets a branch that could be deleted.
 
+- **Wire Python on-save into VS Code; retire the stray settings duplicate.**
+  [agent: OpenCode restart-review, 2026-10-01; author-approved plan] The
+  topic's `files/vs_settings.json` gains the `[python]` on-save block
+  (ruff as default formatter, formatOnSave, fixAll + organizeImports code
+  actions — the researcher-recommended shape), loses its duplicated
+  `editor.fontLigatures` key, and the byte-identical stray
+  `dotfiles/apps/visual-studio-code/vs_settings.json` (unreferenced by the
+  topic's tasks) is deleted. `meta.pyrefly` joins the editors catalogue
+  (verified on the marketplace and Open VSX by the R2 researcher,
+  2026-09-30). Done when the catalogue tests pass, the settings file is
+  valid JSON, and a PR is open (deployed file: human review). Branch
+  `vscode_python_on_save`.
+
 ## Planned
 
 
