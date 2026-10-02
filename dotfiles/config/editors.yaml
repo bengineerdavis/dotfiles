@@ -86,6 +86,13 @@ editor_extensions:
       visual-studio-code: {status: ok, checked: "2026-09-17"}
       cursor: {status: ok, checked: "2026-09-17"}
 
+  - id: meta.pyrefly
+    why: Pyrefly type checking and its language server - the house typechecker
+         (pyproject [tool.pyrefly], pre-commit pyrefly-check); verified on the
+         VS Code marketplace and Open VSX by the on-save researcher
+    verdicts:
+      visual-studio-code: {status: ok, checked: "2026-09-30"}
+
   - id: dart-code.dart-code
     why: Dart language support. Review —confirm what Dart work needs it
     verdicts:
