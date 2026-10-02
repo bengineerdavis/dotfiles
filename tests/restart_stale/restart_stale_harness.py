@@ -35,6 +35,9 @@ def load_filters():
     Python packaging, owns where it lives: `filter_plugins/` beside the role.
     """
     spec = importlib.util.spec_from_file_location("restart_stale_filters", FILTERS)
+    assert spec is not None and spec.loader is not None, (
+        f"spec_from_file_location returned None for {FILTERS}"
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

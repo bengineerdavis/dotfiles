@@ -52,6 +52,7 @@ def _company(**rules: bool) -> str:
 def _load(path: pathlib.Path):
     loader = importlib.machinery.SourceFileLoader(path.stem, str(path))
     spec = importlib.util.spec_from_loader(path.stem, loader)
+    # pyrefly: ignore [bad-argument-type]
     mod = importlib.util.module_from_spec(spec)
     try:
         loader.exec_module(mod)
@@ -140,7 +141,9 @@ def test_llm_ctx_translates_the_guard_into_an_actual_flag():
     nothing.
     """
     mod = _load(CALLERS["llm-ctx"][0])
+    # pyrefly: ignore [missing-attribute]
     mod._suppress_log = True
     assert mod.no_log_flags() == ["-n"]
+    # pyrefly: ignore [missing-attribute]
     mod._suppress_log = False
     assert mod.no_log_flags() == []

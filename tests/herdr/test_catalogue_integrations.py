@@ -947,6 +947,7 @@ def test_remove_intersection_leaves_unclaimed_and_absent_alone():
         f"only the claimed∩installed id uninstalls; got {result['uninstalled']}"
     )
     for unclaimed in ("codex", "grok"):
+        # pyrefly: ignore [not-iterable]
         assert unclaimed not in result["uninstalled"], (
             f"{unclaimed} is on the machine but unclaimed — left alone"
         )
@@ -954,6 +955,7 @@ def test_remove_intersection_leaves_unclaimed_and_absent_alone():
     assert only_absent["uninstalled"] == ["claude"], (
         "the one held claimed id uninstalls"
     )
+    # pyrefly: ignore [not-iterable]
     assert "cursor" not in only_absent["uninstalled"], (
         "a claimed-but-not-installed id gets no uninstall call"
     )
@@ -993,6 +995,7 @@ def test_remove_uninstalls_exactly_the_intersection_property(installed):
         f"gate-on remove must be exactly claimed ∩ installed: expected "
         f"{expected}, got {result['uninstalled']}"
     )
+    # pyrefly: ignore [not-iterable]
     assert all(entry_id in claimed for entry_id in result["uninstalled"]), (
         f"unclaimed ids must never be uninstalled: {result['uninstalled']}"
     )

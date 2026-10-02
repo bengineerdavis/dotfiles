@@ -142,7 +142,9 @@ def he_contract():
     if existing:
         for path in existing:
             spec = importlib.util.spec_from_file_location("he_agents_contract", path)
+            # pyrefly: ignore [bad-argument-type]
             mod = importlib.util.module_from_spec(spec)
+            # pyrefly: ignore [missing-attribute]
             spec.loader.exec_module(mod)
             return mod
     pytest.fail(
@@ -243,6 +245,7 @@ def he_recorder(rcs):
         calls.append((eid, rc))
         return rc
 
+    # pyrefly: ignore [missing-attribute]
     run.calls = calls
     return run
 
@@ -587,6 +590,7 @@ def test_herdr_binary_absent_raises_named_fix_and_relents():
     with pytest.raises(ValueError) as excinfo:
         mod.install_loop(entries, probes, herdr_present=False, run_install=runner)
     assert "mise use -g herdr" in str(excinfo.value), str(excinfo.value)
+    # pyrefly: ignore [missing-attribute]
     assert runner.calls == [], "no install may be attempted without herdr"
     # relents: herdr present -> the loop installs and reports clean.
     report = mod.install_loop(entries, probes, herdr_present=True, run_install=runner)
@@ -615,6 +619,7 @@ def test_skip_names_both_conditions_and_does_not_fail(probe_present, dir_exists)
     runner = he_recorder([])
     report = mod.install_loop([entry], probes, herdr_present=True, run_install=runner)
     report.raise_if_failed()  # skip must not fail the run
+    # pyrefly: ignore [missing-attribute]
     assert runner.calls == [], "skipped entries must not be installed"
     assert len(report.skips) == 1, report.skips
     _, reason = report.skips[0]
@@ -637,6 +642,7 @@ def test_install_failures_collected_reported_once_raised_after_loop():
     probes = {e["id"]: (True, True) for e in entries}
     runner = he_recorder([1, 1, 0])
     report = mod.install_loop(entries, probes, herdr_present=True, run_install=runner)
+    # pyrefly: ignore [missing-attribute]
     assert [c[1] for c in runner.calls] == [1, 1, 0], (
         "the loop must attempt every entry, continuing past failures"
     )
@@ -661,6 +667,7 @@ def test_usage_error_rc2_collected_not_retried():
     probes = {"not-a-herdr-agent": (True, True)}
     runner = he_recorder([2])
     report = mod.install_loop([entry], probes, herdr_present=True, run_install=runner)
+    # pyrefly: ignore [missing-attribute]
     assert runner.calls == [("not-a-herdr-agent", 2)], runner.calls
     with pytest.raises(ValueError) as excinfo:
         report.raise_if_failed()

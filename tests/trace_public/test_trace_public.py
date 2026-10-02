@@ -227,6 +227,7 @@ def _module():
     import importlib.util
 
     spec = importlib.util.spec_from_loader("tp", loader=None)
+    # pyrefly: ignore [bad-argument-type]
     mod = importlib.util.module_from_spec(spec)
     src = SCRIPT.read_text().split("if __name__ ==")[0]
     exec(compile(src, str(SCRIPT), "exec"), mod.__dict__)

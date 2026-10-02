@@ -36,6 +36,7 @@ import re
 
 import pytest
 
+# pyrefly: ignore [missing-import]
 from guard_harness import DOTFILES, GUARDS, said
 
 APPS = DOTFILES / "apps"

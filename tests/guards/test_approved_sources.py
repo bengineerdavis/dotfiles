@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import pytest
 
+# pyrefly: ignore [missing-import]
 from guard_harness import said
 
 GUARD = "dotagents-approved-sources.yaml"

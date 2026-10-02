@@ -25,7 +25,9 @@ SCRIPT = REPO / "scripts" / "check_commit_proportionality.py"
 @pytest.fixture(scope="module")
 def m():
     spec = importlib.util.spec_from_file_location("prop", SCRIPT)
+    # pyrefly: ignore [bad-argument-type]
     mod = importlib.util.module_from_spec(spec)
+    # pyrefly: ignore [missing-attribute]
     spec.loader.exec_module(mod)
     return mod
 

@@ -94,16 +94,15 @@ def test_ollama_checks_the_binary_its_agent_runs():
     """The agent's Program and the checked binary must be one expression, or
     the check can judge a file the server never runs."""
     plist = (APPS / "ollama" / "templates" / "com.ollama.server.plist.j2").read_text()
-    program = (
-        re.search(
-            r"<key>ProgramArguments</key>\s*<array>\s*<string>\{\{(.+?)\}\}", plist
-        )
-        .group(1)
-        .strip()
+    program = re.search(
+        r"<key>ProgramArguments</key>\s*<array>\s*<string>\{\{(.+?)\}\}", plist
     )
+    assert program is not None, "the plist lost its ProgramArguments template"
     _, call = only_call(OLLAMA, restart_stale_kind="launchd")
 
-    assert call["vars"]["restart_stale_binary"] == "{{ " + program + " }}"
+    assert (
+        call["vars"]["restart_stale_binary"] == "{{ " + program.group(1).strip() + " }}"
+    )
 
 
 def test_ollama_checks_its_systemd_unit_last():
@@ -120,10 +119,11 @@ def test_ollama_checks_its_systemd_unit_last():
 
 def test_ollama_checks_the_binary_its_unit_runs():
     unit = (APPS / "ollama" / "templates" / "ollama.service.j2").read_text()
-    exec_start = re.search(r"^ExecStart=(\S+)", unit, re.MULTILINE).group(1)
+    exec_start = re.search(r"^ExecStart=(\S+)", unit, re.M)
+    assert exec_start is not None, "the unit lost its ExecStart"
     _, call = only_call(OLLAMA, restart_stale_kind="systemd")
 
-    assert call["vars"]["restart_stale_binary"] == exec_start
+    assert call["vars"]["restart_stale_binary"] == exec_start.group(1)
 
 
 # ── apps/1password ───────────────────────────────────────────────────────────

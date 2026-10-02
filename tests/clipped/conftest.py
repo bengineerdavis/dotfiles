@@ -22,6 +22,7 @@ import subprocess
 
 import pytest
 
+# pyrefly: ignore [missing-import]
 from clipped_harness import CAPTURE_NAME, CLIPBOARD_CONTENT, SCRIPT
 
 
@@ -102,6 +103,7 @@ def run_clipped_tty(clip_env):
         )
         os.close(follower)
         try:
+            # pyrefly: ignore [missing-attribute]
             out = proc.stdout.read()
             proc.wait(timeout=60)
         finally:

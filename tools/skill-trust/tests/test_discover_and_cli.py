@@ -20,8 +20,13 @@ import textwrap
 
 import pytest
 
+# pyrefly: ignore [missing-import]
 from skill_trust.cli import DENIED, ERROR, PERMITTED, UNKNOWN, main
+
+# pyrefly: ignore [missing-import]
 from skill_trust.decide import Tier, licence_tier
+
+# pyrefly: ignore [missing-import]
 from skill_trust.discover import licence_from_dir
 
 MIT_TEXT = "MIT License\n\nCopyright (c) 2026\n\nPermission is hereby granted..."
@@ -30,7 +35,11 @@ MIT_TEXT = "MIT License\n\nCopyright (c) 2026\n\nPermission is hereby granted...
 @pytest.fixture
 def skill(tmp_path):
     def _make(
-        name: str, *, licence_text: str | None = None, frontmatter: str | None = None
+        name: str,
+        *,
+        licence_text: str | None = None,
+        frontmatter: str | None = None,
+        # pyrefly: ignore [unknown-name]
     ) -> "pathlib.Path":
         d = tmp_path / name
         d.mkdir(parents=True)

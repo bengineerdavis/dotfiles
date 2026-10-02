@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 
+# pyrefly: ignore [missing-import]
 from clipped_harness import CLIPBOARD_CONTENT
 
 

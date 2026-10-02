@@ -18,6 +18,7 @@ import subprocess
 
 import pytest
 
+# pyrefly: ignore [missing-import]
 from guard_harness import DOTFILES, GUARDS, HARNESS, said  # noqa: F401
 
 
