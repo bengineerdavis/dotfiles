@@ -1805,6 +1805,18 @@ nothing is.
   (Accounts are the author's; the orchestrator supplies the packaging steps, not
   the credentials.)
 
+- **Give `codex` an authenticated provider so agent tooling stops hitting
+  "Not logged in".** [unclaimed] `apps/mise` installs `npm:@openai/codex`, but
+  no topic provisions `~/.codex/config.toml`, so the binary ships with no
+  backend and every model call (e.g. a skillet eval harness) dies with 401
+  Unauthorized/Not-logged-in — no personal codex subscription is available.
+  `claude-code` is the same gap and is not even on PATH. Done when an
+  `apps/codex` topic (adopting the mise entry) ships a chezmoi-managed
+  `config.toml` with a `model_providers` block pointed at the already-provisioned
+  key (OpenRouter first), `codex login status` shows an authenticated provider on
+  a fresh box, a model call succeeds without a codex subscription, and
+  `remove.yaml` deletes the config it created.
+
 ## Planned
 
 
