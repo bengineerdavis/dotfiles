@@ -313,11 +313,6 @@ nothing is.
   desktop app is `onepassword_desktop_app`, stacked on it. PR #5 is closed
   with pointers. The author's design review continues on the role PR from
   the PEP 8 question; see `.worktrees/wt-restart/.claude/HANDOFF-restart-review.md`.
-  Landed since: #11 (`af02574`, role and ollama) and #15 (`2a1d009`, the
-  1Password desktop app, re-landed after #12 merged into #11's branch). The
-  code is on main; the only open part is the author's design walkthrough,
-  paused at the PEP 8 question. Resolve this item when the author closes or
-  drops that walkthrough.
 
 - **Build a machine-assisted merge-gate checker — turn the diff-derived
   design in `AGENTS.md` § Merge gates (2026-09-22, fusion council) into a
@@ -1668,6 +1663,39 @@ nothing is.
   `chezmoi apply`, force-push, and credential paths, and a deliberately
   dangerous command has been seen to prompt. [agent: sub]
 
+- **Allow worktree creation and read-only `gh`; close the `--force-with-lease=`
+  deny gap.** [agent: OpenCode restart-review, 2026-09-24; author-requested]
+  In `opencode.jsonc` (both bash blocks) and `.claude/settings.json`:
+  `git worktree add` allowed, every other worktree mutation asks; read-only
+  `gh` subcommands (pr/issue/run/release/repo/workflow list-view, search,
+  status, and GET-only `gh api`) allowed, anything that writes still asks;
+  `git push --force-with-lease=*` denied — found live when an `=`-form
+  force-push matched no deny rule. Carries the restart-review worktree's
+  uncommitted permission edit as its own commit. Done when the tier tests
+  cover each new rule, have been seen to fail without it, and a PR is open
+  (policy path: human review). Branch and worktree
+  `perms_gh_read_worktree_add`. Feeds the permission-rules review above.
+  Revised 2026-09-24: the read-only `gh` carve-out landed in opencode only.
+  Claude Code resolves deny > ask > allow regardless of order, so no allow
+  can carve reads out of its `Bash(gh *)` ask; splitting that rule is left
+  to the permission-rules review above.
+
+- **Document bucketing a task into PRs.** [agent: OpenCode restart-review,
+  2026-09-24; author-requested] `docs/WORKTREES.md` gains a Bucket lifecycle
+  step and § Bucketing: the one-sentence-without-"and" test, dependency
+  ordering, one branch per bucket, each checked alone and all checked
+  together, then publish and supersede; reaping cherry-picked branches uses
+  `git cherry`. AGENTS.md § Decomposing points to it for tasks that need more
+  merges than planned. Done when the docs gate passes and a PR is open.
+  Branch and worktree `docs_bucketing`.
+- **Label meld's panes from sections git actually reads.** [agent: OpenCode
+  restart-review, 2026-09-24; author-requested] The deployed `~/.gitconfig`
+  carried pane labels in `[mergetool ""]`/`[difftool ""]`, which git never
+  consults. Move them into `[mergetool "meld"]` and `[difftool "meld"]` in
+  `dot_gitconfig.tmpl`. Done when a test renders the template and git itself
+  resolves both labelled commands, seen failing first, and a PR is open
+  (deployed file: human review). Branch and worktree `gitconfig_meld_labels`.
+
 - **Define "outcome" — the unit a bucket, a task and a PR each carry.**
   [question for the author, 2026-09-24 — no session holds it] Ask: adopt the
   definition drafted since in another of the author's repositories (local,
@@ -1736,6 +1764,26 @@ nothing is.
     one human reviewer, so split hardest where a wrong merge cannot be undone
     (policy, deployed files) and loosest where it can (docs, TASKS.md); apply
     to new buckets only, never rewrite merged history.
+
+- **Warn that a stacked PR can merge into its parent's branch.** [agent:
+  OpenCode restart-review, 2026-09-24] PR #12 merged into
+  `restart_stale_role_ollama` after #11 had landed, so `main` never got it
+  (re-landed as #15). `docs/WORKTREES.md` § Bucketing step 6 now says to
+  check that a stacked PR's base is `main` before merging it. Open question
+  for the author: turn on `delete_branch_on_merge`, which makes GitHub
+  retarget children automatically. Done when the docs gate passes and a PR is
+  open. Branch and worktree `docs_stacked_pr_base`.
+  Revised 2026-09-24 by the author: rather than warn, open pull requests only
+  into `main`. Feature branches may still stack and take commits from each
+  other with no PR; a child opens its PR after its parent merges and it is
+  rebased onto `main`. The `delete_branch_on_merge` question is moot, since
+  no PR targets a branch that could be deleted.
+
+- **Record who the everything-is-branched rule covers.** [agent: OpenCode
+  restart-review, 2026-09-28; author-answered] The author confirmed the rule
+  covers them and every session, with a manual override for their own
+  commits only. AGENTS.md § Everything is branched now says so. Done when the
+  docs gate passes and a PR is open. Branch `agents_author_override`.
 
 ## Planned
 
