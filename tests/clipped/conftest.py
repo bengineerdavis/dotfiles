@@ -1,5 +1,4 @@
-"""
-Shared fixtures for the clipped suite.
+"""Shared fixtures for the clipped suite.
 
 Converted from tests/clipped.bats when clipped moved from bash to Python. Two
 things the bats suite could not do are fixed here:
@@ -14,6 +13,7 @@ things the bats suite could not do are fixed here:
 Run:
     pytest tests/clipped -v
 """
+
 from __future__ import annotations
 
 import os
@@ -22,6 +22,7 @@ import subprocess
 
 import pytest
 
+# pyrefly: ignore [missing-import]
 from clipped_harness import CAPTURE_NAME, CLIPBOARD_CONTENT, SCRIPT
 
 
@@ -58,15 +59,18 @@ def clip_env(tmp_path, monkeypatch):
 @pytest.fixture
 def captured(clip_env):
     """Read back whatever the fake pbcopy received."""
+
     def _captured() -> str:
         path = clip_env / CAPTURE_NAME
         return path.read_text() if path.exists() else ""
+
     return _captured
 
 
 @pytest.fixture
 def run_clipped(clip_env):
     """Run clipped with stdin piped (or closed), stdout and stderr merged."""
+
     def _run(*args: str, stdin: str | None = None):
         return subprocess.run(
             [str(SCRIPT), *args],
@@ -76,6 +80,7 @@ def run_clipped(clip_env):
             timeout=60,
             env=os.environ.copy(),
         )
+
     return _run
 
 
@@ -86,6 +91,7 @@ def run_clipped_tty(clip_env):
     Returns (returncode, combined_output). A pty is the portable way to make
     isatty() true; the bats suite's `script -qec` only works on GNU coreutils.
     """
+
     def _run(*args: str) -> tuple[int, str]:
         controller, follower = pty.openpty()
         proc = subprocess.Popen(
@@ -97,9 +103,11 @@ def run_clipped_tty(clip_env):
         )
         os.close(follower)
         try:
+            # pyrefly: ignore [missing-attribute]
             out = proc.stdout.read()
             proc.wait(timeout=60)
         finally:
             os.close(controller)
         return proc.returncode, out.decode(errors="replace")
+
     return _run

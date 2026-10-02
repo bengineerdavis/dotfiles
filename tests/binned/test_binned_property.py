@@ -1,9 +1,9 @@
-"""
-Property-based tests for binned's pure functions.
+"""Property-based tests for binned's pure functions.
 
 Requires: pip install hypothesis
 Run:      pytest tests/test_binned_property.py -v
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -18,8 +18,8 @@ import pytest
 # collection instead of skipping.
 pytest.importorskip("hypothesis", reason="hypothesis not installed")
 
-from hypothesis import given, settings, assume   # noqa: E402
-from hypothesis import strategies as st          # noqa: E402
+from hypothesis import given, settings, assume  # noqa: E402
+from hypothesis import strategies as st  # noqa: E402
 
 # ── Regex under test (duplicated here so the tests document the contract) ────
 # These match the implementations in binned; if binned changes them the tests
@@ -29,6 +29,7 @@ _VALID_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _ALIAS_PARSE_RE = re.compile(r"^(.+?)\s{2,}:\s+(.+)$")
 
 # ── _sanitize_name ────────────────────────────────────────────────────────────
+
 
 @given(st.text(min_size=0, max_size=120))
 @settings(max_examples=500)
@@ -50,15 +51,21 @@ def test_sanitize_name_never_empty(binned_module, raw):
 @settings(max_examples=500)
 def test_sanitize_name_no_leading_trailing_dash(binned_module, raw):
     result = binned_module._sanitize_name(raw)
-    assert not result.startswith("-"), f"_sanitize_name({raw!r}) = {result!r} starts with dash"
-    assert not result.endswith("-"), f"_sanitize_name({raw!r}) = {result!r} ends with dash"
+    assert not result.startswith("-"), (
+        f"_sanitize_name({raw!r}) = {result!r} starts with dash"
+    )
+    assert not result.endswith("-"), (
+        f"_sanitize_name({raw!r}) = {result!r} ends with dash"
+    )
 
 
 @given(st.text(min_size=0, max_size=120))
 @settings(max_examples=500)
 def test_sanitize_name_no_consecutive_dashes(binned_module, raw):
     result = binned_module._sanitize_name(raw)
-    assert "--" not in result, f"_sanitize_name({raw!r}) = {result!r} has consecutive dashes"
+    assert "--" not in result, (
+        f"_sanitize_name({raw!r}) = {result!r} has consecutive dashes"
+    )
 
 
 @given(st.text(min_size=0, max_size=120))
@@ -66,26 +73,35 @@ def test_sanitize_name_no_consecutive_dashes(binned_module, raw):
 def test_sanitize_name_idempotent(binned_module, raw):
     once = binned_module._sanitize_name(raw)
     twice = binned_module._sanitize_name(once)
-    assert once == twice, f"_sanitize_name not idempotent: {raw!r} → {once!r} → {twice!r}"
+    assert once == twice, (
+        f"_sanitize_name not idempotent: {raw!r} → {once!r} → {twice!r}"
+    )
 
 
 # Known cases
 
-@pytest.mark.parametrize("raw,expected", [
-    ("Remove PII",      "remove-pii"),
-    ("My SCRIPT_name!", "my-script-name"),
-    ("  leading  ",     "leading"),
-    ("---",             "my-script"),   # all-dash → fallback
-    ("",                "my-script"),   # empty → fallback
-    ("already-fine",    "already-fine"),
-    ("MixedCase123",    "mixedcase123"),
-])
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("Remove PII", "remove-pii"),
+        ("My SCRIPT_name!", "my-script-name"),
+        ("  leading  ", "leading"),
+        ("---", "my-script"),  # all-dash → fallback
+        ("", "my-script"),  # empty → fallback
+        ("already-fine", "already-fine"),
+        ("MixedCase123", "mixedcase123"),
+    ],
+)
 def test_sanitize_name_known_cases(binned_module, raw, expected):
     result = binned_module._sanitize_name(raw)
-    assert result == expected, f"_sanitize_name({raw!r}) = {result!r}, want {expected!r}"
+    assert result == expected, (
+        f"_sanitize_name({raw!r}) = {result!r}, want {expected!r}"
+    )
 
 
 # ── detect_llm_in_command ─────────────────────────────────────────────────────
+
 
 @given(
     st.text(min_size=0, max_size=200).filter(
@@ -111,12 +127,15 @@ def test_detect_llm_no_llm_token_returns_none(binned_module, cmd):
 def test_detect_llm_with_model_flag_returns_model(binned_module, prefix, model, suffix):
     cmd = f"{prefix}llm -m {model} {suffix}"
     result = binned_module.detect_llm_in_command(cmd)
-    assert result == model, f"detect_llm_in_command({cmd!r}) = {result!r}, want {model!r}"
+    assert result == model, (
+        f"detect_llm_in_command({cmd!r}) = {result!r}, want {model!r}"
+    )
 
 
 @given(
-    suffix=st.text(min_size=1, max_size=80, alphabet=st.characters(blacklist_characters="\n"))
-          .filter(lambda s: "-m" not in s and "--model" not in s)
+    suffix=st.text(
+        min_size=1, max_size=80, alphabet=st.characters(blacklist_characters="\n")
+    ).filter(lambda s: "-m" not in s and "--model" not in s)
 )
 @settings(max_examples=200)
 def test_detect_llm_without_model_flag_returns_default(binned_module, suffix):
@@ -127,19 +146,23 @@ def test_detect_llm_without_model_flag_returns_default(binned_module, suffix):
     )
 
 
-@pytest.mark.parametrize("cmd,expected", [
-    ('llm -m gpt-4o "do stuff"',       "gpt-4o"),
-    ('llm --model claude-3 "hello"',   "claude-3"),
-    ("ffmpeg -i a.mp4 out.mp3",         None),
-    ("llm 'summarize this'",            "default"),
-    ("LLM 'shout'",                     "default"),   # case-insensitive
-    ("echo | llm -m gpt-4.1 -s sys",   "gpt-4.1"),
-])
+@pytest.mark.parametrize(
+    "cmd,expected",
+    [
+        ('llm -m gpt-4o "do stuff"', "gpt-4o"),
+        ('llm --model claude-3 "hello"', "claude-3"),
+        ("ffmpeg -i a.mp4 out.mp3", None),
+        ("llm 'summarize this'", "default"),
+        ("LLM 'shout'", "default"),  # case-insensitive
+        ("echo | llm -m gpt-4.1 -s sys", "gpt-4.1"),
+    ],
+)
 def test_detect_llm_known_cases(binned_module, cmd, expected):
     assert binned_module.detect_llm_in_command(cmd) == expected
 
 
 # ── detect_script_language ───────────────────────────────────────────────────
+
 
 @given(st.text(min_size=0, max_size=500))
 @settings(max_examples=300)
@@ -148,14 +171,20 @@ def test_detect_script_language_always_returns_valid(binned_module, script):
     assert result in ("bash", "python"), f"unexpected language: {result!r}"
 
 
-@pytest.mark.parametrize("shebang,expected", [
-    ("#!/usr/bin/env python3\n",           "python"),
-    ("#!/usr/bin/env python\n",            "python"),
-    ("#!/usr/bin/env -S uv run --script\n","bash"),   # uv shebang → bash unless import follows
-    ("#!/usr/bin/env bash\n",              "bash"),
-    ("#!/bin/bash\n",                      "bash"),
-    ("#!/bin/sh\n",                        "bash"),
-])
+@pytest.mark.parametrize(
+    "shebang,expected",
+    [
+        ("#!/usr/bin/env python3\n", "python"),
+        ("#!/usr/bin/env python\n", "python"),
+        (
+            "#!/usr/bin/env -S uv run --script\n",
+            "bash",
+        ),  # uv shebang → bash unless import follows
+        ("#!/usr/bin/env bash\n", "bash"),
+        ("#!/bin/bash\n", "bash"),
+        ("#!/bin/sh\n", "bash"),
+    ],
+)
 def test_detect_script_language_shebangs(binned_module, shebang, expected):
     assert binned_module.detect_script_language(shebang + "echo hello") == expected
 
@@ -168,6 +197,7 @@ def test_detect_script_language_python_by_imports(binned_module):
 # ── alias parsing regex ───────────────────────────────────────────────────────
 # These tests pin the contract of get_llm_aliases()'s line-level parser so any
 # future refactor that breaks colon-in-alias handling fails visibly.
+
 
 @given(
     alias=st.from_regex(r"[a-z][a-z0-9_.-]{0,30}", fullmatch=True),
@@ -231,16 +261,23 @@ def test_alias_parse_regex_no_match_without_padding(alias, model):
     assert m is None, f"regex matched a single-space separator: {line!r}"
 
 
-@pytest.mark.parametrize("line,exp_alias,exp_model", [
-    # Simple
-    ("4o                    : gpt-4o",         "4o",           "gpt-4o"),
-    # Colon in alias
-    ("qwen3.5:35b           : qwen3.5:35b-a3b", "qwen3.5:35b", "qwen3.5:35b-a3b"),
-    # Colon in both
-    ("olmo-3:32b            : olmo-3:32b-think", "olmo-3:32b",  "olmo-3:32b-think"),
-    # Namespaced model
-    ("gemini-2.5-pro        : gemini/gemini-2.5-pro", "gemini-2.5-pro", "gemini/gemini-2.5-pro"),
-])
+@pytest.mark.parametrize(
+    "line,exp_alias,exp_model",
+    [
+        # Simple
+        ("4o                    : gpt-4o", "4o", "gpt-4o"),
+        # Colon in alias
+        ("qwen3.5:35b           : qwen3.5:35b-a3b", "qwen3.5:35b", "qwen3.5:35b-a3b"),
+        # Colon in both
+        ("olmo-3:32b            : olmo-3:32b-think", "olmo-3:32b", "olmo-3:32b-think"),
+        # Namespaced model
+        (
+            "gemini-2.5-pro        : gemini/gemini-2.5-pro",
+            "gemini-2.5-pro",
+            "gemini/gemini-2.5-pro",
+        ),
+    ],
+)
 def test_alias_parse_known_cases(line, exp_alias, exp_model):
     m = _ALIAS_PARSE_RE.match(line)
     assert m is not None, f"regex did not match: {line!r}"
@@ -252,7 +289,8 @@ def test_alias_parse_known_cases(line, exp_alias, exp_model):
 
 _SAFE_NAME = st.from_regex(r"[a-z][a-z0-9-]{0,19}", fullmatch=True)
 _SAFE_TEXT = st.text(
-    min_size=0, max_size=300,
+    min_size=0,
+    max_size=300,
     alphabet=st.characters(blacklist_categories=("Cs",)),  # no surrogates
 )
 
@@ -292,8 +330,9 @@ def test_save_load_round_trip(binned_module, name, cmd, script, bats_content):
     pytest_content=_SAFE_TEXT,
 )
 @settings(max_examples=100)
-def test_save_load_multiple_test_files(binned_module, name, cmd, script,
-                                       bats_content, pytest_content):
+def test_save_load_multiple_test_files(
+    binned_module, name, cmd, script, bats_content, pytest_content
+):
     safe = name.replace("-", "_")
     tmpdir = tempfile.mkdtemp()
     original_pending = binned_module.PENDING_DIR
@@ -315,13 +354,20 @@ def test_save_load_multiple_test_files(binned_module, name, cmd, script,
 def test_load_pending_migrates_old_string_format(binned_module, tmp_path):
     """load_pending must convert the old 'tests': str format to 'test_files': dict."""
     import json
+
     original_pending = binned_module.PENDING_DIR
     binned_module.PENDING_DIR = tmp_path / ".binned" / "pending"
     binned_module.PENDING_DIR.mkdir(parents=True, exist_ok=True)
     try:
-        old_state = {"name": "old-script", "cmd": "echo hi", "script": "#!/bin/bash",
-                     "tests": "@test 'help' { run ./old-script --help; [ $status -eq 0 ]; }"}
-        (binned_module.PENDING_DIR / "old-script.json").write_text(json.dumps(old_state))
+        old_state = {
+            "name": "old-script",
+            "cmd": "echo hi",
+            "script": "#!/bin/bash",
+            "tests": "@test 'help' { run ./old-script --help; [ $status -eq 0 ]; }",
+        }
+        (binned_module.PENDING_DIR / "old-script.json").write_text(
+            json.dumps(old_state)
+        )
         loaded = binned_module.load_pending("old-script")
         assert loaded is not None
         assert "test_files" in loaded
@@ -364,6 +410,8 @@ def test_assess_language_parser_round_trips(lang, rewrite, reason):
             k, v = line.split(":", 1)
             fields[k.strip().upper()] = v.strip()
     assert fields.get("RECOMMENDATION", "").lower() == lang
-    assert (fields.get("REWRITE_SUGGESTED", "no").lower() == "yes") == (rewrite == "yes")
+    assert (fields.get("REWRITE_SUGGESTED", "no").lower() == "yes") == (
+        rewrite == "yes"
+    )
     # The parser calls .strip() on values, so the invariant is round-trip via strip().
     assert fields.get("REASON", "") == reason.strip()

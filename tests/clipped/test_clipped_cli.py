@@ -1,18 +1,20 @@
-"""
-CLI behaviour for clipped — the seventeen bats cases, ported to pytest.
+"""CLI behaviour for clipped — the seventeen bats cases, ported to pytest.
 
 The bats suite was written as a specification before the behaviour existed:
 auto mode, file arguments and the guidance messages were all described there and
 none of them were implemented. These now pass against the Python port.
 """
+
 from __future__ import annotations
 
 import pytest
 
+# pyrefly: ignore [missing-import]
 from clipped_harness import CLIPBOARD_CONTENT
 
 
 # ── help and version ──────────────────────────────────────────────────────────
+
 
 def test_help_documents_auto_mode(run_clipped):
     r = run_clipped("--help")
@@ -35,6 +37,7 @@ def test_version_prints_version_string(run_clipped):
 
 # ── paste ─────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.parametrize("cmd", ["paste", "p"])
 def test_paste_outputs_clipboard(run_clipped, cmd):
     r = run_clipped(cmd)
@@ -43,6 +46,7 @@ def test_paste_outputs_clipboard(run_clipped, cmd):
 
 
 # ── copy from stdin ───────────────────────────────────────────────────────────
+
 
 @pytest.mark.parametrize("cmd", ["copy", "c"])
 def test_copy_reads_stdin(run_clipped, captured, cmd):
@@ -60,6 +64,7 @@ def test_copy_without_stdin_fails_with_guidance(run_clipped_tty):
 
 
 # ── copy from files ───────────────────────────────────────────────────────────
+
 
 @pytest.mark.parametrize("cmd", ["copy", "c"])
 def test_copy_single_file(run_clipped, captured, clip_env, cmd):
@@ -95,6 +100,7 @@ def test_copy_directory_argument_fails_cleanly(run_clipped, clip_env):
 
 # ── auto mode ─────────────────────────────────────────────────────────────────
 
+
 def test_auto_mode_with_piped_stdin_copies(run_clipped, captured):
     r = run_clipped(stdin="auto copied")
     assert r.returncode == 0
@@ -108,6 +114,7 @@ def test_auto_mode_with_tty_pastes(run_clipped_tty):
 
 
 # ── error handling ────────────────────────────────────────────────────────────
+
 
 def test_unknown_command_exits_one_with_usage(run_clipped):
     r = run_clipped("wat")
@@ -124,9 +131,11 @@ def test_unknown_command_mentions_auto_behaviour(run_clipped):
 
 # ── binary safety ─────────────────────────────────────────────────────────────
 
+
 def test_copy_handles_non_utf8_bytes(run_clipped, captured, clip_env):
     """No bats equivalent. The clipboard carries bytes, so decoding on the way
-    through would fail on content that should have round-tripped."""
+    through would fail on content that should have round-tripped.
+    """
     f = clip_env / "latin1.txt"
     f.write_bytes(b"caf\xe9 latin-1")
     r = run_clipped("c", str(f))

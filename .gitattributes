@@ -1,1 +1,9 @@
+# Line endings are the repo's, not the machine's: matches core config
+# (5485b77: autocrlf=false, eol=lf, safecrlf=warn), enforced here because
+# core config does not travel between machines.
+* text=auto eol=lf
+
+# Merge drivers: a re-lock churns every URL; resolve lock conflicts by
+# regenerating, never by hand.
 uv.lock merge=binary
+tools/skill-trust/uv.lock merge=binary

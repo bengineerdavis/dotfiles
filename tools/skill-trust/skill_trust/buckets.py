@@ -26,7 +26,7 @@ import pathlib
 
 @dataclasses.dataclass(frozen=True)
 class ForeignBucket:
-    id: str     # the directory name under synced/ — the match key, never the alias
+    id: str  # the directory name under synced/ — the match key, never the alias
     alias: str  # display-only label; renaming it changes no rule
 
 
@@ -88,5 +88,4 @@ def find_buckets(root: pathlib.Path) -> list[ForeignBucket]:
             ids.append(bucket_id)
 
     aliases = deduce_aliases(ids)
-    return [ForeignBucket(id=bucket_id, alias=aliases[bucket_id])
-            for bucket_id in ids]
+    return [ForeignBucket(id=bucket_id, alias=aliases[bucket_id]) for bucket_id in ids]

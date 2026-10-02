@@ -31,8 +31,21 @@ def _run(env_pythonpath: str | None) -> subprocess.CompletedProcess:
     else:
         env["PYTHONPATH"] = env_pythonpath
     return subprocess.run(
-        [sys.executable, "-m", "pytest", "-q", "--tb=no", "-p", "no:cacheprovider", TARGET],
-        capture_output=True, text=True, cwd=str(REPO), env=env, timeout=180,
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-q",
+            "--tb=no",
+            "-p",
+            "no:cacheprovider",
+            TARGET,
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO),
+        env=env,
+        timeout=180,
     )
 
 
@@ -42,7 +55,9 @@ def _body(proc: subprocess.CompletedProcess) -> str:
 
 def test_missing_optional_dependency_skips_instead_of_erroring(tmp_path):
     """A stub PIL that raises on import stands in for an uninstalled Pillow."""
-    (tmp_path / "PIL.py").write_text('raise ImportError("PIL blocked by tests/suite")\n')
+    (tmp_path / "PIL.py").write_text(
+        'raise ImportError("PIL blocked by tests/suite")\n'
+    )
     proc = _run(str(tmp_path))
     out = _body(proc)
     # spec.md § Verification: assert the output is non-empty before grepping it

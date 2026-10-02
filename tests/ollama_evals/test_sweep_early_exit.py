@@ -1,5 +1,4 @@
-"""
-Contract tests for the sweep early-exit.
+"""Contract tests for the sweep early-exit.
 
 `ordered: true` means difficulty rises monotonically, so climbing stops at the
 first failure — that is what makes a ladder cheap. But it carries the same
@@ -30,8 +29,11 @@ CHECK = "assert response == 'ok', f'got {response!r}'"
 
 def _case(levels, ordered=True):
     return {
-        "name": "fake", "role": "r", "property": "p",
-        "prompt": "q", "check": CHECK,
+        "name": "fake",
+        "role": "r",
+        "property": "p",
+        "prompt": "q",
+        "check": CHECK,
         "sweep": {"ordered": ordered, "levels": levels},
     }
 
@@ -39,6 +41,7 @@ def _case(levels, ordered=True):
 @pytest.fixture
 def scripted(ev, monkeypatch):
     """Replace generate() with a canned answer per rung label."""
+
     def install(by_label: dict[str, str]):
         calls: list[str] = []
 
@@ -49,11 +52,15 @@ def scripted(ev, monkeypatch):
 
         monkeypatch.setattr(ev, "generate", fake)
         return calls
+
     return install
 
 
-LEVELS = [{"label": "a", "prompt": "a"}, {"label": "b", "prompt": "b"},
-          {"label": "c", "prompt": "c"}]
+LEVELS = [
+    {"label": "a", "prompt": "a"},
+    {"label": "b", "prompt": "b"},
+    {"label": "c", "prompt": "c"},
+]
 
 
 def test_climbs_past_a_rung_that_passed(ev, scripted):

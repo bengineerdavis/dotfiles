@@ -21,6 +21,7 @@ SCRIPT = REPO / "dotfiles" / "apps" / "ollama" / "files" / "executable_ollama-ev
 def ev():
     loader = importlib.machinery.SourceFileLoader("ollama_evals", str(SCRIPT))
     spec = importlib.util.spec_from_loader("ollama_evals", loader)
+    # pyrefly: ignore [bad-argument-type]
     mod = importlib.util.module_from_spec(spec)
     try:
         loader.exec_module(mod)

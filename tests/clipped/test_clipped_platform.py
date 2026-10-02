@@ -1,5 +1,4 @@
-"""
-Platform dispatch for clipped.
+"""Platform dispatch for clipped.
 
 This is the part the port was for. In bash the backend choice was three nested
 layers of `case` and `command -v`, duplicated for copy and paste, and it could
@@ -8,6 +7,7 @@ in practice only the host's own platform was ever tested. Here the mapping and
 the selection are functions, and every platform's preference order is checked on
 any machine.
 """
+
 from __future__ import annotations
 
 import importlib.machinery
@@ -35,7 +35,7 @@ def clipped():
     [
         ("Darwin", "Darwin"),
         ("Linux", "Linux"),
-        ("FreeBSD", "Linux"),      # BSDs share the X11/Wayland tooling
+        ("FreeBSD", "Linux"),  # BSDs share the X11/Wayland tooling
         ("OpenBSD", "Linux"),
         ("NetBSD", "Linux"),
         ("CYGWIN_NT-10.0", "Windows"),
@@ -67,11 +67,11 @@ def test_linux_prefers_xclip_when_everything_is_present(clipped, monkeypatch):
 @pytest.mark.parametrize(
     ("available", "expected_copy", "expected_paste"),
     [
-        ({"xclip"},   "xclip",   "xclip"),
-        ({"xsel"},    "xsel",    "xsel"),
+        ({"xclip"}, "xclip", "xclip"),
+        ({"xsel"}, "xsel", "xsel"),
         ({"wl-copy", "wl-paste"}, "wl-copy", "wl-paste"),
         # Homebrew-on-Linux case: only the macOS tools are present.
-        ({"pbcopy", "pbpaste"},   "pbcopy", "pbpaste"),
+        ({"pbcopy", "pbpaste"}, "pbcopy", "pbpaste"),
         # Preference order holds when several are installed at once.
         ({"xsel", "wl-copy", "wl-paste", "pbcopy", "pbpaste"}, "xsel", "xsel"),
     ],
@@ -80,7 +80,9 @@ def test_linux_falls_through_preference_order(
     clipped, monkeypatch, available, expected_copy, expected_paste
 ):
     monkeypatch.setattr(
-        clipped.shutil, "which", lambda name: f"/usr/bin/{name}" if name in available else None
+        clipped.shutil,
+        "which",
+        lambda name: f"/usr/bin/{name}" if name in available else None,
     )
     assert clipped.find_backend("copy", "Linux")[0] == expected_copy
     assert clipped.find_backend("paste", "Linux")[0] == expected_paste
