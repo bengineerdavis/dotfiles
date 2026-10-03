@@ -253,8 +253,8 @@ nothing is.
   workspace and runtime choices. Next evidence needed: a low-configuration
   Sandcastle/container walkthrough against the native-wrapper baseline.
 
-  Report: `.worktrees/agent_components_containers/.claude/RESEARCH-modular-agent-runtime.md`
-  (local, uncommitted). The research agent mapped local prior work, verified
+  Report: `.claude/RESEARCH-modular-agent-runtime.md` (committed on `main`
+  2026-10-03). The research agent mapped local prior work, verified
   queue/runtime interfaces, and ran macOS synthetic probes. Coordinator review
   reproduced SRT 0.0.77's false-success signal exit and mise 2026.9.12's failed
   host-network exception, alongside successful filesystem restrictions.
@@ -264,12 +264,13 @@ nothing is.
   and resume/retention ownership. The completed research unit is archived in
   `TASKS-RESOLVED.md`; implementation remains a separate decision.
 
-  **Pickup:** `.worktrees/agent_components_containers/.claude/HANDOFF-modular-agent-runtime.md`
-  on branch `agent_components_containers`. The initial research and coordinator review
+  **Pickup:** `.claude/HANDOFF-modular-agent-runtime.md`, committed on `main`.
+  The initial research and coordinator review
   are complete; no research agent remains running. The author clarified that
   low-configuration non-root containers are primary options. Next: compare
   Sandcastle's shipped container setup, workmux's container workflow and a
-  native wrapper. The handoff and sibling report are local, uncommitted files.
+  native wrapper. The handoff and sibling report are committed under
+  `.claude/` on `main`.
   They retain the latest requirements and evidence where this queue's older
   research text differs.
 
@@ -3534,8 +3535,8 @@ makes that expensive.
 **Host attribution needs confirmation (2026-09-24).** The Linux-specific
 measurements below do not establish capabilities on the current macOS host.
 The September 24 comparison measured macOS only; Debian verification remains
-open. Its local report is
-`.worktrees/agent_components_containers/.claude/RESEARCH-modular-agent-runtime.md`.
+open. Its report is committed at `.claude/RESEARCH-modular-agent-runtime.md`
+on `main`.
 
 - **This box supports unprivileged bubblewrap.** `bwrap`, `podman`, `docker`,
   `systemd-run`, `unshare` and `qemu-system-x86_64` are all on `PATH`;
