@@ -3363,6 +3363,18 @@ author rather than the machine.
   merge-tree in every order, combined suite) is a separate, later requirement
   for the merge-gate checker above.
 
+- **Root-cause the tests/policy cwd-sensitivity.** The full suite fails
+  tests/policy 19 times when pytest runs from any cwd under
+  `~/.local/share/chezmoi` (a mise error naming an R toolchain appears in
+  the captured stderr), and the identical suite passes — 33 passed, 5
+  skipped — from `~/code/...`. Reproduced on `main` without any in-flight
+  diff on 2026-10-03. Until root-caused, full-suite runs from the main
+  checkout are not usable as merge-gate evidence; run gate suites from a
+  neutral cwd. Done when the mechanism is identified (mise config
+  discovery, env inheritance, or a fixture's PATH construction) and the
+  suite passes from both cwds or the limitation is documented in
+  AGENTS.md § Commands. [unclaimed]
+
 ## History was rewritten on 2026-08-21 — reset before you resume
 
 `main` was force-pushed. Every SHA from `bc72f5c` onward is new. Two mixed

@@ -476,3 +476,17 @@ deleted.
   AGENTS.md treats "docs" and "deployed-tree" as separable, and for that
   subtree they are not.
 
+  Second observation, recorded 2026-10-03 by the building session: the full
+  suite run from any cwd under `~/.local/share/chezmoi` fails tests/policy
+  19 times with a mise error naming an R toolchain; the identical suite
+  passes (33 passed, 5 skipped) from a neutral cwd (`~/code/...`), and the
+  identical failure set reproduces on `main` without this diff. The suite
+  is cwd-sensitive, so full-suite results from the main checkout cannot be
+  trusted as gate evidence until this is root-caused.
+
+  Process note: commits 9cd0940 and 9181346 were landed in this worktree by
+  a second session while the building session was verifying — a
+  one-writer-per-worktree violation (docs/WORKTREES.md), reported by the
+  author 2026-10-03. The building session verified both commits' content
+  before merging: file sets correct, resolved entry accurate.
+
