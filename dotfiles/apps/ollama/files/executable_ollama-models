@@ -841,7 +841,8 @@ def family_block(lines: list[str], family: str) -> tuple[int, int] | None:
     top = next((i for i, ln in enumerate(lines) if ln.startswith("ollama_models:")), None)
     if top is None:
         return None
-    head = re.compile(r"^  " + re.escape(family) + r":\s*($|#)")
+    key = _yaml_safe_key(family)
+    head = re.compile(r"^  " + re.escape(key) + r":\s*($|#)")
     start = next((i for i in range(top + 1, len(lines)) if head.match(lines[i])), None)
     if start is None:
         return None
@@ -874,6 +875,19 @@ def retag_plan(members, family: str, new_family: str) -> list[tuple[str, str]]:
     return pairs
 
 
+def _yaml_safe_key(name: str) -> str:
+    """Quote a family name when bare YAML 1.1 would misparse it as a boolean
+    or null (`no`, `yes`, `on`, `off`, `true`, `false`, `null`, `y`, `n`) or
+    as a number, so a key written bare would not read back as the same name."""
+    lowered = name.lower()
+    booleans = {"y", "yes", "n", "no", "true", "false", "on", "off",
+                "null", "none", "~"}
+    if lowered in booleans or re.fullmatch(
+            r"[+-]?\d+(\.\d+)?([eE][+-]?\d+)?", name):
+        return f'"{name}"'
+    return name
+
+
 def rewrite_family(text: str, family: str, new_family: str,
                    pairs: list[tuple[str, str]]) -> str:
     """Return `text` with the family key and its member tags renamed in place."""
@@ -894,8 +908,9 @@ def rewrite_family(text: str, family: str, new_family: str,
             # oracle in verify_rewrite(), and trading the strongest integrity
             # check for a column of whitespace is the wrong way round. Realign
             # by hand in the same edit if it matters.
-            code = re.sub(r"^(\s*)" + re.escape(family) + r":",
-                          lambda m: m.group(1) + new_family + ":", code)
+            key = _yaml_safe_key(family)
+            code = re.sub(r"^(\s*)" + re.escape(key) + r":",
+                          lambda m: m.group(1) + _yaml_safe_key(new_family) + ":", code)
         for old, new in pairs:
             # `:` and `-` are in the boundary class, so `qwen3.6:27b-mlx`
             # cannot match inside `qwen3.6:27b-mlx-bf16`.
@@ -976,7 +991,14 @@ def verify_rewrite(before: str, after: str, family: str, new_family: str,
         code_a, com_a = split_code_comment(la)
         if com_b != com_a:
             problems.append(f"line {n}: inline comment changed")
-        if code_b.replace(family, new_family) != code_a:
+        # Two notations, both legitimate retag output: tag strings live inside
+        # existing quotes, so they carry the bare name; the family KEY line
+        # carries the quoted form when the bare name would misparse (§
+        # _yaml_safe_key). The oracle accepts either form per line — anything
+        # the retag did not write still matches neither and is refused.
+        forms = {code_b.replace(family, new_family),
+                 code_b.replace(family, _yaml_safe_key(new_family))}
+        if code_a not in forms:
             problems.append(f"line {n}: changed by something other than the retag")
 
     try:
