@@ -69,12 +69,6 @@ A stale claim is not a lock. If a line looks abandoned, check `git log -3` on th
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
 
-- 2026-09-24T00:25Z — skill-trust foreign buckets (branch
-  `skill-trust-foreign-buckets`, worktree
-  `~/code/wt-skill-trust-foreign-buckets`) — `tools/skill-trust/**`,
-  `dotfiles/apps/opencode/**`, `dotfiles/roles/guards/**`
-
-
 ## Where things stand — 2026-09-23 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of

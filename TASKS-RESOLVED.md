@@ -447,3 +447,15 @@ deleted.
   be re-landed as #15; the author replaced the warning with the rule. Landed
   as PR #23 (`7b855cd`) in `docs/WORKTREES.md` § Bucketing step 6 and
   AGENTS.md § Branches and integration.
+
+## 2026-10-03
+
+- **Open a review PR for the ollama manifest-scope work on
+  `feat/ollama-manifest-scope`.** [agent: housekeeping / opencode] Rebased
+  onto main (was 273 commits behind) and landed as PR #41 with three commits:
+  c8cdc7c the comment-preserving manifest editor, 4f681da the gated `adopt`
+  command, fb2d96b a YAML 1.1 fix the property tests caught (bare keys like
+  `no` parse as booleans; `_yaml_safe_key` quotes them). ollama_models 74/74
+  green, full suite 946 passed / 6 skipped. PR #41 awaits human review — the
+  diff touches a deployed-tree file.
+
