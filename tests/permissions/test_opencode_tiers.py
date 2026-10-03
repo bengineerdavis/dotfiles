@@ -144,3 +144,21 @@ def test_every_block_starts_with_a_catch_all_ask(config):
     for name, rules in _blocks(config).items():
         first = next(iter(rules.items()))
         assert first == ("*", "ask"), f"{name} starts with {first}"
+
+
+def test_lsp_pins_the_python_servers(config):
+    """The lsp section wires exactly what was decided: pyrefly's type server,
+    ruff's lint/format server, pyright explicitly off (the pyrefly-only
+    decision made deterministic). A server added or dropped here changes
+    what diagnostics an agent sees, so it is pinned.
+    """
+    lsp = config["lsp"]
+    assert lsp["pyrefly"] == {
+        "command": ["pyrefly", "lsp"],
+        "extensions": [".py", ".pyi"],
+    }
+    assert lsp["ruff"] == {
+        "command": ["ruff", "server"],
+        "extensions": [".py", ".pyi"],
+    }
+    assert lsp["pyright"] == {"disabled": True}

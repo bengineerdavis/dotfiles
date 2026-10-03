@@ -13,12 +13,16 @@
   "$schema": "https://opencode.ai/config.json",
 
   // Language servers feed diagnostics to the agent. pyrefly is the house
-  // typechecker ([tool.pyrefly] in pyproject.toml); pyright is explicitly
+  // typechecker ([tool.pyrefly] in pyproject.toml); ruff adds lint and
+  // format diagnostics from the same rules the pre-commit hooks enforce,
+  // so the agent sees violations before committing. pyright is explicitly
   // disabled - the pyrefly-only decision, made deterministic. Built-ins
   // stay enabled where their requirements are met (bash auto-installs its
   // server; pyright would need the pyright package, which is absent).
+  // Both servers are mise-managed and resolve from PATH at spawn.
   "lsp": {
     "pyrefly": { "command": ["pyrefly", "lsp"], "extensions": [".py", ".pyi"] },
+    "ruff": { "command": ["ruff", "server"], "extensions": [".py", ".pyi"] },
     "pyright": { "disabled": true }
   },
 
