@@ -948,6 +948,16 @@ nothing is.
   the chosen servers are configured in the chosen location, an opencode
   session on this repo shows Python and Bash server feedback, and the
   download policy is recorded. [me]
+
+  Update 2026-10-03: part of this is done. Python's servers are wired in
+  the repo-scoped `opencode.jsonc` — pyrefly in ba0bb90, ruff added the
+  same day ("add ruff lsp to this project", author-directed), pyright
+  disabled, pinned by
+  `tests/permissions/test_opencode_tiers.py::test_lsp_pins_the_python_servers`.
+  The global-vs-repo home decision, the ty-vs-pyrefly global call (this
+  repo has effectively chosen pyrefly), the bash/yaml server wiring and
+  the download policy are still this task's. The stale 2026-09-15
+  verification above no longer holds.
 - **Create the first llocallabs.ai repository — the collection that will
   consolidate the author's AI tooling and agent projects.** The milestone
   (2026-09-14): AI research, testing and benchmarking move out of this

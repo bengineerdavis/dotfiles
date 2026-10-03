@@ -28,18 +28,21 @@ open.
 
 | Language | Formatter | Linter | Typecheck | Test | LSP |
 |---|---|---|---|---|---|
-| Python | ruff (enforced on commit) | ruff (enforced on commit) | pyrefly 1.3.2 (enforced on commit) | pytest + hypothesis; xdoctest (queued) | pyrefly (editor wiring queued) |
+| Python | ruff (enforced on commit) | ruff (enforced on commit) | pyrefly 1.3.2 (enforced on commit) | pytest + hypothesis; xdoctest (queued) | pyrefly + ruff (wired in the repo `opencode.jsonc`) |
 | bash | — | shellcheck | — | bats | bash-language-server (TBD) |
 | zsh | — | shellcheck (bash standard, interim) | — | — | — |
 | YAML / Ansible | — | — | — | molecule (queued) | yaml-ls (TBD) |
 
 Notes:
 
-- **LSP is undecided by design.** Which server, and whether the profile lives in
-  the chezmoi global template (all projects) or a per-repo `opencode.jsonc`, is
-  the open question owned by the queued "Configure opencode LSP profiles" task in
-  `TASKS.md`. This file records the candidates; it does not wire them. Until that
-  task lands, opencode has no `lsp` section and LSP is off.
+- **Python's LSP servers are wired for this repo, not globally.** The
+  repo-scoped `opencode.jsonc` runs pyrefly's type server and ruff's
+  lint/format server, and disables pyright (the pyrefly-only decision,
+  made deterministic); `tests/permissions/test_opencode_tiers.py` pins
+  the section. Whether a global profile belongs in the chezmoi template —
+  all projects — is still the open question owned by the queued "Configure
+  opencode LSP profiles" task in `TASKS.md`. opencode loads config at
+  startup, so wiring takes effect on restart.
 - **ruff and pyrefly enforce on commit** (ruff-check, ruff-format and
   pyrefly-check hooks). The doc-line rules ruff selects carry per-path
   grandfathers while the docstring campaign runs; pyrefly carries a 69-comment
@@ -55,4 +58,5 @@ Notes:
   standard is kept, adapted, or replaced.
 - **This table is a tracking doc, not config.** Promoting a row into global or
   per-project config is a per-entry decision made when a tool is actually wired.
-  The LSP row is the first candidate, and its home is the queued task's to settle.
+  Python's LSP row is the one wired so far (this repo); the global home for a
+  profile is the queued task's to settle.
