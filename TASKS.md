@@ -69,10 +69,6 @@ A stale claim is not a lock. If a line looks abandoned, check `git log -3` on th
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
 
-- 2026-10-03T00:00Z — BK1 research-report move into `dotfiles/docs/research/`
-  and its TASKS.md citation update (branch `agent/backup-move`, worktree
-  `.worktrees/backup-move`) — `TASKS.md`, `dotfiles/docs/research/`
-
 ## Where things stand — 2026-09-23 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
@@ -496,7 +492,7 @@ nothing is.
   recorded. G2 receives the ownership/retention contract; BK2–BK4 receive
   the chosen host, install and credential design.
   Research report prepared at
-  `.worktrees/gita-plan_sub_bk1/dotfiles/docs/BACKUP-RESEARCH.md`; no target
+  `dotfiles/docs/research/backup-host-selection.md`; no target
   install, account or backup was exercised. Awaiting author decisions on the
   remote host, retention/cadence, recovery-key access and whether a personal
   macOS install path is needed; work 1Password automation remains subject to
