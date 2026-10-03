@@ -492,7 +492,7 @@ nothing is.
   recorded. G2 receives the ownership/retention contract; BK2–BK4 receive
   the chosen host, install and credential design.
   Research report prepared at
-  `.worktrees/gita-plan_sub_bk1/dotfiles/docs/BACKUP-RESEARCH.md`; no target
+  `dotfiles/docs/research/backup-host-selection.md`; no target
   install, account or backup was exercised. Awaiting author decisions on the
   remote host, retention/cadence, recovery-key access and whether a personal
   macOS install path is needed; work 1Password automation remains subject to
