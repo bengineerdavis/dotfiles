@@ -69,7 +69,9 @@ A stale claim is not a lock. If a line looks abandoned, check `git log -3` on th
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
 
-(empty)
+- 2026-10-03T00:00Z — root-cause tests/policy cwd-sensitivity
+  (branch `agent/policy_cwd`, worktree `.worktrees/policy-cwd`) —
+  `tests/policy/`, `AGENTS.md` § Commands
 
 ## Where things stand — 2026-09-23 (the session handoff)
 
