@@ -69,10 +69,9 @@ A stale claim is not a lock. If a line looks abandoned, check `git log -3` on th
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
 
-- 2026-09-24T00:25Z — skill-trust foreign buckets (branch
-  `skill-trust-foreign-buckets`, worktree
-  `~/code/wt-skill-trust-foreign-buckets`) — `tools/skill-trust/**`,
-  `dotfiles/apps/opencode/**`, `dotfiles/roles/guards/**`
+- 2026-10-02T00:00Z — housekeeping: stale-claim deletion, merged worktree
+  cleanup, gita sub-branch pruning, ollama-manifest PR (branch `agent/housekeeping`,
+  worktree `.worktrees/housekeeping`) — `TASKS.md`
 
 
 ## Where things stand — 2026-09-23 (the session handoff)
@@ -1739,6 +1738,15 @@ nothing is.
     one human reviewer, so split hardest where a wrong merge cannot be undone
     (policy, deployed files) and loosest where it can (docs, TASKS.md); apply
     to new buckets only, never rewrite merged history.
+
+- **Open a review PR for the ollama manifest-scope work on
+  `feat/ollama-manifest-scope`.** The branch (worktree `~/code/work/sentry/wt-manifest`)
+  carries two commits: a comment-preserving editor for the model manifest and an
+  `adopt` command gated by a manifest update scope, with tests. It sits 273 commits
+  behind main and touches a deployed-tree file, so it needs a rebase, a green
+  ollama_models suite, a push and a PR for human review. Done when the PR is open
+  against main with a description naming what was verified and why it needs review.
+  [agent: housekeeping / opencode]
 
 ## Planned
 
