@@ -458,4 +458,35 @@ deleted.
   `no` parse as booleans; `_yaml_safe_key` quotes them). ollama_models 74/74
   green, full suite 946 passed / 6 skipped. PR #41 awaits human review — the
   diff touches a deployed-tree file.
+- **Build a machine-assisted merge-gate checker.** [agent: opencode] Landed
+  as `scripts/check_merge_gates.py` (commits 220be02 claim, abb35bd stale
+  citation fixes, 9cd0940 the script plus tests/merge_gates). Advisory-only
+  per the author's 2026-10-03 decision; deliberately not a git hook.
+  Deployed bucket reads real `chezmoi managed`; policy enumeration confirmed
+  by inspection: `bin/executable_policy` (deployed+policy), `.claude/
+  settings.json`, `opencode.jsonc` (deploy-ignored),
+  `dot_config/opencode/opencode.jsonc.tmpl` (deployed+policy), glob
+  `dotfiles/policy/*`; egress stays a printed reminder. Two mutations were
+  each caught (policy never fires → 8 red; degraded fail-closed claims
+  docs-only → 2 red). Real-run verification classified PR #41's branch
+  diff correctly (README deployed+docs, role files deployed, tests other,
+  verdict PR) and surfaced this observation: **dotfiles/docs/** is
+  chezmoi-managed (16 paths as of 2026-10-03), so a "docs-only" diff inside
+  dotfiles/docs is also a deployed-tree diff — the merge-gate prose in
+  AGENTS.md treats "docs" and "deployed-tree" as separable, and for that
+  subtree they are not.
+
+  Second observation, recorded 2026-10-03 by the building session: the full
+  suite run from any cwd under `~/.local/share/chezmoi` fails tests/policy
+  19 times with a mise error naming an R toolchain; the identical suite
+  passes (33 passed, 5 skipped) from a neutral cwd (`~/code/...`), and the
+  identical failure set reproduces on `main` without this diff. The suite
+  is cwd-sensitive, so full-suite results from the main checkout cannot be
+  trusted as gate evidence until this is root-caused.
+
+  Process note: commits 9cd0940 and 9181346 were landed in this worktree by
+  a second session while the building session was verifying — a
+  one-writer-per-worktree violation (docs/WORKTREES.md), reported by the
+  author 2026-10-03. The building session verified both commits' content
+  before merging: file sets correct, resolved entry accurate.
 

@@ -69,6 +69,8 @@ A stale claim is not a lock. If a line looks abandoned, check `git log -3` on th
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
 
+(empty)
+
 ## Where things stand — 2026-09-23 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
@@ -249,8 +251,8 @@ nothing is.
   workspace and runtime choices. Next evidence needed: a low-configuration
   Sandcastle/container walkthrough against the native-wrapper baseline.
 
-  Report: `.worktrees/agent_components_containers/.claude/RESEARCH-modular-agent-runtime.md`
-  (local, uncommitted). The research agent mapped local prior work, verified
+  Report: `.claude/RESEARCH-modular-agent-runtime.md` (committed on `main`
+  2026-10-03). The research agent mapped local prior work, verified
   queue/runtime interfaces, and ran macOS synthetic probes. Coordinator review
   reproduced SRT 0.0.77's false-success signal exit and mise 2026.9.12's failed
   host-network exception, alongside successful filesystem restrictions.
@@ -260,12 +262,13 @@ nothing is.
   and resume/retention ownership. The completed research unit is archived in
   `TASKS-RESOLVED.md`; implementation remains a separate decision.
 
-  **Pickup:** `.worktrees/agent_components_containers/.claude/HANDOFF-modular-agent-runtime.md`
-  on branch `agent_components_containers`. The initial research and coordinator review
+  **Pickup:** `.claude/HANDOFF-modular-agent-runtime.md`, committed on `main`.
+  The initial research and coordinator review
   are complete; no research agent remains running. The author clarified that
   low-configuration non-root containers are primary options. Next: compare
   Sandcastle's shipped container setup, workmux's container workflow and a
-  native wrapper. The handoff and sibling report are local, uncommitted files.
+  native wrapper. The handoff and sibling report are committed under
+  `.claude/` on `main`.
   They retain the latest requirements and evidence where this queue's older
   research text differs.
 
@@ -315,106 +318,6 @@ nothing is.
   Author, 2026-09-28: continue, with a scoped style cleanup first. Both now
   run in worktree `restart_stale_style`; the old `wt-restart` worktree and
   branch `review/topic-restart-stale` are retired.
-
-- **Build a machine-assisted merge-gate checker — turn the diff-derived
-  design in `AGENTS.md` § Merge gates (2026-09-22, fusion council) into a
-  real, runnable tool instead of prose a human or agent applies by
-  judgment.** [handoff, unclaimed — written 2026-09-22 for a fresh session
-  to pick up cold; no prior conversation context needed to execute this]
-
-  **Where things stand today, verified by direct inspection, not memory:**
-  nothing computes this automatically. `.pre-commit-config.yaml` has
-  exactly three hooks (shellcheck, bats-on-staged-scripts,
-  commit-proportionality) and none of them know about diff buckets. The
-  gate design exists only as prose in `AGENTS.md`. Two scripts already
-  establish the house pattern to follow: `scripts/run-bats.sh` computes
-  `git diff --cached --name-only --diff-filter=ACM` and acts only on what
-  changed; `scripts/check_commit_proportionality.py` is a small,
-  stdlib-only Python script wired into prek as a `local` hook, exiting
-  nonzero on failure. Model the new script on both — this is
-  configuration-and-scripting for this repo's own governance, not a
-  bespoke external tool, so it belongs here per the AGENTS.md build ladder,
-  same as those two.
-
-  **(a) The classifier — mostly solved already, verified 2026-09-22.**
-  Compute the diff (`git diff --name-only <merge-base>..HEAD` or against
-  `--cached` depending on when it's invoked — decide which per (d) below)
-  and sort every changed path into exactly one of three buckets:
-  - **deployed-tree**: **fully mechanical, zero judgment call needed.**
-    `chezmoi managed --path-style=source-relative` prints every
-    `.chezmoiignore`-aware deployed source path (verified: it correctly
-    excludes `AGENTS.md` and includes `bin/executable_policy`,
-    `dotfiles/policy/*.yaml`). A changed path is deployed-tree if and only
-    if it appears in that list. No enumeration to maintain by hand.
-  - **policy**: not yet enumerated anywhere — this is the one real gap.
-    Strong candidates, found by inspection: `bin/executable_policy`,
-    `dotfiles/policy/**` (currently `ethics.yaml`, `personal.yaml`), and
-    `.claude/settings.json` (confirmed repo-native, **not**
-    chezmoi-managed — it lands in this bucket for being policy, not for
-    being deployed, a different reason than the bucket above). Confirm
-    this list is complete before shipping v1; it's a short, low-risk
-    enumeration task, not a deep research question.
-  - **egress**: genuinely unsolved and likely stays a judgment call — it's
-    about what a change *enables at runtime* (a new network call, a new
-    `curl`/`llm`/`ollama` invocation site), not a file-path pattern a diff
-    can mechanically reveal. Don't force a mechanical answer here; a
-    self-reported flag the agent sets, checked against nothing, is more
-    honest than a false sense of automation.
-  - **docs**: everything else that's markdown/comments/non-executable
-    metadata — this bucket needs its own small, editable pattern list
-    (e.g. `*.md`, `docs/**`) since "non-executable metadata" is currently
-    only prose too.
-  - Anything not caught by the three special buckets falls through to
-    **"everything else"** — the existing full gate, unchanged.
-
-  **(b) The check runner.** Given a bucket, either just *report* which
-  gates apply (advisory) or actually *run* them and report pass/fail
-  (enforcing) — see (c). Machine-readable output matters here specifically
-  because an agent, not just a human, consumes it: exit code +
-  `file:line`-shaped findings + one JSON artifact, same shape already
-  queued in the shift-left study's "machine-shaped gate outputs" task
-  (§ Now, "Machine-shaped gate outputs, and a skip census instead of
-  coverage %" — cross-reference it, don't re-derive the format).
-  If that task's `pytest-json-report` wiring lands first, this script
-  should *consume* that JSON rather than re-parsing pytest's text output.
-
-  **(c) Enforce or advise — an open sub-decision, not mine to make
-  silently.** Recommendation: **start advisory-only.** Three independent
-  reasons converged on this same session: the two-track trust model
-  (`AGENTS.md`, LEDGER item) says a new deterministic mechanism earns
-  trust through a seen-to-fail entry gate plus a streak, not by starting
-  maximal; the author's own stated principle is "start with least
-  privilege... once we can repeat a defined success condition, then we
-  improve" — this script hasn't repeated anything yet; and the exact same
-  gate-vs-report question is already open and deliberately unresolved for
-  `ty` (§ Now, "Install `ty` and typecheck") — treat both consistently
-  rather than deciding this one differently by accident. Tighten to
-  enforcing only after it's been run for real for a while and shown
-  correct.
-
-  **(d) Wiring point — deliberately NOT a blocking git hook.** This
-  session's own pytest-plugin research found the concrete failure mode: a
-  200s pre-push hook gets bypassed by habit within a week, and
-  `--no-verify` silently kills whatever else shares that stage — "a gate
-  you must bypass to work is a gate you've lost." Self-merging is a
-  deliberate act here (there's no server-side CI to enforce anything
-  regardless), so the natural integration point is a script the agent (or
-  human) *chooses* to run as part of its own "am I allowed to self-merge"
-  reasoning per § Merge gates — not an automatic hook that blocks
-  `git merge` itself. Once the LEDGER (§ Planned, "Build the LEDGER for the
-  trust ladder" — not yet built) exists, this
-  script is the natural thing that *writes* a ledger line — producer and
-  consumer, designed together rather than bolted on later.
-
-  **Done when:** the classifier correctly sorts a deliberately-constructed
-  three-file diff (one docs, one policy, one code) into the right buckets,
-  verified by direct inspection not assertion; the deployed-tree bucket is
-  proven against a real `chezmoi managed` diff, not a hand-written list;
-  the policy-path list is confirmed complete or corrected; the
-  enforce/advise call is made explicit in the script's own help text, not
-  left implicit; and running it against a real recent commit in this repo
-  produces output an agent could act on without a human translating it.
-  [unclaimed]
 
 - **Repo-manager research: find or compose the repository-fleet manager, then
   decide Path A (Ansible now + upstream contributions until the tool absorbs
@@ -3460,6 +3363,18 @@ author rather than the machine.
   merge-tree in every order, combined suite) is a separate, later requirement
   for the merge-gate checker above.
 
+- **Root-cause the tests/policy cwd-sensitivity.** The full suite fails
+  tests/policy 19 times when pytest runs from any cwd under
+  `~/.local/share/chezmoi` (a mise error naming an R toolchain appears in
+  the captured stderr), and the identical suite passes — 33 passed, 5
+  skipped — from `~/code/...`. Reproduced on `main` without any in-flight
+  diff on 2026-10-03. Until root-caused, full-suite runs from the main
+  checkout are not usable as merge-gate evidence; run gate suites from a
+  neutral cwd. Done when the mechanism is identified (mise config
+  discovery, env inheritance, or a fixture's PATH construction) and the
+  suite passes from both cwds or the limitation is documented in
+  AGENTS.md § Commands. [unclaimed]
+
 ## History was rewritten on 2026-08-21 — reset before you resume
 
 `main` was force-pushed. Every SHA from `bc72f5c` onward is new. Two mixed
@@ -3530,8 +3445,8 @@ makes that expensive.
 **Host attribution needs confirmation (2026-09-24).** The Linux-specific
 measurements below do not establish capabilities on the current macOS host.
 The September 24 comparison measured macOS only; Debian verification remains
-open. Its local report is
-`.worktrees/agent_components_containers/.claude/RESEARCH-modular-agent-runtime.md`.
+open. Its report is committed at `.claude/RESEARCH-modular-agent-runtime.md`
+on `main`.
 
 - **This box supports unprivileged bubblewrap.** `bwrap`, `podman`, `docker`,
   `systemd-run`, `unshare` and `qemu-system-x86_64` are all on `PATH`;
