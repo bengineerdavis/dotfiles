@@ -475,6 +475,19 @@ deleted.
   dotfiles/docs is also a deployed-tree diff — the merge-gate prose in
   AGENTS.md treats "docs" and "deployed-tree" as separable, and for that
   subtree they are not.
+- **Wire ruff's LSP into the repo-scoped opencode.jsonc, beside pyrefly.**
+  [agent: opencode, author-directed] Landed in three commits (9ee9b41 task
+  + claim, f12188f the wiring + pin, 59057cb stale-claim refresh): the
+  `lsp` section gains `"ruff": { "command": ["ruff", "server"],
+  "extensions": [".py", ".pyi"] }`, pinned by
+  `tests/permissions/test_opencode_tiers.py::test_lsp_pins_the_python_servers`.
+  Verified: JSONC parses; a full initialize/initialized handshake against
+  `ruff server` returns capabilities (quickfix, fixAll.ruff,
+  organizeImports). Mutation: ruff entry deleted → the pin test failed
+  alone, 1 failed / 47 passed; restored green, 48 passed. docs/LANGUAGES.md
+  and the queued opencode-LSP task no longer claim LSP is unwired; the
+  global-vs-repo home decision and bash/yaml servers stay with the queued
+  task. Takes effect on opencode restart.
 
   Second observation, recorded 2026-10-03 by the building session: the full
   suite run from any cwd under `~/.local/share/chezmoi` fails tests/policy
