@@ -69,7 +69,11 @@ A stale claim is not a lock. If a line looks abandoned, check `git log -3` on th
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
 
-(empty)
+- 2026-10-03T19:20Z — ruff LSP wiring in the repo-scoped opencode.jsonc,
+  plus the stale LSP claims in docs/LANGUAGES.md and the queued
+  opencode-LSP task (branch `agent/ruff_lsp`, worktree
+  `.worktrees/ruff-lsp`) — `TASKS.md`, `opencode.jsonc`, `docs/LANGUAGES.md`,
+  `tests/permissions/`
 
 ## Where things stand — 2026-09-23 (the session handoff)
 
@@ -224,6 +228,21 @@ reversed earlier positions on purpose.
 
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
+
+- **Wire ruff's LSP into the repo-scoped opencode.jsonc, beside pyrefly.**
+  Author-directed 2026-10-03 ("add ruff lsp to this project"); this pulls
+  the ruff piece of the queued "Configure opencode LSP profiles" task
+  forward. The pattern exists: `opencode.jsonc` already runs pyrefly's
+  server and disables pyright. This adds `"ruff": { "command": ["ruff",
+  "server"], "extensions": [".py", ".pyi"] }` to the same `lsp` object —
+  ruff is mise-managed, so no server download is involved and the
+  download-policy question the queued task owns stays untouched. Done
+  when: the entry is in `opencode.jsonc` and the file parses; a test pins
+  the lsp section (ruff and pyrefly present, pyright disabled) and has
+  been seen to fail against a copy with the ruff entry removed;
+  `docs/LANGUAGES.md` and the queued task text no longer claim LSP is
+  unwired; the author is told to restart opencode for it to take effect.
+  [me, branch agent/ruff_lsp, worktree .worktrees/ruff-lsp]
 
 - **Evaluate interchangeable components for agent work.**
   [handoff ready, unclaimed; initial comparison complete, container setup
