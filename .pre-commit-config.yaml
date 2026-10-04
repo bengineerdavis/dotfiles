@@ -1,11 +1,16 @@
 repos:
   # 1. Lint and format all Python (config: [tool.ruff] in pyproject.toml).
   #    Pinned to the same ruff the machine runs (mise: 0.16.9).
+  #    files: explicit staged paths bypass ruff's own type filter, so a .sh
+  #    script would be parsed as Python and fail spuriously (hit 2026-10-04
+  #    committing executable_run-role.sh). Restrict the hooks to Python.
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.9
     hooks:
       - id: ruff-check
+        files: \.pyi?$
       - id: ruff-format
+        files: \.pyi?$
 
   # 1b. Type checking (config: [tool.pyrefly] in pyproject.toml). System
   #     install keeps CLI/IDE/hook on one pyrefly version; pass_filenames is
