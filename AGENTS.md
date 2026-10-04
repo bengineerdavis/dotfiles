@@ -592,6 +592,10 @@ Carry these, and do not simply list the commits — the reviewer can read those:
 - **Prerequisites split into their own commits**, and what made them
   prerequisites rather than cleanup.
 
+A session arriving from PR feedback — a review comment, a review request —
+does not start from main. Its entry path is `docs/WORKTREES.md`
+§ Arriving from a PR: fetch, worktree the PR branch, claim, push.
+
 ### Review starts with the tests
 
 Read the tests first. They should read cleanly enough to serve as the spec, and

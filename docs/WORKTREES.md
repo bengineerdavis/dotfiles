@@ -68,6 +68,30 @@ inspection:
    where every line starting `-` means that patch is already on main. Crash
    recovery is `git worktree remove --force <path>` plus `git worktree prune`.
 
+## Arriving from a PR
+
+A session can be summoned by a PR instead of the queue — a review comment, a
+review request, a merge job. The entry path is identical for a human, an
+agent, or automation:
+
+1. **Fetch and locate.** `git fetch origin`, then find the PR branch —
+   `gh pr view <n> --json headRefName -q .headRefName`. Worktree it:
+   `git worktree add .worktrees/<sid> <branch>`. If git refuses because the
+   branch is already checked out elsewhere — the authoring session may still
+   hold it — fall back to the sub-branch form: `.worktrees/<sid>_sub_<slug>`,
+   branching off the PR branch.
+2. **Claim.** A line in `TASKS.md` § Claimed names the PR and the worktree,
+   so a live authoring session sees it before it pushes.
+3. **Work and push.** Feedback applied on the PR branch — or on a sub-branch
+   merged back into it — updates the PR on push. Merge gates apply to what
+   the push contains, not to who asked for it.
+4. **Reap** as in the lifecycle: a PR branch becomes an ancestor of `main`
+   when its PR merges, and is then deleted like any other.
+
+Pull requests go into `main` and nowhere else — see § Bucketing step 6 for
+the failure that rule prevents.
+
+
 ## Bucketing
 
 A bucket is one set of commits that merges as one pull request. Most
