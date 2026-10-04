@@ -1675,6 +1675,28 @@ nothing is.
   root). One-line fix: `cd "$(dirname "$0")"` after set -euo pipefail.
   Deployed-tree file, so the fix goes to the author for review.
 
+- **Container-setup comparison: Sandcastle non-root vs workmux container
+  vs native wrapper.** [agent: general/container-setup] Next unit of the
+  interchangeable-components research — see
+  `.claude/HANDOFF-modular-agent-runtime.md` § Next research unit and the
+  RESEARCH report beside it. Record the configuration burden of the three
+  paths per the handoff's five steps: pin the candidates and available
+  engines (Rancher Desktop docker 29.1.3 + nerdctl are on this machine);
+  walk each documented fresh-project setup, separating machine
+  prerequisites from per-project config and per-run inputs; run benign
+  synthetic probes (UID/GID, bind-mount ownership, workspace writes,
+  exit/signal behaviour, interruption, retained artifacts, cleanup
+  ownership), distinguishing a non-root process in a container from a
+  rootless engine; mark each replacement seam exercised, source-supported
+  or unsupported; report first-project vs repeat-project vs ongoing
+  maintenance effort and recommend the smallest useful pilot, naming
+  unresolved capabilities rather than inventing a score. Done when: the
+  RESEARCH report carries the evidence-backed section, the handoff points
+  at it, and the pilot recommendation is recorded for the author's
+  decision. No real agent/model work, no real customer data, scratch
+  stays under `~/code/try/`; if the backend is unavailable or new scope
+  emerges, report and ask rather than expanding silently.
+
 ## Planned
 
 
