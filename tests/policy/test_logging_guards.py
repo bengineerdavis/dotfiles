@@ -25,7 +25,9 @@ import textwrap
 
 import pytest
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
+# pyrefly: ignore [missing-import]
+from policy_harness import REPO, uv_dir
+
 LOG_KEY = "boundaries.llm_processing.log_bodies_allowed"
 
 CALLERS = {
@@ -77,8 +79,14 @@ def policy_env(tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_STATE_HOME", str(state))
         monkeypatch.setenv("HOME", str(tmp_path))
         base = os.environ.get("PATH", "")
+        # uv_dir first: a mise shim on this PATH re-enters mise under the
+        # stripped HOME and fails its trust check, exiting 1 — which reads
+        # as DENIED here and would make the deny-direction tests pass while
+        # the resolver never answered. See policy_harness.uv_dir().
+        uv = uv_dir()
         monkeypatch.setenv(
-            "PATH", f"{shim}:{base}" if resolver_on_path else "/usr/bin:/bin"
+            "PATH",
+            f"{uv}:{shim}:{base}" if resolver_on_path else f"{uv}:/usr/bin:/bin",
         )
         # sanity: the resolver must actually answer, or every assertion below is vacuous
         if resolver_on_path:
@@ -90,7 +98,7 @@ def policy_env(tmp_path, monkeypatch):
                     **os.environ,
                     "XDG_STATE_HOME": str(state),
                     "HOME": str(tmp_path),
-                    "PATH": f"{shim}:{base}",
+                    "PATH": f"{uv}:{shim}:{base}",
                 },
             )
             assert probe.returncode in (0, 1, 2), (

@@ -25,7 +25,7 @@ import textwrap
 import pytest
 
 # pyrefly: ignore [missing-import]
-from policy_harness import PERMITTED, DENIED, UNKNOWN, ERROR, REPO, SCRIPT
+from policy_harness import PERMITTED, DENIED, UNKNOWN, ERROR, REPO, SCRIPT, uv_dir
 
 
 @pytest.fixture
@@ -76,6 +76,10 @@ def _path_with_uv() -> str:
     import os
     import shutil
 
-    uv = shutil.which("uv")
-    extra = str(pathlib.Path(uv).parent) if uv else ""
-    return os.pathsep.join(p for p in (extra, "/usr/bin", "/bin") if p)
+    # policy_harness.uv_dir() keeps the subprocess out of mise; see its
+    # docstring for the trust failure this avoids.
+    first = uv_dir()
+    if not first:
+        uv = shutil.which("uv")
+        first = str(pathlib.Path(uv).parent) if uv else ""
+    return os.pathsep.join(p for p in (first, "/usr/bin", "/bin") if p)
