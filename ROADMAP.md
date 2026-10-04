@@ -277,3 +277,11 @@ research (`TASKS.md` § Now #1 (p)). Cost: nearly every tracked file moves
 path changes, and it collides with every open branch. Benefit: the ignore
 list and its guard stop being the only defence. The root-project-plus-
 ignore-list option passed the same rule-outs for far less, so it went first.
+
+**Docs excluded from provisioned files — decided 2026-10-03.** The author
+ruled that documentation is for the git repository only. The two docs copies
+merge into the root `docs/` tree — the maintained `dotfiles/docs/` content
+wins where the copies differ — and `chezmoi managed` stops listing any docs
+path, so the merge-gate ambiguity between "docs-only" and "deployed-tree"
+diffs disappears by construction. Queued in `TASKS.md` § Planned;
+independent of the `.chezmoiroot` move below.
