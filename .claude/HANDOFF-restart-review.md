@@ -1,10 +1,15 @@
 # Handoff: restart-stale style cleanup and design walkthrough
 
-**Status, 2026-09-28:** steps 1 and 2 below are done. The author chose Ruff
-as it resolves today (Black-style formatter, 88 columns), and the cleanup is
-PR #31. **Next: step 3, the walkthrough.** Always pass `--frozen` to
-`uv run`: without it, `--with <tool>` re-locks `uv.lock` against this
-machine's employer package index.
+**Status, 2026-10-04: CLOSED — all steps done.** Step 1 chose Ruff and
+step 2 landed as PR #31. Step 3, the walkthrough, completed 2026-10-04:
+all five layers (staleness decision, process discovery, restart
+behaviour, topic wiring, test evidence) delivered and approved by the
+author. Last work under this thread: PR #43, which makes the ollama
+per-GPU check fail on a Vulkan/CPU fallback (its evidence lives in
+`TASKS-RESOLVED.md`). Nothing here is in flight; the sections below are
+kept as history. Always pass `--frozen` to `uv run`: without it,
+`--with <tool>` re-locks `uv.lock` against this machine's employer
+package index.
 
 **Author decision, 2026-09-28: continue.** The code is already on `main` (#11
 `af02574`, the role and ollama; #15 `2a1d009`, the 1Password desktop app).
