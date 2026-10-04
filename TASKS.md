@@ -3386,6 +3386,16 @@ author rather than the machine.
   points at root `docs/`. Lands before the payload move so that move
   carries no docs; the move item inherits a smaller tree. [unclaimed]
 
+- **Clean dead payload before the source-root move.** [prep for the
+  `.chezmoiroot` refactor] Root `executable_update.sh` is managed yet
+  references a nonexistent root `playbook.yaml` — it deploys to
+  `$HOME/executable_update.sh` broken today. `crontab/` is fully ignored,
+  its `run_onchange_after_install-crontab.sh.tmpl` never runs, and nothing
+  reads it. Delete both. Done when: both gone from source, `chezmoi
+  status` shows exactly the two targets as pending removals and nothing
+  else, suite green. Hands the move item a payload with no known-dead
+  entries. Touches managed files → PR + human review. [unclaimed]
+
 ## History was rewritten on 2026-08-21 — reset before you resume
 
 `main` was force-pushed. Every SHA from `bc72f5c` onward is new. Two mixed
