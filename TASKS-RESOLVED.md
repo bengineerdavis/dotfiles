@@ -527,3 +527,35 @@ deleted.
   journalctl. Mutation: fallback verdict exits 0 — 4 red; no-compatible
   verdict exits 0 + UNREAD guard never fires — 2 red. Gates: 929 passed,
   ruff/pyrefly/skillet clean.
+
+- **Teach `skill-trust` about foreign skill buckets.** [agent: opencode]
+  Already landed on `main` when this closeout ran, 2026-10-03 — the § Now
+  line still said "implemented, awaiting review" on the branch
+  `skill-trust-foreign-buckets`, but the work merged as `27e9188` (external
+  verdict, deny refused), `903541e` (guard flag plumbed) and `b26ca9c`
+  (docs + status), with `eb0b4b2` the earlier licence-reporting half. The
+  branch and its worktree were later deleted. Verified on `main` before
+  closing: `guard_foreign_buckets: true` (roles/guards/defaults/main.yaml:81),
+  `opencode_skill_foreign: true` (apps/opencode/defaults/main.yaml:95)
+  plumbed at install.yaml:226, and the proprietary-licence reporting pinned
+  in tools/skill-trust/tests. Still open, blocking nothing: a machine id
+  that survives a rebuild for the Part 2 rules filename, and whether a
+  fourth `blocked` verdict is worth having.
+
+- **Make the test suite fast and model-safe.** [agent: opencode] Already
+  landed on `main` when this closeout ran — merged as `118aaa6`
+  (`test-perf-xdist`); the § Now line still said "awaiting author review".
+  The done-conditions held on merge: one invocation collects every test
+  directory, `addopts = ["-m", "not llm_judge"]` keeps real model calls out
+  of the default run (both directions tested in tests/suite), and the xdist
+  fast loop is measured at 170.7s → ~47s on this machine. Seven open
+  author-decision items from the original entry survive here rather than in
+  a § Now line: (1) judge/model ids absent on this machine
+  (`qwen3.5:4b-mlx-bf16`, `devstral-small-2`, vendor-native
+  `claude-4-sonnet`) — install, substitute, or skip-with-reason;
+  (2) two `test_binned_cli` cases pass vacuously on a parse-error message;
+  (3) source-vs-deployed testing is inconsistent across suites;
+  (4) whether `tools` stays in `testpaths`; (5) `tests/clipped` clipboard
+  cases are slow and order-dependent; (6) the "104s" suite figure is stale
+  (170.7s measured 2026-09-23); (7) run one suite at a time — concurrent
+  `uv run` invocations contend on the uv cache lock.
