@@ -516,3 +516,14 @@ deleted.
   0 failed); tests/policy green from both cwds. Mutation: `uv_dir` neutered
   — 22 red from the failing cwd.
 
+- **Fail the per-GPU ollama check on a backend fallback.** [agent: opencode]
+  Landed as `066e7c8` (2026-10-03). The confirm task now classifies the
+  instance's own inference-compute line: `library=vulkan/cpu` or a
+  "no compatible gpus" line fails red and non-fatally (`ignore_errors`;
+  the per-instance report below still carries the FELL BACK/UNREAD line);
+  a missing GPU line stays report-only, since a fresh server that has not
+  loaded a model legitimately has none. Pinned by 12 tests in
+  tests/ollama_gpu_confirm running the rendered script against a stubbed
+  journalctl. Mutation: fallback verdict exits 0 — 4 red; no-compatible
+  verdict exits 0 + UNREAD guard never fires — 2 red. Gates: 929 passed,
+  ruff/pyrefly/skillet clean.

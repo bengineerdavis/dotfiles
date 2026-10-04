@@ -1675,17 +1675,6 @@ nothing is.
   root). One-line fix: `cd "$(dirname "$0")"` after set -euo pipefail.
   Deployed-tree file, so the fix goes to the author for review.
 
-- **Fail the per-GPU ollama check on a backend fallback.** [agent: opencode]
-  The per-instance journalctl confirm (apps/ollama/tasks/install.yaml) runs
-  with `failed_when: false`, so an instance that fell back to Vulkan or CPU
-  reads as healthy while running materially slower — defaults/main.yaml says
-  investigate, never accept. Done when: the confirm task exits red on
-  "no compatible gpus" or an inference-compute line whose `library=` is
-  vulkan/cpu, non-fatally for the run (`ignore_errors`, the report below
-  still carries the line); a missing GPU line stays report-only, since a
-  fresh server that has not loaded a model legitimately has none; behaviour
-  pinned by tests proven to fail under mutation; gates green.
-
 ## Planned
 
 
