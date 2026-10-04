@@ -469,6 +469,22 @@ it for their own commits, for example a quick fix straight to `main`; that is
 a deliberate choice they make, not an exception an agent can claim. An agent
 never commits to `main` directly, even when the author has recently done so.
 
+**A fork inherits and must leave.** A forked session (e.g. opencode `/fork`)
+starts inside its parent's worktree, on its parent's branch. Before its first
+commit it creates its own worktree and branch — `git worktree add
+.worktrees/<sid> -b <group>-<item>`, off main, or off the parent branch only
+when the stacking rules above say so. One exception, deliberate: the author
+told the fork, in its instructions, to continue the parent's task on the
+parent's branch.
+
+**A new task asks before it claims.** Finishing one task and reaching for the
+next is a branch decision, and the session asks the author — interactively —
+before claiming: carry on here (allowed only under the two shared-branch
+exceptions above), or open a fresh worktree and branch. If the author is
+unavailable, default to a fresh worktree and branch, and say so in the claim
+line. The ideal is one task, one session, one worktree. Sessions already in
+flight when these rules land finish under the structure they started with.
+
 This reverses an earlier rule that sent `TASKS.md` straight to main. The reason
 that rule existed has not gone away, so carry it as a working constraint rather
 than losing it:
