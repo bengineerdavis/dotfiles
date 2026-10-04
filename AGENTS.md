@@ -485,6 +485,17 @@ unavailable, default to a fresh worktree and branch, and say so in the claim
 line. The ideal is one task, one session, one worktree. Sessions already in
 flight when these rules land finish under the structure they started with.
 
+**A subtask is the same rule, one level down.** One subtask, one subsession,
+one worktree — whether the worker is a subagent run or a forked session. The
+subtask's line in `TASKS.md` — scope, done-condition, owner, worktree name —
+is its single source of truth; a handoff document is the escalation when the
+context exceeds a line, and the line points at it rather than restating it.
+Sub-worktrees follow `docs/WORKTREES.md`: `<sid>_sub_<slug>`, branching off
+the parent branch, one writer each, merged back by the parent's owner.
+Mid-task adjustment — a bugfix, a re-cut — forks the same way, off the task
+branch, and merges back into it: the task branch is the integration point
+for everything beneath it.
+
 This reverses an earlier rule that sent `TASKS.md` straight to main. The reason
 that rule existed has not gone away, so carry it as a working constraint rather
 than losing it:

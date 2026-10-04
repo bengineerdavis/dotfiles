@@ -56,8 +56,10 @@ Keep it short. This tracks *open* work and cross-session hazards, not history �
   finishing your first is a branch decision: ask the author — carry on here
   only under the shared-branch exceptions, otherwise a fresh worktree and
   branch; an unavailable author defaults to fresh. A forked session leaves
-  its parent's worktree before its first commit. See `AGENTS.md`
-  § Everything is branched.
+  its parent's worktree before its first commit. Subtasks are the same rule
+  one level down: the subtask's line is its single source of truth, its
+  worktree is `<sid>_sub_<slug>` off the parent branch, and the parent
+  integrates. See `AGENTS.md` § Everything is branched.
 
 ## Claimed
 
