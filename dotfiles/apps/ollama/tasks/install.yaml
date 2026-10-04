@@ -602,17 +602,43 @@
 - name: "ollama (Debian): confirm each instance bound the GPU it was pinned to"
   # The pinning env vars are the only thing separating these two servers. If a
   # unit silently fell back to CPU (missing ROCm for gfx1030, say) it would look
-  # healthy above while delivering a fraction of the throughput.
+  # healthy above while delivering a fraction of the throughput. So a fallback
+  # FAILS the task — red, non-fatally (ignore_errors): the instance still
+  # serves and the remaining topics must still apply, but a Vulkan or CPU
+  # binding must never read as success (defaults/main.yaml: investigate,
+  # never accept). The backend is read from the instance's own
+  # inference-compute line (library=cuda|rocm|vulkan|cpu). A MISSING line
+  # stays report-only: a fresh server that has not yet loaded a model
+  # legitimately has none to read, and failing on that would cry wolf on
+  # every restart.
   ansible.builtin.shell: |
     set -o pipefail
-    journalctl -u ollama-{{ item.name }} --since "-2 min" --no-pager 2>/dev/null \
-      | grep -iEm1 "inference compute|looking for compatible gpus|no compatible gpus" \
-      || echo "no GPU line in recent logs"
+    log=$(journalctl -u ollama-{{ item.name }} --since "-2 min" --no-pager 2>/dev/null)
+    line=$(printf '%s\n' "$log" | grep -iE 'inference compute' | tail -1)
+    lib=$(printf '%s' "$line" | sed -nE 's/.*library=([A-Za-z0-9_-]+).*/\1/p')
+    if [ -n "$line" ]; then
+      if [ -z "$lib" ]; then
+        echo "UNREAD: no library= field in: $line"
+        exit 1
+      fi
+      if printf '%s' "$lib" | grep -qiE '^(vulkan|cpu)$'; then
+        echo "FELL BACK: $line"
+        exit 1
+      fi
+      echo "$line"
+      exit 0
+    fi
+    hit=$(printf '%s\n' "$log" | grep -iEm1 'no compatible gpus')
+    if [ -n "$hit" ]; then
+      echo "FELL BACK: $hit"
+      exit 1
+    fi
+    echo "no GPU line in recent logs"
   args:
     executable: /bin/bash
   register: ollama_instance_gpu
   changed_when: false
-  failed_when: false
+  ignore_errors: true
   loop: "{{ ollama_linux_instances }}"
   loop_control:
     label: "ollama-{{ item.name }}"

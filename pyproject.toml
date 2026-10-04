@@ -102,12 +102,12 @@ markers = [
 ]
 
 [tool.pyrefly]
-# Modules loaded via sys.path at runtime, invisible to packaging: the filter
-# harness beside the restart-stale tests, and skill-trust (pytest resolves it
-# through [tool.pytest] pythonpath; pyrefly needs it named here so the
-# pre-commit hook's environment - which differs from a login shell - resolves
-# the same modules the same way).
-search-path = ["tests/restart_stale", "tools/skill-trust"]
+# Modules loaded via sys.path at runtime, invisible to packaging: the harness
+# beside each suite that needs one (tests/restart_stale, tests/ollama_gpu_confirm)
+# and skill-trust (pytest resolves it through [tool.pytest] pythonpath; pyrefly
+# needs it named here so the pre-commit hook's environment - which differs from
+# a login shell - resolves the same modules the same way).
+search-path = ["tests/restart_stale", "tests/ollama_gpu_confirm", "tools/skill-trust"]
 project-includes = [
     "**/*.py*",
     "**/*.ipynb",
