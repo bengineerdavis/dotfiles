@@ -503,3 +503,16 @@ deleted.
   author 2026-10-03. The building session verified both commits' content
   before merging: file sets correct, resolved entry accurate.
 
+- **Root-cause the tests/policy cwd-sensitivity.** [agent: opencode]
+  Landed as `3367a7f` (2026-10-03). The mechanism was the fixtures' PATH
+  construction, not mise config discovery: `shutil.which("uv")` resolves to
+  the mise shim or the real binary depending on how pytest was launched,
+  and the shim re-entered mise under the stripped HOME, failed the trust
+  check against the real global config, and exited 1 — DENIED on the
+  resolver's scale, so deny-direction tests passed while the resolver
+  never answered and only relent-direction tests failed. One shared
+  helper (`policy_harness.uv_dir()`) now feeds all three fixtures. Full
+  suite green from the main-checkout side for the first time (916 passed,
+  0 failed); tests/policy green from both cwds. Mutation: `uv_dir` neutered
+  — 22 red from the failing cwd.
+

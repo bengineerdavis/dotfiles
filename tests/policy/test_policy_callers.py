@@ -32,7 +32,9 @@ import textwrap
 
 import pytest
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
+# pyrefly: ignore [missing-import]
+from policy_harness import REPO, uv_dir
+
 ASK_RESEARCH = REPO / "bin" / "executable_ask-research"
 
 LOG_KEY = "boundaries.llm_processing.log_bodies_allowed"
@@ -85,7 +87,12 @@ def caller_env(tmp_path):
 
         def run(*args: str) -> subprocess.CompletedProcess:
             base = os.environ.get("PATH", "")
-            path = f"{shim}:{base}" if on_path else "/usr/bin:/bin"
+            # uv_dir first: a mise shim on this PATH re-enters mise under the
+            # stripped HOME and fails its trust check, so the resolver the
+            # guard consults would answer ERROR-as-DENIED. See
+            # policy_harness.uv_dir().
+            uv = uv_dir()
+            path = f"{uv}:{shim}:{base}" if on_path else f"{uv}:/usr/bin:/bin"
             return subprocess.run(
                 [
                     "bash",
