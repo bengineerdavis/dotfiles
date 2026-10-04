@@ -300,6 +300,15 @@ one real consumer; it is not the standing answer. Prevention below is cheaper
 than a rewrite every time, and a rewrite stops being available as soon as anyone
 else has built on the history.
 
+**The rewrite window is the session that made the mistake.** A compaction or
+reword is only cheap while the bad commits sit at the tip and nothing else has
+merged over them: do it immediately, in the same session, before the next merge
+lands. Once other work sits on top, do not rewrite — document instead (a
+backup ref, a correction commit, the resolved-task entry). Measured 2026-10-03:
+compaction offered for PR #36 while it sat two commits deep was sixty-plus
+commits, four more PR merges and an in-flight session away an hour later, and
+was skipped for exactly the reason this paragraph states.
+
 **Notes do not travel with `git push` by default.** Provenance notes live on
 `refs/notes/commits`, which the default refspec does not push or fetch — push
 them explicitly alongside the branch:
