@@ -252,6 +252,24 @@ Open before it can be scheduled — what it watches (test failures, shell exit
 codes, a log), whether it may open a pull request or only draft a patch, and how
 it avoids proposing fixes for failures that are symptoms of work still in flight.
 
+### Mechanical session enforcement, if judgment alone stops being enough
+
+The session-structure rules (`AGENTS.md` § Everything is branched: forks
+leave, a new task asks, subtasks one level down) bind today through each
+tool's instruction loading — opencode and cursor read `AGENTS.md`, claude
+code reads the `CLAUDE.md` symlink to it — verified against each tool's
+documentation 2026-10-04. No plugin is needed for the rules to apply; this
+item exists so the decision not to build one is recorded, not forgotten.
+
+If the rules stop being honored often enough to need mechanical enforcement,
+the build is a session-start enforcement plugin with these author
+requirements (2026-10-04): its own git repository under the author's personal
+code projects (per `docs/LAYOUT.md`), extensible to any coding agent added
+later, working with opencode, claude code and cursor immediately. It is
+authored there, not here — a plugin for coding agents is AI tooling per the
+build ladder. Trigger to revisit: forks repeatedly violating the leave rule,
+or session-start automation wanted across tools.
+
 ### A queryable knowledge base of the repository
 
 Readable by a human directly, not only feedable to a model. It is the artifact
