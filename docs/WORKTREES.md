@@ -95,7 +95,7 @@ the failure that rule prevents.
 ## Bucketing
 
 A bucket is one set of commits that merges as one pull request. Most
-bucketing happens earlier, when a task is written: AGENTS.md § Decomposing
+bucketing happens earlier, when a task is written: `docs/PROCESS.md` § Decomposing
 work into items cuts the queue so that one task is one merge. This section
 covers the case the plan missed — a task whose finished work turns out to
 hold more than one merge.
@@ -110,7 +110,7 @@ single commit.
 
 1. **Bucket.** Sort the commits by outcome. Split a commit that fails the
    test. Keep a commit's tests in the same bucket as the commit.
-2. **Order.** Classify each bucket's dependency (AGENTS.md § What kind of
+2. **Order.** Classify each bucket's dependency (`docs/PROCESS.md` § What kind of
    dependency is it). A bucket that stands alone branches from `main`; one
    that needs another's code branches from that bucket's branch. Stack two
    deep freely.
