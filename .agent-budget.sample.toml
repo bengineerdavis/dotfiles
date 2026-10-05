@@ -8,9 +8,12 @@
 # This file is project-scoped: it lives in the repo, is gitignored, and dies
 # with the repo. Delete it and nothing outside the checkout remembers it.
 
-# Max concurrent writer sessions on this machine: task-claiming sessions and
-# writing subagents. 0 = serial work, higher = more parallel; the slider
-# decides how linear the task list runs. Hardware and monetary cost decide
-# the number — when in doubt, lower it. Read-only research and review are
-# unbudgeted.
+# Max concurrent execution sessions on this machine — the tasks' writers.
+# 0 = serial work, higher = more parallel; the slider decides how linear
+# the task list runs. Read-only research and review are unbudgeted.
+#
+# Sizing, per machine — derive your own, measured not guessed:
+#   conservative = floor(cores / 4); never above floor(cores / 2).
+#   A session that runs local models counts against memory first — when
+#   ollama is resident, lower this number rather than trusting the cores.
 workers = 1

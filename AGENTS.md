@@ -275,6 +275,11 @@ Two exceptions, and both must be stated in the task itself:
 write.** One session, one worktree, one branch — including for `TASKS.md` and
 the governance docs. Conflicts in shared files are resolved at merge.
 
+**One session, one writer.** A session has one assigned agent with read and
+write; every other agent in it — subagents, spawned helpers — is read-only.
+That single write right is what the isolation guarantee rests on: one task,
+one session, one writer, one worktree, one branch.
+
 The rule covers the author as well as every session. The author may override
 it for their own commits, for example a quick fix straight to `main`; that is
 a deliberate choice they make, not an exception an agent can claim. An agent
@@ -301,7 +306,8 @@ line. The ideal is one task, one session, one worktree. Sessions already in
 flight when these rules land finish under the structure they started with.
 
 **A subtask is the same rule, one level down.** One subtask, one subsession,
-one worktree — whether the worker is a subagent run or a forked session. The
+one worktree — the worker is an execution session, and a subagent run inside
+it is a read-only helper (one session, one writer, above). The
 subtask's line in `TASKS.md` — scope, done-condition, owner, worktree name —
 is its single source of truth; a handoff document is the escalation when the
 context exceeds a line, and the line points at it rather than restating it.
@@ -311,9 +317,11 @@ Mid-task adjustment — a bugfix, a re-cut — forks the same way, off the task
 branch, and merges back into it: the task branch is the integration point
 for everything beneath it.
 
-**Writer sessions are budgeted per contributor, per machine.** Concurrent
-writers — task-claiming sessions and writing subagents — are capped, because
-they consume that contributor's hardware and money. The cap is a slider: 0
+**Execution sessions are budgeted per contributor, per machine.** Concurrent
+execution sessions — the tasks' writers — are capped, because they consume
+that contributor's hardware and money. Coordination's own commits (task
+lines, merge-backs) are overhead, not writers: the budget counts execution
+sessions only. The cap is a slider: 0
 is serial work, N is full parallel, and the number in between is how linear
 or parallel the task list runs on that machine. The value lives in
 `.agent-budget.toml` — project-scoped, gitignored, generated from

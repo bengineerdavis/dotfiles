@@ -43,7 +43,7 @@ the coordination state: § Claimed (who holds what), the census (a disposition
 for every open branch), the runbook (canonical fixes for a structural shift —
 see `dotfiles/docs/research/coordinating-parallel-work-across-refactors.md`),
 and the worker budget (`AGENTS.md` § Everything is branched — how many
-writers may run on a machine).
+execution sessions may run on a machine).
 
 The worker's contract is small. Read the line, claim it, do the work, prove
 the done-condition, report, release the claim. Two duties frame it:
@@ -69,6 +69,43 @@ one file per task carrying what a line carries today plus its attachments
 (observations, handoffs), with the queue file becoming an index over them.
 Queued as direction, not built: `TASKS.md` stays the single source of truth
 until that refactor lands.
+
+### Three roles
+
+Work separates into coordination, planning, and execution. The MVP keeps the
+split minimal: coordination calls a planner, then dispatches one or more
+execution sessions — no parallelism beyond that is required, and the
+invariant underneath is stricter than the parallelism: **one task, one
+execution session, one writer agent, one worktree, one branch, one venv.**
+
+- **Coordination** — one live session. Commits task lines, prepares each
+  execution slot (worktree, branch, venv, line), dispatches, collects
+  (merges back serially, suite after each — `docs/WORKTREES.md` § Lifecycle),
+  and relays questions: an execution session that hits a blocker marks its
+  line `[blocked: <question>]` (the existing convention) and parks; the
+  coordinator relays to the author and writes the answer back on the line.
+  One live coordinator means one question channel instead of N. The
+  fallback is direct and deliberate: if the coordinator is unreachable, any
+  session may ask the author itself — asking is never an incident, and a
+  stuck session must not stay stuck for want of a relay.
+- **Planning** — read-only. Drafts task lines (scope, done-condition, owner,
+  worktree, hands-to-next) from a roadmap item; the coordinator commits
+  them. The planner never writes to the tree.
+- **Execution** — one session per task. The assigned agent holds the write
+  right; every other agent in the session is read-only (`AGENTS.md`
+  § Everything is branched, one session one writer). It works inside its
+  worktree and its own venv, never mutates shared machine state — no shared
+  profile exports, nothing written outside its worktree except its own venv
+  cache — and asks through the coordinator. The budget counts execution
+  sessions only.
+
+Nested subtask-branching — sub-branches of a task branch running in parallel
+— is deliberately deferred: the MVP is one branch per task, buying time to
+extend the model for parallel subtask branching later.
+
+Env isolation uses existing mechanisms only: the per-session process
+environment, the per-worktree venv (`docs/WORKTREES.md`, `UV_LINK_MODE=copy`),
+and the worktree as the task's own scratch space. Nothing homebrewed.
 
 ## Observations are deliverables
 
