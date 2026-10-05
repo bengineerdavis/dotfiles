@@ -265,7 +265,11 @@ If the rules stop being honored often enough to need mechanical enforcement,
 the build is a session-start enforcement plugin with these author
 requirements (2026-10-04): its own git repository under the author's personal
 code projects (per `docs/LAYOUT.md`), extensible to any coding agent added
-later, working with opencode, claude code and cursor immediately. It is
+later, working with opencode, claude code and cursor immediately. When built
+it can also read the project-scoped worker budget (`.agent-budget.toml`) and
+enforce it mechanically. That budget's pattern is deliberately project-scoped
+— gitignored, generated from a committed sample, deletable with the repo — so
+project templates can carry it. It is
 authored there, not here — a plugin for coding agents is AI tooling per the
 build ladder. Trigger to revisit: forks repeatedly violating the leave rule,
 or session-start automation wanted across tools.

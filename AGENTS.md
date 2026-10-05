@@ -500,6 +500,21 @@ Mid-task adjustment — a bugfix, a re-cut — forks the same way, off the task
 branch, and merges back into it: the task branch is the integration point
 for everything beneath it.
 
+**Writer sessions are budgeted per contributor, per machine.** Concurrent
+writers — task-claiming sessions and writing subagents — are capped, because
+they consume that contributor's hardware and money. The cap is a slider: 0
+is serial work, N is full parallel, and the number in between is how linear
+or parallel the task list runs on that machine. The value lives in
+`.agent-budget.toml` — project-scoped, gitignored, generated from
+`.agent-budget.sample.toml`, never committed — and each contributor sets it
+for each machine they work from, so nobody inherits a bill they did not
+choose. Sessions read it at start and **fail closed**: no budget file means
+ask the contributor to set one, then write it from their answer, before
+claiming or spawning a writer. Cross-machine coordination still runs
+through the claims board; the budget caps only what one machine runs at
+once. Read-only research and review fan out freely — the budget is for
+writers.
+
 This reverses an earlier rule that sent `TASKS.md` straight to main. The reason
 that rule existed has not gone away, so carry it as a working constraint rather
 than losing it:

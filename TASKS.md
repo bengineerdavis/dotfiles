@@ -59,7 +59,9 @@ Keep it short. This tracks *open* work and cross-session hazards, not history �
   its parent's worktree before its first commit. Subtasks are the same rule
   one level down: the subtask's line is its single source of truth, its
   worktree is `<sid>_sub_<slug>` off the parent branch, and the parent
-  integrates. See `AGENTS.md` § Everything is branched.
+  integrates. Writers are budgeted per contributor, per machine — set
+  `.agent-budget.toml` from the sample before writing; an absent budget
+  means ask. See `AGENTS.md` § Everything is branched.
 
 ## Claimed
 

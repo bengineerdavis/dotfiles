@@ -10,3 +10,8 @@ dotfiles/migration-backups/
 
 # Tool virtualenvs — each tools/<name>/ builds its own for `uv run --project`.
 .venv/
+
+# Worker budget — per contributor, per machine, generated from
+# .agent-budget.sample.toml; never committed. See AGENTS.md § Everything is
+# branched.
+.agent-budget.toml

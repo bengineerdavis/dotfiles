@@ -1,0 +1,16 @@
+# Worker budget for this machine — per contributor, per machine, never committed.
+#
+# Copy this file to .agent-budget.toml and edit the value; or let a session
+# write it when it asks. A session that finds no .agent-budget.toml will ask
+# rather than run a writer unbudgeted — that ask is the forcing function, so
+# nobody is surprised with the bill.
+#
+# This file is project-scoped: it lives in the repo, is gitignored, and dies
+# with the repo. Delete it and nothing outside the checkout remembers it.
+
+# Max concurrent writer sessions on this machine: task-claiming sessions and
+# writing subagents. 0 = serial work, higher = more parallel; the slider
+# decides how linear the task list runs. Hardware and monetary cost decide
+# the number — when in doubt, lower it. Read-only research and review are
+# unbudgeted.
+workers = 1
