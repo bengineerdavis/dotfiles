@@ -52,6 +52,16 @@ Keep it short. This tracks *open* work and cross-session hazards, not history �
 - Assigned work names its owner: `[agent: <who>]` for a subagent or named
   session, `[me]` for the author. An unassigned task is a backlog item, not
   work in flight.
+- **One task, one session, one worktree.** Claiming a second task after
+  finishing your first is a branch decision: ask the author — carry on here
+  only under the shared-branch exceptions, otherwise a fresh worktree and
+  branch; an unavailable author defaults to fresh. A forked session leaves
+  its parent's worktree before its first commit. Subtasks are the same rule
+  one level down: the subtask's line is its single source of truth, its
+  worktree is `<sid>_sub_<slug>` off the parent branch, and the parent
+  integrates. Execution sessions are budgeted per contributor, per machine —
+  set `.agent-budget.toml` from the sample before writing; an absent budget
+  means ask. See `AGENTS.md` § Everything is branched.
 
 ## Claimed
 
