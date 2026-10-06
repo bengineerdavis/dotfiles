@@ -689,6 +689,9 @@ lines, recommends Python above 100, and asks a model in the 80–100 band.
 Conventions live in **`docs/`**, one file per subject, so the repository
 root holds only the five documents that govern the project:
 
+- **`docs/PROCESS.md`** — how work runs: the work loop, the task queue and
+  its workers, the three roles, observations-as-deliverables, and how a
+  task list is cut. Read before your first task.
 - **`docs/PYTHON.md`** — uv, PEP 723 dependency blocks, pytest, ruff, ty,
   prek, logging and error handling.
 - **`docs/PERMISSIONS.md`** — what the agent may run, the three tiers in
