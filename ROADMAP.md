@@ -295,7 +295,38 @@ such as `home/`, which leaves the root free for tooling.
 
 Considered and deferred 2026-09-23 as option B of the Python-project
 research (`TASKS.md` § Now #1 (p)). Cost: nearly every tracked file moves
-(chezmoi manages 700 targets today), every test and doc that names a source
-path changes, and it collides with every open branch. Benefit: the ignore
-list and its guard stop being the only defence. The root-project-plus-
-ignore-list option passed the same rule-outs for far less, so it went first.
+(chezmoi manages 1,024 targets as of 2026-10-03 — this section's "700" was
+stale), every test and doc that names a source path changes, and it collides
+with every open branch. Benefit: the ignore list and its guard stop being
+the only defence. The root-project-plus-ignore-list option passed the same
+rule-outs for far less, so it went first.
+
+**Docs excluded from provisioned files — decided 2026-10-03.** The author
+ruled that documentation is for the git repository only. The two docs copies
+merge into the root `docs/` tree — the maintained `dotfiles/docs/` content
+wins where the copies differ — and `chezmoi managed` stops listing any docs
+path, so the merge-gate ambiguity between "docs-only" and "deployed-tree"
+diffs disappears by construction. Queued in `TASKS.md` § Planned;
+independent of the `.chezmoiroot` move below.
+
+**Taken 2026-10-03** — the deferral is superseded: tooling must be
+structurally distinct from the payload, not protected by an ignore list.
+Parameters decided with research behind them (verified against the chezmoi
+docs, the chezmoi source and a survey of 22 public `.chezmoiroot` repos):
+
+- **Mechanism: `.chezmoiroot`.** Documented since v2.8.0; `init`/`add`/
+  `apply` need no flags; worktree `-S` composes. Rejected: `sourceDir`
+  config (breaks fresh-machine bootstrap — init clones the repo into the
+  subdir), `-S` on every invocation (nothing persists it), symlinking the
+  source dir (undocumented; bootstrap fails).
+- **Subdir: `home`.** 13/22 surveyed repos use it, including twpayne's own
+  dotfiles; it is the docs' example. `src/home` is legal but has zero
+  real-world usage.
+- **Known failure mode:** `.chezmoiroot` naming a missing subdir yields a
+  silent empty source state — `status` clean, `apply` plans mass deletion.
+  The move lands as one atomic commit and `chezmoi status` is checked
+  immediately after.
+- The breakage inventory (gate-checker constants, `binned`'s source-path
+  constant, the pre-commit bats patterns, ~25 test fixtures, the
+  governance-not-deployed test's character shift) is itemized in the
+  `TASKS.md` § Planned items this spawns.

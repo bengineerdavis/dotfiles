@@ -32,6 +32,8 @@ nothing changed — a stale date is the signal, not the version number.
 | [scriv](https://scriv.readthedocs.io/) | run via `uv run --with scriv` | `changelog.d/` fragments → `CHANGELOG.md` | 2026-09-11 |
 | [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) | **1.1.0** | category names in `changelog.d/scriv.ini` | 2026-09-11 |
 | [RFC 2606](https://www.rfc-editor.org/rfc/rfc2606) — reserved example names | Best Current Practice | synthetic PII fixtures use `example.com`/`.org` | 2026-09-11 |
+| [Trunk Based Development](https://trunkbaseddevelopment.com/) (Hammant) | living site | short-lived branches, merge often — already practice; codified by the ground-shift protocol (`dotfiles/docs/research/coordinating-parallel-work-across-refactors.md`) | 2026-10-04 |
+| [Branch by Abstraction](https://martinfowler.com/bliki/BranchByAbstraction.html) (Fowler) | living article | the layout seam (`PAYLOAD_ROOT`) consumers go through during structural shifts | 2026-10-04 |
 
 ### Why PyPA and not the PEP
 

@@ -82,6 +82,15 @@ That rule is what keeps the separation honest. A provisioning layer that manages
 a tool's state has taken on a responsibility it cannot discharge safely, and it
 is how machine-specific data ends up somewhere it should not be.
 
+Documentation is repo-only. Docs exist for the git repository and are never
+deployed to a machine; `chezmoi managed` lists no docs file.
+
+The deploy/tooling split is structural: the chezmoi payload lives under
+`home/` (designated by `.chezmoiroot`), and `apply` writes only targets
+derived from that tree. Everything else at the repo root — tests, scripts,
+tooling, governance documents — is repo infrastructure that no machine ever
+receives, and needs no ignore list to stay that way.
+
 ### What this means for the AI tooling
 
 It gets factored out into its own utility with its own data store. This
