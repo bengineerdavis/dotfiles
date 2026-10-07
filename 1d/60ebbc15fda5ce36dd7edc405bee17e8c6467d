@@ -1,0 +1,25 @@
+dotfiles/docs/research/opencode-v2/PLAN.md
+  s_2b6fb4944a1d35::t_2a10da96602615 396-397,403-407
+  s_2b6fb4944a1d35::t_05618b47c9995d 27-54
+  s_2b6fb4944a1d35::t_2d30d793bf572c 130-134,136
+  s_2b6fb4944a1d35::t_76da3c1029d0dc 199-201
+  s_2b6fb4944a1d35::t_7ae44b42185b26 194
+  s_2b6fb4944a1d35::t_86e75e0d18b936 273
+  s_2b6fb4944a1d35::t_ad96cfb8ff47d6 346-350
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1d60ebbc15fda5ce36dd7edc405bee17e8c6467d",
+  "prompts": {},
+  "sessions": {
+    "s_2b6fb4944a1d35": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eeb6e6211ffeJe8SdjyhXzT4LG",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
