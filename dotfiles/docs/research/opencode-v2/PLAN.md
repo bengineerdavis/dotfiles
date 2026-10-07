@@ -24,6 +24,34 @@ Section "Not verified" at the end names the gaps.
   opencode 1.18 shadow (it outranks the brew binary on PATH). Author-run machine
   state; the exact commands are in the follow-up section.
 
+## Author rulings (2026-10-06, after the plan was written)
+
+Four of the eight open decisions below are now settled by the author; the rest
+carry their stated safe defaults. Rulings override the defaults where they
+differ.
+
+1. **bash trailing catch-all (decision 1): leftover — drop it.** The migrated
+   array expresses the 2026-09-16 intent; the shell allow-list is in force after
+   migration. Behavior change vs today (everything asks) is accepted.
+2. **`.env` protection (decision 3): accept v2's.** Not v1 parity. Keep the
+   global read allow and add the `.env` ask rule AFTER it (last-match wins), so
+   reads stay free except `.env` files, which ask. The implement agent must
+   mirror the exact resource pattern v2's base policy uses for `.env` (verify
+   from the v2 docs/source on implementation day, not from memory).
+3. **Small-model roles (decision 4): pin `ollama/qwen3.5:9b`.** Author pick
+   2026-10-06 from the current-generation qwen3.5 family (registry verified
+   2-days-fresh; 6.6GB, 256K context). `small_model` moves to it (→ v2 `title`
+   agent) and `agents.summary.model` + `agents.compaction.model` are added at
+   the same tag, so titles, summaries and compaction stay local. Requires
+   (author-run, before the config lands on a machine that uses them):
+   `ollama pull qwen3.5:9b`, and a declaration in the apps/ollama model
+   manifest (house rule: a role pick is declared where it can be installed).
+   Queued as its own task line in `TASKS.md` § Now. House measurement rule: a
+   quick eval should confirm it before it carries the role — queued with the
+   same task; the config reference itself does not block on it.
+4. The remaining decisions (2, 5–8) ride their stated safe defaults and are
+   listed in the PR description for review.
+
 ## Headline answers
 
 1. **v2 parses v1's `permission` map and migrates it.** The v2 config
@@ -99,11 +127,13 @@ expansion, actions table) and `migratePermissions` (order preservation,
   { "action": "shell", "resource": "find *-delete*", "effect": "deny" },
   { "action": "shell", "resource": "find *-exec*", "effect": "deny" },
   { "action": "shell", "resource": "find *-execdir*", "effect": "deny" },
-  // Baseline safety: reads and edits are free, network asks.
-  // (v2's built-in base policy also asks before reading *.env; the global
-  // read-allow below is appended after the base policy and overrides it.
-  // Keeping v1 parity — reads free — is open decision 3.)
+  // Baseline safety: edits are free; reads are free EXCEPT .env files, which
+  // ask (author ruling 2026-10-06: v2's built-in .env protection stays — the
+  // .env ask sits AFTER the read allow, and last-match wins). Network asks.
+  // (The exact .env resource pattern must mirror v2's base policy — verify
+  // from the v2 docs/source on implementation day; `*.env*` shown here.)
   { "action": "read", "resource": "*", "effect": "allow" },
+  { "action": "read", "resource": "*.env*", "effect": "ask" },
   { "action": "glob", "resource": "*", "effect": "allow" },
   { "action": "grep", "resource": "*", "effect": "allow" },
   { "action": "edit", "resource": "*", "effect": "allow" },
@@ -161,13 +191,14 @@ Mapping notes:
 | `autoupdate: "notify"` (template) | legacy key; v2 native key is `update` with enum `disable\|notify\|auto`; `"notify"` maps to `"notify"` | `normalize.ts` `LegacyAutoupdate` + migration table; `/v2/docs/config` § Updates | Replace with `"update": "notify"` (open decision 8 confirms the value). |
 | `permission` (template) | legacy; migrated to ordered array, order preserved, `bash`→`shell` etc. | `migratePermissions`, `normalizeAction` | Migrate to native `permissions` array (section above). |
 | `model: openrouter/z-ai/glm-5.3-flash` (chezmoidata) | parses: selection pattern `/^[^/#]+\/[^#]+(?:#[^#]+)?$/` splits provider `openrouter` / model `z-ai/glm-5.3-flash`; provider id unchanged (only `azure-cognitive-services` and `google-vertex-anthropic` are renamed) | `ConfigModel.Selection`; `providerID()` in `v1/config/migrate.ts` | Keep in chezmoidata, v1 shape — v2 parses it through its maintained legacy layer. |
-| `small_model: ollama/qwen3:8b` (chezmoidata) | legacy; v2 has no native `small_model`. The migrator maps it to `agents.title.model` only | `normalize.ts` (`migratedSmallModel` → `legacyAgents.title`) | Keep for title locality. v1 used it for titles, summaries and compaction (template comment); v2's `summary` and `compaction` are separate shipped agents — add explicit `agents.summary.model` and `agents.compaction.model` entries in chezmoidata to keep "trivial calls never leave the box" (open decision 4; compaction model selection semantics not fully verified). |
+| `small_model: ollama/qwen3:8b` (chezmoidata) | legacy; v2 has no native `small_model`. The migrator maps it to `agents.title.model` only | `normalize.ts` (`migratedSmallModel` → `legacyAgents.title`) | Value moves to `ollama/qwen3.5:9b` (author ruling 2026-10-06), and explicit `agents.summary.model` + `agents.compaction.model` entries are added at the same tag to keep "trivial calls never leave the box". Compaction model selection semantics not fully verified — confirm with `opencode debug config` on the day. |
 | `provider.openrouter.models."anthropic/claude-opus-5"` with `options.reasoning.effort` and `variants {max,xhigh,medium}` (chezmoidata) | parses: v1 `Model.id` is optional (our entries are key-id'd, no `id` field); `options` → model `settings`; `variants` record migrates to an array of `{id, settings}` | `v1/config/provider.ts`; `migrateModel` in `v1/config/migrate.ts`; v2 `ConfigProvider.Model` (`modelID` optional) | Keep v1 shape. Verify the resolved shape with `opencode debug config` after install (the options/settings split helper `ConfigProviderOptionsV1` was not read line-by-line). |
 | `agent.deep {description, mode: primary, model, variant: max}` (chezmoidata) | parses: v1 agent schema accepts all four fields; `model`+`variant` fold into a v2 model selection | `v1/config/agent.ts`; `migrateAgent`/`modelSelection` | Keep v1 shape. Native v2 form would be `agents.deep.model: "openrouter/anthropic/claude-opus-5#max"` — recorded here for a future chezmoidata rewrite, not this migration. |
 | keys with no v2 native form (`logLevel`, `server`, `subagent_depth`, `layout`, five `experimental.*` flags) | dropped with diagnostics | `unsupportedTopLevel`/`unsupportedExperimental` in `normalize.ts` | Not used by this config — no action. |
 
-Net: `.chezmoidata/opencode.yaml` needs **no change** for this migration (only
-the optional small-model follow-up in decision 4). The legacy layer is
+Net: `.chezmoidata/opencode.yaml` changes only for the small-model ruling —
+`small_model` moves to `ollama/qwen3.5:9b` and the two agent entries are added.
+The legacy layer is
 explicitly maintained upstream — the file header's merge caveat stays true, and
 the template comment pointing at it stays true.
 
@@ -239,7 +270,7 @@ regressed by running the topic resolution tests after the change.
 | `dotfiles/apps/opencode/README.md` | Binary section (v2 formula, conflict removal in-run), config section (permissions array, `update`, `$HOME` expansion), teardown, first-run (sessions auto-migrate; re-auth likely). |
 | `dotfiles/apps/opencode/CHANGELOG.md` | Dated entry: breaking_changes (v1 formula removed by install; config keys renamed; re-auth likely), minor_changes (v2 install), known_issues (auth.json import not found; bash allowlist behavior change explained). |
 | `dot_config/opencode/opencode.jsonc.tmpl` | `permission` map → `permissions` array (exact mapping above); `autoupdate` → `update`; comments updated; `.chezmoidata` pointer comment kept. |
-| `.chezmoidata/opencode.yaml` | No change for this migration; optional small-model additions per decision 4. |
+| `.chezmoidata/opencode.yaml` | `small_model` → `ollama/qwen3.5:9b`; add `agents.summary.model` and `agents.compaction.model` at the same tag (author ruling). |
 | `topic.yml` | No change. |
 
 ## Commit sequence (inert first, activating last)
@@ -312,6 +343,11 @@ can parse, and nothing upgrades the deployed config before the binary exists.
 cp -a ~/.local/share/opencode ~/.local/share/opencode.pre-v2-backup
 cp -a ~/.config/opencode/auth.json ~/.config/opencode/auth.json.pre-v2 2>/dev/null
 
+# 0b. Pull the pinned small model (author ruling 2026-10-06) — needed before
+#     the migrated config first runs an agent that uses it
+ollama pull qwen3.5:9b
+#     plus: declare the tag in the apps/ollama model manifest (its own task)
+
 # 1. Install v2, remove v1 (run-role is cwd-dependent — from inside dotfiles/,
 #    per the 2026-10-03 observation)
 cd ~/dotfiles && ./run-role.sh opencode
@@ -357,28 +393,18 @@ hash -r && command -v opencode                   # must now resolve to the brew 
 Safe defaults are stated so the implement agent is not blocked; each can be
 overridden by editing the plan line before implementation starts.
 
-1. **The trailing bash `"*": "ask"` (template line 69).** The file's own
-   comment says the trailing catch-all was the pre-2026-09-16 bug, yet the
-   line is still present, so today's live behavior (everything asks) contradicts
-   the comment. Default: treat it as leftover — the migrated array expresses
-   the 2026-09-16 intent and drops it. If it was deliberate, the shell group
-   collapses to the single ask rule.
+1. **The trailing bash `"*": "ask"` (template line 69).** SETTLED — leftover,
+   dropped. See Author rulings #1.
 2. **v1 formula trust residue on install.** Machines that ever installed v1
    keep a trust entry for `anomalyco/tap/opencode` after the topic uninstalls
    the formula. Default: `install.yaml` also runs the idempotent
    `brew untrust --formula {{ opencode_tap }}/opencode` after the removal
    (harmless when absent, converges both eras).
-3. **`read *` allow vs v2's `.env` protection.** v2's built-in base policy asks
-   before reading `*.env*`; a global `read * allow` (appended after the base)
-   overrides that. Default: keep v1 parity (reads free) and say so in the
-   template comment, so a future tightening is a one-line edit.
-4. **Small-model locality for summary and compaction.** v2 maps legacy
-   `small_model` to the `title` agent only. Default: add
-   `agents.summary.model` and `agents.compaction.model` entries to
-   `.chezmoidata/opencode.yaml` (both `ollama/qwen3:8b`) to keep the recorded
-   "trivial calls never leave the box" intent. Compaction model selection
-   semantics in v2 were not fully verified — confirm with `opencode debug
-   config` on the day.
+3. **`read *` allow vs v2's `.env` protection.** SETTLED — accept v2's
+   protection; the `.env` ask rule follows the read allow. See Author
+   rulings #2.
+4. **Small-model locality for summary and compaction.** SETTLED — pin
+   `ollama/qwen3.5:9b` across title/summary/compaction. See Author rulings #3.
 5. **`default_agent`.** v1 never set one; v2 falls back to `build` when unset.
    Default: leave unset (parity); `deep` stays switchable.
 6. **`$schema` URL.** v2's docs still point at `https://opencode.ai/config.json`,
