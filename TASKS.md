@@ -1622,6 +1622,20 @@ nothing is.
   failing test named, recorded as trailers on the implementation
   commit) and the rest of the suite stays green.
 
+- **opencode v2 migration — implement.** [agent: orch_sub_oc2mig,
+  worktree `.worktrees/orch_sub_oc2mig`] Apply the plan and make the
+  tests green: `apps/opencode` tasks install `anomalyco/tap/opencode-v2`
+  and remove the conflicting v1 formula in the same run, teardown
+  updated in the same change, `dot_config/opencode/opencode.jsonc.tmpl`
+  migrated to the v2 permissions schema, README and CHANGELOG updated.
+  Follow-up machine state is author-run, never agent: `chezmoi apply`,
+  run-role for the topic (run-role.sh is cwd-dependent — run from
+  `dotfiles/`, see the 2026-10-03 observation above), then removal of
+  the mise-installed opencode 1.18 that shadows the brew binary. Done
+  when the new tests pass, the topic renders under both os_family
+  values, and the diff goes to the author for review (PR; deployed-tree
+  paths are always human review per § Merge gates).
+
 ## Planned
 
 
