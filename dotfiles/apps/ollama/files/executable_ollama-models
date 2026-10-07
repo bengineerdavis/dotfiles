@@ -25,6 +25,11 @@ Subcommands:
   check [--next-gen]              diff each family's upstream tags vs the manifest;
                                  flag unknown precision/format keywords; with
                                  --next-gen, probe for newer family generations
+  adopt FAMILY --to FAMILY        rewrite the manifest to a newer generation of a
+                                 family, preserving every comment. Pulls NOTHING
+                                 — the new tags read MISSING until you `sync`.
+                                 Gated on ollama_model_update_scope; --dry-run
+                                 prints the diff and writes nothing.
 
   `status` and `check` both end by reporting ROLE DRIFT: any tag named in
   `ollama_roles` that no family declares. Such a pick is unpullable by `sync`
@@ -39,10 +44,16 @@ Subcommands:
 
 Manifest location: $OLLAMA_MODELS_MANIFEST, else --manifest, else the
 defaults/main.yaml two dirs up from this script.
+
+Exit codes: 0 did it (or there was nothing to do) · 1 error · 2 usage error
+(argparse's own) · 3 refused, by policy, by scope, or because nobody was there
+to confirm.
 """
 from __future__ import annotations
 
 import argparse
+import copy
+import difflib
 import hashlib
 import os
 import platform
@@ -51,6 +62,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+from collections import namedtuple
 from pathlib import Path
 
 try:
@@ -80,6 +92,47 @@ KNOWN_TOKENS = {
     "moe", "h", "micro", "tiny", "small", "reasoning", "vision",
 }
 SIZE_RE = re.compile(r"^(?:a|e)?\d+(?:\.\d+)?[bm]$|^\d+x\d+b$|^\d+$", re.I)
+
+# ── what an automated run may do about models ───────────────────────────────
+# Two axes, both declared in the manifest, because they answer different
+# questions and collapsing them would make one of the answers unsayable:
+#
+#   POLICY  how much say you want — skip / report / prompt / auto
+#   SCOPE   what it may act on   — weights / manifest / both
+#
+# The policy vocabulary predates this tool: playbook.yaml already resolves it
+# for the weights refresh, and `prompt` already degrades to `report` without a
+# TTY. Both are reused verbatim rather than mirrored, so the CLI and an ansible
+# run reach the same decision instead of two that drift.
+#
+# Scope defaults to `weights`, which is exactly what the policy governed before
+# this command existed — so a manifest that says nothing keeps its old
+# behaviour, and rewriting the manifest is something you switch on deliberately.
+UPDATE_POLICIES = ("skip", "report", "prompt", "auto")
+UPDATE_SCOPES = ("weights", "manifest", "both")
+Gate = namedtuple("Gate", "policy scope")
+
+# Refused — by policy, by scope, or for want of anyone to confirm. Distinct from
+# 1 (something broke) so a caller can tell a deliberate no from a failure, and
+# from 2, which argparse hardcodes for a usage error and is not ours to reuse.
+REFUSED = 3
+
+
+def interactive() -> bool:
+    """Is there a human to answer a prompt? Both ends, not just one: a piped
+    stdout with a live stdin still means nobody sees the diff they are
+    approving."""
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
+def effective_policy(policy: str) -> str:
+    """`prompt` needs someone to answer it; with no TTY it becomes `report`.
+
+    The same degradation playbook.yaml applies, for the same reason: an
+    unattended run must not block on a pause, and must not take silence for
+    consent either.
+    """
+    return "report" if policy == "prompt" and not interactive() else policy
 
 
 # ── manifest ────────────────────────────────────────────────────────────────
@@ -114,7 +167,17 @@ def load_manifest(path: Path):
     # Role picks are tags too, and nothing else cross-checks them against the
     # families above — see role_drift().
     roles = data.get("ollama_roles") or {}
-    return reserve, families, keep, ctx, roles
+    # How much say an automated run gets, and over what. See UPDATE_POLICIES.
+    policy = str(data.get("ollama_model_update_policy", "prompt"))
+    scope = str(data.get("ollama_model_update_scope", "weights"))
+    for name, value, allowed in (
+        ("ollama_model_update_policy", policy, UPDATE_POLICIES),
+        ("ollama_model_update_scope", scope, UPDATE_SCOPES),
+    ):
+        if value not in allowed:
+            sys.exit(f"error: {name} must be one of {', '.join(allowed)} "
+                     f"— got {value!r} ({path})")
+    return reserve, families, keep, ctx, roles, Gate(policy, scope)
 
 
 # ── host facts ──────────────────────────────────────────────────────────────
@@ -510,7 +573,7 @@ def report_role_drift(families, keep, roles) -> None:
           "ollama_prune_keep if it is deliberately hand-pinned.")
 
 
-def cmd_sync(args, reserve, families, keep, ctx, roles):
+def cmd_sync(args, reserve, families, keep, ctx, roles, gate):
     mem, basis = total_ram_gb()
     budget = mem * (100 - reserve) / 100
     # Separate system-RAM budget for members marked `basis: ram` (CPU/split MoE).
@@ -561,7 +624,7 @@ def cmd_sync(args, reserve, families, keep, ctx, roles):
               f"`ollama list`. Edit defaults/main.yaml to use a local build.")
 
 
-def cmd_status(args, reserve, families, keep, ctx, roles):
+def cmd_status(args, reserve, families, keep, ctx, roles, gate):
     mem, basis = total_ram_gb()
     budget = mem * (100 - reserve) / 100
     # Separate system-RAM budget for members marked `basis: ram` (CPU/split MoE).
@@ -604,7 +667,7 @@ def cmd_status(args, reserve, families, keep, ctx, roles):
     report_role_drift(families, keep, roles)
 
 
-def cmd_check(args, reserve, families, keep, ctx, roles):
+def cmd_check(args, reserve, families, keep, ctx, roles, gate):
     manifest_by_family = {}
     for family, members in families.items():
         tags = set()
@@ -661,7 +724,17 @@ def cmd_check(args, reserve, families, keep, ctx, roles):
                 # mistaken for an actionable upgrade.
                 tags = re.findall(re.escape(cand) + r":([A-Za-z0-9][A-Za-z0-9._-]*)", html)
                 local = [t for t in tags if not t.endswith("cloud")]
-                note = "" if local else "  (cloud-only — no local weights)"
+                # Only offer `adopt` where it could actually run. A candidate
+                # that is already a family of its own is one `adopt` would
+                # refuse (a family must appear exactly once), and the heuristic
+                # produces those routinely — it offers qwen3.8 as a newer
+                # qwen3.6 while qwen3.8 sits right above it in the manifest.
+                if not local:
+                    note = "  (cloud-only — no local weights)"
+                elif cand in families:
+                    note = "  (already a family here)"
+                else:
+                    note = f"\n      adopt with: ollama-models adopt {family} --to {cand} --dry-run"
                 print(f"  ⬆ newer generation may exist: {cand}{note}")
     report_role_drift(families, keep, roles)
 
@@ -709,7 +782,347 @@ def next_gen_candidates(family: str) -> list[str]:
     return [c for c in out if not (c in seen or seen.add(c))]
 
 
-def cmd_prune(args, reserve, families, keep, ctx, roles):
+# ── rewriting the manifest ──────────────────────────────────────────────────
+# Adopting a newer generation is a MANIFEST edit, and the manifest is more
+# comment than data: 499 of its 759 lines carry the measured rationale — tok/s
+# figures, eval scores, why deepseek-r1:32b was demoted, why glm-4.7-flash left
+# the `think` role, PROVISIONAL notes with dates. Those comments are the reason
+# the file is trustworthy, so the edit mechanism was chosen by measuring the
+# damage each one does to THIS file, not by reputation:
+#
+#   yaml.safe_load + yaml.dump   deletes all 499 comment lines. Disqualified.
+#   ruamel.yaml round-trip       keeps all 499 comment lines, and still rewrites
+#                                110 DATA lines on a no-op load-and-dump, tuned
+#                                as far as its knobs go (indent(2,4,2), a null
+#                                representer, preserve_quotes, width=4096). It
+#                                re-emits every flow mapping from the parsed
+#                                structure, so `{ gen_tok_s: 103.0, gb: 2.6 }`
+#                                loses the column alignment that makes
+#                                ollama_model_perf and ollama_remote_cost
+#                                readable as tables. 110 lines of collateral to
+#                                change 4 is the wrong trade.
+#   targeted line surgery        touches the family's own block and nothing
+#                                else. Costs no new dependency and reuses the
+#                                choice `browser-ext` already made for the same
+#                                reason — that file, too, is mostly comments.
+#
+# The catch with line surgery is that a regex is easy to get subtly wrong, and a
+# subtle wrong answer here silently corrupts the one file nobody re-derives. So
+# the write is gated: verify_rewrite() has to prove the result is the intended
+# one by three independent means before a byte is written, and refuses
+# otherwise. Measurements are reproducible — see tests/ollama_models/.
+def split_code_comment(line: str) -> tuple[str, str]:
+    """Split a YAML line into (code, comment). A `#` inside quotes is data.
+
+    Comments are never rewritten — they hold the rationale, and a family name
+    appears in plenty of them (the qwen3-vl note explains itself by comparison
+    with qwen3.6). Substitution applies to the code half only.
+    """
+    quote = ""
+    for i, ch in enumerate(line):
+        if quote:
+            if ch == quote:
+                quote = ""
+        elif ch in "\"'":
+            quote = ch
+        elif ch == "#" and (i == 0 or line[i - 1] in " \t"):
+            return line[:i], line[i:]
+    return line, ""
+
+
+def family_block(lines: list[str], family: str) -> tuple[int, int] | None:
+    """(start, end) line indices of `family:` within ollama_models, or None.
+
+    Members are indented four spaces or more; a sibling family key is indented
+    two, and a new section is indented none. So the block ends at the first line
+    whose CODE is non-empty and not four-space indented — which leaves blank
+    lines and comments inside the span, harmlessly, since neither is rewritten.
+    """
+    top = next((i for i, ln in enumerate(lines) if ln.startswith("ollama_models:")), None)
+    if top is None:
+        return None
+    key = _yaml_safe_key(family)
+    head = re.compile(r"^  " + re.escape(key) + r":\s*($|#)")
+    start = next((i for i in range(top + 1, len(lines)) if head.match(lines[i])), None)
+    if start is None:
+        return None
+    end = len(lines)
+    for i in range(start + 1, len(lines)):
+        code = split_code_comment(lines[i])[0]
+        if code.strip() and not code.startswith("    "):
+            end = i
+            break
+    return start, end
+
+
+def retag_plan(members, family: str, new_family: str) -> list[tuple[str, str]]:
+    """[(old_tag, new_tag)] for every OS-keyed tag in the family, de-duplicated.
+
+    Only tags actually prefixed by the family are touched. The manifest states
+    that invariant ("every member's tag starts with it"); this enforces it
+    rather than assuming it, so a stray tag is left alone and then shows up as
+    a leftover in the diff the human reads.
+    """
+    pairs: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for m in members or []:
+        for key in OS_KEYS:
+            tag = m.get(key)
+            if not tag or not tag.startswith(family + ":") or tag in seen:
+                continue
+            seen.add(tag)
+            pairs.append((tag, new_family + tag[len(family):]))
+    return pairs
+
+
+def _yaml_safe_key(name: str) -> str:
+    """Quote a family name when bare YAML 1.1 would misparse it as a boolean
+    or null (`no`, `yes`, `on`, `off`, `true`, `false`, `null`, `y`, `n`) or
+    as a number, so a key written bare would not read back as the same name."""
+    lowered = name.lower()
+    booleans = {"y", "yes", "n", "no", "true", "false", "on", "off",
+                "null", "none", "~"}
+    if lowered in booleans or re.fullmatch(
+            r"[+-]?\d+(\.\d+)?([eE][+-]?\d+)?", name):
+        return f'"{name}"'
+    return name
+
+
+def rewrite_family(text: str, family: str, new_family: str,
+                   pairs: list[tuple[str, str]]) -> str:
+    """Return `text` with the family key and its member tags renamed in place."""
+    lines = text.splitlines(keepends=True)
+    span = family_block(lines, family)
+    if span is None:
+        sys.exit(f"error: no `{family}:` family under ollama_models")
+    start, end = span
+    for i in range(start, end):
+        code, comment = split_code_comment(lines[i])
+        if not code.strip():
+            continue
+        if i == start:
+            # The family key only. Its trailing padding is left as-is, so a
+            # name of a different length shifts that ONE line's inline comment
+            # by the difference. Re-padding was considered and dropped: it
+            # would break the `code.replace(family, new_family) == result`
+            # oracle in verify_rewrite(), and trading the strongest integrity
+            # check for a column of whitespace is the wrong way round. Realign
+            # by hand in the same edit if it matters.
+            key = _yaml_safe_key(family)
+            code = re.sub(r"^(\s*)" + re.escape(key) + r":",
+                          lambda m: m.group(1) + _yaml_safe_key(new_family) + ":", code)
+        for old, new in pairs:
+            # `:` and `-` are in the boundary class, so `qwen3.6:27b-mlx`
+            # cannot match inside `qwen3.6:27b-mlx-bf16`.
+            #
+            # Honest note: mutation testing says this boundary is currently
+            # INERT. Deleting either half leaves all 41 tests passing, and not
+            # for want of a case — the mutants are equivalent. Every planned
+            # substitution is the same `family:` -> `newfamily:` prefix swap,
+            # so a match at the wrong offset produces the right answer anyway.
+            # It is kept as a guard against a future schema that plans two
+            # unrelated substitutions at once, and it is documented as
+            # defensive rather than proven, because claiming otherwise would
+            # be claiming a test that does not exist. The gate that IS proven
+            # is verify_rewrite(), which refuses the write.
+            #
+            # An earlier draft ALSO sorted the pairs longest-first. That was
+            # removed: two mechanisms for one invariant, both untestable
+            # because each hid the other.
+            code = re.sub(r"(?<![0-9A-Za-z._:/-])" + re.escape(old)
+                          + r"(?![0-9A-Za-z._:/-])", lambda m, n=new: n, code)
+        lines[i] = code + comment
+    return "".join(lines)
+
+
+def _intended_doc(doc: dict, family: str, new_family: str, mapping: dict) -> dict:
+    """`doc` with the family key renamed in place and its member tags mapped.
+
+    Built from the PARSED document rather than from text, so it is an oracle
+    independent of the line surgery it is checking.
+    """
+    out = copy.deepcopy(doc)
+    renamed = {}
+    for key, members in (out.get("ollama_models") or {}).items():
+        if key == family:
+            for m in members or []:
+                for os_key in OS_KEYS:
+                    if m.get(os_key) in mapping:
+                        m[os_key] = mapping[m[os_key]]
+            renamed[new_family] = members
+        else:
+            renamed[key] = members
+    out["ollama_models"] = renamed
+    return out
+
+
+def verify_rewrite(before: str, after: str, family: str, new_family: str,
+                   pairs: list[tuple[str, str]]) -> list[str]:
+    """Problems that must stop the write. Empty means the rewrite is clean.
+
+    Three independent checks, because any one of them can be satisfied by a
+    wrong answer:
+
+      TEXT       every comment line, and every untouched line, byte-identical;
+                 line count unchanged.
+      LINE       each changed line is reproduced by a naive whole-string family
+                 substitution on its code half — a different implementation
+                 from the boundary-aware regex that produced it, so the two
+                 disagreeing is a signal rather than a shared blind spot.
+      STRUCTURE  the reparsed document equals the intended document computed
+                 from the parse, with the family keys still in their original
+                 order (dict equality alone would not notice a reordering, and
+                 order is what `status` prints in).
+    """
+    problems: list[str] = []
+    b, a = before.splitlines(), after.splitlines()
+    if len(b) != len(a):
+        return [f"line count changed: {len(b)} -> {len(a)}"]
+
+    cb = [ln for ln in b if ln.lstrip().startswith("#")]
+    ca = [ln for ln in a if ln.lstrip().startswith("#")]
+    if cb != ca:
+        problems.append(f"comment lines changed: {len(cb)} -> {len(ca)}")
+
+    for n, (lb, la) in enumerate(zip(b, a), start=1):
+        if lb == la:
+            continue
+        code_b, com_b = split_code_comment(lb)
+        code_a, com_a = split_code_comment(la)
+        if com_b != com_a:
+            problems.append(f"line {n}: inline comment changed")
+        # Two notations, both legitimate retag output: tag strings live inside
+        # existing quotes, so they carry the bare name; the family KEY line
+        # carries the quoted form when the bare name would misparse (§
+        # _yaml_safe_key). The oracle accepts either form per line — anything
+        # the retag did not write still matches neither and is refused.
+        forms = {code_b.replace(family, new_family),
+                 code_b.replace(family, _yaml_safe_key(new_family))}
+        if code_a not in forms:
+            problems.append(f"line {n}: changed by something other than the retag")
+
+    try:
+        doc_b, doc_a = yaml.safe_load(before), yaml.safe_load(after)
+    except yaml.YAMLError as e:
+        problems.append(f"result is not valid YAML: {e}")
+        return problems
+    want = _intended_doc(doc_b, family, new_family, dict(pairs))
+    if doc_a != want:
+        problems.append("the reparsed document is not the intended one")
+    if list(doc_a.get("ollama_models") or {}) != list(want.get("ollama_models") or {}):
+        problems.append("family order changed")
+    return problems
+
+
+def cmd_adopt(args, reserve, families, keep, ctx, roles, gate):
+    old, new = args.family, args.to
+    if old not in families:
+        sys.exit(f"error: no family `{old}` under ollama_models in {args.manifest}")
+    if new == old:
+        sys.exit(f"error: --to names the family it already is (`{old}`)")
+    if new in families:
+        sys.exit(f"error: `{new}` is already a family. A family must appear "
+                 f"exactly once — duplicate YAML keys silently discard the "
+                 f"earlier block, so merging two is a hand edit.")
+
+    # Scope before policy: "may this tool edit the manifest at all" is a prior
+    # question to "how much say do I want over this edit". Both come after the
+    # argument checks above, so a typo'd family name is reported as a typo
+    # rather than as a policy problem.
+    if gate.scope not in ("manifest", "both"):
+        print(f"refused: ollama_model_update_scope is `{gate.scope}`, which "
+              f"covers weights only.\n"
+              f"  Rewriting the manifest stays off until it is asked for. Set\n"
+              f"      ollama_model_update_scope: manifest      # or: both\n"
+              f"  in {args.manifest}.", file=sys.stderr)
+        return REFUSED
+    policy = "report" if args.dry_run else effective_policy(gate.policy)
+    if policy == "skip":
+        print("refused: ollama_model_update_policy is `skip`.", file=sys.stderr)
+        return REFUSED
+
+    pairs = retag_plan(families[old], old, new)
+    if not pairs:
+        print(f"nothing to do: `{old}` declares no tags prefixed `{old}:`")
+        return 0
+
+    # Verify the destination exists before proposing it. A newer generation is
+    # guessed by a name heuristic (see next_gen_candidates), and a guess that
+    # resolves to nothing would otherwise be written into the manifest and only
+    # discovered at the next `sync`.
+    try:
+        upstream = fold(upstream_tags(new))
+    except (urllib.error.URLError, OSError) as e:
+        print(f"refused: could not read upstream tags for `{new}` ({e}).\n"
+              f"  The manifest is not rewritten on an unverified guess.",
+              file=sys.stderr)
+        return REFUSED
+    missing = [n for _, n in pairs if n.lower() not in upstream]
+    if missing:
+        print(f"refused: {len(missing)} of {len(pairs)} tag(s) have no `{new}` "
+              f"build upstream:", file=sys.stderr)
+        for tag in missing:
+            print(f"    {tag}", file=sys.stderr)
+        print(f"  A partial migration leaves the family half-declared, which is "
+              f"worse than not starting, so nothing is written. Either wait for "
+              f"upstream to publish the rest, or drop those members by hand "
+              f"first.\n  `ollama-models check` lists what {new} does publish.",
+              file=sys.stderr)
+        return REFUSED
+
+    before = args.manifest.read_text()
+    after = rewrite_family(before, old, new, pairs)
+    problems = verify_rewrite(before, after, old, new, pairs)
+    if problems:
+        print("ABORTED — the rewrite did not come out clean, so nothing was "
+              "written. This is a bug in rewrite_family(), not in your "
+              "manifest:", file=sys.stderr)
+        for p in problems:
+            print(f"    {p}", file=sys.stderr)
+        return 1
+
+    diff = "".join(difflib.unified_diff(
+        before.splitlines(keepends=True), after.splitlines(keepends=True),
+        f"a/{args.manifest.name}", f"b/{args.manifest.name}"))
+    if not diff:
+        print("nothing to do: the manifest already reads that way")
+        return 0
+    print(diff, end="")
+    before_lines = before.splitlines()
+    # Count the original lines that move, not both sides of the diff: "8 of
+    # 789" would read as twice the damage actually done.
+    touched = sum(1 for b, a in zip(before_lines, after.splitlines()) if b != a)
+    n_comments = sum(1 for ln in before_lines if ln.lstrip().startswith("#"))
+    print(f"\n{len(pairs)} tag(s) + the family key: {touched} changed line(s) of "
+          f"{len(before_lines)}. All {n_comments} comment lines unchanged, "
+          f"and the document reparses to the same thing everywhere else.\n"
+          f"NO WEIGHTS ARE PULLED — the new tags read MISSING until `sync`.")
+
+    if policy == "report":
+        why = ("--dry-run" if args.dry_run
+               else f"ollama_model_update_policy is `{gate.policy}`"
+               if gate.policy == "report"
+               else "no TTY, so `prompt` degraded to `report`")
+        print(f"\nnothing written ({why}).", file=sys.stderr)
+        # --dry-run got exactly what it asked for; a degraded prompt did not.
+        return 0 if args.dry_run else REFUSED
+    if policy == "prompt":
+        if input(f"\nrewrite {args.manifest}? [y/N] ").strip().lower() not in ("y", "yes"):
+            print("aborted; nothing written")
+            return REFUSED
+
+    args.manifest.write_text(after)
+    print(f"\nwrote {args.manifest}")
+    _, fam2, keep2, _, roles2, _ = load_manifest(args.manifest)
+    report_role_drift(fam2, keep2, roles2)
+    print(f"\nnext: `status` shows the new tags as MISSING · `sync` pulls them · "
+          f"`prune` reclaims the {len(pairs)} superseded one(s). Role picks and "
+          f"the measured figures in ollama_model_perf still name the OLD tags, "
+          f"deliberately: a measurement belongs to the model it was taken on.")
+    return 0
+
+
+def cmd_prune(args, reserve, families, keep, ctx, roles, gate):
     wanted = declared_tags(families, keep)
     orphans = sorted(t for t in installed_models() if t.lower() not in wanted)
     if not orphans:
@@ -754,9 +1167,21 @@ def main():
     pr.add_argument("--remove", action="store_true", help="delete the orphans (confirmed)")
     pr.set_defaults(func=cmd_prune)
 
+    # `--dry-run` and `ollama_model_update_policy: report` are the same
+    # behaviour under two names, and deliberately one implementation: the flag
+    # forces the policy rather than branching beside it. The flag exists because
+    # "show me" is an ergonomic request that should not need a manifest edit.
+    ad = sub.add_parser("adopt", help="retag a family to a newer generation (writes no weights)")
+    ad.add_argument("family", help="the family to retag, as it appears under ollama_models")
+    ad.add_argument("--to", required=True, metavar="FAMILY",
+                    help="the newer family name, e.g. --to qwen3.7")
+    ad.add_argument("--dry-run", action="store_true",
+                    help="print the diff and write nothing")
+    ad.set_defaults(func=cmd_adopt)
+
     args = p.parse_args()
-    reserve, families, keep, ctx, roles = load_manifest(args.manifest)
-    args.func(args, reserve, families, keep, ctx, roles)
+    reserve, families, keep, ctx, roles, gate = load_manifest(args.manifest)
+    sys.exit(args.func(args, reserve, families, keep, ctx, roles, gate) or 0)
 
 
 if __name__ == "__main__":
