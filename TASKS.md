@@ -1608,6 +1608,20 @@ nothing is.
   formula removal, teardown updated in the same change, verification
   steps, and any open author decisions.
 
+- **opencode v2 migration — tests.** [agent: orch_sub_oc2test, worktree
+  `.worktrees/orch_sub_oc2test`] From the plan, write the pytest
+  coverage the implementation must satisfy before the implementation
+  exists: extend `tests/topic_resolution/test_opencode_both_os.py`,
+  `tests/topics/test_opencode_*.py` and the `tests/guards/` wiring
+  tests as the plan directs, covering the v2 formula install, the
+  conflicting v1 formula removal in the same run, teardown of
+  everything the new install creates, and the migrated config schema
+  rendered under both os_family values with StrictUndefined. Written
+  before the migration lands — expected red against v1 state, green
+  after. Done when every new test has been seen to fail (mutation and
+  failing test named, recorded as trailers on the implementation
+  commit) and the rest of the suite stays green.
+
 ## Planned
 
 
