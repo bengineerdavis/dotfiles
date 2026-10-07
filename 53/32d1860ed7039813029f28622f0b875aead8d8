@@ -1,0 +1,19 @@
+dotfiles/docs/research/opencode-v2/PLAN.md
+  s_35e2d25641b7d0::t_55bbdef5c87a71 1-418
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5332d1860ed7039813029f28622f0b875aead8d8",
+  "prompts": {},
+  "sessions": {
+    "s_35e2d25641b7d0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eeb4a63dcffeFqqM9t0hL49h00",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
