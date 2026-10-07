@@ -1588,6 +1588,26 @@ nothing is.
   root). One-line fix: `cd "$(dirname "$0")"` after set -euo pipefail.
   Deployed-tree file, so the fix goes to the author for review.
 
+- **opencode v2 migration — plan (apps/opencode v1 → v2).** [agent:
+  orch_sub_oc2plan, worktree `.worktrees/orch_sub_oc2plan`] Research and
+  write the migration plan. Verified 2026-10-06: v2 is 2.0.24; the same
+  tap `anomalyco/tap` carries formula `opencode-v2`, which declares
+  `conflicts_with "opencode"` and `depends_on "ripgrep"`; the author
+  chose the brew-tap route over npm (npm is blocked on this box by a
+  root-owned `/tmp/fslock` — standing machine issue, see § Cross-session
+  hazards), wants the chezmoi config migrated in the same work item, and
+  wants the mise-installed opencode 1.18 shadow (it outranks the brew
+  binary on PATH) removed after the ansible migration is verified. Open
+  research the plan must settle from v2 sources or release notes, not
+  assumption: whether v2 parses v1's `permission` map schema at all (v2
+  docs show only the ordered `permissions` array), and the exact v2
+  syntax for bash rules and `external_directory` path rules. Plan lands
+  at `dotfiles/docs/research/opencode-v2/PLAN.md`. Done when it names
+  every file that changes (topic tasks/defaults/README/CHANGELOG plus
+  the chezmoi config), the v1→v2 permission mapping, the brew v1
+  formula removal, teardown updated in the same change, verification
+  steps, and any open author decisions.
+
 ## Planned
 
 
