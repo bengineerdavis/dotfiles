@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # scripts/run-bats.sh
-# Runs BATS suites for staged shell scripts in bin/ and scripts/.
+# Runs BATS suites for staged shell scripts in bin/, scripts/ and,
+# after the .chezmoiroot move, home/bin/.
 # Convention: <subdir>/foo.sh → tests/foo.bats
 set -euo pipefail
 
@@ -28,7 +29,7 @@ test_file_for()  { echo "$TESTS_DIR/$(basename "${1%.sh}").bats"; }
 
 mapfile -t staged < <(
   git -C "$REPO_ROOT" diff --cached --name-only --diff-filter=ACM \
-    | grep -E '^(bin|scripts)/[^/]+\.sh$' \
+    | grep -E '^((home/)?bin|scripts)/[^/]+\.sh$' \
     | grep -vE '^scripts/run-(bats|shellharden)\.sh$'
 )
 
