@@ -33,6 +33,12 @@
 # so it only tracks every fifth release and trails upstream by design. Naming
 # the tap explicitly keeps both OSes on the same source instead of leaving
 # Darwin on core and Debian on the tap.
+#
+# The v2 migration (dotfiles/docs/research/opencode-v2/PLAN.md, 2026-10-06):
+# the install target is the tap's opencode-v2 formula, which declares
+# `conflicts_with "opencode"` — both install an opencode binary. The v1
+# formula is uninstalled and its trust residue cleaned in the same run,
+# below, before the v2 install.
 
 - name: "Trust the tap so Homebrew will load its formulae: {{ opencode_tap }}"
   # Homebrew 7 will not load formulae from a third-party tap until the tap is
@@ -64,9 +70,35 @@
     name: "{{ opencode_tap }}"
     state: present
 
-- name: "Install opencode from the pinned tap"
+- name: "Remove the conflicting v1 formula before installing v2"
+  # The v2 formula declares `conflicts_with "opencode"` (verified in the tap's
+  # opencode-v2.rb, 2026-10-06): brew refuses the v2 install while any v1
+  # formula is present, so the uninstall runs first, in the same run — not in
+  # a follow-up run the operator has to remember. state: absent is idempotent:
+  # a machine that never installed v1 no-ops. A machine with a homebrew/core
+  # `opencode` rather than this tap's fails with brew's readable conflict
+  # error instead of silently — acceptable, and not this box's situation.
   community.general.homebrew:
     name: "{{ opencode_tap }}/opencode"
+    state: absent
+
+- name: "Clean the v1 formula trust residue"
+  # `brew install` writes a formula trust entry next to the tap entry (see
+  # remove.yaml; measured 2026-09-14), and uninstalling does not remove it —
+  # machines that ever installed v1 keep a trust entry for a formula this
+  # topic no longer installs. Decision 2's safe default (PLAN.md § Open
+  # author decisions, 2026-10-06): clean it on install. Harmless when
+  # absent; converges machines from both eras.
+  ansible.builtin.command:
+    cmd: "brew untrust --formula {{ opencode_tap }}/opencode"
+  register: opencode_untrust_v1_formula
+  changed_when: "'Not trusted' not in opencode_untrust_v1_formula.stdout"
+
+- name: "Install opencode v2 from the pinned tap"
+  # Homebrew's own refusal names the conflict if anything above missed one —
+  # the uninstall must precede this task in the same run.
+  community.general.homebrew:
+    name: "{{ opencode_tap }}/opencode-v2"
     state: present
 
 # ── The skill set, via dotagents ────────────────────────────────────────────

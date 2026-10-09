@@ -54,6 +54,8 @@ opencode_skill_vendored:
 # The tap the binary installs from. Pinned (see tasks/install.yaml): naming the
 # tap explicitly keeps both OSes on the same build instead of letting Darwin
 # fall to the same-named homebrew/core formula, which trails releases.
+# Since the v2 migration (2026-10-06) the tap serves both formulae: the
+# opencode-v2 install target, and the v1 uninstall + trust-residue cleanup.
 opencode_tap: anomalyco/tap
 
 # Untap AND untrust anomalyco/tap on remove. Off by default: the tap was added
