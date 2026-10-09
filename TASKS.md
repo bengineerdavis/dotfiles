@@ -1608,6 +1608,11 @@ nothing is.
   formula removal, teardown updated in the same change, verification
   steps, and any open author decisions.
 
+  Landed 2026-10-06 on `agent/orch` (merged from `orch_sub_oc2plan`):
+  plan at `dotfiles/docs/research/opencode-v2/PLAN.md` (`5332d18`,
+  rulings amendment `1d60ebb`). Awaiting the PR review; resolves when it
+  merges.
+
 - **opencode v2 migration — tests.** [agent: orch_sub_oc2test, worktree
   `.worktrees/orch_sub_oc2test`] From the plan, write the pytest
   coverage the implementation must satisfy before the implementation
@@ -1622,6 +1627,13 @@ nothing is.
   failing test named, recorded as trailers on the implementation
   commit) and the rest of the suite stays green.
 
+  Landed 2026-10-06 on `agent/orch` (merged from `orch_sub_oc2test`):
+  14 v2-targeted tests seen red against v1 state (`8050bd1`), plus a
+  prerequisite hook fix for tests/ollama_models/conftest.py whose
+  pre-existing pyrefly and W505 failures blocked every local
+  Python-file commit (`1916084`). Green after the implementation
+  commits.
+
 - **opencode v2 migration — implement.** [agent: orch_sub_oc2mig,
   worktree `.worktrees/orch_sub_oc2mig`] Apply the plan and make the
   tests green: `apps/opencode` tasks install `anomalyco/tap/opencode-v2`
@@ -1635,6 +1647,13 @@ nothing is.
   when the new tests pass, the topic renders under both os_family
   values, and the diff goes to the author for review (PR; deployed-tree
   paths are always human review per § Merge gates).
+
+  Landed 2026-10-06 on `agent/orch` (merged from `orch_sub_oc2mig`):
+  topic commit `9d448f5`, config commit `c26f4ac`; the 14 queued tests
+  green (mutation evidence on the commits), full battery matches main
+  except 13 pre-existing failures in clipped/restart_stale/herdr,
+  reproduced on main's merge-base. PR opened to main; resolves when the
+  author merges.
 
 - **Declare ollama/qwen3.5:9b in the model manifest and prove it on this
   machine.** [author decision 2026-10-06, unclaimed] The opencode v2
