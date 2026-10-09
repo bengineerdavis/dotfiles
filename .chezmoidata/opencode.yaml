@@ -20,7 +20,12 @@
 opencode:
   common:
     model: openrouter/z-ai/glm-5.3-flash
-    small_model: ollama/qwen3:8b
+    # Author ruling 3, 2026-10-06 (opencode v2 migration): the trivial-call
+    # roles stay local on the current-generation qwen3.5 tag. Pending its
+    # apps/ollama manifest declaration + the author-run `ollama pull`
+    # (TASKS.md § Now) — until that lands, the tag only resolves where it
+    # has been pulled by hand.
+    small_model: ollama/qwen3.5:9b
     provider:
       openrouter:
         models:
@@ -44,6 +49,16 @@ opencode:
         mode: primary
         model: openrouter/anthropic/claude-opus-5
         variant: max
+    # v2's trivial-call agents (author ruling 3, 2026-10-06): summaries and
+    # compaction join titles (which small_model maps to) on the same local
+    # tag, so none of them leave the box. The pending-manifest note on
+    # small_model above applies to this tag too. v1 spelled this block
+    # `agent`; v2's native key is `agents`.
+    agents:
+      summary:
+        model: ollama/qwen3.5:9b
+      compaction:
+        model: ollama/qwen3.5:9b
   os:
     darwin: {}
     linux: {}
