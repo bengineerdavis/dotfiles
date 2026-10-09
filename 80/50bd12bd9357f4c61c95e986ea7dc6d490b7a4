@@ -1,0 +1,33 @@
+tests/topics/test_opencode_v2_tasks.py
+  s_da09848aeffc0f::t_ab9ed30df68187 101,129
+  s_da09848aeffc0f::t_0d31ea36c276e2 1-100,102-128,130-221
+  s_da09848aeffc0f::t_2068d532fe03ce 222
+tests/topics/test_opencode_config_layers.py
+  s_67c68ffa7219ae::t_68474707f400a8 4-16,31,35,41-82,127-188,221-272,274-336,338-348,350-486
+tests/topics/test_opencode_os_agnostic.py
+  s_67c68ffa7219ae::t_68474707f400a8 126-132,142-150
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8050bd12bd9357f4c61c95e986ea7dc6d490b7a4",
+  "prompts": {},
+  "sessions": {
+    "s_67c68ffa7219ae": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ee16abd69ffeRaLUMItZr8D97B",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    },
+    "s_da09848aeffc0f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eeb27a0f9ffeaxIRX6j6MToria",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
