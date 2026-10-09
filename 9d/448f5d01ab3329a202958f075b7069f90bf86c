@@ -1,0 +1,38 @@
+dotfiles/apps/opencode/tasks/install.yaml
+  s_68f2ce9a0bd13a::t_b9cef84c9ce77f 36-41
+  s_68f2ce9a0bd13a::t_c9818b9fbd16c7 73-80,83-84,96,100
+  s_68f2ce9a0bd13a::t_2e58b1b2a6b71c 97-99,101
+  s_68f2ce9a0bd13a::t_62e427eedfc553 85-95
+dotfiles/apps/opencode/tasks/remove.yaml
+  s_68f2ce9a0bd13a::t_62b9f01d696f31 7,9
+  s_68f2ce9a0bd13a::t_db2c6188d2cec0 23-26,32-35
+  s_68f2ce9a0bd13a::t_ad1c9c26d8297d 116-120,124-127
+  s_68f2ce9a0bd13a::t_4d2ec2267fc086 39
+dotfiles/apps/opencode/defaults/main.yaml
+  s_68f2ce9a0bd13a::t_1a16e45206d5bd 57-58
+dotfiles/apps/opencode/tasks/upgrade.yaml
+  s_68f2ce9a0bd13a::t_dbda8a32d8379f 5-11
+dotfiles/apps/opencode/README.md
+  s_68f2ce9a0bd13a::t_3bac842206dc8d 21-33
+  s_68f2ce9a0bd13a::t_f208e5d1657b18 89-98
+  s_68f2ce9a0bd13a::t_a469fb5c18cdd9 109-112
+  s_68f2ce9a0bd13a::t_c4d7851e7f5ab9 126-133
+dotfiles/apps/opencode/CHANGELOG.md
+  s_68f2ce9a0bd13a::t_b1698ad4d033a1 6-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9d448f5d01ab3329a202958f075b7069f90bf86c",
+  "prompts": {},
+  "sessions": {
+    "s_68f2ce9a0bd13a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ee15ee156ffekR5iSUCwNOuA7f",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
