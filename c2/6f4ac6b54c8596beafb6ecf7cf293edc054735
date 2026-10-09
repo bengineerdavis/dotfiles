@@ -1,0 +1,27 @@
+dot_config/opencode/opencode.jsonc.tmpl
+  s_68f2ce9a0bd13a::t_245719e6b63a6a 98
+  s_68f2ce9a0bd13a::t_f7051b41e9dbb6 28-66,70-76,78-89,91-97,99-101
+  s_68f2ce9a0bd13a::t_2dc58c91bc9f34 67-69
+  s_68f2ce9a0bd13a::t_dcaa6eed608fe0 3-5,10-13
+  s_68f2ce9a0bd13a::t_c9c979341519d3 77
+.chezmoidata/opencode.yaml
+  s_68f2ce9a0bd13a::t_e763f91cacb3cb 52-58,60
+  s_68f2ce9a0bd13a::t_6303926e7188d9 23-27
+  s_68f2ce9a0bd13a::t_efa4ce275de5d2 28,59,61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c26f4ac6b54c8596beafb6ecf7cf293edc054735",
+  "prompts": {},
+  "sessions": {
+    "s_68f2ce9a0bd13a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ee15ee156ffekR5iSUCwNOuA7f",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
