@@ -1,0 +1,29 @@
+tests/ollama_models/conftest.py
+  s_67c68ffa7219ae::t_41edd6f22a594f 48-51
+  s_67c68ffa7219ae::t_5d17aba8c250f6 3-11
+  s_d43a33afeea4a0::t_ac5594e0acb383 32-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1916084f99285d7f4685cb85a16147caa3d61ae9",
+  "prompts": {},
+  "sessions": {
+    "s_67c68ffa7219ae": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ee16abd69ffeRaLUMItZr8D97B",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    },
+    "s_d43a33afeea4a0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ee6d0f42cffe1ErATUC6fk9kcU",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
