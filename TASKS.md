@@ -92,6 +92,9 @@ delete the line and say so in your commit.
   report (branch `agent/shift_left_scan`, worktree
   `.worktrees/shift-left-scan`) — `TASKS.md`, `.pre-commit-config.yaml`,
   `scripts/`, `tests/`, `.claude/RESEARCH-shift-left-surface-scan.md`
+- 2026-10-09 19:42 — run-role cwd fix + roborev topic —
+  dotfiles/executable_run-role.sh, tests/run_role/,
+  dotfiles/apps/roborev/, TASKS.md
 
 ## Where things stand — 2026-09-23 (the session handoff)
 
@@ -1587,6 +1590,12 @@ nothing is.
   from inside dotfiles/ (AGENTS.md § Commands reads as if run from the
   root). One-line fix: `cd "$(dirname "$0")"` after set -euo pipefail.
   Deployed-tree file, so the fix goes to the author for review.
+  Fix ready 2026-10-09 on branch `run-role-cwd-fix` with
+  `tests/run_role/` (real script from a foreign cwd against a fake mise
+  recording its argv: foreign-cwd resolution, unknown-topic error naming,
+  second arg as `--tags`). Mutation-verified: with the `cd` line removed,
+  the foreign-cwd and tags tests go red; the unknown-topic test correctly
+  stays green (it asserts error naming, not cwd). PR to follow.
 
 ## Planned
 
