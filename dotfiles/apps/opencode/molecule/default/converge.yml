@@ -11,17 +11,22 @@
 # The TASKS.md run item's "run-role path for apps/opencode" is satisfied in
 # substance: same role, same tags, same defaults; the runner differs because
 # the target differs.
+#
+# The play environment bridges brew onto the non-login ssh PATH the role's
+# own "Check that brew is on PATH" guard requires. It is a STATIC list —
+# on ansible-core 2.21 a play environment templates during fact-gathering,
+# so it must not reference ansible_facts (prepare.yml § no play environment).
+# The role's npx tasks set their own task-level PATH (mise shims + the
+# session PATH) and do not need brew. (README.md § The PATH bridge.)
 - name: Converge
   hosts: all
   gather_facts: true
   become: false            # mirrors apps/opencode/playbook.yaml
+  vars:
+    # linuxbrew's documented fixed prefix, installed there by prepare.yml —
+    # the value is owned by that bootstrap, not by any machine.
+    brew_bin: /home/linuxbrew/.linuxbrew/bin
   environment:
-    # linuxbrew sits at its documented fixed prefix (installed by prepare.yml)
-    # and is NOT on a non-interactive ssh PATH — without this the role's own
-    # "Check that brew is on PATH" guard fails a converged box. Task-level
-    # environments on the role's npx tasks REPLACE (not merge) this play
-    # environment: they carry their own mise-shims PATH and do not need brew.
-    # (README.md § The PATH bridge.)
-    PATH: "/home/linuxbrew/.linuxbrew/bin:{{ ansible_facts.env.PATH }}"
+    PATH: "{{ brew_bin }}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
   roles:
     - role: apps/opencode

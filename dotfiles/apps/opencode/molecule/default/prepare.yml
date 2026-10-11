@@ -11,6 +11,11 @@
 # image would be a build (packer templates, registry, drift), and nothing
 # here needs one. If wall-clock later hurts, baking becomes a separate author
 # decision, not a default (PLAN.md § prepare.yml).
+#
+# No play-level `environment:` here on purpose: on ansible-core 2.21 a play
+# environment templates during fact-gathering, before ansible_facts exists,
+# and referencing it fails the whole play. Every command below uses absolute
+# paths or the plain session PATH, which needs no bridging.
 - name: Prepare the Debian box for the apps/opencode role
   hosts: all
   gather_facts: true
@@ -20,12 +25,6 @@
     # This play installs brew there; converge.yml relies on the same constant
     # — the value is owned by this bootstrap, not by any machine.
     brew_bin: /home/linuxbrew/.linuxbrew/bin
-  environment:
-    # Not brew on a non-login ssh PATH: every task below that shells out to
-    # brew or needs the session PATH resolves through this. The converge play
-    # sets its own equivalent so the role's "Check that brew is on PATH"
-    # guard does not fail a converged box (README.md § The PATH bridge).
-    PATH: "{{ brew_bin }}:{{ ansible_facts.env.PATH }}"
   tasks:
     # ── apt prerequisites — linuxbrew's documented list ─────────────────────
     - name: Install apt packages linuxbrew documents as prerequisites
