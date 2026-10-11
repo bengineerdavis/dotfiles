@@ -1,0 +1,76 @@
+dotfiles/apps/apt/CHANGELOG.md
+  s_2b6fb4944a1d35::t_128795839e5b98 1-46
+dotfiles/apps/apt/tasks/retired.yaml
+  s_2b6fb4944a1d35::t_128795839e5b98 1-66
+dotfiles/apps/deb-get/tasks/remove.yaml
+  s_2b6fb4944a1d35::t_128795839e5b98 4-8
+dotfiles/docs/research/coordinating-parallel-work-across-refactors.md
+  s_2b6fb4944a1d35::t_128795839e5b98 135-165
+tests/topics/test_apt_tasks.py
+  s_2b6fb4944a1d35::t_128795839e5b98 1-30,35-78,80-148
+  s_2b6fb4944a1d35::t_acbe008287c07f 31-34
+  s_2b6fb4944a1d35::t_38fc6edcee832e 79
+dotfiles/apps/apt/files/apt_source_audit.py
+  s_2b6fb4944a1d35::t_128795839e5b98 1-116
+tests/topics/test_apt_source_audit.py
+  s_2b6fb4944a1d35::t_49bbfc3c894b1a 23,27-32
+  s_2b6fb4944a1d35::t_c121540801d597 39-40
+  s_2b6fb4944a1d35::t_128795839e5b98 1-22,24-26,33-38,41,44-113
+  s_2b6fb4944a1d35::t_7feafee34ae59c 42-43
+dotfiles/apps/deb-get/README.md
+  s_2b6fb4944a1d35::t_128795839e5b98 4,6-13,38,90-91
+dotfiles/apps/apt/tasks/remove.yaml
+  s_2b6fb4944a1d35::t_128795839e5b98 5-17
+dotfiles/apps/apt/tasks/upgrade.yaml
+  s_2b6fb4944a1d35::t_128795839e5b98 5-47,52,58
+tests/hooks/test_bats_hook_payload_root.py
+  s_2b6fb4944a1d35::t_128795839e5b98 1-91
+dotfiles/apps/deb-get/tasks/main.yaml
+  s_2b6fb4944a1d35::t_128795839e5b98 8-11
+scripts/run-bats.sh
+  s_2b6fb4944a1d35::t_128795839e5b98 3-4,32
+.pre-commit-config.yaml
+  s_2b6fb4944a1d35::t_128795839e5b98 44-46
+dotfiles/apps/apt/files/apt_keyring.py
+  s_2b6fb4944a1d35::t_ada624ef093caf 3-12,15-24,27-29
+  s_2b6fb4944a1d35::t_b82e3856b52dd9 25-26,30
+  s_2b6fb4944a1d35::t_eb33c33b160e3b 122-123
+  s_2b6fb4944a1d35::t_65538305dbc51c 1-2
+  s_2b6fb4944a1d35::t_128795839e5b98 31-84,86,90-121,124-278
+  s_2b6fb4944a1d35::t_6635b95d870582 13-14
+  s_2b6fb4944a1d35::t_b6e73a0f84b674 85,87-89
+tests/topics/test_apt_keyring.py
+  s_2b6fb4944a1d35::t_b95236127c40a7 34-35
+  s_2b6fb4944a1d35::t_5449da2960025d 172-173
+  s_2b6fb4944a1d35::t_5b083367ce5187 147-148
+  s_2b6fb4944a1d35::t_128795839e5b98 1-30,33,36-146,149-171,174-256
+  s_2b6fb4944a1d35::t_adf505351f3eb7 31-32
+dotfiles/apps/apt/tasks/prerequisites.yaml
+  s_2b6fb4944a1d35::t_128795839e5b98 4-15,20-21,35,37-45
+dotfiles/apps/apt/tasks/keyrings.yaml
+  s_2b6fb4944a1d35::t_128795839e5b98 1-65
+dotfiles/apps/apt/defaults/main.yaml
+  s_2b6fb4944a1d35::t_128795839e5b98 1-61
+dotfiles/apps/deb-get/CHANGELOG.md
+  s_2b6fb4944a1d35::t_128795839e5b98 19-34,37-40
+tests/merge_gates/test_real_managed.py
+  s_2b6fb4944a1d35::t_128795839e5b98 1-90
+pyproject.toml
+  s_2b6fb4944a1d35::t_be6e6574bcfdab 61-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1f10dab159341794905ceee9f410b4b9beee9d02",
+  "prompts": {},
+  "sessions": {
+    "s_2b6fb4944a1d35": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eeb6e6211ffeJe8SdjyhXzT4LG",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
