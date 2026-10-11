@@ -1,0 +1,19 @@
+uv.lock
+  s_2725e896a3313a::t_fe448905c495d8 31-62,76-140,171-229,264-269,302-319,505-531,602-640,744-752,827-838,860-868,903-924,938-993,1088-1096,1172-1183
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "517e080403713f7058086840aa80f107f6a87e0e",
+  "prompts": {},
+  "sessions": {
+    "s_2725e896a3313a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ed3de9e0fffepBjOoegbCS9mYe",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
