@@ -1,0 +1,25 @@
+pyproject.toml
+  s_2725e896a3313a::t_709c78acfb4a26 115-120
+tests/run_molecule/conftest.py
+  s_2725e896a3313a::t_9c74d2c86b6b0a 1-19
+tests/run_molecule/run_molecule_harness.py
+  s_2725e896a3313a::t_6c60fc52ac491c 1-116
+tests/run_molecule/test_run_molecule.py
+  s_2725e896a3313a::t_7dcdc40db1540d 1-179
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4a475b6aa640f57a97fc60ca22468010b3010373",
+  "prompts": {},
+  "sessions": {
+    "s_2725e896a3313a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ed3de9e0fffepBjOoegbCS9mYe",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
