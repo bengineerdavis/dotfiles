@@ -1,0 +1,29 @@
+tests/run_molecule/run_molecule_harness.py
+  s_2725e896a3313a::t_f07ef373d18c24 30-41
+  s_2725e896a3313a::t_3e3219decbe610 47
+scripts/run-molecule.sh
+  s_2725e896a3313a::t_f52b22b3c1f89d 30-31
+  s_2725e896a3313a::t_f0ebe20f0cc685 12,15-18
+  s_2725e896a3313a::t_88d246fbb72e60 78-89
+tests/run_molecule/test_run_molecule.py
+  s_2725e896a3313a::t_f79896d8c1af0e 138-139,150
+  s_2725e896a3313a::t_02b11b519e8303 154-155,158
+  s_2725e896a3313a::t_92ae77fe3bcab9 134,140-141,145,149,151-153,156-157
+  s_2725e896a3313a::t_0226d85c3b0174 159-160
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "266114a02ef4cbb2735c1dfc15370386b71bc630",
+  "prompts": {},
+  "sessions": {
+    "s_2725e896a3313a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ed3de9e0fffepBjOoegbCS9mYe",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
