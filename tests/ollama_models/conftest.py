@@ -29,10 +29,7 @@ MANIFEST = TOPIC / "defaults" / "main.yaml"
 def om():
     loader = importlib.machinery.SourceFileLoader("ollama_models", str(SCRIPT))
     spec = importlib.util.spec_from_loader("ollama_models", loader)
-    if spec is None:  # unreachable with a real loader; narrows ModuleSpec | None
-        raise RuntimeError(
-            "spec_from_loader returned None for the ollama-models script"
-        )
+    # pyrefly: ignore [bad-argument-type]
     mod = importlib.util.module_from_spec(spec)
     loader.exec_module(mod)
     return mod
@@ -45,10 +42,7 @@ def real_manifest() -> str:
 
 @pytest.fixture
 def manifest_copy(tmp_path) -> pathlib.Path:
-    """A writable copy of the real manifest.
-
-    So no test can touch the original.
-    """
+    """A writable copy of the real manifest, so tests never touch it."""
     dest = tmp_path / "main.yaml"
     dest.write_text(MANIFEST.read_text())
     return dest

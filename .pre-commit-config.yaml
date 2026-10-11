@@ -41,7 +41,9 @@ repos:
             scripts/run-bats\.sh|         # the runner itself
             scripts/run-shellharden\.sh   # shellharden helper
           )$
-        files: ^(bin|scripts)/
+        # bin/ at either payload root: root bin/ today, home/bin/ after
+        # the .chezmoiroot move (TASKS.md § Planned, payload move step 3).
+        files: ^((home/)?bin|scripts)/
         pass_filenames: false # runner pulls staged files itself via git
         stages: [pre-commit, pre-push]
 

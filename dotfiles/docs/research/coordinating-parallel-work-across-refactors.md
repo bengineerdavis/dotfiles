@@ -132,7 +132,34 @@ in-flight work, then the move window opens.
 
 ## What running it taught us
 
-Unfilled until the move completes. When it is, this section records what the
-run got right, what it missed, and whether the protocol earns codification into
-`AGENTS.md` § Working alongside — the plan runs it once before codifying, by
-the author's decision.
+Partial — the pilot (the hooks prep, P3, one full cycle) is complete; the
+remaining three preps run in parallel as this is written. Recorded as they
+land, because they are exactly what the next dispatch needs.
+
+- **Headless permission auto-reject is the main stall.** Compound bash
+  commands (`git a && git b`) fall through the `autonomous` agent's
+  allowlist to `ask`, and headless has no one to answer — auto-reject. So do
+  unallowlisted single commands (`bash -n`). Two working mitigations: the
+  dispatch prompt demands single, simple, allowlisted commands; and the
+  coordinator relays unanswerable checks — it ran `bash -n` itself and
+  returned the result into the same session via `opencode run -s <id>`.
+  The ask-list is also the feature: branch, worktree and PR mutations are
+  refused, which is what kept the executor in its lane.
+- **The agent loop can stop with intent instead of work.** First run ended
+  after "I'll add a focused test…" with nothing done. Recovery is the
+  designed one: `-s <id>` continuation with "end only when the commit
+  exists" in the correction. Dispatch prompts now say both.
+- **The relay held end to end.** Dispatch → stall → coordinator check →
+  relayed answer → continuation → commit → executor parked with "coordinator
+  collects". One live coordinator meant both interruptions cost one message.
+- **Isolation held.** The executor wrote only inside its worktree, committed
+  only on its branch, and never pushed or merged — enforced by the
+  permission refusals, not by politeness.
+- **Collect means verify, not trust.** The coordinator re-ran the focused
+  test and the full suite rather than accepting the executor's report; cheap
+  (52s) and it is what makes the executor's evidence admissible.
+- **The trunk moved mid-collect — expect it.** PR #41 landed between merge
+  and push; the push rejected, the fix was fetch + merge `origin/main` into
+  main + push. Also confirmed the pipe-trap the other way: `| tail -1`
+  masked the push failure long enough for the next command to run. Gates
+  read exit codes, not tails.
