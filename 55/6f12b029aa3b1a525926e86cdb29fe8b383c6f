@@ -1,0 +1,19 @@
+dotfiles/requirements.yml
+  s_2725e896a3313a::t_895a87aac2ca7b 24-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "556f12b029aa3b1a525926e86cdb29fe8b383c6f",
+  "prompts": {},
+  "sessions": {
+    "s_2725e896a3313a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ed3de9e0fffepBjOoegbCS9mYe",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
