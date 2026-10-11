@@ -36,7 +36,11 @@ W: Skipping acquire of configured file 'main/binary-i386/Packages' as repository
 @pytest.fixture(scope="module")
 def audit():
     spec = importlib.util.spec_from_file_location("apt_source_audit", SCRIPT)
+    if spec is None:  # unreachable for a real path; narrows ModuleSpec | None
+        raise RuntimeError("spec_from_file_location returned None")
     mod = importlib.util.module_from_spec(spec)
+    if spec.loader is None:  # narrows Loader | None; set by spec_from_file_location
+        raise RuntimeError("module spec carries no loader")
     spec.loader.exec_module(mod)
     return mod
 
