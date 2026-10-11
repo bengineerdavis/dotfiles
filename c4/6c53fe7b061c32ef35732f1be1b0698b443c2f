@@ -1,0 +1,36 @@
+changelog.d/20261011_112000_bengineerdavis_molecule_harness.md
+  s_2725e896a3313a::t_95693e36571ca6 1-17
+.gitignore
+  s_2725e896a3313a::t_17a26406c51841 18-24
+dotfiles/apps/opencode/molecule/default/README.md
+  s_2725e896a3313a::t_6d0541221d73d9 1-87
+dotfiles/apps/opencode/molecule/default/prepare.yml
+  s_2725e896a3313a::t_ae2a55f096482f 1-108
+dotfiles/apps/opencode/molecule/default/molecule.yml
+  s_2725e896a3313a::t_77db08e29562af 1-42
+dotfiles/apps/opencode/molecule/default/converge.yml
+  s_2725e896a3313a::t_f8b25f657a3315 1-27
+dotfiles/apps/opencode/molecule/default/tests/test_verify.py
+  s_2725e896a3313a::t_2a74f7fc0f1e18 34-36,47,92-94,158-159
+  s_2725e896a3313a::t_65e2f950308aac 13-14,33,78
+  s_2725e896a3313a::t_917c26bc1bce51 160
+  s_2725e896a3313a::t_b5a8abe2fcd0cb 107-112,121-122
+  s_2725e896a3313a::t_da087d53d3a64e 17-32,37-46,48-54,56-63,65-69,71-77,79-90,97-102,105-106,113,116-119,124-130,132-140,142-151,153-154
+  s_2725e896a3313a::t_bc19665c8d4b01 1-12,15-16,55,64,70,91,95-96,103-104,114-115,120,123,131,141,152,155-157
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c46c53fe7b061c32ef35732f1be1b0698b443c2f",
+  "prompts": {},
+  "sessions": {
+    "s_2725e896a3313a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ed3de9e0fffepBjOoegbCS9mYe",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
