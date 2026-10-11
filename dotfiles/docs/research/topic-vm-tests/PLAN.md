@@ -442,6 +442,23 @@ add `.molecule/` to the ignore list as part of implementation.
 
 ## Open author decisions
 
+SETTLED 2026-10-11, all four, by the author after this plan was written:
+
+1. **O1 — `community.vagrant` in requirements.yml: add, pinned** (plan
+   default). The deployed ansible toolchain can drive vagrant directly.
+2. **O2 — version policy for the `test-vm` group: pin exact** (plan
+   default). Bumps are deliberate re-locks.
+3. **O3 — scenario directory name: `default`** (the recorded § Planned
+   convention wins over the self-describing alternative).
+4. **O4 — the vagrant repair: agent-run, done 2026-10-11.**
+   `vagrant plugin repair` failed with the same unresolved pin;
+   `vagrant plugin uninstall vagrant-libvirt && vagrant plugin install
+   vagrant-libvirt` succeeded and reinstalled the SAME 0.12.2 — the
+   unresolved pin was stale plugin state, not a version problem.
+   Verified after: `vagrant plugin list` clean (vagrant-libvirt 0.12.2
+   global), `vagrant box list` clean, vagrant 2.4.9 current. The
+   original text of each decision follows, kept for the record.
+
 1. **`community.vagrant` in `dotfiles/requirements.yml`?** The driver requires
    it; adding it there (pinned) makes it deploy-repo state under O1 — a pin is
    a deliberate re-grade. Alternative: install it ad hoc from the wrapper,
