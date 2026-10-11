@@ -9,12 +9,13 @@
 #        destroy | test (default)
 #
 # Build-ladder justification (AGENTS.md § What agents do): molecule is the
-# tool; this is an interface to it — verb dispatch, one chdir, two env
+# tool; this is an interface to it — verb dispatch, one chdir, three env
 # exports, no logic of its own. The raw invocation needs exactly the setup a
 # human forgets (the cwd that roles resolve from, the locked uv environment,
-# the installed collections), and the author asked for a wrapper that brings
-# the right-provisioned environment up automatically. The scripts/run-bats.sh
-# precedent. Sized ~50 logic lines, far under the bash 80-100 line rule.
+# the installed collections, the driver's module path), and the author asked
+# for a wrapper that brings the right-provisioned environment up
+# automatically. The scripts/run-bats.sh precedent. Sized ~55 logic lines,
+# far under the bash 80-100 line rule.
 #
 # Contract (dotfiles/docs/research/topic-vm-tests/PLAN.md § Decision 4):
 # - runs from any cwd; molecule's scenario discovery is cwd-relative, so this
@@ -26,6 +27,8 @@
 #   machines get the identical locked environment;
 # - installs the pinned collections first (idempotent; skips what is present)
 #   into ~/.ansible/collections and points ANSIBLE_COLLECTIONS_PATH at it;
+# - exports ANSIBLE_LIBRARY for the vagrant driver's bundled module (see the
+#   comment beside it);
 # - `login` passes through untouched — it needs a tty and is human-only;
 #   everything else is non-interactive and exits non-zero on failure.
 
@@ -71,6 +74,18 @@ fi
 # safety): idempotent, skips what is present.
 uv run --frozen --group test-vm \
   ansible-galaxy collection install -r "$DOTFILES/requirements.yml"
+
+# molecule 26.9.0 ships the vagrant driver's `vagrant` module inside the
+# molecule_plugins package and no longer wires driver modules into
+# ANSIBLE_LIBRARY (the driver's modules_dir property has no caller in
+# 26.9.0), so the driver's own create/destroy playbooks fail with
+# "couldn't resolve module/action 'vagrant'" — measured 2026-10-11. The
+# path is computed from the locked environment, never hand-written, and
+# stops being needed the moment molecule fixes the wiring upstream
+# (re-check at the next molecule re-lock per O2).
+VAGRANT_MODULES="$(uv run --frozen --group test-vm python -c \
+  'import molecule_plugins.vagrant.modules as m, os; print(os.path.dirname(m.__file__))')"
+export ANSIBLE_LIBRARY="$VAGRANT_MODULES"
 
 export MOLECULE_PROJECT_DIRECTORY="$DOTFILES"
 export ANSIBLE_COLLECTIONS_PATH="$HOME/.ansible/collections"

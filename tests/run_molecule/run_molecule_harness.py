@@ -27,11 +27,24 @@ FAKE_UV = r"""#!/bin/sh
 # The separator avoids a leading dash on purpose: dash's printf parses
 # '---' as an option ("Illegal option --") and the separator vanishes,
 # silently merging every invocation into one log record.
+#
+# When invoked as the wrapper's driver-module probe (its -c string names
+# molecule_plugins), print a fake modules path on stdout so the wrapper's
+# command substitution produces a value the tests can assert on.
+for arg in "$@"; do
+  case "$arg" in
+    *molecule_plugins*)
+      printf '%s\n' "/fake/site-packages/molecule_plugins/vagrant/modules"
+      break
+      ;;
+  esac
+done
 {
   printf 'cwd=%s\n' "$PWD"
   for arg in "$@"; do printf 'arg=%s\n' "$arg"; done
   printf 'env-mpd=%s\n' "${MOLECULE_PROJECT_DIRECTORY-}"
   printf 'env-acp=%s\n' "${ANSIBLE_COLLECTIONS_PATH-}"
+  printf 'env-al=%s\n' "${ANSIBLE_LIBRARY-}"
   printf '===END===\n'
 } >> "$UV_LOG"
 exit 0

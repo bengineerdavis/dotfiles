@@ -131,16 +131,31 @@ def test_collections_path_is_exported(scenario_repo: pathlib.Path):
 
 
 def test_collections_are_installed_first(scenario_repo: pathlib.Path):
-    """The pinned collections install precedes molecule itself."""
+    """The collections install precedes the molecule invocation."""
     result = run_wrapper(scenario_repo, "faketopic", "converge")
     assert result.returncode == 0, result.stderr
     records = parse_log(scenario_repo / "uv.log")
-    assert len(records) == 2, "expected exactly: ansible-galaxy, then molecule"
-    galaxy, molecule = records[0]["arg"], records[1]["arg"]
+    # Three uv calls: the collections install, the driver module path
+    # probe, then molecule itself.
+    assert len(records) == 3, "expected: ansible-galaxy, python probe, molecule"
+    galaxy, probe, molecule = (r["arg"] for r in records)
     assert "ansible-galaxy" in galaxy
     assert "collection" in galaxy and "install" in galaxy
     assert str(scenario_repo / "dotfiles" / "requirements.yml") in galaxy
+    assert "python" in probe and "-c" in probe
     assert "molecule" in molecule
+
+
+def test_ansible_library_is_exported(scenario_repo: pathlib.Path):
+    """ANSIBLE_LIBRARY is the probe stdout: the driver module dir."""
+    result = run_wrapper(scenario_repo, "faketopic", "converge")
+    assert result.returncode == 0, result.stderr
+    records = parse_log(scenario_repo / "uv.log")
+    probe = records[1]["arg"]
+    assert "python" in probe, "the driver-module probe must run before molecule"
+    molecule = records[-1]
+    (value,) = molecule["env-al"]
+    assert value == "/fake/site-packages/molecule_plugins/vagrant/modules", value
 
 
 def test_extra_args_pass_through_to_molecule(scenario_repo: pathlib.Path):
