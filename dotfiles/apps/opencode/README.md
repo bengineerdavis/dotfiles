@@ -18,11 +18,19 @@ machine-local and no topic touches it on install or remove.
 
 ## The binary
 
-Installed from `anomalyco/tap`, named explicitly (`anomalyco/tap/opencode`)
-because homebrew/core carries a formula of the same name and the tap is the one
-that tracks releases. Measured 2026-09-14: tap 1.18.31, core 1.18.30 — core's
-formula sets `livecheck { throttle 5 }`, so it follows every fifth release and
-trails upstream by design.
+Installed from `anomalyco/tap` as `opencode-v2` (2.0.x), named explicitly
+(`anomalyco/tap/opencode-v2`) because homebrew/core carries a same-named v1
+formula and the tap is the one that tracks releases. Measured 2026-09-14: tap
+1.18.31, core 1.18.30 — core's formula sets `livecheck { throttle 5 }`, so it
+follows every fifth release and trails upstream by design.
+
+The v2 formula declares `conflicts_with "opencode"` — both install an
+`opencode` binary — so brew refuses the v2 install while v1 is present.
+`install.yaml` therefore uninstalls the v1 formula first, in the same run,
+and cleans its leftover formula trust entry (`brew untrust --formula`,
+decision 2's safe default, 2026-10-06). A machine carrying a homebrew/core
+`opencode` rather than this tap's fails with brew's readable conflict error
+instead.
 
 ### The tap must be trusted first
 
@@ -78,10 +86,16 @@ truth, and re-running install reproduces the file anywhere.
 
 `~/.config/opencode/opencode.jsonc` deploys from
 `dot_config/opencode/opencode.jsonc` and carries the cross-machine baseline:
-privacy (`share: disabled`), model defaults, and permission rules. Per-machine
-choices (auth, per-project overrides) stay out of it. Measured on 2026-09-12:
-when both `opencode.json` and `opencode.jsonc` exist, jsonc wins, so the
-chezmoi-managed file is authoritative.
+privacy (`share: disabled`), model defaults, and the v2 `permissions` array
+(`update: notify` replaced v1's `autoupdate`). The permission rules are
+order-sensitive — v2 takes the LAST matching rule — so they stay literal in
+the template rather than in `.chezmoidata`, whose merge would reorder them.
+The `external_directory` rules carry literal `$HOME/...` globs: v2 expands
+`$HOME` itself when the config loads, so templating the home directory would
+bake one machine's path back in. Per-machine choices (auth, per-project
+overrides) stay out of it. Measured on 2026-09-12: when both `opencode.json`
+and `opencode.jsonc` exist, jsonc wins, so the chezmoi-managed file is
+authoritative.
 
 ## Teardown
 
@@ -92,8 +106,10 @@ that default to false — flip them deliberately:
   needs the tap trusted to load it, so install creates both, and revoking trust
   while the tap is still present would break anything else installed from it).
   Two untrusts, not one: `brew trust --tap` writes the tap entry and `brew
-  install` writes a separate formula entry, and `brew untrust --tap` does not
-  remove the latter — measured on Homebrew 7.0.1, 2026-09-14.
+  install` writes a separate formula entry (now `anomalyco/tap/opencode-v2`),
+  and `brew untrust --tap` does not remove the latter — measured on Homebrew
+  7.0.1, 2026-09-14. The uninstall targets the v2 formula; a v1 formula's
+  trust residue is cleaned idempotently by the next install run instead.
 - `opencode_remove_skills` — `dotagents remove` each manifest skill
 
 ```bash
@@ -107,3 +123,11 @@ ansible-playbook apps/opencode/playbook.yaml --tags remove \
 1. Provision chezmoi (deploys the config) and mise (provides node).
 2. `./run-role.sh opencode` — or the parent playbook with `--tags provision`.
 3. `opencode auth login` — tokens are machine-local by design.
+
+The v2 migration changes what first run means (2026-10-06): v2 opens the same
+data directory and migrates v1 sessions in place on the first launch, so back
+up `~/.local/share/opencode/` before it — a migrated database may not be
+readable by v1 again. Tokens move to a sqlite credential store, and no import
+of v1's `auth.json` was found in the v2.0.24 source, so plan on a re-auth;
+`opencode auth list` tells. `auth.json` itself is untouched by anything in
+v2, so it survives for a v1 rollback.

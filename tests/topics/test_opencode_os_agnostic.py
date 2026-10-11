@@ -123,8 +123,13 @@ def test_topic_declares_both_oses():
 
 
 def test_install_uses_homebrew_module_with_pinned_tap():
-    """The binary install is the community.general.homebrew module on a name from
-    defaults/main.yaml (opencode_tap) — the same tap on both OSes.
+    """The binary install is the community.general.homebrew module on a name
+    from defaults/main.yaml (opencode_tap) — the same tap on both OSes.
+
+    Retargeted for the v2 migration: the install task installs
+    `{{ opencode_tap }}/opencode-v2`. The v1 name now belongs only to the
+    conflict-clearing uninstall, whose presence and ordering are asserted
+    with task structure in test_opencode_v2_tasks.py.
 
     This is also the counterweight: it fails if the brew install is renamed or
     removed, so the vacuous-pass failure mode (every task stripped) goes red.
@@ -134,10 +139,15 @@ def test_install_uses_homebrew_module_with_pinned_tap():
         "opencode install.yaml no longer installs via community.general.homebrew; "
         "the binary install is what must stay OS-agnostic."
     )
-    assert 'name: "{{ opencode_tap }}/opencode"' in code, (
-        "opencode install.yaml does not install from the pinned opencode_tap "
-        "default; a hard-coded formula name would let one OS fall to the "
-        "same-named homebrew/core formula."
+    v2_name = (
+        'name: "{{ opencode_tap }}/opencode-v2"' in code
+        or 'name: "anomalyco/tap/opencode-v2"' in code
+    )
+    assert v2_name, (
+        'opencode install.yaml does not install "{{ opencode_tap }}/'
+        'opencode-v2" from the pinned opencode_tap default; a hard-coded '
+        "formula name would let one OS fall to the same-named homebrew/core "
+        "formula, and installing the v1 name again would undo the migration."
     )
     defaults = (TOPIC / "defaults" / "main.yaml").read_text()
     assert "opencode_tap:" in defaults, (

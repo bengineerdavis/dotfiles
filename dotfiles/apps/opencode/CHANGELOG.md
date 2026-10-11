@@ -3,6 +3,62 @@
 Section names come from antsibull-changelog; see `docs/TOPICS.md`
 § "Per-topic changelog and local edge cases".
 
+## 2026-10-06
+
+### breaking_changes
+
+- The topic now installs opencode v2 (`anomalyco/tap/opencode-v2`) and removes
+  the v1 binary in the same run: the v2 formula declares `conflicts_with
+  "opencode"`, so brew refuses the v2 install while v1 is present.
+  `install.yaml` uninstalls `anomalyco/tap/opencode` first and cleans its
+  formula trust residue (`brew untrust --formula`) — idempotent, a no-op
+  where v1 never ran.
+- Config keys migrated to the v2 schema in
+  `dot_config/opencode/opencode.jsonc`: the v1 `permission` map becomes the
+  ordered `permissions` array (`bash` rules renamed `shell`; v1's `list`
+  rule dropped — not a v2 action; the trailing shell catch-all dropped —
+  author ruling 1), and `autoupdate` becomes `update: notify`. v2 still
+  parses the v1 map through its legacy layer, but the topic ships the
+  native form (dotfiles/docs/research/opencode-v2/PLAN.md).
+- Re-auth is likely: v2 stores credentials in a sqlite `credential` table,
+  and no import of v1's `auth.json` was found in the v2.0.24 source.
+  Sessions migrate in place on the first v2 run; back up
+  `~/.local/share/opencode/` before it (see `known_issues`).
+
+### minor_changes
+
+- The binary installs from `anomalyco/tap/opencode-v2` on the same pinned tap
+  (`opencode_tap` unchanged). Upgrade doctrine unchanged: the binary is still
+  a brew formula, so the homebrew system role's `upgrade_all` keeps it
+  current and `upgrade.yaml` stays a stub.
+- Trivial-model roles stay local: `small_model` and v2's `agents.summary.model`
+  / `agents.compaction.model` pin `ollama/qwen3.5:9b` (author ruling 3), so
+  titles, summaries and compaction never leave the box.
+- The `external_directory` rules carry literal `$HOME/...` globs — v2 expands
+  `$HOME` itself at config load, so the home directory is no longer templated.
+
+### known_issues
+
+- **No `auth.json` import path was found in v2.** `credential.ts`,
+  `integration.ts`, the v1-migration module and the `auth import` handler
+  (v2.0.24 source, checked 2026-10-06) never read v1's `auth.json`; `auth
+  import` consumes `auth export` JSON instead. Treat re-auth as required
+  until proven otherwise on the box. `auth.json` itself is untouched by the
+  v2 code paths, so tokens survive for a v1 rollback.
+- **The session migration is in place, not additive.** v2 transforms v1's
+  sessions inside the same database on first run; a migrated database may
+  not be readable by v1 1.18 again. Back up `~/.local/share/opencode/`
+  before the first v2 launch. Sessions created after the migration exist
+  only in v2 — that loss is bounded and accepted.
+- **The bash allow-list comes back in force, deliberately.** v1's map carried
+  a trailing `"*": "ask"` that, by last-match, shadowed every allow in the
+  map — the exact state the template's own 2026-09-16 comment describes. The
+  migrated array drops the duplicate (author ruling 1, 2026-10-06): after
+  migration `git`, `find`, `cat` and the rest of the allow-list run without
+  asking, where on a clean v1 restart every shell command asked. The
+  behavior change vs the deployed v1 config is accepted; the specific rules
+  re-assert the 2026-09-16 intent.
+
 ## 2026-09-14
 
 ### bugfixes

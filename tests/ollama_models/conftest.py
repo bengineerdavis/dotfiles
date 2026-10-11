@@ -5,10 +5,10 @@ does: the script has no .py extension and a PEP 723 shebang, so it
 needs SourceFileLoader — but it guards its entry point, so importing
 runs no work.
 
-`real_manifest` is the actual defaults/main.yaml. It is READ ONLY
-here; every test that writes works on a copy in tmp_path. That is the
-point of the suite: the thing being protected is that specific file,
-and a synthetic fixture would prove nothing about it.
+`real_manifest` is the actual defaults/main.yaml. It is READ ONLY here;
+every test that writes works on a copy in tmp_path. That is the point
+of the suite: the thing being protected is that specific file, and a
+synthetic fixture would prove nothing about it.
 """
 
 from __future__ import annotations

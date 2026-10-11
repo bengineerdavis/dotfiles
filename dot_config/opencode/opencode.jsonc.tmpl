@@ -1,13 +1,16 @@
 {
   // Deployed by chezmoi from dot_config/opencode/opencode.jsonc.
-  // Machine-local state (auth.json, opencode.db) lives beside it and is
-  // deliberately not managed. When both opencode.json and opencode.jsonc
-  // exist, this file wins (measured 2026-09-12).
+  // Machine-local state (v2's sqlite credential store, the session database)
+  // lives beside it and is deliberately not managed. When both opencode.json
+  // and opencode.jsonc exist, this file wins (measured 2026-09-12).
   "$schema": "https://opencode.ai/config.json",
 
   // Never auto-publish session shares.
   "share": "disabled",
-  "autoupdate": "notify",
+
+  // v2's native update key; v1 spelled it `autoupdate`. brew stays the
+  // upgrade path, so `auto` stays off.
+  "update": "notify",
 
   // Models, providers and agents come from .chezmoidata/opencode.yaml:
   // common, then os.<os>, then hosts.<hostname>, deep-merged. Edit that file,
@@ -22,69 +25,78 @@
   {{ toJson $key }}: {{ get $cfg $key | toPrettyJson | trim | replace "\n" "\n  " }},
 {{- end }}
 
-  // Baseline safety: reads are free, git is allowed, everything else asks.
-  // Tokens live in auth.json, never here.
-  "permission": {
-    "read": "allow",
-    "glob": "allow",
-    "grep": "allow",
-    "list": "allow",
-    "edit": "allow",
-    // Read-only inspection and text transforms are free. The catch-all comes
-    // FIRST because opencode evaluates the LAST matching rule: a trailing
-    // `"*": "ask"` shadows every allow above it. That is exactly what this
-    // block did until 2026-09-16, so `git`, `find`, `wc`, `echo` and the rest
-    // were declared but never in force. The find carve-outs sit after
-    // `find *` for the same reason. Deliberately NOT allowed
-    // (docs/PERMISSIONS.md tiers): xargs (executes piped input that the
-    // external_directory scan cannot see) and gita's mutating subcommands
-    // (mass pull/push/checkout across every repo is the ask tier's job).
-    "bash": {
-      // Catch-all FIRST. opencode takes the last matching rule, so a catch-all
-      // placed last shadows every allow and deny in front of it (measured: the
-      // external_directory block below is deny-first/allow-last and works;
-      // this map was the reverse and never got a clean restart to show it).
-      "*": "ask",
-      "git *": "allow",
-      // `mise *` reaches arbitrary execution through `mise exec`/`mise run`,
-      // so this is a wide allow. Kept because mise is the machine's tool
-      // front-end; the repo config keeps `mise install`/`mise run setup` at
-      // ask, and edit that pairing together if this widens further.
-      "mise *": "allow",
-      "cat *": "allow",
-      "head *": "allow",
-      "wc *": "allow",
-      "sort *": "allow",
-      "comm *": "allow",
-      "uniq *": "allow",
-      "echo *": "allow",
-      "printf *": "allow",
-      "grep *": "allow",
-      "gita ls*": "allow",
-      "gita status*": "allow",
-      "find *": "allow",
-      "find *-delete*": "deny",
-      "find *-exec*": "deny",
-      "find *-execdir*": "deny",
-      "*": "ask"
-    },
-    "webfetch": "ask",
-    "websearch": "ask",
-    // external_directory evaluates the LAST matching rule, so the deny is
-    // FIRST and the specific allows LAST — broad-first, narrow-last. The
-    // original order (allows then deny) defeated ~/code/** and was caught
-    // live on 2026-09-12 when a write to ai-prompt-library was refused.
+  // The v2 permissions array: ordered rules, LAST match wins — the same
+  // semantics the v1 `permission` map relied on, one syntax later
+  // (/v2/docs/permissions). Catch-alls come FIRST so the specific rules
+  // after them win; destructive carve-outs come AFTER the broad allows
+  // they narrow. Rules stay literal here, not in .chezmoidata, for the
+  // same order-sensitivity reason as the model block above.
+  //
+  // v1's `list` rule is dropped: `list` is not a v2 action (v1's `bash`
+  // became `shell`, `task` became `subagent`). A rule that can never match
+  // is indistinguishable from a strict one. The trailing v1 shell
+  // catch-all was also dropped (author ruling 1, 2026-10-06): it was a
+  // leftover that shadowed every allow below it; the 2026-09-16 intent —
+  // the allow-list in force — is what this array ships.
+  "permissions": [
+    { "action": "shell", "resource": "*", "effect": "ask" },
+    // Read-only inspection and text transforms are free. Deliberately NOT
+    // allowed (docs/PERMISSIONS.md tiers): xargs (executes piped input that
+    // the external_directory scan cannot see) and gita's mutating
+    // subcommands (mass pull/push/checkout across every repo is the ask
+    // tier's job) — both fall through to the catch-all and ask.
+    { "action": "shell", "resource": "git *", "effect": "allow" },
+    // `mise *` reaches arbitrary execution through `mise exec`/`mise run`,
+    // so this is a wide allow. Kept because mise is the machine's tool
+    // front-end; the repo config keeps `mise install`/`mise run setup` at
+    // ask, and edit that pairing together if this widens further.
+    { "action": "shell", "resource": "mise *", "effect": "allow" },
+    { "action": "shell", "resource": "cat *", "effect": "allow" },
+    { "action": "shell", "resource": "head *", "effect": "allow" },
+    { "action": "shell", "resource": "wc *", "effect": "allow" },
+    { "action": "shell", "resource": "sort *", "effect": "allow" },
+    { "action": "shell", "resource": "comm *", "effect": "allow" },
+    { "action": "shell", "resource": "uniq *", "effect": "allow" },
+    { "action": "shell", "resource": "echo *", "effect": "allow" },
+    { "action": "shell", "resource": "printf *", "effect": "allow" },
+    { "action": "shell", "resource": "grep *", "effect": "allow" },
+    { "action": "shell", "resource": "gita ls*", "effect": "allow" },
+    { "action": "shell", "resource": "gita status*", "effect": "allow" },
+    { "action": "shell", "resource": "find *", "effect": "allow" },
+    // Carve-outs sit AFTER `find *` so last-match denies them.
+    { "action": "shell", "resource": "find *-delete*", "effect": "deny" },
+    { "action": "shell", "resource": "find *-exec*", "effect": "deny" },
+    { "action": "shell", "resource": "find *-execdir*", "effect": "deny" },
+    // Reads are free EXCEPT .env files, which ask (author ruling 2,
+    // 2026-10-06: v2's built-in .env protection is kept, not v1 parity).
+    // The three rules below mirror v2's base policy verbatim
+    // (packages/core/src/plugin/agent.ts at v2.0.24) and sit AFTER the
+    // allow because last-match wins — user rules are appended after the
+    // base policy, so without them the global allow would shadow v2's own
+    // .env asks. `*.env.example` stays readable, as upstream intends.
+    { "action": "read", "resource": "*", "effect": "allow" },
+    { "action": "read", "resource": "*.env", "effect": "ask" },
+    { "action": "read", "resource": "*.env.*", "effect": "ask" },
+    { "action": "read", "resource": "*.env.example", "effect": "allow" },
+    { "action": "glob", "resource": "*", "effect": "allow" },
+    { "action": "grep", "resource": "*", "effect": "allow" },
+    { "action": "edit", "resource": "*", "effect": "allow" },
+    { "action": "webfetch", "resource": "*", "effect": "ask" },
+    { "action": "websearch", "resource": "*", "effect": "ask" },
+    // external_directory: deny FIRST, allows LAST — broad-first,
+    // narrow-last. The original allows-then-deny order defeated ~/code/**
+    // and was caught live on 2026-09-12 when a write to ai-prompt-library
+    // was refused.
     //
-    // The home directory is templated, not written out. These were literal
-    // /home/bdavis paths until 2026-09-14, which meant both allows silently
-    // never matched on any machine whose home was elsewhere — macOS included,
-    // where the deny was therefore the only rule in force. A path rule that
-    // cannot match fails open into "deny everything" and reports nothing, so
-    // the wrong value looks exactly like a working config.
-    "external_directory": {
-      "*": "deny",
-      "{{ .chezmoi.homeDir }}/.local/share/chezmoi/**": "allow",
-      "{{ .chezmoi.homeDir }}/code/**": "allow"
-    }
-  }
+    // The paths are literal $HOME globs, not chezmoi templates: v2 expands
+    // `$HOME`/`~/` itself (for external_directory, read and edit
+    // resources) when the config loads, and a rendered home-directory
+    // template would work on exactly one machine and silently never match
+    // anywhere else — literal paths had that exact bug here until
+    // 2026-09-14. v2's `/*` and v1's `/**` are equivalent: `*` spans `/`,
+    // so one star covers subdirectories.
+    { "action": "external_directory", "resource": "*", "effect": "deny" },
+    { "action": "external_directory", "resource": "$HOME/.local/share/chezmoi/*", "effect": "allow" },
+    { "action": "external_directory", "resource": "$HOME/code/*", "effect": "allow" }
+  ]
 }
