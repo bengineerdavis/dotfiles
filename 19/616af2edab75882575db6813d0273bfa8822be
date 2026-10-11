@@ -1,0 +1,21 @@
+tests/run_molecule/test_run_molecule.py
+  s_2725e896a3313a::t_13727fbfb641c1 23,99
+scripts/run-molecule.sh
+  s_2725e896a3313a::t_6d3f755dee28af 94-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "19616af2edab75882575db6813d0273bfa8822be",
+  "prompts": {},
+  "sessions": {
+    "s_2725e896a3313a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ed3de9e0fffepBjOoegbCS9mYe",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
