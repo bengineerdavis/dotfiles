@@ -1,15 +1,16 @@
 # deb-get
 
 [deb-get](https://github.com/wimpysworld/deb-get) topic: installs and refreshes the
-`deb-get` package manager on Debian-family systems, and loudly handles the two
-auth problems that otherwise break `apt update` / `apt dist-upgrade`:
+`deb-get` package manager on Debian-family systems.
 
-1. **GitHub PAT** — `DEBGET_TOKEN` is required or `deb-get update` will hit the
-   GitHub API rate limit. The topic resolves the token from Bitwarden by default
-   and fails with a clear message if it cannot be resolved.
-2. **Missing apt signing keys** — `deb-get` installs third-party apt repos
-   (GitHub CLI, HashiCorp, etc.). The topic repairs the keyrings it knows about
-   and fails loudly if any repository is still unsigned.
+`DEBGET_TOKEN` (a GitHub PAT) is required or `deb-get update` hits the GitHub
+API rate limit. The topic resolves it from Bitwarden by default and fails with a
+clear message if it cannot.
+
+Signing keys for the third-party apt repos deb-get adds (GitHub CLI, HashiCorp,
+...) are **not** repaired here any more: that moved to the apt topic
+(`apps/apt`, `apt_keyrings`), which runs before any cache refresh. From this
+app-tier topic the repair always ran too late.
 
 ## Installation
 
@@ -34,11 +35,8 @@ ansible-playbook playbook.yaml --tags provision
 # Only refresh deb-get repos and keys (no bootstrap confirmation prompt)
 ./run-role.sh deb-get upgrade
 
-# Tear down (package only, by default)
+# Tear down (the deb-get package only)
 ./run-role.sh deb-get remove
-
-# Tear down including managed apt sources/keyrings
-ansible-playbook apps/deb-get/playbook.yaml --tags remove -e debget_remove_managed_repos=true
 ```
 
 ## Required GitHub token
@@ -82,33 +80,15 @@ Bitwarden master password. The session token is kept in memory only.
 | `debget_bitwarden_item` | `DEBGET_TOKEN` | Bitwarden item name (password field) |
 | `debget_onepassword_uri` | `op://Personal/DEBGET_TOKEN/password` | 1Password secret reference |
 
-## Known keyrings
-
-The topic knows the official signing keys for these commonly configured repos:
-
-| Repository | Keyring URL |
-|---|--|
-| GitHub CLI | `https://cli.github.com/packages/githubcli-archive-keyring.gpg` |
-| HashiCorp | `https://apt.releases.hashicorp.com/gpg` |
-
-It finds the correct destination path by reading the `signed-by=` option in
-existing `.list` files or the `Signed-By:` field in `.sources` files, so it works
-whether the source uses the legacy `/usr/share/keyrings/` layout or the modern
-`/etc/apt/keyrings/` layout.
-
-To add more repos, edit `apps/deb-get/vars/main.yaml` and extend
-`debget_known_keyrings`.
-
 ## What this topic owns
 
 | Artefact | Path |
 |---|---|
 | package | `deb-get` via the official installer |
 | helper packages | `curl`, `jq`, `lsb-release`, `wget` |
-| keyring files | paths discovered from `/etc/apt/sources.list.d/*.{list,sources}` |
 
-Teardown removes only the `deb-get` package by default. Managed apt sources and
-keyrings are left in place unless you set `debget_remove_managed_repos=true`.
+Teardown removes only the `deb-get` package. Sources deb-get added are left in
+place: their packages outlive deb-get, and the apt topic keeps their keys valid.
 
 ## Tests
 
@@ -116,7 +96,5 @@ Unit tests live in `apps/deb-get/tests/` and do not mutate the system:
 
 ```bash
 mise exec -- ansible-playbook apps/deb-get/tests/topic-metadata.yaml
-mise exec -- ansible-playbook apps/deb-get/tests/no-pubkey-parsing.yaml
-mise exec -- ansible-playbook apps/deb-get/tests/keyring-path-detection.yaml
 mise exec -- ansible-playbook apps/deb-get/tests/token-resolution.yaml
 ```
