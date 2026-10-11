@@ -1,0 +1,27 @@
+---
+# converge.yml — run the apps/opencode role against the box.
+#
+# Imports the role directly rather than through run-role.sh, for two reasons
+# (PLAN.md § Decision 3, recorded so nobody relitigates): the topic's own
+# playbook hardcodes `hosts: localhost / connection: local` and editing it for
+# the test's benefit would change production behavior; and the role is the
+# single source of truth for what install does — importing it exercises
+# exactly the task files the v2 migration changed, with the same tags.
+#
+# The TASKS.md run item's "run-role path for apps/opencode" is satisfied in
+# substance: same role, same tags, same defaults; the runner differs because
+# the target differs.
+- name: Converge
+  hosts: all
+  gather_facts: true
+  become: false            # mirrors apps/opencode/playbook.yaml
+  environment:
+    # linuxbrew sits at its documented fixed prefix (installed by prepare.yml)
+    # and is NOT on a non-interactive ssh PATH — without this the role's own
+    # "Check that brew is on PATH" guard fails a converged box. Task-level
+    # environments on the role's npx tasks REPLACE (not merge) this play
+    # environment: they carry their own mise-shims PATH and do not need brew.
+    # (README.md § The PATH bridge.)
+    PATH: "/home/linuxbrew/.linuxbrew/bin:{{ ansible_facts.env.PATH }}"
+  roles:
+    - role: apps/opencode

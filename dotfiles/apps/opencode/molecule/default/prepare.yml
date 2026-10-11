@@ -1,0 +1,108 @@
+---
+# prepare.yml — bootstrap the Debian box for the apps/opencode role.
+#
+# Runs once per box, before converge, and sits outside molecule's idempotence
+# window (the idempotence action re-runs converge, not prepare) — its slowness
+# is absorbed there by design. Every task is guarded idempotent so a box that
+# survived a crashed session is safe to reuse via create → prepare
+# (PLAN.md § Destroy safety).
+#
+# The scenario bootstraps rather than requiring a precondition box: a baked
+# image would be a build (packer templates, registry, drift), and nothing
+# here needs one. If wall-clock later hurts, baking becomes a separate author
+# decision, not a default (PLAN.md § prepare.yml).
+- name: Prepare the Debian box for the apps/opencode role
+  hosts: all
+  gather_facts: true
+  become: false
+  vars:
+    # linuxbrew's documented fixed prefix (docs.brew.sh/Homebrew-on-Linux).
+    # This play installs brew there; converge.yml relies on the same constant
+    # — the value is owned by this bootstrap, not by any machine.
+    brew_bin: /home/linuxbrew/.linuxbrew/bin
+  environment:
+    # Not brew on a non-login ssh PATH: every task below that shells out to
+    # brew or needs the session PATH resolves through this. The converge play
+    # sets its own equivalent so the role's "Check that brew is on PATH"
+    # guard does not fail a converged box (README.md § The PATH bridge).
+    PATH: "{{ brew_bin }}:{{ ansible_facts.env.PATH }}"
+  tasks:
+    # ── apt prerequisites — linuxbrew's documented list ─────────────────────
+    - name: Install apt packages linuxbrew documents as prerequisites
+      ansible.builtin.apt:
+        name:
+          - build-essential
+          - curl
+          - file
+          - git
+          - rsync
+        state: present
+        update_cache: true
+      become: true
+
+    # ── linuxbrew ────────────────────────────────────────────────────────────
+    - name: Install linuxbrew to its standard prefix
+      # The install script sudo's for one directory creation, which the
+      # vagrant user does passwordless. NONINTERACTIVE skips its RETURN
+      # prompt — there is no terminal under Ansible.
+      ansible.builtin.shell: |
+        set -o pipefail
+        NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+      args:
+        executable: /bin/bash
+        creates: "{{ brew_bin }}/brew"
+
+    # ── mise + node — how the real box gets node (apps/mise topic) ───────────
+    - name: Install mise
+      ansible.builtin.shell: curl -fsSL https://mise.run | sh
+      args:
+        executable: /bin/bash
+        creates: "{{ ansible_facts.env.HOME }}/.local/bin/mise"
+
+    - name: Install node LTS through mise
+      # The role's skill-sync tasks resolve npx via the mise shims dir, which
+      # only exists once node is installed — this reproduces that state.
+      ansible.builtin.command:
+        cmd: "{{ ansible_facts.env.HOME }}/.local/bin/mise use -g node@lts"
+      changed_when: false
+
+    # ── chezmoi — installs the migrated config from the synced repo ─────────
+    - name: Install chezmoi via brew
+      ansible.builtin.command:
+        cmd: "{{ brew_bin }}/brew install chezmoi"
+      changed_when: false
+
+    # ── the v1 formula — reproduce the pre-migration state ──────────────────
+    # Trust first, then tap, then install (README.md § The tap must be trusted
+    # first: the refusal surfaces at tap time, so trust must precede the tap).
+    - name: Trust the opencode tap before tapping it
+      ansible.builtin.command:
+        cmd: "{{ brew_bin }}/brew trust --tap anomalyco/tap"
+      changed_when: false
+
+    - name: Tap anomalyco/tap
+      ansible.builtin.command:
+        cmd: "{{ brew_bin }}/brew tap anomalyco/tap"
+      changed_when: false
+
+    - name: Install the v1 opencode formula
+      # A box that never had v1 would let converge's "v1 gone" assertion pass
+      # vacuously — the "test that passes without exercising what it claims"
+      # failure spec.md § Verification exists to stop. The topic's v1-era
+      # config is NOT installed here; only the binary state the migration
+      # starts from.
+      ansible.builtin.command:
+        cmd: "{{ brew_bin }}/brew install anomalyco/tap/opencode"
+      changed_when: false
+
+    # ── the migrated config — the real deploy path ──────────────────────────
+    - name: Apply the migrated opencode config from the synced repo
+      # The targeted apply the v2 plan's author-run step 3 uses, against the
+      # synced worktree (PLAN.md § Decision 5). This tests the real path —
+      # template, chezmoidata merge, $HOME literals — rather than a
+      # hand-placed copy that could silently differ from what the author's
+      # machine gets. No `chezmoi init`: the .chezmoi.toml.tmpl prompts, and
+      # apply with --source needs no config file for this target.
+      ansible.builtin.command:
+        cmd: "{{ brew_bin }}/chezmoi apply --source /repo ~/.config/opencode"
+      changed_when: false
