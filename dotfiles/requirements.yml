@@ -21,3 +21,5 @@ collections:
     version: "13.0.1"
   - name: community.docker     # docker_image module
     version: "5.2.1"
+  - name: community.vagrant    # the molecule vagrant driver's required collection (molecule_plugins/vagrant/driver.py)
+    version: "1.0.1"
