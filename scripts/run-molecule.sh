@@ -91,4 +91,8 @@ export MOLECULE_PROJECT_DIRECTORY="$DOTFILES"
 export ANSIBLE_COLLECTIONS_PATH="$HOME/.ansible/collections"
 
 cd "$SCENARIO_PARENT"
-exec uv run --frozen --group test-vm molecule "$VERB" -s default -d vagrant "$@"
+# The driver comes from molecule.yml; no -d flag: molecule 26.9.0 accepts
+# --driver-name on create/prepare/destroy/test but rejects it on
+# converge/idempotence/verify/login (measured 2026-10-11), and an override
+# the config already names is not worth per-verb dispatch.
+exec uv run --frozen --group test-vm molecule "$VERB" -s default "$@"

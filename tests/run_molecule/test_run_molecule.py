@@ -20,7 +20,7 @@ from run_molecule_harness import (
     run_wrapper,
 )
 
-EXPECTED_TAIL = ["-s", "default", "-d", "vagrant"]
+EXPECTED_TAIL = ["-s", "default"]
 VERBS = [
     "create",
     "prepare",
@@ -96,7 +96,7 @@ def test_runs_from_any_cwd(scenario_repo: pathlib.Path, tmp_path: pathlib.Path):
     result = run_wrapper(scenario_repo, "faketopic", cwd=caller_cwd)
     assert result.returncode == 0, result.stderr
     (argv,) = molecule_invocations(scenario_repo)
-    assert argv[-1] == "vagrant"  # the run happened (sanity, not cwd proof)
+    assert argv[-1] == "default"  # the run happened (sanity, not cwd proof)
     assert str(caller_cwd) not in " ".join(argv)
 
 
