@@ -94,6 +94,22 @@
         cmd: "{{ brew_bin }}/brew install anomalyco/tap/opencode"
       changed_when: false
 
+    # ── skill-trust — the approved-sources guard's own fix ───────────────────
+    # The role's final guard needs `skill-trust` on PATH and names the fix:
+    # `uv tool install <chezmoi source>/tools/skill-trust`. On the box the
+    # chezmoi source is /repo, so that is exactly what runs here — the guard
+    # stays part of the converged state, not something the scenario skips.
+    - name: Install uv
+      ansible.builtin.shell: curl -LsSf https://astral.sh/uv/install.sh | sh
+      args:
+        executable: /bin/bash
+        creates: "{{ ansible_facts.env.HOME }}/.local/bin/uv"
+
+    - name: Install skill-trust from the synced repo
+      ansible.builtin.command:
+        cmd: "{{ ansible_facts.env.HOME }}/.local/bin/uv tool install /repo/tools/skill-trust"
+      changed_when: false
+
     # ── the migrated config — the real deploy path ──────────────────────────
     - name: Apply the migrated opencode config from the synced repo
       # The targeted apply the v2 plan's author-run step 3 uses, against the
