@@ -40,3 +40,11 @@ provisioner:
         ansible_python_interpreter: /usr/bin/python3
 verifier:
   name: testinfra
+# State must persist across invocations: molecule 26.9.0 otherwise keeps the
+# ephemeral directory (instance config, inventory, generated Vagrantfile) in
+# a RANDOM per-run cache dir under ~/.ansible/tmp — measured 2026-10-11, the
+# second invocation could not see the box the first one created and verify
+# failed on an unresolvable host name. With shared_state the state lives in
+# this directory's .molecule/ (gitignored), which is what makes the stepwise
+# verbs (create here, login/verify later, destroy when done) work at all.
+shared_state: true
