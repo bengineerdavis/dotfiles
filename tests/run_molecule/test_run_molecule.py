@@ -158,6 +158,17 @@ def test_ansible_library_is_exported(scenario_repo: pathlib.Path):
     assert value == "/fake/site-packages/molecule_plugins/vagrant/modules", value
 
 
+def test_ephemeral_directory_is_pinned_into_the_scenario(scenario_repo):
+    """State lives in the scenario .molecule/, not a basename cache."""
+    result = run_wrapper(scenario_repo, "faketopic", "converge")
+    assert result.returncode == 0, result.stderr
+    (record,) = molecule_records(scenario_repo)
+    (value,) = record["env-ed"]
+    expected = scenario_repo / "dotfiles" / "apps" / "faketopic"
+    expected = expected / "molecule" / "default" / ".molecule"
+    assert value == str(expected), value
+
+
 def test_extra_args_pass_through_to_molecule(scenario_repo: pathlib.Path):
     result = run_wrapper(scenario_repo, "faketopic", "test", "--destroy=never")
     assert result.returncode == 0, result.stderr

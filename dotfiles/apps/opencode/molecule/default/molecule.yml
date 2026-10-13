@@ -25,8 +25,9 @@ platforms:
       # chezmoi on the box renders the real templates (PLAN.md § Decision 5).
       # MOLECULE_PROJECT_DIRECTORY is dotfiles/, so /.. is the repo root;
       # Vagrant normalizes the /.. with Ruby's File.expand_path before the
-      # rsync runs.
-      - "vm.synced_folder '${MOLECULE_PROJECT_DIRECTORY}/..', '/repo', type: 'rsync'"
+      # rsync runs. The excludes keep the sync to the source tree: .git is a
+      # worktree pointer + the venvs and caches are build state.
+      - "vm.synced_folder '${MOLECULE_PROJECT_DIRECTORY}/..', '/repo', type: 'rsync', rsync__exclude: ['.git/', '.venv/', '.molecule/', '.bats/', '.pytest_cache/', '.hypothesis/']"
 provisioner:
   name: ansible
   env:
@@ -40,11 +41,10 @@ provisioner:
         ansible_python_interpreter: /usr/bin/python3
 verifier:
   name: testinfra
-# State must persist across invocations: molecule 26.9.0 otherwise keeps the
-# ephemeral directory (instance config, inventory, generated Vagrantfile) in
-# a RANDOM per-run cache dir under ~/.ansible/tmp — measured 2026-10-11, the
-# second invocation could not see the box the first one created and verify
-# failed on an unresolvable host name. With shared_state the state lives in
-# this directory's .molecule/ (gitignored), which is what makes the stepwise
-# verbs (create here, login/verify later, destroy when done) work at all.
-shared_state: true
+# State location is pinned by the wrapper (MOLECULE_EPHEMERAL_DIRECTORY =
+# this scenario's .molecule/, gitignored): molecule 26.9.0 otherwise keeps
+# it in ~/.ansible/tmp/molecule.<checksum of project-dir basename>.<scenario>
+# — deterministic, but KEYED on the project directory's basename, so bare
+# molecule runs from another cwd get a different state than the wrapper's,
+# and two topics' `default` scenarios would share one state dir. The wrapper
+# pin fixes both. Re-check at the next molecule re-lock per O2.

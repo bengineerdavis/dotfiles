@@ -45,6 +45,7 @@ done
   printf 'env-mpd=%s\n' "${MOLECULE_PROJECT_DIRECTORY-}"
   printf 'env-acp=%s\n' "${ANSIBLE_COLLECTIONS_PATH-}"
   printf 'env-al=%s\n' "${ANSIBLE_LIBRARY-}"
+  printf 'env-ed=%s\n' "${MOLECULE_EPHEMERAL_DIRECTORY-}"
   printf '===END===\n'
 } >> "$UV_LOG"
 exit 0

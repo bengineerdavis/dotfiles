@@ -88,6 +88,14 @@ VAGRANT_MODULES="$(uv run --frozen --group test-vm python -c \
 export ANSIBLE_LIBRARY="$VAGRANT_MODULES"
 
 export MOLECULE_PROJECT_DIRECTORY="$DOTFILES"
+# Pin the state dir into the scenario: molecule 26.9.0 otherwise keys the
+# ephemeral directory on the project dir's basename (molecule.<checksum>.
+# <scenario> under ~/.ansible/tmp), so bare-molecule runs from another cwd
+# get a different state than the wrapper's, and two topics' `default`
+# scenarios would share one state dir. Env takes precedence over both
+# (verified against molecule 26.9.0's scenario.ephemeral_directory); the
+# vagrant driver's safe_files keep the box env intact across prunes.
+export MOLECULE_EPHEMERAL_DIRECTORY="$SCENARIO_PARENT/molecule/default/.molecule"
 export ANSIBLE_COLLECTIONS_PATH="$HOME/.ansible/collections"
 
 cd "$SCENARIO_PARENT"

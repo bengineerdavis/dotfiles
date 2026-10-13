@@ -73,6 +73,17 @@ either layer hardcoding a machine-specific literal.
 be a build; nothing here needs one. If wall-clock hurts later, baking becomes
 a separate author decision (PLAN.md § prepare.yml).
 
+**State lives in this scenario's `.molecule/`** (gitignored) because the
+wrapper pins `MOLECULE_EPHEMERAL_DIRECTORY` there. Molecule 26.9.0 otherwise
+keys the ephemeral directory on the project dir's basename under
+`~/.ansible/tmp` — bare-molecule runs from another cwd would get a different
+state than the wrapper's, and two topics' `default` scenarios would share one
+state dir. Verified against 26.9.0: the env var takes precedence over both
+branches of `scenario.ephemeral_directory`, and the vagrant driver's
+`safe_files` keep the box env intact across prune. Always run through the
+wrapper (or export the same variables) — bare `molecule` calls are the
+out-of-band case the wrapper exists to prevent.
+
 ## Known risks
 
 - **dotagents converge-twice.** The idempotence action runs converge twice;
