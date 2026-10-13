@@ -1,0 +1,22 @@
+tools/skill-trust/skill_trust/discover.py
+  s_2725e896a3313a::t_613b46eea60292 103-106
+tools/skill-trust/tests/test_python_floor.py
+  s_2725e896a3313a::t_01d7ae30f5a610 30
+  s_2725e896a3313a::t_e98484612076bb 1-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8ab0cba39a12012cc52163a818c15097f8ed7dae",
+  "prompts": {},
+  "sessions": {
+    "s_2725e896a3313a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ed3de9e0fffepBjOoegbCS9mYe",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
