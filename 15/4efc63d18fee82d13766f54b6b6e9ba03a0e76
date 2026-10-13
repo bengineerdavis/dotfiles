@@ -1,0 +1,28 @@
+tests/run_molecule/test_run_molecule.py
+  s_2725e896a3313a::t_bae4a553918e05 161-171
+dotfiles/apps/opencode/molecule/default/molecule.yml
+  s_2725e896a3313a::t_4a98b581d38d09 44-50
+  s_2725e896a3313a::t_3e847bb43dd93f 28-30
+tests/run_molecule/run_molecule_harness.py
+  s_2725e896a3313a::t_bae4a553918e05 48
+dotfiles/apps/opencode/molecule/default/README.md
+  s_2725e896a3313a::t_504106af328a63 76-86
+scripts/run-molecule.sh
+  s_2725e896a3313a::t_1c00ce855787e5 91-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "154efc63d18fee82d13766f54b6b6e9ba03a0e76",
+  "prompts": {},
+  "sessions": {
+    "s_2725e896a3313a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ed3de9e0fffepBjOoegbCS9mYe",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
