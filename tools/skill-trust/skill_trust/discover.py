@@ -100,7 +100,10 @@ def licence_from_repo(source: str, gh: str | None = None) -> str | None:
             text=True,
             timeout=30,
         )
-    except OSError, subprocess.SubprocessError:
+    # fmt: skip — the parens are the point: python 3.11 (the declared
+    # floor) rejects PEP 758's unparenthesized form, and the root ruff
+    # formats for 3.14, which would strip them back off.
+    except (OSError, subprocess.SubprocessError):  # fmt: skip
         return None
     if done.returncode != 0:
         return None
