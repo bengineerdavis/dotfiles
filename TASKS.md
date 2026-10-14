@@ -1612,6 +1612,15 @@ nothing is.
   `--syntax-check` and `--check --tags provision` pass, tests/topics and
   tests/topic_resolution stay green, and the branch is pushed with a PR for
   human review.
+  Done 2026-10-13: topic committed on `topic-roborev` as `2c78672`;
+  syntax-check, topic suites (33 passed), full suite (1020 passed, 6
+  skipped) and `skillet validate` all green. The Debian fact chain and the
+  checksum-verified fetch were exercised by a facts-injected simulation —
+  the fetch ran for real (23.6 MB, SHA256 verified); the apt step and a
+  real Darwin install have not run anywhere (needs the author to provision
+  from main). Check-mode limits on both routes recorded in the topic
+  CHANGELOG's known_issues. Opened
+  [PR #50](https://github.com/bengineerdavis/dotfiles/pull/50).
 
 ## Planned
 
