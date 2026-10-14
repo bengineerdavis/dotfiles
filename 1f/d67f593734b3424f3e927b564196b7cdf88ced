@@ -1,0 +1,21 @@
+dotfiles/apps/opencode/molecule/default/tests/test_verify.py
+  s_2725e896a3313a::t_a827e715e815c7 74-77,86-93
+  s_2725e896a3313a::t_166e6af61df112 112
+  s_2725e896a3313a::t_453127ade1952d 84-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1fd67f593734b3424f3e927b564196b7cdf88ced",
+  "prompts": {},
+  "sessions": {
+    "s_2725e896a3313a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ed3de9e0fffepBjOoegbCS9mYe",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
