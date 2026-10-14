@@ -1,0 +1,193 @@
+# apps/roborev/tasks/install.yaml
+#
+# Two routes, guarded by os_family in-task (CONTRIBUTING.md rule 2):
+#
+#   Darwin — the roborev formula from the kenn-io/tap tap, trust → tap →
+#            install. Currency comes from apps/homebrew's upgrade pass
+#            (`brew upgrade`), so no upgrade tasks live here.
+#
+#   Debian — roborev_<version>_linux_<arch>.deb from GitHub releases,
+#            checksum-verified against the digest GitHub publishes for the
+#            asset. `apt upgrade` cannot reach a GitHub-release deb, so this
+#            topic owns its own currency: every task here carries the
+#            upgrade tag, and a resolved release that already matches the
+#            installed dpkg version is a genuine no-op.
+#
+# Every piece of state created here has a matching teardown in remove.yaml,
+# per the CRUD ownership invariant in docs/TOPICS.md.
+
+# ── Darwin: the binary, from the tap ────────────────────────────────────────
+# The tap route and its ordering follow apps/opencode, which measured the
+# failure first: on Homebrew 7.0.1 (2026-09-14), `brew tap` on an untrusted
+# third-party tap aborts with "Cannot tap <name>: invalid syntax in tap!" —
+# a message that names neither trust nor the fix. `brew trust --tap` runs
+# BEFORE the tap task for that reason; the long version of the story is in
+# apps/opencode/README.md § "The tap must be trusted first".
+#
+# Trusting a tap lets brew execute its Ruby. This tap is upstream roborev's
+# own (kenn-io publishes it from the same release pipeline as the binary),
+# so trusting it is trusting the vendor whose binary we are installing
+# anyway.
+
+- name: "Trust the tap so Homebrew will load its formulae: {{ roborev_tap }}"
+  # No Ansible module covers this — homebrew_tap predates brew's trust
+  # store — hence the raw command. Idempotent by design: a second run exits
+  # 0 and reports "Already trusted tap", which is what changed_when reads.
+  ansible.builtin.command:
+    cmd: "brew trust --tap {{ roborev_tap }}"
+  register: roborev_trust_tap
+  changed_when: "'Already trusted' not in roborev_trust_tap.stdout"
+  when: ansible_facts['os_family'] == 'Darwin'
+  tags: [roborev, install]
+
+- name: "Tap {{ roborev_tap }}"
+  community.general.homebrew_tap:
+    name: "{{ roborev_tap }}"
+    state: present
+  when: ansible_facts['os_family'] == 'Darwin'
+  tags: [roborev, install]
+
+- name: "Install roborev from the tap"
+  community.general.homebrew:
+    name: "{{ roborev_tap }}/roborev"
+    state: present
+  when: ansible_facts['os_family'] == 'Darwin'
+  tags: [roborev, install]
+
+# ── Debian: the .deb from GitHub releases ───────────────────────────────────
+# The asset name embeds the version (roborev_0.71.0_linux_amd64.deb), so
+# 'latest' is resolved first: one unauthenticated call to the releases API
+# (60/hr per IP is ample for a run) yields the tag, the asset URL, and the
+# asset's published digest in one response.
+
+- name: "Debian: resolve the latest roborev release"
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/kenn-io/roborev/releases/latest
+    return_content: true
+    headers:
+      Accept: application/vnd.github+json
+  register: roborev_release_api
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - roborev_release_tag == 'latest'
+  tags: [roborev, install, upgrade]
+
+- name: "Debian: resolve the release tag to install"
+  # 'latest' takes the tag from the API response above; a pinned tag is used
+  # as-is. The conditional only evaluates the branch it takes, so a pinned
+  # run never touches roborev_release_api (which does not exist there).
+  ansible.builtin.set_fact:
+    roborev_resolved_tag: "{{ roborev_release_api.json.tag_name if roborev_release_tag == 'latest' else roborev_release_tag }}"
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [roborev, install, upgrade]
+
+- name: "Debian: derive the version and the .deb asset name"
+  # The dpkg version is the tag without the leading v. Architecture maps
+  # from Ansible's fact to the asset's naming: x86_64 → amd64,
+  # aarch64 → arm64.
+  vars:
+    roborev_arch: "{{ 'arm64' if ansible_facts['architecture'] in ['arm64', 'aarch64'] else 'amd64' }}"
+  ansible.builtin.set_fact:
+    roborev_version: "{{ roborev_resolved_tag | regex_replace('^v', '') }}"
+    roborev_deb_name: "roborev_{{ roborev_resolved_tag | regex_replace('^v', '') }}_linux_{{ roborev_arch }}.deb"
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [roborev, install, upgrade]
+
+- name: "Debian: build the download URL"
+  # Each fact is set in its own step on purpose: values in one set_fact are
+  # finalized against the pre-task variable state, so a value set in the
+  # same call cannot be referenced by a sibling value, and task-level vars
+  # do not survive the task. Both limits surfaced as "'X' is undefined"
+  # in the check-mode simulation, not in a real run.
+  ansible.builtin.set_fact:
+    roborev_deb_url: "https://github.com/kenn-io/roborev/releases/download/{{ roborev_resolved_tag }}/{{ roborev_deb_name }}"
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [roborev, install, upgrade]
+
+- name: "Debian: resolve the .deb checksum"
+  # With roborev_release_tag: latest, the checksum is the asset's `digest`
+  # field from the same API response — published when the release is
+  # uploaded, so the verification never trusts the download location it is
+  # checking. A pinned release pins roborev_deb_sha256 instead.
+  ansible.builtin.set_fact:
+    roborev_deb_sha256_resolved: >-
+      {{ roborev_deb_sha256 if roborev_release_tag != 'latest'
+         else (roborev_release_api.json.assets
+               | selectattr('name', 'equalto', roborev_deb_name)
+               | map(attribute='digest') | first | regex_replace('^sha256:', '')) }}
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [roborev, install, upgrade]
+
+- name: "Debian: fail with the fix if no checksum could be resolved"
+  # Fail closed: a download without a verified checksum is not an install
+  # this topic performs. The digest field is what makes 'latest' verifiable;
+  # if upstream ever stops publishing it, this is the message that says so.
+  ansible.builtin.assert:
+    that: roborev_deb_sha256_resolved | length == 64
+    fail_msg: >-
+      Could not resolve a SHA256 for {{ roborev_deb_name }}. With
+      roborev_release_tag: latest the checksum comes from the release API's
+      per-asset digest; with a pinned tag, set roborev_deb_sha256 to the
+      published checksum. Nothing was downloaded or installed.
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [roborev, install, upgrade]
+
+- name: "Debian: read the installed roborev version"
+  # rc 1 means "not installed" — that is the install case, not a failure.
+  ansible.builtin.command: dpkg-query -W -f='${Version}' roborev
+  register: roborev_dpkg_version
+  changed_when: false
+  failed_when: false
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [roborev, install, upgrade]
+
+- name: "Debian: ensure the .deb cache directory exists"
+  # Created by this topic, deleted by remove.yaml (CRUD invariant).
+  ansible.builtin.file:
+    path: "{{ roborev_deb_cache_dir }}"
+    state: directory
+    mode: "0755"
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [roborev, install, upgrade]
+
+- name: "Debian: fetch the .deb (checksum-verified)"
+  # get_url compares the on-disk file against `checksum` and only downloads
+  # on a mismatch or absence. Skipped entirely when the installed version
+  # already matches the resolved release — a 25 MB download and a dpkg
+  # reinstall on every run is not idempotence.
+  ansible.builtin.get_url:
+    url: "{{ roborev_deb_url }}"
+    dest: "{{ roborev_deb_cache_dir }}/{{ roborev_deb_name }}"
+    mode: "0644"
+    checksum: "sha256:{{ roborev_deb_sha256_resolved }}"
+  register: roborev_deb_fetch
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - roborev_dpkg_version.stdout | default('') != roborev_version
+  tags: [roborev, install, upgrade]
+
+- name: "Debian: install the fetched .deb"
+  # The package installs /usr/bin/roborev system-wide, so this is the one
+  # privileged step. dpkg records the version, which is what the
+  # version-compare above reads back on the next run.
+  ansible.builtin.apt:
+    deb: "{{ roborev_deb_cache_dir }}/{{ roborev_deb_name }}"
+    state: present
+  become: true
+  register: roborev_apt_install
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - roborev_dpkg_version.stdout | default('') != roborev_version
+  tags: [roborev, install, upgrade]
+
+- name: "Report the roborev install state"
+  ansible.builtin.debug:
+    msg: >-
+      roborev
+      {{ 'installed/updated from ' ~ (roborev_deb_url if ansible_facts['os_family'] == 'Debian' else roborev_tap)
+         if (roborev_deb_fetch.changed | default(false)) or (roborev_apt_install.changed | default(false))
+         else 'already current' }}.
+      Next step is per repository: `roborev init` in a repo you want
+      reviewed. roborev needs at least one AI agent CLI on the machine
+      (opencode and claude-code topics provide them).
+  tags: [roborev, install, upgrade]
