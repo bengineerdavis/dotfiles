@@ -71,20 +71,26 @@ def test_opencode_resolves_to_v2(host):
     cmd = host.run(f"{BREW_BIN}/opencode --version")
     assert cmd.rc == 0, cmd.stderr
     assert cmd.stdout.strip(), "opencode printed nothing"
-    assert re.search(r"\b2\.\d", cmd.stdout), f"expected 2.x, got {cmd.stdout!r}"
+    # Measured output: "opencode v2.0.27" — the version token carries a
+    # leading v, so strip it before checking the major.
+    version = cmd.stdout.strip().split()[-1].lstrip("v")
+    assert version.startswith("2."), f"expected 2.x, got {cmd.stdout!r}"
 
 
 def test_migrated_config_loads(host):
     """The migrated config loads clean, with ordered permissions."""
     cmd = host.run(f"{BREW_BIN}/opencode debug config")
     assert cmd.rc == 0, f"rc={cmd.rc} stdout={cmd.stdout!r} stderr={cmd.stderr!r}"
-    # v2's normalizer reports dropped/renamed keys on stderr as
-    # unsupported*/diagnostic lines; the migrated config must be clean.
-    lowered = cmd.stderr.lower()
-    assert "unsupported" not in lowered, cmd.stderr
-    assert "diagnostic" not in lowered, cmd.stderr
+    # v2's normalizer reports dropped/renamed keys on stderr; the
+    # migrated config must be clean. Measured on the box: stderr empty.
+    assert cmd.stderr.strip() == "", f"normalization diagnostics: {cmd.stderr!r}"
 
-    cfg = json.loads(cmd.stdout)
+    # Measured output: an array of {type: document, path, info} — the
+    # deployed config is the document whose path is the deployed file.
+    docs = json.loads(cmd.stdout)
+    deployed = [d for d in docs if d.get("path", "").endswith("opencode.jsonc")]
+    assert len(deployed) == 1, f"expected one deployed config doc, got {docs!r}"
+    cfg = deployed[0]["info"]
     perms = cfg.get("permissions")
     assert isinstance(perms, list) and perms, "permissions array missing/empty"
 
@@ -103,7 +109,7 @@ def test_migrated_config_loads(host):
     find_rule = {"action": "shell", "resource": "find *", "effect": "allow"}
     find_allow = index_of(find_rule)
     assert find_allow > 0, "find * allow missing from the array"
-    for suffix in ("-delete*", "-exec*", "-execdir*"):
+    for suffix in ("*-delete*", "*-exec*", "*-execdir*"):
         deny = index_of(
             {"action": "shell", "resource": f"find {suffix}", "effect": "deny"}
         )
