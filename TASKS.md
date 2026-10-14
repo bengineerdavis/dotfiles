@@ -1587,6 +1587,31 @@ nothing is.
   from inside dotfiles/ (AGENTS.md § Commands reads as if run from the
   root). One-line fix: `cd "$(dirname "$0")"` after set -euo pipefail.
   Deployed-tree file, so the fix goes to the author for review.
+  Fix ready 2026-10-09 on branch `run-role-cwd-fix` with
+  `tests/run_role/` (real script from a foreign cwd against a fake mise
+  recording its argv: foreign-cwd resolution, unknown-topic error naming,
+  second arg as `--tags`). Mutation-verified: with the `cd` line removed,
+  the foreign-cwd and tags tests go red; the unknown-topic test correctly
+  stays green (it asserts error naming, not cwd). PR to follow.
+
+- **Add the roborev topic** — automatic AI code-review daemon
+  (kenn-io/roborev). [agent: OpenCode session; branch `topic-roborev`,
+  worktree `.worktrees/roborev`] Both machines, per the author 2026-10-09.
+  Darwin: the `roborev` formula from the `kenn-io/tap` tap — trust → tap →
+  install, the opencode pattern (Homebrew 7 refuses an untrusted third-party
+  tap at tap time, naming neither trust nor the fix). Debian: fetch
+  `roborev_<ver>_linux_<arch>.deb` from GitHub releases, checksum-verified
+  against the per-asset `digest` in the releases/latest API response, then
+  install via apt (become); the topic resolves latest and reinstalls only
+  when the dpkg version differs, because apt upgrade cannot reach a
+  GitHub-release deb — the topic owns its own currency. Teardown mirrors both
+  routes; the tap is shared infrastructure, so untap+untrust stay behind
+  `roborev_remove_tap` (default false), the opencode precedent. No separate
+  Go topic: the chosen routes need no toolchain, and mise already provides
+  go (`apps/mise/files/config.toml`). Done when: the topic scaffolds clean,
+  `--syntax-check` and `--check --tags provision` pass, tests/topics and
+  tests/topic_resolution stay green, and the branch is pushed with a PR for
+  human review.
 
 ## Planned
 
