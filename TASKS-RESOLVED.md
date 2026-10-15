@@ -559,3 +559,35 @@ deleted.
   cases are slow and order-dependent; (6) the "104s" suite figure is stale
   (170.7s measured 2026-09-23); (7) run one suite at a time — concurrent
   `uv run` invocations contend on the uv cache lock.
+
+## 2026-10-14
+
+- **run-role.sh: resolve the playbook relative to the script, not the
+  caller's cwd.** The 2026-10-03 observation's prescribed one-line fix
+  (`cd "$(dirname "$0")"` after `set -euo pipefail`) landed on
+  `run-role-cwd-fix` with `tests/run_role/` — the real script run from a
+  foreign cwd against a fake mise that records its argv (foreign-cwd
+  playbook resolution, unknown-topic error naming, second arg as
+  `--tags`). Mutation: with the `cd` line removed, the foreign-cwd and
+  tags tests go red; the unknown-topic test correctly stays green (it
+  asserts error naming, not cwd). Full suite on the rebased branch:
+  1023 passed, 6 skipped. PR #48 merged 2026-10-14 (`b9d1390`).
+  Deployed-tree file: the source fix is on main; the deployed copy still
+  needs the author's `chezmoi apply` to take effect.
+
+- **pre-commit: select the ruff hooks' input by type** (`types_or:
+  [python, pyi]`). pre-commit passes every staged file to a hook by
+  default, and ruff parses explicit paths as Python regardless of
+  extension — committing a shell script failed ruff-check (hit
+  2026-10-04; re-measured 2026-10-14 on executable_run-role.sh: 1 EXE001
+  plus 24 invalid-syntax diagnostics). First attempt used a filename
+  regex; author review with an external search drove the switch to the
+  documented canonical form (commit `83fb086`). Relent and fire both
+  proven in-session with `prek run --files` — shell file: ruff skipped,
+  shellcheck passed; bad `.py`: ruff-check Failed, exit 1; clean `.py`:
+  all hooks pass — and posted as PR #49 evidence. Boundary recorded:
+  identify's exec-bit-gated shebang detection cannot see chezmoi's 644
+  sources, so the ~15 extensionless Python scripts under bin/ no longer
+  reach ruff through any hook; restoring that coverage as a shebang-
+  selecting test is queued in TASKS.md § Planned. PR #49 merged
+  2026-10-14 (`8705383`).
