@@ -1594,34 +1594,6 @@ nothing is.
   the foreign-cwd and tags tests go red; the unknown-topic test correctly
   stays green (it asserts error naming, not cwd). PR to follow.
 
-- **Add the roborev topic** — automatic AI code-review daemon
-  (kenn-io/roborev). [agent: OpenCode session; branch `topic-roborev`,
-  worktree `.worktrees/roborev`] Both machines, per the author 2026-10-09.
-  Darwin: the `roborev` formula from the `kenn-io/tap` tap — trust → tap →
-  install, the opencode pattern (Homebrew 7 refuses an untrusted third-party
-  tap at tap time, naming neither trust nor the fix). Debian: fetch
-  `roborev_<ver>_linux_<arch>.deb` from GitHub releases, checksum-verified
-  against the per-asset `digest` in the releases/latest API response, then
-  install via apt (become); the topic resolves latest and reinstalls only
-  when the dpkg version differs, because apt upgrade cannot reach a
-  GitHub-release deb — the topic owns its own currency. Teardown mirrors both
-  routes; the tap is shared infrastructure, so untap+untrust stay behind
-  `roborev_remove_tap` (default false), the opencode precedent. No separate
-  Go topic: the chosen routes need no toolchain, and mise already provides
-  go (`apps/mise/files/config.toml`). Done when: the topic scaffolds clean,
-  `--syntax-check` and `--check --tags provision` pass, tests/topics and
-  tests/topic_resolution stay green, and the branch is pushed with a PR for
-  human review.
-  Done 2026-10-13: topic committed on `topic-roborev` as `2c78672`;
-  syntax-check, topic suites (33 passed), full suite (1020 passed, 6
-  skipped) and `skillet validate` all green. The Debian fact chain and the
-  checksum-verified fetch were exercised by a facts-injected simulation —
-  the fetch ran for real (23.6 MB, SHA256 verified); the apt step and a
-  real Darwin install have not run anywhere (needs the author to provision
-  from main). Check-mode limits on both routes recorded in the topic
-  CHANGELOG's known_issues. Opened
-  [PR #50](https://github.com/bengineerdavis/dotfiles/pull/50).
-
 - **opencode v2 migration — plan (apps/opencode v1 → v2).** [agent:
   orch_sub_oc2plan, worktree `.worktrees/orch_sub_oc2plan`] Research and
   write the migration plan. Verified 2026-10-06: v2 is 2.0.24; the same
