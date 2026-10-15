@@ -1,27 +1,32 @@
-"""Repair one apt repository's signing keyring, and refuse to write a bad one.
+"""Repair one apt repository's signing keyring and refuse bad writes.
 
-Called by apps/apt/tasks/keyrings.yaml, once per entry in `apt_keyrings`.
+Called by apps/apt/tasks/keyrings.yaml, once per entry in
+`apt_keyrings`.
 
-The previous implementation (deb-get's apt-auth.yaml) saved whatever the URL
-returned with `get_url force: true` and reported success. That left a 0-byte
-hashicorp keyring and a githubcli keyring without the current signing key, and
-apt kept failing with NO_PUBKEY while the playbook said the keys were repaired.
-So this helper validates before it writes: a download that is not an OpenPGP
-public key never reaches the destination.
+The previous implementation (deb-get's apt-auth.yaml) saved whatever
+the URL returned with `get_url force: true` and reported success. That
+left a 0-byte hashicorp keyring and a githubcli keyring without the
+current signing key, and apt kept failing with NO_PUBKEY while the
+playbook said the keys were repaired. So this helper validates before
+it writes: a download that is not an OpenPGP public key never reaches
+the destination.
 
 Steps:
-  1. Find the source file that references --repo-host and read the keyring path
-     from its signed-by= (one-line .list) or Signed-By: (deb822 .sources).
-     No source configured means nothing to repair: this topic does not add
-     repositories, it only keeps the keys of existing ones valid.
-  2. Download --url; dearmor it if it is ASCII-armoured, because apt reads a
-     .gpg path as a binary keyring.
-  3. Validate with `gpg --show-keys` in a throwaway GNUPGHOME, so nothing is
-     imported into any real keyring. Zero public keys is a hard failure.
+  1. Find the source file that references --repo-host and read the
+     keyring path from its signed-by= (one-line .list) or Signed-By:
+     (deb822 .sources). No source configured means nothing to repair:
+     this topic does not add repositories, it only keeps the keys of
+     existing ones valid.
+  2. Download --url; dearmor it if it is ASCII-armoured, because apt
+     reads a .gpg path as a binary keyring.
+  3. Validate with `gpg --show-keys` in a throwaway GNUPGHOME, so
+     nothing is imported into any real keyring. Zero public keys is a
+     hard failure.
   4. Write atomically (temp file + rename) only if the bytes differ.
 
-Prints one JSON object on stdout. Exit 0 on success or nothing-to-do, 2 when
-the keyring could not be repaired, with the reason on stderr.
+Prints one JSON object on stdout. Exit 0 on success or
+nothing-to-do, 2 when the keyring could not be repaired, with the
+reason on stderr.
 """
 
 from __future__ import annotations
@@ -77,10 +82,11 @@ def _sources_signed_by(text: str, repo_host: str) -> str | None:
 
 
 def find_keyring_dest(repo_host: str, sources: list[Path]) -> tuple[Path, str] | None:
-    """Return (source_file, keyring_path) for the first enabled source naming repo_host.
+    """Return (source_file, keyring_path) for the first enabled match.
 
-    keyring_path is "" when the source exists but names no keyring file (no
-    signed-by, or an inline key block), which the caller treats as unrepairable.
+    The first enabled source naming repo_host wins. keyring_path is ""
+    when the source exists but names no keyring file (no signed-by, or
+    an inline key block), which the caller treats as unrepairable.
     """
     for path in sources:
         try:
@@ -113,9 +119,8 @@ def to_binary_keyring(data: bytes) -> bytes:
             ["gpg", "--dearmor"], input=data, capture_output=True, check=False
         )
         if result.returncode != 0 or not result.stdout:
-            raise RepairError(
-                f"gpg --dearmor failed: {result.stderr.decode(errors='replace').strip()}"
-            )
+            detail = result.stderr.decode(errors="replace").strip()
+            raise RepairError(f"gpg --dearmor failed: {detail}")
         return result.stdout
     return data
 

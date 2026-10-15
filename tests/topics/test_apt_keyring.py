@@ -28,7 +28,11 @@ pytestmark = pytest.mark.skipif(shutil.which("gpg") is None, reason="needs gpg")
 @pytest.fixture(scope="module")
 def ak():
     spec = importlib.util.spec_from_file_location("apt_keyring", SCRIPT)
+    if spec is None:  # unreachable for a real path; narrows ModuleSpec | None
+        raise RuntimeError("spec_from_file_location returned None")
     mod = importlib.util.module_from_spec(spec)
+    if spec.loader is None:  # narrows Loader | None; set by spec_from_file_location
+        raise RuntimeError("module spec carries no loader")
     spec.loader.exec_module(mod)
     return mod
 
@@ -140,7 +144,8 @@ def test_disabled_deb822_source_is_not_repaired(ak, tmp_path):
     d = tmp_path / "sources.list.d"
     d.mkdir()
     (d / "repo.sources").write_text(
-        "Enabled: no\nTypes: deb\nURIs: https://repo.example.invalid\nSigned-By: /x.gpg\n"
+        "Enabled: no\nTypes: deb\n"
+        "URIs: https://repo.example.invalid\nSigned-By: /x.gpg\n"
     )
     report = ak.repair(
         args(tmp_path), fetch=lambda u, t: pytest.fail("must not download")
@@ -164,7 +169,8 @@ def test_source_without_signed_by_fails_loudly(ak, tmp_path):
     [
         b"",
         b"<!DOCTYPE html><html><body>Not Found</body></html>" * 500,
-        b"-----BEGIN PGP PUBLIC KEY BLOCK-----\n\ngarbage\n-----END PGP PUBLIC KEY BLOCK-----\n",
+        b"-----BEGIN PGP PUBLIC KEY BLOCK-----\n\ngarbage\n"
+        b"-----END PGP PUBLIC KEY BLOCK-----\n",
     ],
 )
 def test_non_key_download_is_refused_and_dest_untouched(ak, tmp_path, payload):

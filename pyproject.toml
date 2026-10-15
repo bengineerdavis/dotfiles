@@ -58,6 +58,9 @@ max-doc-length = 72
 # data, and an end-of-line noqa would become part of the traced content.
 # Same for embedded Ansible/YAML fixture strings: splitting them changes the
 # fixture the test asserts on.
+# The apt source-audit fixture is verbatim apt output for the same reason:
+# its over-88-col lines are data, not prose.
+"tests/topics/test_apt_source_audit.py" = ["E501"]
 # ── doc-line campaign grandfather (2026-10-01) ──────────────────────────
 # W505 (72-col doc lines) and D205 (blank line after summary) are selected
 # and enforced; these paths still fail them. Each entry shrinks as the

@@ -28,7 +28,10 @@ pytestmark = pytest.mark.skipif(
     shutil.which("ansible-playbook") is None, reason="ansible-playbook not on PATH"
 )
 
-LIST_LINE = "deb [arch=all,amd64 signed-by={kr}] https://proget.makedeb.org prebuilt-mpr jammy\n"
+LIST_LINE = (
+    "deb [arch=all,amd64 signed-by={kr}] "
+    "https://proget.makedeb.org prebuilt-mpr jammy\n"
+)
 
 
 def play(task_file: str) -> str:
@@ -73,7 +76,7 @@ def run(tmp_path, task_file, extra, *flags):
 
 
 def recap_changed(output: str) -> int:
-    line = next(l for l in output.splitlines() if l.startswith("localhost"))
+    line = next(raw for raw in output.splitlines() if raw.startswith("localhost"))
     return int(line.split("changed=")[1].split()[0])
 
 
