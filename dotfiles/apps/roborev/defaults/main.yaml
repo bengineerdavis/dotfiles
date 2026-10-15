@@ -1,0 +1,29 @@
+# apps/roborev/defaults/main.yaml
+#
+# Overridable per run with -e. Nothing here is machine-specific: every path
+# is resolved on the target (ansible_user_dir, facts), never written out.
+
+# The tap the binary installs from on macOS. Upstream's own tap; it tracks
+# roborev releases and publishes formula updates from the release checksums.
+roborev_tap: kenn-io/tap
+
+# Untap AND untrust kenn-io/tap on remove. Off by default: this topic added
+# the tap, but a tap is shared infrastructure — any other formula could come
+# from it later, and removing a tap someone else relies on is not a surprise
+# a `remove` should spring. Flip deliberately: -e roborev_remove_tap=true.
+roborev_remove_tap: false
+
+# Which release the Debian .deb route installs: 'latest' resolves through
+# the GitHub API at run time, or pin a tag (e.g. "v0.71.0") for
+# determinism. A pinned tag must also set roborev_deb_sha256, because a
+# checksum cannot be verified against a release that was never fetched.
+roborev_release_tag: latest
+
+# SHA256 of the pinned release's .deb asset. Only consulted when
+# roborev_release_tag is pinned; ignored (and recomputed from the API's
+# per-asset digest) when resolving latest.
+roborev_deb_sha256: ""
+
+# Where the fetched .deb is kept between download and install. User-owned:
+# the download needs no privilege, only the apt install does.
+roborev_deb_cache_dir: "{{ ansible_user_dir }}/.cache/roborev"

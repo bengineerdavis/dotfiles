@@ -1,0 +1,13 @@
+# apps/roborev/tasks/upgrade.yaml
+#
+# Empty on purpose — the currency guarantee lives in install.yaml, which
+# carries the upgrade tag on every task (the apps/ori pattern):
+#
+#   Darwin — apps/homebrew's upgrade pass runs `brew upgrade`, which reaches
+#            this formula; nothing for the topic to do.
+#   Debian — `apt upgrade` cannot reach a GitHub-release deb, so install.yaml
+#            resolves the latest release and reinstalls only when the
+#            installed dpkg version differs. Upstream's `roborev update`
+#            self-updater is deliberately not used: it would replace the
+#            dpkg-managed binary outside Ansible's knowledge and make the
+#            next run's version comparison lie.
