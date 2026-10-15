@@ -559,3 +559,18 @@ deleted.
   cases are slow and order-dependent; (6) the "104s" suite figure is stale
   (170.7s measured 2026-09-23); (7) run one suite at a time — concurrent
   `uv run` invocations contend on the uv cache lock.
+
+## 2026-10-14
+
+- **run-role.sh: resolve the playbook relative to the script, not the
+  caller's cwd.** The 2026-10-03 observation's prescribed one-line fix
+  (`cd "$(dirname "$0")"` after `set -euo pipefail`) landed on
+  `run-role-cwd-fix` with `tests/run_role/` — the real script run from a
+  foreign cwd against a fake mise that records its argv (foreign-cwd
+  playbook resolution, unknown-topic error naming, second arg as
+  `--tags`). Mutation: with the `cd` line removed, the foreign-cwd and
+  tags tests go red; the unknown-topic test correctly stays green (it
+  asserts error naming, not cwd). Full suite on the rebased branch:
+  1023 passed, 6 skipped. PR #48 merged 2026-10-14 (`b9d1390`).
+  Deployed-tree file: the source fix is on main; the deployed copy still
+  needs the author's `chezmoi apply` to take effect.
