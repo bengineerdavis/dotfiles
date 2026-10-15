@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Resolve apps/<topic>/playbook.yaml relative to this script, not the
+# caller's cwd — AGENTS.md § Commands documents the script as
+# dotfiles/executable_run-role.sh, i.e. invoked from the repo root.
+cd "$(dirname "$0")"
+
 # Run a single topic's standalone role playbook.
 # Usage: run-role.sh <topic> [tag]
 #   run-role.sh docker install     # install just the docker topic

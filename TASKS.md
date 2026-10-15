@@ -1587,6 +1587,15 @@ nothing is.
   from inside dotfiles/ (AGENTS.md § Commands reads as if run from the
   root). One-line fix: `cd "$(dirname "$0")"` after set -euo pipefail.
   Deployed-tree file, so the fix goes to the author for review.
+  Fix ready 2026-10-09 on branch `run-role-cwd-fix` with
+  `tests/run_role/` (real script from a foreign cwd against a fake mise
+  recording its argv: foreign-cwd resolution, unknown-topic error naming,
+  second arg as `--tags`). Mutation-verified: with the `cd` line removed,
+  the foreign-cwd and tags tests go red; the unknown-topic test correctly
+  stays green (it asserts error naming, not cwd).
+  [PR #48](https://github.com/bengineerdavis/dotfiles/pull/48) open
+  2026-10-13; also open: PR #49 for the unrelated pre-commit ruff-hook
+  restriction split onto its own branch (`precommit-ruff-python-only`).
 
 - **opencode v2 migration — plan (apps/opencode v1 → v2).** [agent:
   orch_sub_oc2plan, worktree `.worktrees/orch_sub_oc2plan`] Research and
