@@ -1621,10 +1621,6 @@ nothing is.
   from main). Check-mode limits on both routes recorded in the topic
   CHANGELOG's known_issues. Opened
   [PR #50](https://github.com/bengineerdavis/dotfiles/pull/50).
-  stays green (it asserts error naming, not cwd).
-  [PR #48](https://github.com/bengineerdavis/dotfiles/pull/48) open
-  2026-10-13; also open: PR #49 for the unrelated pre-commit ruff-hook
-  restriction split onto its own branch (`precommit-ruff-python-only`).
 
 - **opencode v2 migration — plan (apps/opencode v1 → v2).** [agent:
   orch_sub_oc2plan, worktree `.worktrees/orch_sub_oc2plan`] Research and
