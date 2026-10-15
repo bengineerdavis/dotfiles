@@ -1,0 +1,66 @@
+# apps/apt/tasks/retired.yaml
+# Retire apt sources that are gone for good, and purge what only they provided.
+#
+# Each retired source is commented out in place rather than deleted: the file
+# stays on disk as a record of what was configured and why it stopped, and
+# commenting is idempotent (a second run matches nothing). The keyring the
+# source used is removed, since nothing reads it once the source is off.
+#
+# Deliberately NOT restored by remove.yaml: un-retiring a dead repository would
+# re-break apt-get update. Retirement is a one-way, human-made decision; the
+# source audit in upgrade.yaml only nominates candidates.
+#
+# Imported before any cache refresh, for the same reason keyrings.yaml is.
+
+- name: "Retired: comment out retired source"
+  ansible.builtin.replace:
+    path: "{{ item.file }}"
+    regexp: '^(?!#)(\s*deb(?:-src)?\s.*)$'
+    replace: '# retired by dotfiles apt topic: \1'
+  loop: "{{ apt_retired_sources }}"
+  loop_control:
+    label: "{{ item.file }}"
+  register: apt_retired_commented
+  become: true
+  failed_when:
+    - apt_retired_commented is failed
+    - "'does not exist' not in (apt_retired_commented.msg | default(''))"
+
+- name: "Retired: record why the source was retired"
+  ansible.builtin.lineinfile:
+    path: "{{ item.file }}"
+    line: "# Retired: {{ item.reason }}"
+    insertbefore: BOF
+  loop: "{{ apt_retired_sources }}"
+  loop_control:
+    label: "{{ item.file }}"
+  register: apt_retired_noted
+  become: true
+  failed_when:
+    - apt_retired_noted is failed
+    - "'does not exist' not in (apt_retired_noted.msg | default(''))"
+
+- name: "Retired: remove the retired source's keyring"
+  ansible.builtin.file:
+    path: "{{ item.keyring }}"
+    state: absent
+  loop: "{{ apt_retired_sources | selectattr('keyring', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.keyring }}"
+  become: true
+
+- name: "Retired: purge packages only a retired source provided"
+  ansible.builtin.apt:
+    name: "{{ apt_retired_packages }}"
+    state: absent
+    purge: true
+    lock_timeout: "{{ apt_lock_timeout }}"
+  when: apt_retired_packages | length > 0
+  register: apt_retired_purge
+  become: true
+
+- name: "Retired: report"
+  ansible.builtin.debug:
+    msg: >-
+      Retired sources: {{ apt_retired_sources | map(attribute='file') | join(', ') or 'none' }}.
+      Purged packages: {{ apt_retired_packages | join(', ') if apt_retired_purge is changed else 'none needed' }}.

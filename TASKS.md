@@ -1621,6 +1621,144 @@ nothing is.
   from main). Check-mode limits on both routes recorded in the topic
   CHANGELOG's known_issues. Opened
   [PR #50](https://github.com/bengineerdavis/dotfiles/pull/50).
+  stays green (it asserts error naming, not cwd).
+  [PR #48](https://github.com/bengineerdavis/dotfiles/pull/48) open
+  2026-10-13; also open: PR #49 for the unrelated pre-commit ruff-hook
+  restriction split onto its own branch (`precommit-ruff-python-only`).
+
+- **opencode v2 migration — plan (apps/opencode v1 → v2).** [agent:
+  orch_sub_oc2plan, worktree `.worktrees/orch_sub_oc2plan`] Research and
+  write the migration plan. Verified 2026-10-06: v2 is 2.0.24; the same
+  tap `anomalyco/tap` carries formula `opencode-v2`, which declares
+  `conflicts_with "opencode"` and `depends_on "ripgrep"`; the author
+  chose the brew-tap route over npm (npm is blocked on this box by a
+  root-owned `/tmp/fslock` — standing machine issue, see § Cross-session
+  hazards), wants the chezmoi config migrated in the same work item, and
+  wants the mise-installed opencode 1.18 shadow (it outranks the brew
+  binary on PATH) removed after the ansible migration is verified. Open
+  research the plan must settle from v2 sources or release notes, not
+  assumption: whether v2 parses v1's `permission` map schema at all (v2
+  docs show only the ordered `permissions` array), and the exact v2
+  syntax for bash rules and `external_directory` path rules. Plan lands
+  at `dotfiles/docs/research/opencode-v2/PLAN.md`. Done when it names
+  every file that changes (topic tasks/defaults/README/CHANGELOG plus
+  the chezmoi config), the v1→v2 permission mapping, the brew v1
+  formula removal, teardown updated in the same change, verification
+  steps, and any open author decisions.
+
+  Landed 2026-10-06 on `agent/orch` (merged from `orch_sub_oc2plan`):
+  plan at `dotfiles/docs/research/opencode-v2/PLAN.md` (`5332d18`,
+  rulings amendment `1d60ebb`). Awaiting the PR review; resolves when it
+  merges.
+
+- **opencode v2 migration — tests.** [agent: orch_sub_oc2test, worktree
+  `.worktrees/orch_sub_oc2test`] From the plan, write the pytest
+  coverage the implementation must satisfy before the implementation
+  exists: extend `tests/topic_resolution/test_opencode_both_os.py`,
+  `tests/topics/test_opencode_*.py` and the `tests/guards/` wiring
+  tests as the plan directs, covering the v2 formula install, the
+  conflicting v1 formula removal in the same run, teardown of
+  everything the new install creates, and the migrated config schema
+  rendered under both os_family values with StrictUndefined. Written
+  before the migration lands — expected red against v1 state, green
+  after. Done when every new test has been seen to fail (mutation and
+  failing test named, recorded as trailers on the implementation
+  commit) and the rest of the suite stays green.
+
+  Landed 2026-10-06 on `agent/orch` (merged from `orch_sub_oc2test`):
+  14 v2-targeted tests seen red against v1 state (`8050bd1`), plus a
+  prerequisite hook fix for tests/ollama_models/conftest.py whose
+  pre-existing pyrefly and W505 failures blocked every local
+  Python-file commit (`1916084`). Green after the implementation
+  commits.
+
+- **opencode v2 migration — implement.** [agent: orch_sub_oc2mig,
+  worktree `.worktrees/orch_sub_oc2mig`] Apply the plan and make the
+  tests green: `apps/opencode` tasks install `anomalyco/tap/opencode-v2`
+  and remove the conflicting v1 formula in the same run, teardown
+  updated in the same change, `dot_config/opencode/opencode.jsonc.tmpl`
+  migrated to the v2 permissions schema, README and CHANGELOG updated.
+  Follow-up machine state is author-run, never agent: `chezmoi apply`,
+  run-role for the topic (run-role.sh is cwd-dependent — run from
+  `dotfiles/`, see the 2026-10-03 observation above), then removal of
+  the mise-installed opencode 1.18 that shadows the brew binary. Done
+  when the new tests pass, the topic renders under both os_family
+  values, and the diff goes to the author for review (PR; deployed-tree
+  paths are always human review per § Merge gates).
+
+  Landed 2026-10-06 on `agent/orch` (merged from `orch_sub_oc2mig`):
+  topic commit `9d448f5`, config commit `c26f4ac`; the 14 queued tests
+  green (mutation evidence on the commits), full battery matches main
+  except 13 pre-existing failures in clipped/restart_stale/herdr,
+  reproduced on main's merge-base. PR opened to main; resolves when the
+  author merges.
+
+- **Declare ollama/qwen3.5:9b in the model manifest and prove it on this
+  machine.** [author decision 2026-10-06, unclaimed] The opencode v2
+  migration pins the trivial-task roles (title, summary, compaction) to
+  `ollama/qwen3.5:9b` (see `dotfiles/docs/research/opencode-v2/PLAN.md`
+  § Author rulings). House rules this task satisfies: a role pick is
+  declared where it can be installed (apps/ollama manifest), and a model
+  earns its place by measurement (quick eval on this box — titles,
+  summaries, short-compaction cases are enough for this role, not the
+  full suite). Includes the author-run `ollama pull qwen3.5:9b` (~6.6GB;
+  check `ollama ps` for resident models first). Done when the tag is in
+  the manifest, the eval numbers are recorded with their conditions, and
+  the roles reference a model that is actually pullable on every machine
+  the manifest targets.
+
+- **Topic VM test harness — plan (molecule + Vagrant, per-topic
+  scenarios).** [agent: orch_sub_vplan, worktree
+  `.worktrees/orch_sub_vplan`] Builds on the molecule adoption already
+  approved 2026-09-14 (§ Planned, "Adopt molecule for topic testing") —
+  scenario co-location in `apps/<topic>/molecule/`, direct `molecule
+  test` invocation, vagrant driver where containers cannot reach — read
+  that item before writing anything. Author rulings 2026-10-10 for THIS
+  work: durable capability, not a one-off; the agents-never-apply rule
+  applies by reason — a Vagrant box is a separate machine with its own
+  HOME and its own deployed tree, so agents may drive chezmoi and
+  ansible there; and the first scenario is the apps/opencode v2
+  migration — the run that confirms we are good to deploy (the author's
+  ask: "enough virtualization with vagrant that we can inject ansible
+  into a test box"). Design input for the plan, not a ruling: shape the
+  wrapper interface so humans can explore stepwise
+  (create/login/verify/destroy, linger in the box) while agents run
+  `molecule test` non-interactively. Verified 2026-10-06 on this box:
+  vagrant 2.4.9, VirtualBox present, /dev/kvm available. macOS is out
+  of scope for VM testing (no macOS boxes exist); this confirms the
+  Debian leg, and the plan says so plainly. Branches off main (post
+  #46, including the apt hook-standards commit); PR to main from there.
+  Plan lands at
+  `dotfiles/docs/research/topic-vm-tests/PLAN.md`. Done when it names:
+  the scenario layout and where it lives per TOPICS.md conventions, the
+  wrapper interface (and the wrapper's own build-ladder justification),
+  the molecule dependency install path per docs/PYTHON.md, exactly what
+  the opencode scenario asserts (v2 formula present, v1 gone, config
+  loads, skills synced), box-image and provider choices, destroy
+  safety, the author-run vs agent-run split, and any open author
+  decisions.
+
+- **Topic VM test harness — implement (molecule scaffolding +
+  apps/opencode scenario).** [agent: orch_sub_vimpl, worktree
+  `.worktrees/orch_sub_vimpl`] From the plan: wire the molecule
+  dependency the plan chose, build the wrapper (minimal, documented,
+  human-and-machine callable), and write apps/opencode's scenario
+  asserting the v2 migration end state on a Debian box. The scenario's
+  verify phase is the test suite for this work — plus pytest coverage
+  for the wrapper's argument handling where the house layout wants it.
+  Done when `molecule test` passes end-to-end against the real box and
+  each phase verb works when run alone.
+
+- **Topic VM test harness — run the v2 migration confirmation.**
+  [agent: orch_sub_vrun, worktree `.worktrees/orch_sub_vrun`] Execute
+  the harness end to end on a clean box: create, converge (run-role
+  path for apps/opencode), verify (v2 formula installed, v1 gone, the
+  migrated config loads without diagnostics, skills synced), then the
+  author's interactive flow exercised at least once (login, inspect,
+  destroy). Record the evidence with its conditions — box image,
+  provider, timings — and state the migration verdict naming what was
+  and was not exercised (spec § Evidence). Done when the run is
+  recorded on the PR and the verdict is explicit.
 
 ## Planned
 
@@ -3449,6 +3587,24 @@ author rather than the machine.
   once if a blocker arose, and the learnings land in
   `dotfiles/docs/research/coordinating-parallel-work-across-refactors.md`
   § What running it taught us. [claimed: coordinator, agent/queue-test]
+
+- **Restore ruff coverage for the extensionless Python scripts, and fix
+  what it surfaces.** [queued 2026-10-13; follow-up to PR #49] The ruff
+  hooks now select their input by type, and pre-commit's tags come from
+  identify, whose shebang detection requires the exec bit — chezmoi sources
+  carry that bit in the `executable_` name prefix at mode 644, so the ~15
+  extensionless Python scripts under `bin/` (8 `python3` shebangs, 6-7 PEP
+  723 `uv run --script` scripts) no longer reach ruff through any hook;
+  measured, `identify` tags `bin/executable_mailbox` (`#!/usr/bin/env
+  python3`) non-executable and not python. Restore the coverage as a test,
+  not a filter: a pytest globs `bin/` and `dotfiles/`, selects scripts
+  whose first line names `python` or `uv run --script`, and runs ruff with
+  the repo config — the test can decide "is this Python" by shebang, which
+  neither identify nor a filename filter can do here. One finding already
+  measured: `bin/executable_triage` D205 (docstring layout); fix it in the
+  same change so the test lands green. Done when: the test passes on every
+  selected script, has been seen to fail (mutation: make the selector match
+  nothing — the grep-over-empty trap), and no hook change is needed.
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 

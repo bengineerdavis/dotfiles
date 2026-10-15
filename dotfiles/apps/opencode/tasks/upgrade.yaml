@@ -2,10 +2,13 @@
 # Topic-level upgrade tasks. Refresh state this topic owns.
 #
 # The binary is NOT upgraded here — brew owns that, like every app-tier topic
-# (`brew upgrade` via the system role). What this topic owns beyond the binary
-# is the skill set, and its upgrade path is the same `dotagents add` that
-# install runs: re-adding an identical declaration refreshes the installation,
-# so a manifest bump in defaults/main.yaml is the whole upgrade procedure.
+# (`brew upgrade` via the system role). Since the v2 migration (2026-10-06)
+# the binary is the tap's opencode-v2 formula; still a brew formula, so the
+# homebrew system role's upgrade_all still covers it. What this topic owns
+# beyond the binary is the skill set, and its upgrade path is the same
+# `dotagents add` that install runs: re-adding an identical declaration
+# refreshes the installation, so a manifest bump in defaults/main.yaml is the
+# whole upgrade procedure.
 #
 # The skill tasks carry the `opencode_skills, upgrade` tags in install.yaml and
 # re-run under --tags upgrade for exactly this reason. Nothing extra here.
