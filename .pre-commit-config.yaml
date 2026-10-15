@@ -1,16 +1,27 @@
 repos:
   # 1. Lint and format all Python (config: [tool.ruff] in pyproject.toml).
   #    Pinned to the same ruff the machine runs (mise: 0.16.9).
-  #    files: explicit staged paths bypass ruff's own type filter, so a .sh
-  #    script would be parsed as Python and fail spuriously (hit 2026-10-04
-  #    committing executable_run-role.sh). Restrict the hooks to Python.
+  #    types_or: pre-commit passes every staged file to a hook by default, and
+  #    ruff parses explicit paths as Python regardless of extension — a .sh
+  #    script fails ruff-check with invalid-syntax (measured 2026-10-04
+  #    committing executable_run-role.sh: 1 EXE001 plus 24 invalid-syntax
+  #    diagnostics). Selecting the input in the hook is ruff's documented
+  #    integration pattern.
+  #
+  #    Note on what types_or matches here: pre-commit's tags come from
+  #    identify, whose shebang detection requires the exec bit. Chezmoi
+  #    sources carry the exec bit in the executable_ name prefix and are
+  #    mode 644 on disk, so identify tags every bin/ script non-executable —
+  #    the extensionless Python scripts are NOT matched by this filter. Their
+  #    ruff coverage is owned by the test suite (see TASKS.md), not by these
+  #    hooks.
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.9
     hooks:
       - id: ruff-check
-        files: \.pyi?$
+        types_or: [python, pyi]
       - id: ruff-format
-        files: \.pyi?$
+        types_or: [python, pyi]
 
   # 1b. Type checking (config: [tool.pyrefly] in pyproject.toml). System
   #     install keeps CLI/IDE/hook on one pyrefly version; pass_filenames is
