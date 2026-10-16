@@ -1,0 +1,21 @@
+changelog.d/20261015_073000_bengineerdavis_opencode-roborev-skills.md
+  s_42f134a75d5d7d::t_79e49dcce32baf 1-15
+dotfiles/apps/opencode/defaults/main.yaml
+  s_42f134a75d5d7d::t_4e8f2345ba54bd 52-96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3ef9997d6e228be8bc63791bfcc7fa3ac14596fa",
+  "prompts": {},
+  "sessions": {
+    "s_42f134a75d5d7d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eca33e122ffe5xwvwYU2xe6h4B",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
