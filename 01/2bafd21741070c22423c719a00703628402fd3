@@ -1,0 +1,27 @@
+tests/topics/test_opencode_config_layers.py
+  s_4fe633425d5971::t_71ca4166fa299f 384,391-394,410-411,421,425-430
+dot_config/opencode/opencode.jsonc.tmpl
+  s_4fe633425d5971::t_46e0039214ee21 100-106,108
+  s_4fe633425d5971::t_dcd4d4a2568603 107
+changelog.d/20261016_142600_bengineerdavis_oc_skills_boundary.md
+  s_4fe633425d5971::t_f1597a76fbd3f8 1-11
+docs/PERMISSIONS.md
+  s_4fe633425d5971::t_54a8a132a7c1af 205-225
+  s_4fe633425d5971::t_0ec4faba176290 169-170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "012bafd21741070c22423c719a00703628402fd3",
+  "prompts": {},
+  "sessions": {
+    "s_4fe633425d5971": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eca352abdffecRhqZYkUTl8WW9",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
