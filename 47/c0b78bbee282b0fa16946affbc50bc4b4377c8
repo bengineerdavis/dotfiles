@@ -1,0 +1,19 @@
+dot_zshenv
+  s_655e258bb123b4::t_c4ef237d8eb08c 1-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "47c0b78bbee282b0fa16946affbc50bc4b4377c8",
+  "prompts": {},
+  "sessions": {
+    "s_655e258bb123b4": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ed325e8eaffegrD6WiEGwd4POP",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
