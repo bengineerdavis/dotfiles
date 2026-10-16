@@ -1,0 +1,19 @@
+dot_config/worktrunk/config.toml
+  s_18c3d16cbdad93::t_80bee46caffa4e 1-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b2cfab488fb4c87d537fe565ab7383b9fb0e22b9",
+  "prompts": {},
+  "sessions": {
+    "s_18c3d16cbdad93": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ec6bfb7deffeXjy94im8cXnU2N",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
