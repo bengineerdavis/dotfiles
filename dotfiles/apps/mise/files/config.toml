@@ -62,7 +62,7 @@ node = "lts"
 # to "latest" once the upgrade.yaml pin-print and the npx aliases are settled.
 # tasks/upgrade.yaml prints this pin at runtime so it is visible without
 # reading this file.
-"npm:@sentry/skillet" = { version = "1.8.0", postinstall = "skillet init", depends = ["node"] }
+"npm:@sentry/skillet" = { version = "1.8.0", postinstall = "skillet init", depends = ["node"], allow_low_downloads = true }
 "npm:@sentry/dotagents" = "latest"
 # Second eval harness for skillet. skillet 1.7.0 runs a case's judge on the same
 # harness AND model as the trial itself (worker.js: runHarness(cfg.harness, …)
@@ -204,6 +204,7 @@ usage = "latest"
 # tree under installs/.../v1.4.478 alongside 1.4.478, and left the topic
 # reporting `changed` forever — which hides the changes that are real.
 "github:danielmiessler/fabric" = "1.4.478"
+"github:kenn-io/roborev" = "0.71.0"
 
 [tasks.sk]
 description = "Core skillet command"
