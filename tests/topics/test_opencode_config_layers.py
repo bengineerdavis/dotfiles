@@ -381,13 +381,17 @@ def test_read_allow_then_env_ask_comes_after():
 
 
 def test_external_directory_deny_first_allows_last_literal_home():
-    """The external_directory trio keeps deny-first/allow-last, with literal
+    """The external_directory set keeps deny-first/allow-last, with literal
     $HOME globs v2 expands itself.
 
     The home directory must NOT be templated: a `{{ .chezmoi.homeDir }}` left
     in the array renders to one machine's home and silently never matches
     anywhere else — the exact bug that sat in this file until 2026-09-14.
     The sentinel render makes such a leftover visible.
+
+    The allows are the chezmoi source, ~/code (2026-09-12), and the two
+    external-skill trees (2026-10-16): agent-installed skills are readable
+    even when the runtime's own per-skill auto-allow has not fired.
     """
     cfg = render_with_home_sentinel("L37V3P6GQ3", "darwin")
     perms = _permissions(cfg)
@@ -403,8 +407,8 @@ def test_external_directory_deny_first_allows_last_literal_home():
             "residue inside the permissions array"
         )
     ext = _rules(cfg, "external_directory")
-    assert len(ext) == 3, (
-        f"expected exactly the external_directory trio (deny + two allows), "
+    assert len(ext) == 5, (
+        f"expected exactly the external_directory set (deny + four allows), "
         f"got {len(ext)}: {ext!r}"
     )
     first = (ext[0].get("resource"), ext[0].get("effect"))
@@ -414,11 +418,16 @@ def test_external_directory_deny_first_allows_last_literal_home():
         "allows-then-deny order was caught live on 2026-09-12)"
     )
     assert all(r.get("effect") == "allow" for r in ext[1:]), (
-        f"the external_directory rules after the deny are {ext[1:]!r}; both "
+        f"the external_directory rules after the deny are {ext[1:]!r}; all "
         "must be allows"
     )
     allow_resources = [str(r.get("resource", "")) for r in ext[1:]]
-    for want in ("$HOME/.local/share/chezmoi", "$HOME/code"):
+    for want in (
+        "$HOME/.local/share/chezmoi",
+        "$HOME/code",
+        "$HOME/.agents/skills",
+        "$HOME/.claude/skills",
+    ):
         assert any(res.startswith(want) for res in allow_resources), (
             f"no external_directory allow starting with {want!r} among "
             f"{allow_resources!r} — the v2 boundary form is a literal $HOME "

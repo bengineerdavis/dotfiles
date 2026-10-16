@@ -166,8 +166,8 @@ opencode's rules live in two files, both versioned here:
 - `dot_config/opencode/opencode.jsonc.tmpl` — the **global** config, deployed by
   chezmoi to `~/.config/opencode/opencode.jsonc`. Baseline: reads free, git
   allowed, everything else asks, and `external_directory` is deny-first /
-  allow-last so only the chezmoi source and `~/code` are reachable outside a
-  project.
+  allow-last so only the chezmoi source, `~/code`, and the agent-skill trees
+  are reachable outside a project.
 - `opencode.jsonc` — the **project** config for sessions run in this repo. It
   sets the bash tier and defines the `autonomous` agent. It is deploy-ignored
   (`.chezmoiignore`) — repo tooling, not a home file.
@@ -202,7 +202,27 @@ unattended run.
 
 The boundary holds for the agent too: `external_directory` and `read`/`edit` are
 not widened by `autonomous`, so it cannot read or write outside the chezmoi
-source and `~/code`, however many bash commands it may run.
+source, `~/code`, and the agent-skill trees, however many bash commands it may
+run.
+
+### The external-directory boundary and skills (2026-10-16)
+
+Two mechanisms keep skill directories readable, and they fail differently:
+
+- **Runtime auto-allow.** opencode adds an `external_directory` allow for every
+  external-skill directory it registered at session start (observed live in the
+  permission dump 2026-10-16: the `.claude/skills/…` and `.agents/skills/…`
+  entries for each registered skill). This is why almost every session can read
+  its own skills without a rule for them.
+- **Static allows for the whole trees.** `/home/bdavis/.agents/skills/*` and
+  `/home/bdavis/.claude/skills/*` are allowed in the global template. They
+  cover what the auto-allow misses: a skill installed after the session
+  started (the motivating case — `aboyeur` was unreadable mid-session on
+  2026-10-14), and a directory whose `SKILL.md` never registers because its
+  frontmatter is missing or invalid.
+
+Neither widening is sent to `ask` by another tier; skills tree content is
+agent-authored local files, and the boundary still denies everywhere else.
 
 ## Verifying a change
 
