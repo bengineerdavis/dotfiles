@@ -1,0 +1,16 @@
+# zshenv — sourced by every zsh, interactive or not (agents, scripts, cron).
+#
+# Keep per-user tool state out of shared /tmp. aube (mise's npm backend)
+# derives its lock dir from TMPDIR; with TMPDIR unset it uses /tmp/fslock,
+# which the first user to run it creates — a root-run once poisoned it for
+# every user on this machine. A user-owned TMPDIR makes user-space tools
+# immune to that entire class, with nothing to remember.
+#
+# Only set if unset: an explicit TMPDIR anywhere up the chain wins.
+# Caveat honored: TMPDIR is broadly redirected — standard practice, and
+# tools with hardcoded /tmp paths are unaffected either way.
+
+if [[ -z "$TMPDIR" ]]; then
+  export TMPDIR="$HOME/.cache/tmp"
+  mkdir -p "$TMPDIR" 2>/dev/null || true
+fi

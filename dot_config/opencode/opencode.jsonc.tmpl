@@ -97,6 +97,14 @@
     // so one star covers subdirectories.
     { "action": "external_directory", "resource": "*", "effect": "deny" },
     { "action": "external_directory", "resource": "$HOME/.local/share/chezmoi/*", "effect": "allow" },
-    { "action": "external_directory", "resource": "$HOME/code/*", "effect": "allow" }
+    { "action": "external_directory", "resource": "$HOME/code/*", "effect": "allow" },
+    // The external-skill trees opencode scans (~/.agents/skills and its
+    // ~/.claude mirror) — one intent: agent-installed skills are readable.
+    // The runtime also auto-allows each skill directory registered at
+    // session start (observed 2026-10-16); these static rules cover the
+    // cases that miss — a skill installed mid-session, or one filtered
+    // from registration by an invalid SKILL.md.
+    { "action": "external_directory", "resource": "$HOME/.agents/skills/*", "effect": "allow" },
+    { "action": "external_directory", "resource": "$HOME/.claude/skills/*", "effect": "allow" }
   ]
 }

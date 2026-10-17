@@ -15,3 +15,8 @@ dotfiles/migration-backups/
 # .agent-budget.sample.toml; never committed. See AGENTS.md § Everything is
 # branched.
 .agent-budget.toml
+# roborev snapshots
+/.roborev/
+
+# opencode session artifacts
+/conversations.json
