@@ -1,0 +1,19 @@
+docs/PERMISSIONS.md
+  s_4fe633425d5971::t_6c216c13b28479 217-218
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "323ce19c0344af86b654141a8861696a76515ba8",
+  "prompts": {},
+  "sessions": {
+    "s_4fe633425d5971": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eca352abdffecRhqZYkUTl8WW9",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
