@@ -214,8 +214,8 @@ Two mechanisms keep skill directories readable, and they fail differently:
   permission dump 2026-10-16: the `.claude/skills/…` and `.agents/skills/…`
   entries for each registered skill). This is why almost every session can read
   its own skills without a rule for them.
-- **Static allows for the whole trees.** `/home/bdavis/.agents/skills/*` and
-  `/home/bdavis/.claude/skills/*` are allowed in the global template. They
+- **Static allows for the whole trees.** `$HOME/.agents/skills/*` and
+  `$HOME/.claude/skills/*` are allowed in the global template. They
   cover what the auto-allow misses: a skill installed after the session
   started (the motivating case — `aboyeur` was unreadable mid-session on
   2026-10-14), and a directory whose `SKILL.md` never registers because its
