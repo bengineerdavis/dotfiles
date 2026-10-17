@@ -1,0 +1,14 @@
+dot_config/user-tmpfiles.d/tmp.conf.linux
+  h_3789f648fd203c 2-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "33aba40f10c2279dd8c477844965b73f141740c3",
+  "prompts": {},
+  "humans": {
+    "h_3789f648fd203c": {
+      "author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
