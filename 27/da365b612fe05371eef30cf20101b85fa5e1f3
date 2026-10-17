@@ -1,0 +1,14 @@
+dotfiles/apps/mise/files/config.toml
+  h_3789f648fd203c 65-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "27da365b612fe05371eef30cf20101b85fa5e1f3",
+  "prompts": {},
+  "humans": {
+    "h_3789f648fd203c": {
+      "author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
