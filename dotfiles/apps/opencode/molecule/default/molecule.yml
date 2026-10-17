@@ -1,0 +1,50 @@
+---
+# molecule.yml — apps/opencode v2-migration scenario, Debian leg.
+# Framing, how to run, and the design notes that travel with this directory:
+# README.md beside this file, and
+# dotfiles/docs/research/topic-vm-tests/PLAN.md (the approved plan).
+#
+# molecule interpolates this file with ${VAR} environment substitution, NOT
+# Jinja (verified against molecule 26.9.0's interpolation module — the plan's
+# first sketch used lookup('env', ...) and would not have resolved). The
+# wrapper exports MOLECULE_PROJECT_DIRECTORY; molecule's Config also reads
+# that env var for its project directory, verified against 26.9.0.
+dependency:
+  name: galaxy
+driver:
+  name: vagrant
+  provider:
+    name: libvirt
+platforms:
+  - name: opencode-bookworm
+    box: debian/bookworm64
+    memory: 4096
+    cpus: 2
+    instance_raw_config_args:
+      # Sync the repo — the worktree molecule runs from — into the box so
+      # chezmoi on the box renders the real templates (PLAN.md § Decision 5).
+      # MOLECULE_PROJECT_DIRECTORY is dotfiles/, so /.. is the repo root;
+      # Vagrant normalizes the /.. with Ruby's File.expand_path before the
+      # rsync runs. The excludes keep the sync to the source tree: .git is a
+      # worktree pointer + the venvs and caches are build state.
+      - "vm.synced_folder '${MOLECULE_PROJECT_DIRECTORY}/..', '/repo', type: 'rsync', rsync__exclude: ['.git/', '.venv/', '.molecule/', '.bats/', '.pytest_cache/', '.hypothesis/']"
+provisioner:
+  name: ansible
+  env:
+    # Makes `apps/opencode` and its `roles/guards` imports resolve: both are
+    # relative to dotfiles/, which is what the wrapper exports. Same root
+    # cause as run-role.sh's cwd dependence — same fix.
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}"
+  inventory:
+    host_vars:
+      opencode-bookworm:
+        ansible_python_interpreter: /usr/bin/python3
+verifier:
+  name: testinfra
+# State location is pinned by the wrapper (MOLECULE_EPHEMERAL_DIRECTORY =
+# this scenario's .molecule/, gitignored): molecule 26.9.0 otherwise keeps
+# it in ~/.ansible/tmp/molecule.<checksum of project-dir basename>.<scenario>
+# — deterministic, but KEYED on the project directory's basename, so bare
+# molecule runs from another cwd get a different state than the wrapper's,
+# and two topics' `default` scenarios would share one state dir. The wrapper
+# pin fixes both. Re-check at the next molecule re-lock per O2.
