@@ -72,3 +72,7 @@ smartparts/
 
 # Worker budget — machine-local contributor state, not a home-directory file.
 .agent-budget*
+
+{{ if ne .chezmoi.os "linux" }}
+.config/user-tmpfiles.d/tmp.conf
+{{ end }}
