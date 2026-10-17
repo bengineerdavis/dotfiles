@@ -92,8 +92,6 @@ delete the line and say so in your commit.
   report (branch `agent/shift_left_scan`, worktree
   `.worktrees/shift-left-scan`) — `TASKS.md`, `.pre-commit-config.yaml`,
   `scripts/`, `tests/`, `.claude/RESEARCH-shift-left-surface-scan.md`
-- 2026-10-15T06:10Z — author-directed: apply main to the deployed tree + opencode
-  v2 topic run — `~/.config/opencode`, `dotfiles/apps/opencode`, `chezmoi apply`
 
 ## Where things stand — 2026-09-23 (the session handoff)
 
