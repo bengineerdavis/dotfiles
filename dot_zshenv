@@ -9,8 +9,9 @@
 # broken mktemp/aube/bun for every tool had the dir been unusable).
 #
 # Known bounds (deliberate): this redirects TMPDIR for every TMPDIR-honoring
-# tool; accumulation is handled by the user tmpfiles rule in
-# ~/.config/user-tmpfiles.d (30-day purge), and cron's /bin/sh bypasses zsh
+# tool; on Linux, accumulation is handled by the user tmpfiles rule in
+# ~/.config/user-tmpfiles.d/tmp.conf (30-day purge); darwin cleanup is
+# unhandled, and cron's /bin/sh bypasses zsh
 # entirely — /tmp/fslock is user-owned today, and the agentic layer's
 # stamped install-task preflight names the exact fix if that changes.
 # Covers root runs that do not inherit this environment (plain sudo strips
