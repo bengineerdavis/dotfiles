@@ -1,0 +1,23 @@
+dot_config/user-tmpfiles.d/tmp.conf
+  s_655e258bb123b4::t_1998f4a96013b8 1-4
+dot_zshenv
+  s_655e258bb123b4::t_5bf5c52e39e6d7 24
+  s_655e258bb123b4::t_7a0b854646e51b 16-17
+  s_655e258bb123b4::t_6c006f4b07e24e 3-9,11-15,18,21-23,25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5aca9b883a11bac49a03ce1020292d7f5340914f",
+  "prompts": {},
+  "sessions": {
+    "s_655e258bb123b4": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ed325e8eaffegrD6WiEGwd4POP",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
