@@ -1,0 +1,18 @@
+.chezmoiignore
+  h_3789f648fd203c 75-78
+dot_config/user-tmpfiles.d/tmp.conf
+  h_3789f648fd203c 2-3
+dot_zshenv
+  h_3789f648fd203c 12-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9e9e09fd55a4758d5922aeb00907167d6259fa24",
+  "prompts": {},
+  "humans": {
+    "h_3789f648fd203c": {
+      "author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
