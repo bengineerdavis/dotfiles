@@ -121,8 +121,8 @@ implementation is `vagrant plugin repair`** (or `vagrant plugin expunge
 --reinstall`), author-run — it modifies `~/.vagrant.d`, host machine state.
 Success test: `vagrant plugin list` runs clean and shows vagrant-libvirt
 0.12.2; `vagrant box list` runs clean. Compatibility of vagrant-libvirt 0.12.2
-with libvirt 8.0.0 is not verified (§ Not verified) — check the upstream
-compatibility matrix on implementation day before the first `molecule create`.
+with libvirt 8.0.0 was unverified at plan time — settled by the confirmation
+run, which rode that pair through every phase (§ Not verified, Settled).
 
 **Base box: `debian/bookworm64`** (official Debian org, 84,295 downloads,
 current release 2026-05-19, libvirt/amd64 with sha256 checksum published).
@@ -414,8 +414,57 @@ idempotent — a crashed session's residue is cleaned by re-running it;
 vagrant loses track. A box that survived a crashed run is safe to reuse only
 via create→converge, since prepare's guards make every step re-runnable.
 
-**Cost, estimated** (no VM was created for this plan; these are estimates to
-be replaced by the run item's recorded measurements):
+**Cost — measured** by the confirmation run (2026-10-17, `orch_sub_vrun`).
+The estimates that stood here before any VM existed are kept below the table
+for context; every one of them ran long — the real harness is roughly 5-10x
+cheaper than planned (total estimate ~25-50 min, measured ~4.6 min).
+
+| Measurement | Value |
+|---|---|
+| `create` verb = boot + prepare (molecule 26.x runs its whole create_sequence — see note) — fresh box, cached image | 205.5 s and 211.1 s (two fresh-box runs) |
+| — boot + repo rsync (create play) | ~32 s |
+| — prepare bootstrap (prepare play) | ~178 s |
+| converge | 34.1 s |
+| idempotence (second converge) | 15.5 s — `changed=0` |
+| verify (testinfra) | 5.7 s — `6 passed` |
+| destroy | 16.3 s and 15.7 s (two runs) |
+| stepwise sum (create+converge+idempotence+verify+destroy) | 277.1 s |
+| full `test` verb, fresh box, one command | 273.9 s — `6 passed in 2.40 s` |
+
+Conditions, as the run item's done-condition requires: box
+`debian/bookworm64` 12.20260519.1 (libvirt provider, KVM; the 1.2 GiB image
+was cached from the implement run — the first-download time is NOT measured);
+2 vCPU, 4 GiB RAM confirmed inside the domain; molecule 26.9.0,
+molecule-plugins[vagrant] 26.9.28, pytest-testinfra 10.2.2, ansible-core
+2.21.5 (locked `test-vm` group), vagrant 2.4.9 + vagrant-libvirt 0.12.2,
+libvirt 8.0.0. Host context: 32 cores, 31 GiB RAM, load ~1.1, no ollama model
+resident, no other VM running; root filesystem at 99% (9.8 GiB free) — one
+box fits, concurrent runs or a baked image would not.
+
+Prepare internals, from task-start timestamps: apt ~81 s, `brew install
+chezmoi` ~47 s, v1 formula ~16 s, linuxbrew ~16 s, mise ~3 s, node ~7 s, tap
+steps ~3 s, uv + skill-trust ~2 s, the targeted chezmoi apply ~4 s. The
+boot/prepare split comes from `ANSIBLE_LOG_PATH` timestamps — ansible-core
+2.21's `profile_tasks` callback emits nothing, tried both through molecule
+and on a direct playbook run (2026-10-17).
+
+Two facts the run surfaced about the harness itself:
+
+- **The `create` verb includes prepare.** Molecule 26.x's create_sequence is
+  dependency → create → prepare, so a fresh `create` is boot + bootstrap,
+  not boot alone. Per-phase boot-only timing needs the log-timestamp method
+  above; a fresh-box `prepare` re-run (guards skipping) was not measured.
+- The plan's "15 GB disk" sizing never came into play: the box ships its own
+  100 GiB virtual disk, sparse — 3.85 GiB actually allocated after
+  prepare + converge. molecule.yml sets cpus and memory only.
+
+Disk, measured: 1.2 GiB box image cached under `~/.vagrant.d`, ~3.9 GiB
+allocated to the domain's sparse overlay after a full run. One box at a
+time; concurrent sessions must claim the topic before running VM tests,
+since molecule's ephemeral state lives inside the topic directory —
+`.molecule/` is on the ignore list as of implementation.
+
+Estimates before the first run, kept for the record:
 
 | Phase | First run | Re-run (cached box, prepared) |
 |---|---|---|
@@ -424,11 +473,6 @@ be replaced by the run item's recorded measurements):
 | converge | 5-10 min | 3-6 min |
 | idempotence + verify | 5-10 min | 3-6 min |
 | **total** | **~25-50 min** | **~10-20 min** |
-
-Disk: base box (hundreds of MB — size unverified) plus overlay, budget ~6 GB.
-One box at a time; concurrent sessions must claim the topic before running VM
-tests, since molecule's ephemeral state lives inside the topic directory —
-add `.molecule/` to the ignore list as part of implementation.
 
 ## Author-run vs agent-run split
 
@@ -476,31 +520,50 @@ SETTLED 2026-10-11, all four, by the author after this plan was written:
 
 ## Not verified
 
-Named plainly, per `spec.md` § Evidence. Each names the day it gets closed.
+Named plainly, per `spec.md` § Evidence. Settled items moved out below with
+what settled them; the remainder stay open.
 
-- **Vagrant plugin repair outcome** — cannot be run from this session; the
-  exact plugin set on this box (`~/.vagrant.d`) is unreadable under this
-  session's permissions. Closes at step 0.
-- **vagrant-libvirt 0.12.2 ↔ libvirt 8.0.0 compatibility** — upstream support
-  matrix not fetched. Closes on implementation day before the first create.
-- **`debian/bookworm64` box file size and rsync availability inside the
-  box** (rsync must be preinstalled or prepare installs it before the sync is
-  usable). Closes at first create.
-- **That molecule 26.x renders `molecule.yml` with Jinja** `lookup('env',
-  ...)` — common practice, not confirmed against 26.9.0 docs. Closes on
-  implementation day; fallback is a wrapper-exported variable.
-- **Per-scenario `provisioner.env` / `ANSIBLE_ROLES_PATH` behavior with the
-  vagrant driver's ssh connection** — standard molecule config, not verified
-  against this driver. Closes at first converge.
-- **dotagents' second-run `add --all` output** (§ idempotence risks). Closes
-  during the implement item's first converge-twice.
+### Still open
+
+- **The author's interactive login flow** — `molecule login` needs a tty;
+  agent runs do not have one. Closes the first time the author steps through
+  create → login → inspect → destroy.
+- **The Darwin leg** — no macOS Vagrant boxes exist; a different mechanism
+  is needed and stays open in the § Planned item.
+- **The first-create box download time** — the 1.2 GiB image was already
+  cached for the confirmation run; forcing a re-download buys one number at
+  the cost of 1.2 GiB egress, so it stays unmeasured. Closes the next time a
+  box cache is cold (a new machine, an upgraded box version).
+- **The real-machine apply** — the author runs the actual migration on the
+  real box per the v2 migration plan; the harness confirms the Debian leg on
+  a disposable VM, not the author's machine state.
+
+### Settled
+
+- **Vagrant plugin repair outcome** — settled 2026-10-11 (§ Open author
+  decisions, O4): the pin was stale plugin state; uninstall + reinstall of
+  the same 0.12.2 fixed it.
+- **vagrant-libvirt 0.12.2 ↔ libvirt 8.0.0 compatibility** — settled by the
+  confirmation run 2026-10-17: every phase ran on that pair.
+- **Box file size and rsync inside the box** — settled by the confirmation
+  run: 1.2 GiB image; prepare installs rsync and the synced `/repo` fed both
+  the skill-trust install and the chezmoi apply.
+- **molecule.yml interpolation** — settled by the implement run: the plan's
+  Jinja sketch was wrong, molecule 26.x interpolates `${VAR}` (corrected in
+  the scenario files and README).
+- **Per-scenario `provisioner.env` / `ANSIBLE_ROLES_PATH` with the vagrant
+  driver** — settled by the implement and confirmation runs: converge
+  resolved `apps/opencode` and `roles/guards` on the box.
+- **dotagents' second-run `add --all` output** (§ The idempotence step — the
+  plan's one real risk) — settled by the confirmation run: the idempotence
+  converge reported `ok=16 changed=0`, the sync task reporting no change.
+  No `changed_when` refinement needed.
 - **`community.general.homebrew`'s brew discovery on a linuxbrew default
-  path** when brew is not on PATH. Closes at first converge; prepare's PATH
-  export is the presumed fix.
-- **`opencode debug config` in a non-tty context** — assumed tty-free from
-  the CLI's design; the verify run settles it.
-- **All wall-clock figures** — estimates only; the run item records the
-  real ones with their conditions (box image, provider, timings), as its
-  done-condition already requires.
-- **The exact ansible-core floor** (2.17.x CVE exclusion, molecule v26.8.0).
-  Closes when the group is added.
+  path** — settled by the confirmation run: the role's brew guard passed
+  under the PATH bridge.
+- **`opencode debug config` in a non-tty context** — settled by the
+  confirmation run: rc=0 over the ansible ssh connection, stderr empty.
+- **All wall-clock figures** — settled by the confirmation run: § Cost,
+  measured table.
+- **The exact ansible-core floor** (2.17.x CVE exclusion) — settled by the
+  implement run: 2.21.5 locked in `uv.lock`.
