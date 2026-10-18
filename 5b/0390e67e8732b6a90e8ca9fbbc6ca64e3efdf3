@@ -1,0 +1,19 @@
+dotfiles/apps/ollama/defaults/main.yaml
+  s_2b6fb4944a1d35::t_cd40b2b82b7389 294-298
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5b0390e67e8732b6a90e8ca9fbbc6ca64e3efdf3",
+  "prompts": {},
+  "sessions": {
+    "s_2b6fb4944a1d35": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eeb6e6211ffeJe8SdjyhXzT4LG",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
