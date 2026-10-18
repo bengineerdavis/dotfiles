@@ -250,6 +250,53 @@ Cross-session hazards, and delete the line when you stop.
 (the judge pool and generation model), `~/bin` and `~/dotfiles` (deployed copies),
 and long-running background jobs holding the GPU.
 
+## Cross-repo changes
+
+Sessions home in one repository, but the family is connected: an
+agentic-layer session lands dotfiles changes, a template change ripples into
+stamped projects, a tool decision here becomes another repo's dependency.
+Working in another local repository is allowed; doing it silently or
+carelessly is not. Each rule below carries the incident that bought it, all
+from 2026-10-14/17.
+
+**Declare the foreign repo before committing to it.** An agent session
+working in repo X that needs to change repo Y says so and gets the
+maintainer's acknowledgment first — direction of the work is a human
+decision, not the agent's. The 2026-10-14 zshenv work was legitimate only
+because the maintainer directed it from the agentic-layer session; an
+autonomous session discovering "this needs a dotfiles change" stops and
+asks instead.
+
+**Inventory the foreign repo before staging anything.** `git status` first;
+pre-existing uncommitted work in a foreign repo is the maintainer's, in
+flight, and is never staged, never swept, never "cleaned up". `git add -A`
+and bare `git commit` are forbidden twice over here — once by § Working
+alongside other sessions, and again because the maintainer's pending
+fabric/pipx pins sat in the working tree while an outside session committed
+around them on 2026-10-14; a restore script that failed its assertion nearly
+lost them, which is why partial-staging scripts assert every replacement
+in-tree before committing.
+
+**Submit per the target repository's flow, discovered before the first
+commit.** This repo: `agent/*` branch, pull request, merge gates — a
+2026-10-14 session stacked seven commits directly on `main`, unpushed, and
+was only movable because nothing else had built on them. Solo direct-to-main
+repos exist in the family; this one is not one of them.
+
+**Check channel ownership before adding tool installs to another repo's
+global state.** A `mise use -g` run from a foreign session created an
+ownerless second roborev install channel shadowing the `apps/roborev`
+topic's checksum-verified binary — caught by a roborev review of the
+commit, not by the session that made it. TOPIC-RECIPES.md's
+tool-entry-ownership recipe is the standing rule; foreign sessions read it
+before touching `dotfiles/apps/mise/files/config.toml`.
+
+**Point back.** A change here that another local repository depends on gets
+a provenance pointer in that repository's HANDOFF or spec (the zshenv TMPDIR
+work is referenced from agentic-project-template's HANDOFF; the naming-skill
+watchlist handoff is the pattern). A dependency without a pointer is a
+surprise waiting for the next session.
+
 ## Branches and integration
 
 **One branch per work item**, named `<group>-<item>` — `topic-cli-a2`,

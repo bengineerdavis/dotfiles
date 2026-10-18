@@ -1587,6 +1587,12 @@ nothing is.
   from inside dotfiles/ (AGENTS.md § Commands reads as if run from the
   root). One-line fix: `cd "$(dirname "$0")"` after set -euo pipefail.
   Deployed-tree file, so the fix goes to the author for review.
+  Fix ready 2026-10-09 on branch `run-role-cwd-fix` with
+  `tests/run_role/` (real script from a foreign cwd against a fake mise
+  recording its argv: foreign-cwd resolution, unknown-topic error naming,
+  second arg as `--tags`). Mutation-verified: with the `cd` line removed,
+  the foreign-cwd and tags tests go red; the unknown-topic test correctly
+  stays green (it asserts error naming, not cwd). PR to follow.
 
 - **Declare ollama/qwen3.5:9b in the model manifest and prove it on this
   machine.** [author decision 2026-10-06, unclaimed] The opencode v2
@@ -3482,6 +3488,24 @@ author rather than the machine.
   once if a blocker arose, and the learnings land in
   `dotfiles/docs/research/coordinating-parallel-work-across-refactors.md`
   § What running it taught us. [claimed: coordinator, agent/queue-test]
+
+- **Restore ruff coverage for the extensionless Python scripts, and fix
+  what it surfaces.** [queued 2026-10-13; follow-up to PR #49] The ruff
+  hooks now select their input by type, and pre-commit's tags come from
+  identify, whose shebang detection requires the exec bit — chezmoi sources
+  carry that bit in the `executable_` name prefix at mode 644, so the ~15
+  extensionless Python scripts under `bin/` (8 `python3` shebangs, 6-7 PEP
+  723 `uv run --script` scripts) no longer reach ruff through any hook;
+  measured, `identify` tags `bin/executable_mailbox` (`#!/usr/bin/env
+  python3`) non-executable and not python. Restore the coverage as a test,
+  not a filter: a pytest globs `bin/` and `dotfiles/`, selects scripts
+  whose first line names `python` or `uv run --script`, and runs ruff with
+  the repo config — the test can decide "is this Python" by shebang, which
+  neither identify nor a filename filter can do here. One finding already
+  measured: `bin/executable_triage` D205 (docstring layout); fix it in the
+  same change so the test lands green. Done when: the test passes on every
+  selected script, has been seen to fail (mutation: make the selector match
+  nothing — the grep-over-empty trap), and no hook change is needed.
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 

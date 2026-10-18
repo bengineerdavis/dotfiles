@@ -22,3 +22,8 @@ dotfiles/migration-backups/
 # never shared; see dotfiles/docs/research/topic-vm-tests/PLAN.md § Destroy
 # safety.
 .molecule/
+# roborev snapshots
+/.roborev/
+
+# opencode session artifacts
+/conversations.json
