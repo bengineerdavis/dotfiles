@@ -1588,20 +1588,6 @@ nothing is.
   root). One-line fix: `cd "$(dirname "$0")"` after set -euo pipefail.
   Deployed-tree file, so the fix goes to the author for review.
 
-- **Declare ollama/qwen3.5:9b in the model manifest and prove it on this
-  machine.** [author decision 2026-10-06, unclaimed] The opencode v2
-  migration pins the trivial-task roles (title, summary, compaction) to
-  `ollama/qwen3.5:9b` (see `dotfiles/docs/research/opencode-v2/PLAN.md`
-  § Author rulings). House rules this task satisfies: a role pick is
-  declared where it can be installed (apps/ollama manifest), and a model
-  earns its place by measurement (quick eval on this box — titles,
-  summaries, short-compaction cases are enough for this role, not the
-  full suite). Includes the author-run `ollama pull qwen3.5:9b` (~6.6GB;
-  check `ollama ps` for resident models first). Done when the tag is in
-  the manifest, the eval numbers are recorded with their conditions, and
-  the roles reference a model that is actually pullable on every machine
-  the manifest targets.
-
 - **Topic VM test harness — plan (molecule + Vagrant, per-topic
   scenarios).** [agent: orch_sub_vplan, worktree
   `.worktrees/orch_sub_vplan`] Builds on the molecule adoption already

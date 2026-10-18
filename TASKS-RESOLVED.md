@@ -632,3 +632,36 @@ The three unit lines moved here from § Now; PR #46 merged 2026-10-11
   except 13 pre-existing failures in clipped/restart_stale/herdr,
   reproduced on main's merge-base. PR opened to main; resolves when the
   author merges.
+
+
+## 2026-10-18 closeout — qwen3.5:9b manifest task (machine halves done)
+
+- **Declare ollama/qwen3.5:9b in the model manifest and prove it on this
+  machine.** [author decision 2026-10-06, unclaimed] The opencode v2
+  migration pins the trivial-task roles (title, summary, compaction) to
+  `ollama/qwen3.5:9b` (see `dotfiles/docs/research/opencode-v2/PLAN.md`
+  § Author rulings). House rules this task satisfies: a role pick is
+  declared where it can be installed (apps/ollama manifest), and a model
+  earns its place by measurement (quick eval on this box — titles,
+  summaries, short-compaction cases are enough for this role, not the
+  full suite). Includes the author-run `ollama pull qwen3.5:9b` (~6.6GB;
+  check `ollama ps` for resident models first). Done when the tag is in
+  the manifest, the eval numbers are recorded with their conditions, and
+  the roles reference a model that is actually pullable on every machine
+  the manifest targets.
+
+**Outcome.** Pulled 2026-10-18 (`ollama pull qwen3.5:9b`, 6.6 GB, digest
+56671c2ab938) after an ollama upgrade 0.13.0 -> 0.40.6 the older binary's
+412 had gated; the config's trivial-task roles (title, summary,
+compaction) now reference a locally-pullable tag. The keep-list entry
+ protecting the bare tag from prune landed as PR #59
+(`agent/ollama-prune-keep-qwen35`). Role-sized eval, run 2026-10-18 on
+this box (qwen3.5:9b resident on GPU, ollama 0.40.6, `ollama-evals run
+qwen3.5:9b --role chat --repeat 5`): 10/10 samples passed across both
+chat properties (faithfulness, instruction-adherence); runs saved at
+`~/.local/share/ollama-evals/20261018T{00434Z,0632Z}.json`. Compaction's
+grounded-summary property is the chat-faithfulness slice; the 12k-word
+long suite was deliberately out of the role-sized scope. A prune-style
+cleanup the same day removed 4 undeclared models (~20 GB) and the author
+removed qwen3:8b and qwen3:30b; the machine inventory now matches the
+manifest.
