@@ -62,19 +62,11 @@ node = "lts"
 # to "latest" once the upgrade.yaml pin-print and the npx aliases are settled.
 # tasks/upgrade.yaml prints this pin at runtime so it is visible without
 # reading this file.
-<<<<<<< HEAD
 # aube gate approved 2026-10-14: skillet is a known-verify tool (consumed via
 # @sentry/dotagents skills); aube refused it at 7 weekly downloads vs the
 # 1,000 threshold. verify=checks passed then.
 "npm:@sentry/skillet" = { version = "1.8.0", postinstall = "skillet init", depends = ["node"], allow_low_downloads = true }
 "npm:@sentry/dotagents" = "latest"
-||||||| 304de58
-"npm:@sentry/skillet" = { version = "1.8.0", postinstall = "skillet init", depends = ["node"], allow_low_downloads = true }
-"npm:@sentry/dotagents" = "latest"
-=======
-"npm:@sentry/skillet" = { version = "1.8.0", postinstall = "skillet init", depends = ["node"] }
-"npm:@sentry/dotagents" = "3.3.0"
->>>>>>> origin/main
 # Second eval harness for skillet. skillet 1.7.0 runs a case's judge on the same
 # harness AND model as the trial itself (worker.js: runHarness(cfg.harness, …)
 # with only a fresh temp dir), so a single-harness run always self-grades. Two
