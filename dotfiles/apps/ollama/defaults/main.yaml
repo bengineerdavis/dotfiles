@@ -291,6 +291,11 @@ ollama_prune_keep:
   # NOTE: ollama lowercases tags when writing local manifests, so the upstream
   # tag `q4_K_M` lands on disk as `q4_k_m` — comparisons are casefolded.
   - "glm-4.7-flash:latest"
+  # `ollama/qwen3.5:9b` is the tag the opencode config's trivial-task roles
+  # (title, summary, compaction) reference — the author's pick, 2026-10-11.
+  # It points at the SAME blob as the q4_K_M member below (digest
+  # 56671c2ab938), so keeping it costs no disk.
+  - "qwen3.5:9b"
 
 # ── Server tuning: one definition, two consumers ─────────────────────────────
 # These configure the ollama SERVER, and there are two ways to reach it:
