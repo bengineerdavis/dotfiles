@@ -1,0 +1,26 @@
+docs/LAYOUT.md
+  s_e782e2a56bddfd::t_961159c9852b5c 34
+  s_e782e2a56bddfd::t_6b19416f41d11b 21-26
+  s_e782e2a56bddfd::t_ad6dc588c689bf 128
+  s_e782e2a56bddfd::t_0d5477b97851f5 81-89
+  s_e782e2a56bddfd::t_a16b6771d6cac9 11-14
+  s_e782e2a56bddfd::t_b7e19f10536051 42-61
+  s_e782e2a56bddfd::t_2f1daa3df4ae10 131
+  s_e782e2a56bddfd::t_1e47d8bf8cc621 3-5,9-10,15,27-32,36,38-41,62-80,90-98,104-108,111-113,117-127,130,132-141,146-148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "344d25e87a6de794ee0e962d5c274f2f62652da3",
+  "prompts": {},
+  "sessions": {
+    "s_e782e2a56bddfd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f012126fdffePEfisYIYnHjGHg",
+        "model": "~deepseek/deepseek-pro-latest"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
