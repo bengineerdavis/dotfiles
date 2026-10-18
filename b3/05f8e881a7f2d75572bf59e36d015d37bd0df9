@@ -1,0 +1,21 @@
+changelog.d/20261018_030000_bengineerdavis_opencode_scratch_purge.md
+  s_4fe633425d5971::t_556706dfe0ed6f 1-9
+dot_config/user-tmpfiles.d/tmp.conf
+  s_4fe633425d5971::t_f0bf6738c162a9 8-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b305f8e881a7f2d75572bf59e36d015d37bd0df9",
+  "prompts": {},
+  "sessions": {
+    "s_4fe633425d5971": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eca352abdffecRhqZYkUTl8WW9",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
