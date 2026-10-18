@@ -1,0 +1,54 @@
+dotfiles/apps/gita/playbook.yaml
+  s_e782e2a56bddfd::t_af48f5513529d5 1-20
+dotfiles/apps/gita/tasks/main.yaml
+  s_e782e2a56bddfd::t_e18bed9c00d6b9 1-32
+dotfiles/apps/gita/README.md
+  s_e782e2a56bddfd::t_03c45ac7acfdbb 56-58,64-68
+  s_e782e2a56bddfd::t_f2c2c6d2c8acd1 1-10,13-15,22-55,59-63,69-77
+  s_e782e2a56bddfd::t_f83da0fc2523af 11-12,16-21
+dotfiles/apps/gita/tasks/upgrade.yaml
+  s_e782e2a56bddfd::t_79f6cc145529b7 1-29
+  s_e782e2a56bddfd::t_2b49d86505abd2 30
+dotfiles/apps/gita/tasks/install.yaml
+  s_e782e2a56bddfd::t_d0d1126767e155 39-41
+  s_e782e2a56bddfd::t_08823fb9873ac0 3-4,6-11,13-17,19-32,46-47
+  s_e782e2a56bddfd::t_5623accc4c77a6 1-2,5,12,18,33-38,42-45,48-89
+dotfiles/apps/gita/defaults/main.yaml
+  s_e782e2a56bddfd::t_7c841c36893713 1-15
+dotfiles/apps/gita/tasks/remove.yaml
+  s_e782e2a56bddfd::t_7a3258533ab73c 3-11,19-33,37-40
+  s_e782e2a56bddfd::t_9d4fe8b145b914 1-2,12-18,34-36
+dotfiles/config/repos.yaml
+  s_e782e2a56bddfd::t_a765245d35877a 1-19,24-52,54-68,70-77
+  s_e782e2a56bddfd::t_c6620edcf98174 53
+  s_e782e2a56bddfd::t_ba8edf79e5ec2c 20-23
+  s_e782e2a56bddfd::t_30f4395e8a483b 69
+dotfiles/apps/gita/topic.yml
+  s_e782e2a56bddfd::t_105963da7ae203 1-10,17-24
+  s_e782e2a56bddfd::t_0ef9b73d950796 11-16
+dotfiles/apps/gita/tasks/prerequisites.yaml
+  s_e782e2a56bddfd::t_39d8f996339727 1-8
+dotfiles/apps/mise/files/config.toml
+  s_e782e2a56bddfd::t_acacdbf9fa55c2 96-99
+dotfiles/apps/gita/CHANGELOG.md
+  s_e782e2a56bddfd::t_ef65eefa6b1751 16-22,25-27
+  s_e782e2a56bddfd::t_126d2b396ddcfd 1-15,23-24,28-43
+dotfiles/apps/gita/tasks/bootstrap.yaml
+  s_e782e2a56bddfd::t_e9c77c7a5e714c 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c6dbc4233f6fb2bfc50d34a90449b0dd3d6b2140",
+  "prompts": {},
+  "sessions": {
+    "s_e782e2a56bddfd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f012126fdffePEfisYIYnHjGHg",
+        "model": "~deepseek/deepseek-pro-latest"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
