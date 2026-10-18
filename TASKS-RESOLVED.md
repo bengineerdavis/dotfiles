@@ -665,3 +665,69 @@ long suite was deliberately out of the role-sized scope. A prune-style
 cleanup the same day removed 4 undeclared models (~20 GB) and the author
 removed qwen3:8b and qwen3:30b; the machine inventory now matches the
 manifest.
+
+
+## 2026-10-18 closeout — molecule+Vagrant harness units (PR #53 merged)
+
+- **Topic VM test harness — plan (molecule + Vagrant, per-topic
+  scenarios).** [agent: orch_sub_vplan, worktree
+  `.worktrees/orch_sub_vplan`] Builds on the molecule adoption already
+  approved 2026-09-14 (§ Planned, "Adopt molecule for topic testing") —
+  scenario co-location in `apps/<topic>/molecule/`, direct `molecule
+  test` invocation, vagrant driver where containers cannot reach — read
+  that item before writing anything. Author rulings 2026-10-10 for THIS
+  work: durable capability, not a one-off; the agents-never-apply rule
+  applies by reason — a Vagrant box is a separate machine with its own
+  HOME and its own deployed tree, so agents may drive chezmoi and
+  ansible there; and the first scenario is the apps/opencode v2
+  migration — the run that confirms we are good to deploy (the author's
+  ask: "enough virtualization with vagrant that we can inject ansible
+  into a test box"). Design input for the plan, not a ruling: shape the
+  wrapper interface so humans can explore stepwise
+  (create/login/verify/destroy, linger in the box) while agents run
+  `molecule test` non-interactively. Verified 2026-10-06 on this box:
+  vagrant 2.4.9, VirtualBox present, /dev/kvm available. macOS is out
+  of scope for VM testing (no macOS boxes exist); this confirms the
+  Debian leg, and the plan says so plainly. Branches off main (post
+  #46, including the apt hook-standards commit); PR to main from there.
+  Plan lands at
+  `dotfiles/docs/research/topic-vm-tests/PLAN.md`. Done when it names:
+  the scenario layout and where it lives per TOPICS.md conventions, the
+  wrapper interface (and the wrapper's own build-ladder justification),
+  the molecule dependency install path per docs/PYTHON.md, exactly what
+  the opencode scenario asserts (v2 formula present, v1 gone, config
+  loads, skills synced), box-image and provider choices, destroy
+  safety, the author-run vs agent-run split, and any open author
+  decisions.
+
+- **Topic VM test harness — implement (molecule scaffolding +
+  apps/opencode scenario).** [agent: orch_sub_vimpl, worktree
+  `.worktrees/orch_sub_vimpl`] From the plan: wire the molecule
+  dependency the plan chose, build the wrapper (minimal, documented,
+  human-and-machine callable), and write apps/opencode's scenario
+  asserting the v2 migration end state on a Debian box. The scenario's
+  verify phase is the test suite for this work — plus pytest coverage
+  for the wrapper's argument handling where the house layout wants it.
+  Done when `molecule test` passes end-to-end against the real box and
+  each phase verb works when run alone.
+
+- **Topic VM test harness — run the v2 migration confirmation.**
+  [agent: orch_sub_vrun, worktree `.worktrees/orch_sub_vrun`] Execute
+  the harness end to end on a clean box: create, converge (run-role
+  path for apps/opencode), verify (v2 formula installed, v1 gone, the
+  migrated config loads without diagnostics, skills synced), then the
+  author's interactive flow exercised at least once (login, inspect,
+  destroy). Record the evidence with its conditions — box image,
+  provider, timings — and state the migration verdict naming what was
+  and was not exercised (spec § Evidence). Done when the run is
+  recorded on the PR and the verdict is explicit.
+
+**Outcome.** Landed via PR #53 (`agent/oc2-followup`): harness + wrapper
+(`scripts/run-molecule.sh`) + the apps/opencode `default` scenario.
+Confirmation run recorded on the PR (comment 6244762454): fresh box
+273.9s total, idempotence ok=16 changed=0, verify 7/7, opencode-v2
+2.0.31/2.0.32 confirmed on the Debian leg with v1 provably installed-
+then-removed. Not exercised, recorded: the author's interactive login
+(self-serve via the wrapper's stepwise verbs), the Darwin leg (no macOS
+VMs; open questions live in the § Planned molecule item), real-machine
+apply (author-run; completed by the author 2026-10-15).
