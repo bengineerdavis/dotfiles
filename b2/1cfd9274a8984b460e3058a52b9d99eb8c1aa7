@@ -1,0 +1,47 @@
+dotfiles/docs/research/repo-manager/ARCHITECTURE-INSPECTION.md
+  s_e782e2a56bddfd::t_767652e8894e80 55-156
+  s_e782e2a56bddfd::t_aee1f67c15d751 52-54
+  s_e782e2a56bddfd::t_1dc37d530cec24 157-159
+dotfiles/docs/research/repo-manager/AUTHOR-ANSWERS.md
+  s_e782e2a56bddfd::t_aaf1f030aad663 1-112
+dotfiles/docs/research/repo-manager/BOOTSTRAP.md
+  s_e782e2a56bddfd::t_b1feef341c3b72 1-87
+dotfiles/docs/research/repo-manager/GITA-RESEARCH.md
+  s_e782e2a56bddfd::t_fa2461fb5bc6c4 1-525
+dotfiles/docs/research/repo-manager/HANDOFF.md
+  s_e782e2a56bddfd::t_484b2e2d253215 1-151
+dotfiles/docs/research/repo-manager/PLAN.md
+  s_e782e2a56bddfd::t_b183d588b5b630 1-257
+dotfiles/docs/research/repo-manager/PRIOR-ART.md
+  s_e782e2a56bddfd::t_a4b2d418fb91c9 1-100
+dotfiles/docs/research/repo-manager/README.md
+  s_e782e2a56bddfd::t_147a7f1aa2e018 1-27
+dotfiles/docs/research/repo-manager/REDGE-ARCHITECTURE.md
+  s_e782e2a56bddfd::t_fe5c4d57805a9c 1-102
+dotfiles/docs/research/repo-manager/REQUIREMENTS.md
+  s_e782e2a56bddfd::t_1e82474ceeec71 1-169
+dotfiles/docs/research/repo-manager/ROUNDS.md
+  s_e782e2a56bddfd::t_9c465a858b4941 1-232
+dotfiles/docs/research/repo-manager/SONAR-RAW.md
+  s_e782e2a56bddfd::t_b1f76bb98452de 1-330
+dotfiles/docs/research/repo-manager/SOURCES.md
+  s_e782e2a56bddfd::t_995b30bf660523 1-126
+dotfiles/docs/research/repo-manager/SPEC.md
+  s_e782e2a56bddfd::t_4b35ada72d86f8 1-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b21cfd9274a8984b460e3058a52b9d99eb8c1aa7",
+  "prompts": {},
+  "sessions": {
+    "s_e782e2a56bddfd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f012126fdffePEfisYIYnHjGHg",
+        "model": "~deepseek/deepseek-pro-latest"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
