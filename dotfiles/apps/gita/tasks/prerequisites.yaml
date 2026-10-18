@@ -1,0 +1,8 @@
+# apps/gita/tasks/prerequisites.yaml
+# Core dependencies required before this topic can install or upgrade.
+#
+# App-tier topics leave this empty — dependencies are expressed via
+# topic_requires in topic.yml and resolved by the parent playbook.
+#
+# gita has none of its own: mise, and through it python and the pipx-gita
+# shim, plus git, which is probed on PATH by the resolver.

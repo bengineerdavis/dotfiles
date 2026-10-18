@@ -1,0 +1,24 @@
+# apps/gita/topic.yml
+#
+# Topic metadata read by the parent playbook. See docs/TOPICS.md.
+#
+# Lives at the role root (not under meta/) because Ansible reserves
+# meta/main.yml for galaxy_info / role dependencies and rejects unknown
+# top-level keys there.
+
+topic_name: gita
+
+# The gita binary is installed by mise (`pipx:gita` in apps/mise/files
+# /config.toml), but this topic OWNS the entry through mise's first-party
+# commands — `mise use -g pipx:gita` on install, `mise unuse --global
+# pipx:gita` on remove — the herdr pattern (TOPIC-RECIPES, tool-entry
+# ownership). So it provides gita even though mise installs the binary.
+topic_provides: [gita]
+
+# gita shells out to git; both arrive together — mise provides the pipx-gita
+# shim, git is probed on PATH (it derives from apt/homebrew prerequisites).
+topic_requires: [mise, git]
+
+topic_os: [Darwin, Debian]
+
+topic_tier: app
