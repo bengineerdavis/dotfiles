@@ -1,0 +1,21 @@
+dotfiles/docs/research/topic-vm-tests/PLAN.md
+  s_b344291db97c1b::t_2dfdcf42135f92 523-560,562-569
+  s_b344291db97c1b::t_90511334050e0d 124-125
+  s_b344291db97c1b::t_596eac038fcc0e 417-467
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "df6e4e694ff65fdf8e3244482f93773f951a5b4f",
+  "prompts": {},
+  "sessions": {
+    "s_b344291db97c1b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eb9e218fbffeufDIh8819sw6o6",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
