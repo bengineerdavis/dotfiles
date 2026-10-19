@@ -402,7 +402,7 @@ nothing is.
   discovery, remote matching, fetch-safe sync, per-repository verdicts,
   non-aborting report, and freshness requirements. Include the preliminary
   Gita/ghorg/Ansible research in
-  `.worktrees/gita-plan_sub_g1/dotfiles/docs/GITA-RESEARCH.md`, but widen
+  `dotfiles/docs/research/repo-manager/GITA-RESEARCH.md`, but widen
   its candidate set before recommending. Follow
   `dotfiles/docs/TOPIC-RECIPES.md`'s docs-and-Galaxy-first rule. If no
   existing tool meets the need, specify the smallest Ansible-module/role
@@ -412,7 +412,7 @@ nothing is.
   records rejections, recommends a path that minimizes customer-maintained
   logic, and the author records the choice. The result hands the discovery
   and sync mechanisms to G2/G3/G4/G7. The expanded report is prepared at
-  `.worktrees/gita-plan_sub_g1/dotfiles/docs/GITA-RESEARCH.md`. The author
+  `dotfiles/docs/research/repo-manager/GITA-RESEARCH.md`. The author
   accepted task-level Ansible orchestration as the fallback on 2026-09-24,
   and asked for the complete workflow and candidate links before choosing
   the final tool split. No tool has been adopted yet. [agent: gita-plan / OpenCode]
@@ -1660,6 +1660,16 @@ nothing is.
   provider, timings — and state the migration verdict naming what was
   and was not exercised (spec § Evidence). Done when the run is
   recorded on the PR and the verdict is explicit.
+
+- **Give `codex` an authenticated provider — Darwin only for now.**
+  `apps/mise` installs `npm:@openai/codex`, but no topic provisions
+  `~/.codex/config.toml`, so the binary has no backend and every model call
+  dies with "Not logged in"/401 (no codex subscription). Scoped to the Mac for
+  now; the Linux box waits. Done when an `apps/codex` topic (adopting the mise
+  entry, `topic_os: [Darwin]`) ships a chezmoi-managed config.toml with a
+  `model_providers` block on the already-provisioned OpenRouter key, a model
+  call succeeds on the Mac without a subscription, and the teardown removes
+  the config it created.
 
 ## Planned
 
@@ -3506,6 +3516,37 @@ author rather than the machine.
   same change so the test lands green. Done when: the test passes on every
   selected script, has been seen to fail (mutation: make the selector match
   nothing — the grep-over-empty trap), and no hook change is needed.
+
+- **Build a declarative mise module or role so Ansible calls mise the way it
+  calls apt/homebrew.** Every mise-managed tool — gita, codex, roborev,
+  skillet, and every future pipx: entry — currently shells out to
+  `mise use -g` / `mise unuse --global` / `mise upgrade` in its topic, with
+  probe-first greps to stay idempotent. A module or role turns those into
+  declarative tasks (present/absent, reported change, check-mode aware) like
+  `community.general.homebrew`. The gita topic's install/remove are the first
+  consumer and the migration pattern. Done when that topic runs through the
+  module and its mise shell-outs are gone. Gated on the backlog-md-py
+  migration below.
+
+- **Migrate the task queue to backlog-md-py, paired with worktrunk.**
+  Author direction 2026-10-18: before the mise module above, move full-time
+  to backlog-md-py (the markdown-native task tool under evaluation — see
+  PROCESS.md § Where the queue lives) and refactor/migrate all of `TASKS.md`
+  into it, paired with worktrunk (the mise wrapper that generates and checks
+  worktree-local denylists; evaluated 2026-09-24). Done when `TASKS.md` is an
+  index over per-task files and a task line never lives only in a chat.
+
+- **Refactor dotfiles storage and automate its presence, not its updates.**
+  Dotfiles stays a top-level repo (`~/.local/share/chezmoi`, deployed to
+  `~/dotfiles`), outside the `~/code` taxonomy. Requirement (author
+  2026-10-18): a target machine must GET dotfiles automatically, but dotfiles
+  is never auto-updated — pulling is deliberate. Two parts: (a) automate the
+  add — a fresh box gets the checkout from one step, no scheduled pass pulls
+  it; (b) refactor how it is stored and how changes are made to it to be
+  more seamless — this design is open. Interview the author before cutting
+  tasks; record the storage shape in `PRD.md`/`docs/LAYOUT.md` and the work
+  items here. Done when a fresh machine clones dotfiles automatically and no
+  update path pulls it.
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 
