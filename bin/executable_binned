@@ -3084,6 +3084,94 @@ def cmd_refactor(
     typer.echo(f"  Script: {script_path}")
 
 
+def _chezmoi_source_path(target: Path) -> Path | None:
+    """Ask chezmoi where it manages a target file.
+
+    Returns None when chezmoi is absent, errors, does not manage the
+    target, or names a file that does not exist (an entry can outlive
+    its file mid-move). Never guesses: chezmoi is the only component
+    that tracks the source location across layout changes, so its
+    answer is the one to trust.
+    """
+    try:
+        result = subprocess.run(
+            ["chezmoi", "source-path", str(target)],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    out = result.stdout.strip()
+    if not out:
+        return None
+    candidate = Path(out)
+    return candidate if candidate.is_file() else None
+
+
+def _repo_source_path(deployed: Path) -> Path | None:
+    """Find a script's in-repo source via a git-root walk.
+
+    Fallback for when chezmoi cannot answer: a machine without it, or
+    a direct run from a checkout. Chezmoi source files carry the
+    executable_ prefix, so both spellings are tried under bin/.
+    """
+    starts: list[Path] = [Path.cwd()]
+    if deployed.is_file():
+        starts.insert(0, deployed.parent)
+    for start in starts:
+        root = find_git_root(start)
+        if root is None:
+            continue
+        for name in (f"executable_{deployed.name}", deployed.name):
+            candidate = root / "bin" / name
+            if candidate.is_file():
+                return candidate
+    return None
+
+
+def resolve_source_path(deployed: Path) -> Path:
+    """Resolve the source file to edit for a deployed script.
+
+    Chezmoi's answer wins because it tracks the source location across
+    layout changes: a hardcoded path goes stale when the source root
+    moves (e.g. the payload move under .chezmoiroot) and then silently
+    edits a file that is no longer the source. The git-root walk covers
+    a run from a checkout or a chezmoi-less machine. The deployed copy
+    is the last resort — editing it still works, it just propagates by
+    hand.
+    """
+    return _chezmoi_source_path(deployed) or _repo_source_path(deployed) or deployed
+
+
+def _collect_binned_tests(src_path: Path, bin_dir: Path) -> TestFiles:
+    """Read binned's test files from the repo the source lives in.
+
+    Anchored on the git root above the source, not on parent
+    arithmetic: the source root moves between layouts (bin/ today,
+    home/bin/ after the .chezmoiroot move), and a parent-of-parent
+    guess then lands in the payload root, finds no tests, and the
+    refactor proceeds untested. The bin_dir walk stays as a second
+    hint for a deployed-only context.
+    """
+    roots: list[Path] = []
+    src_root = find_git_root(src_path.parent)
+    if src_root is not None:
+        roots.append(src_root)
+    roots.append(find_git_root(bin_dir) or bin_dir.parent)
+    existing: TestFiles = {}
+    for rel in ("tests/binned.bats", "tests/test_binned_property.py"):
+        for root in roots:
+            p = root / rel
+            if p.exists():
+                existing[rel] = p.read_text()
+                break
+    return existing
+
+
 @app.command("self-improve")
 def cmd_self_improve(
     model: Optional[str] = typer.Option(
@@ -3096,16 +3184,18 @@ def cmd_self_improve(
     """Refactor binned itself using the refactor command — self-improvement loop."""
     global _AUTO
     _AUTO = auto
-    # binned is deployed from chezmoi; prefer the source so chezmoi apply propagates the fix
-    chezmoi_src = Path.home() / ".local" / "share" / "chezmoi" / "bin" / "executable_binned"
-    deployed    = Path.home() / "bin" / "binned"
-    src_path = chezmoi_src if chezmoi_src.exists() else deployed
+    # Prefer the source so `chezmoi apply` propagates the fix. Resolve
+    # it dynamically: the source root moves (payload under home/), and
+    # a hardcoded path silently edits the wrong file afterwards.
+    deployed = Path.home() / "bin" / "binned"
+    src_path = resolve_source_path(deployed)
+    editing_source = src_path != deployed
 
     header("binned self-improvement")
     typer.echo(
         f"  Refactoring: {src_path}\n"
         f"  Changes will be written to that file.\n"
-        f"  {'Run chezmoi apply ~/bin/binned to deploy.' if src_path == chezmoi_src else ''}\n"
+        f"  {'Run chezmoi apply ~/bin/binned to deploy.' if editing_source else ''}\n"
     )
     if not prompt_confirm("Proceed?", default=True):
         return
@@ -3117,14 +3207,7 @@ def cmd_self_improve(
     lang = "python"
 
     # Find existing tests for binned
-    safe = "binned"
-    existing_test_files: TestFiles = {}
-    for rel in ("tests/binned.bats", "tests/test_binned_property.py"):
-        for root in (chezmoi_src.parent.parent, find_git_root(bin_dir) or bin_dir.parent):
-            p = root / rel
-            if p.exists():
-                existing_test_files[rel] = p.read_text()
-                break
+    existing_test_files = _collect_binned_tests(src_path, bin_dir)
 
     current_script = original
     current_lang   = lang
@@ -3225,7 +3308,7 @@ def cmd_self_improve(
     src_path.write_text(current_script)
     ok(f"Saved → {src_path}")
 
-    if src_path == chezmoi_src:
+    if editing_source:
         if prompt_confirm("Run chezmoi apply ~/bin/binned to deploy?", default=True):
             subprocess.run(["chezmoi", "apply", str(deployed)], check=False)
             ok(f"Deployed to {deployed}")
