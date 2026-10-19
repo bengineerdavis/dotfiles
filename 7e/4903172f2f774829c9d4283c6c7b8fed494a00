@@ -1,0 +1,20 @@
+tests/run_molecule/test_run_molecule.py
+  s_ce2061acb626d0::t_2ddf6b56859b5a 183-184
+  s_ce2061acb626d0::t_54ea6862949127 43-44,62-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7e4903172f2f774829c9d4283c6c7b8fed494a00",
+  "prompts": {},
+  "sessions": {
+    "s_ce2061acb626d0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eab8d2e49ffeAMdlhL9hihe2Ng",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
