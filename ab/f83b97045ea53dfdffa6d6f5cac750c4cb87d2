@@ -1,0 +1,49 @@
+dotfiles/apps/agentsview/topic.yml
+  s_4fe633425d5971::t_817adf8f8d98ef 1-26
+dotfiles/apps/agentsview/tasks/bootstrap.yaml
+  s_4fe633425d5971::t_99a099e7783948 1-5
+dotfiles/apps/agentsview/tasks/remove.yaml
+  s_4fe633425d5971::t_b5fb1af6d638ec 1-71
+dotfiles/apps/agentsview/defaults/main.yaml
+  s_4fe633425d5971::t_f083d156355229 1-23
+  s_4fe633425d5971::t_5e7b56ffe96311 24-41
+dotfiles/apps/agentsview/CHANGELOG.md
+  s_4fe633425d5971::t_10cb2b0b58a77f 1-25
+dotfiles/apps/agentsview/playbook.yaml
+  s_4fe633425d5971::t_7869958711860c 1-20
+dotfiles/apps/agentsview/vars/main.yaml
+  s_4fe633425d5971::t_159ab85ec4585c 1-5
+dotfiles/apps/agentsview/tasks/install.yaml
+  s_4fe633425d5971::t_a2ef60adcda51a 1-233,237
+  s_4fe633425d5971::t_a1567d9e69e16b 234-236
+dotfiles/apps/agentsview/README.md
+  s_4fe633425d5971::t_92c1d36244276e 39-46
+  s_4fe633425d5971::t_cca922eb28c1e7 1-38,47-86
+dotfiles/apps/agentsview/tasks/prerequisites.yaml
+  s_4fe633425d5971::t_316ae7e98e66c8 1-22
+dotfiles/apps/agentsview/tasks/upgrade.yaml
+  s_4fe633425d5971::t_bdda82dddf099c 1-14
+dotfiles/docs/CRUD-AUDIT.md
+  s_4fe633425d5971::t_864bfa8ffe10ca 19
+changelog.d/20261019_234000_bengineerdavis_agentsview_topic.md
+  s_4fe633425d5971::t_6bce867b296fe5 1-23
+dotfiles/apps/agentsview/tasks/main.yaml
+  s_4fe633425d5971::t_41cd20c752be5e 2-31
+  s_4fe633425d5971::t_11476a9e5271bc 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "abf83b97045ea53dfdffa6d6f5cac750c4cb87d2",
+  "prompts": {},
+  "sessions": {
+    "s_4fe633425d5971": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eca352abdffecRhqZYkUTl8WW9",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
