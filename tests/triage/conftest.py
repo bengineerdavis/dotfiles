@@ -26,8 +26,10 @@ import sys
 
 import pytest
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-SCRIPT = REPO / "bin" / "executable_triage"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+SCRIPT = PAYLOAD_ROOT / "bin" / "executable_triage"
 
 STUB_MEMO = "STUB MEMO — no model was called."
 

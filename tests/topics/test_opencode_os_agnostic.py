@@ -20,11 +20,12 @@ Run:
 
 from __future__ import annotations
 
-import pathlib
 import re
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-TOPIC = REPO / "dotfiles" / "apps" / "opencode"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+TOPIC = PAYLOAD_ROOT / "dotfiles" / "apps" / "opencode"
 TASKS = TOPIC / "tasks"
 
 # The five lifecycle files the topic router (tasks/main.yaml) imports. A

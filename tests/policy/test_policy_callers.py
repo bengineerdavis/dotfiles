@@ -25,7 +25,6 @@ Run:
 from __future__ import annotations
 
 import os
-import pathlib
 import shutil
 import subprocess
 import textwrap
@@ -33,9 +32,12 @@ import textwrap
 import pytest
 
 # pyrefly: ignore [missing-import]
-from policy_harness import REPO, uv_dir
+from policy_harness import uv_dir
 
-ASK_RESEARCH = REPO / "bin" / "executable_ask-research"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+ASK_RESEARCH = PAYLOAD_ROOT / "bin" / "executable_ask-research"
 
 LOG_KEY = "boundaries.llm_processing.log_bodies_allowed"
 REMOTE_KEY = "boundaries.llm_processing.remote_model_allowed"
@@ -75,7 +77,7 @@ def caller_env(tmp_path):
     brief = tmp_path / "brief.md"
     brief.write_text("a question\n")
 
-    policy_src = REPO / "bin" / "executable_policy"
+    policy_src = PAYLOAD_ROOT / "bin" / "executable_policy"
     shim = tmp_path / "shim"
     shim.mkdir()
     shutil.copy2(policy_src, shim / "policy")

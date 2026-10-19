@@ -46,7 +46,6 @@ from __future__ import annotations
 import datetime
 import re
 import string
-from pathlib import Path
 
 import pytest
 import yaml
@@ -123,8 +122,10 @@ HC_UNCLAIMED_FACTS = {
     "grok": {"probe": "grok", "config_dir": "~/.grok"},
 }
 
-HC_REPO = Path(__file__).resolve().parents[2]
-HC_CATALOGUE = HC_REPO / "dotfiles" / "config" / "agents.yaml"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+HC_CATALOGUE = PAYLOAD_ROOT / "dotfiles" / "config" / "agents.yaml"
 
 # The subscriber that consumes the catalogue today (interim role-relative
 # direct read; TOPIC-RECIPES.md shared-catalogue recipe).

@@ -13,15 +13,16 @@ Run:
 from __future__ import annotations
 
 import json
-import pathlib
 import re
 import shutil
 import subprocess
 
 import pytest
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-TEMPLATE = REPO / "dot_config" / "opencode" / "opencode.jsonc.tmpl"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+TEMPLATE = PAYLOAD_ROOT / "dot_config" / "opencode" / "opencode.jsonc.tmpl"
 
 pytestmark = pytest.mark.skipif(
     shutil.which("chezmoi") is None, reason="chezmoi not on PATH"
@@ -58,7 +59,7 @@ def render(hostname: str, os_name: str, extra: dict | None = None) -> dict:
         [
             "chezmoi",
             "-S",
-            str(REPO),
+            str(PAYLOAD_ROOT),
             "execute-template",
             "--override-data",
             json.dumps(data),

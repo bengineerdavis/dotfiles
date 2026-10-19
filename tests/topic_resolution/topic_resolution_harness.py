@@ -14,11 +14,10 @@ the map tasks, the PATH probe and the strict assert run together.
 
 from __future__ import annotations
 
-import pathlib
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
 
-
-REPO = pathlib.Path(__file__).resolve().parents[2]
-DOTFILES = REPO / "dotfiles"
+DOTFILES = PAYLOAD_ROOT / "dotfiles"
 ROLE = DOTFILES / "roles" / "topic-resolution"
 DEFAULTS = ROLE / "defaults" / "main.yaml"
 

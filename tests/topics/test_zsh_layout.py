@@ -29,9 +29,11 @@ from __future__ import annotations
 
 import pathlib
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-APPS = REPO / "dotfiles" / "apps"
-TEMPLATE = REPO / "dotfiles" / "template_dir"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+APPS = PAYLOAD_ROOT / "dotfiles" / "apps"
+TEMPLATE = PAYLOAD_ROOT / "dotfiles" / "template_dir"
 
 CANONICAL = "apps/<topic>/files/zsh/*.zsh"
 
@@ -52,7 +54,7 @@ def test_no_unsourced_zsh_fragments():
     assert not dead, (
         f"{len(dead)} zsh fragment(s) sit outside {CANONICAL} and are never "
         "sourced. Move the content into the topic's files/zsh/ and delete the "
-        "copy:\n  " + "\n  ".join(str(p.relative_to(REPO)) for p in dead)
+        "copy:\n  " + "\n  ".join(str(p.relative_to(PAYLOAD_ROOT)) for p in dead)
     )
 
 
@@ -72,7 +74,8 @@ def test_no_legacy_zsh_subdirectory_at_all():
         "legacy zsh/ directories exist; nothing inside them is reachable "
         f"(canonical is {CANONICAL}):\n  "
         + "\n  ".join(
-            f"{d.relative_to(REPO)}  ({len(list(d.iterdir()))} entries)" for d in legacy
+            f"{d.relative_to(PAYLOAD_ROOT)}  ({len(list(d.iterdir()))} entries)"
+            for d in legacy
         )
     )
 
@@ -85,7 +88,7 @@ def test_scaffold_only_emits_the_canonical_layout():
     assert not stray, (
         "template_dir scaffolds zsh fragments outside files/zsh/, so every "
         "topic generated from it starts with dead copies:\n  "
-        + "\n  ".join(str(p.relative_to(REPO)) for p in stray)
+        + "\n  ".join(str(p.relative_to(PAYLOAD_ROOT)) for p in stray)
     )
 
 

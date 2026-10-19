@@ -102,14 +102,17 @@ import yaml
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 
-HE_AGENTS_YAML = REPO / "dotfiles" / "config" / "agents.yaml"
-HE_TOPIC_DIR = REPO / "dotfiles" / "apps" / "herdr"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+HE_AGENTS_YAML = PAYLOAD_ROOT / "dotfiles" / "config" / "agents.yaml"
+HE_TOPIC_DIR = PAYLOAD_ROOT / "dotfiles" / "apps" / "herdr"
 HE_TASKS_DIR = HE_TOPIC_DIR / "tasks"
 HE_DEFAULTS = HE_TOPIC_DIR / "defaults" / "main.yaml"
 
 HE_CONTRACT_CANDIDATES = [
     REPO / "tests" / "herdr" / "agents_contract.py",
-    REPO / "dotfiles" / "apps" / "herdr" / "files" / "agents_catalogue.py",
+    PAYLOAD_ROOT / "dotfiles" / "apps" / "herdr" / "files" / "agents_catalogue.py",
 ]
 
 # The contract the implementation must match, stated here so the implementer

@@ -19,8 +19,10 @@ import subprocess
 
 import pytest
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-TEMPLATE = REPO / "dot_config" / "uv" / "uv.toml.tmpl"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+TEMPLATE = PAYLOAD_ROOT / "dot_config" / "uv" / "uv.toml.tmpl"
 
 pytestmark = pytest.mark.skipif(
     shutil.which("chezmoi") is None, reason="chezmoi not installed"

@@ -16,10 +16,12 @@ import pytest
 
 yaml = pytest.importorskip("yaml")
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
 VERSIONED = {
-    "ethics": REPO / "dotfiles" / "policy" / "ethics.yaml",
-    "personal": REPO / "dotfiles" / "policy" / "personal.yaml",
+    "ethics": PAYLOAD_ROOT / "dotfiles" / "policy" / "ethics.yaml",
+    "personal": PAYLOAD_ROOT / "dotfiles" / "policy" / "personal.yaml",
 }
 # Machine-local and never committed, so it is absent on a fresh clone and in CI.
 COMPANY = (
