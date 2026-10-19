@@ -3,6 +3,45 @@
 Section names come from antsibull-changelog; see `docs/TOPICS.md`
 § "Per-topic changelog and local edge cases".
 
+## 2026-10-19
+
+### known_issues
+
+- **A second install channel appeared outside the topic and shadowed the
+  brew route.** Measured 2026-10-19 on the drift box: `which opencode`
+  resolved to the mise shim, serving an `http:opencode@2.0.32` install
+  (mise's direct-URL backend) rather than the brew binary this topic
+  installs. The versions coincided at 2.0.32, so the shadowing showed
+  only in `which`, not in output — the channel, not the version, was the
+  drift. The entry is not in the repo's mise config and never was:
+  `git log -S "http:opencode"` over all history finds no config commit,
+  and in `mise ls --json` the entry carries no `source` key while owned
+  tools (e.g. `herdr`) carry one pointing at the config that declares
+  them; `mise which opencode` reports it "not currently active". The old
+  `opencode@1.18.32` (aqua backend) sits beside it, equally unowned. This
+  is the same failure shape as the roborev incident recorded in
+  AGENTS.md § Cross-repo changes: an install made without declaring it,
+  outside the tool-entry-ownership recipe (dotfiles/docs/TOPIC-RECIPES.md),
+  shadowing the topic's route.
+  The leftovers live in `~/.local/share/mise/installs/http-opencode/` and
+  `~/.local/share/mise/installs/opencode/`, plus the stale shim at
+  `~/.local/share/mise/shims/opencode`. Removal is author-run (mise
+  machine state, not topic or repo state):
+
+      mise uninstall "http:opencode@2.0.32"
+      mise uninstall "opencode@1.18.32"
+      mise reshim
+      type -a opencode   # expect only the linuxbrew path left
+
+  The canonical route is unchanged: brew, `anomalyco/tap/opencode-v2`,
+  installed by this topic's `install.yaml`. No topic change was needed
+  for the two-version v1 state the same day's audit asked about
+  (1.18.32 and 1.19.3 under one formula name): `state: absent` runs
+  `brew uninstall --force` (community.general 13.0.1,
+  `_uninstall_packages`), and this box's own Homebrew 7.0.9 documents
+  `--force` as "Delete all installed versions of formula" — one task
+  converges any number of installed v1 versions.
+
 ## 2026-10-06
 
 ### breaking_changes
