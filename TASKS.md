@@ -402,7 +402,7 @@ nothing is.
   discovery, remote matching, fetch-safe sync, per-repository verdicts,
   non-aborting report, and freshness requirements. Include the preliminary
   Gita/ghorg/Ansible research in
-  `.worktrees/gita-plan_sub_g1/dotfiles/docs/GITA-RESEARCH.md`, but widen
+  `dotfiles/docs/research/repo-manager/GITA-RESEARCH.md`, but widen
   its candidate set before recommending. Follow
   `dotfiles/docs/TOPIC-RECIPES.md`'s docs-and-Galaxy-first rule. If no
   existing tool meets the need, specify the smallest Ansible-module/role
@@ -412,7 +412,7 @@ nothing is.
   records rejections, recommends a path that minimizes customer-maintained
   logic, and the author records the choice. The result hands the discovery
   and sync mechanisms to G2/G3/G4/G7. The expanded report is prepared at
-  `.worktrees/gita-plan_sub_g1/dotfiles/docs/GITA-RESEARCH.md`. The author
+  `dotfiles/docs/research/repo-manager/GITA-RESEARCH.md`. The author
   accepted task-level Ansible orchestration as the fallback on 2026-09-24,
   and asked for the complete workflow and candidate links before choosing
   the final tool split. No tool has been adopted yet. [agent: gita-plan / OpenCode]
@@ -1587,6 +1587,89 @@ nothing is.
   from inside dotfiles/ (AGENTS.md § Commands reads as if run from the
   root). One-line fix: `cd "$(dirname "$0")"` after set -euo pipefail.
   Deployed-tree file, so the fix goes to the author for review.
+  Fix ready 2026-10-09 on branch `run-role-cwd-fix` with
+  `tests/run_role/` (real script from a foreign cwd against a fake mise
+  recording its argv: foreign-cwd resolution, unknown-topic error naming,
+  second arg as `--tags`). Mutation-verified: with the `cd` line removed,
+  the foreign-cwd and tags tests go red; the unknown-topic test correctly
+  stays green (it asserts error naming, not cwd). PR to follow.
+
+- **Declare ollama/qwen3.5:9b in the model manifest and prove it on this
+  machine.** [author decision 2026-10-06, unclaimed] The opencode v2
+  migration pins the trivial-task roles (title, summary, compaction) to
+  `ollama/qwen3.5:9b` (see `dotfiles/docs/research/opencode-v2/PLAN.md`
+  § Author rulings). House rules this task satisfies: a role pick is
+  declared where it can be installed (apps/ollama manifest), and a model
+  earns its place by measurement (quick eval on this box — titles,
+  summaries, short-compaction cases are enough for this role, not the
+  full suite). Includes the author-run `ollama pull qwen3.5:9b` (~6.6GB;
+  check `ollama ps` for resident models first). Done when the tag is in
+  the manifest, the eval numbers are recorded with their conditions, and
+  the roles reference a model that is actually pullable on every machine
+  the manifest targets.
+
+- **Topic VM test harness — plan (molecule + Vagrant, per-topic
+  scenarios).** [agent: orch_sub_vplan, worktree
+  `.worktrees/orch_sub_vplan`] Builds on the molecule adoption already
+  approved 2026-09-14 (§ Planned, "Adopt molecule for topic testing") —
+  scenario co-location in `apps/<topic>/molecule/`, direct `molecule
+  test` invocation, vagrant driver where containers cannot reach — read
+  that item before writing anything. Author rulings 2026-10-10 for THIS
+  work: durable capability, not a one-off; the agents-never-apply rule
+  applies by reason — a Vagrant box is a separate machine with its own
+  HOME and its own deployed tree, so agents may drive chezmoi and
+  ansible there; and the first scenario is the apps/opencode v2
+  migration — the run that confirms we are good to deploy (the author's
+  ask: "enough virtualization with vagrant that we can inject ansible
+  into a test box"). Design input for the plan, not a ruling: shape the
+  wrapper interface so humans can explore stepwise
+  (create/login/verify/destroy, linger in the box) while agents run
+  `molecule test` non-interactively. Verified 2026-10-06 on this box:
+  vagrant 2.4.9, VirtualBox present, /dev/kvm available. macOS is out
+  of scope for VM testing (no macOS boxes exist); this confirms the
+  Debian leg, and the plan says so plainly. Branches off main (post
+  #46, including the apt hook-standards commit); PR to main from there.
+  Plan lands at
+  `dotfiles/docs/research/topic-vm-tests/PLAN.md`. Done when it names:
+  the scenario layout and where it lives per TOPICS.md conventions, the
+  wrapper interface (and the wrapper's own build-ladder justification),
+  the molecule dependency install path per docs/PYTHON.md, exactly what
+  the opencode scenario asserts (v2 formula present, v1 gone, config
+  loads, skills synced), box-image and provider choices, destroy
+  safety, the author-run vs agent-run split, and any open author
+  decisions.
+
+- **Topic VM test harness — implement (molecule scaffolding +
+  apps/opencode scenario).** [agent: orch_sub_vimpl, worktree
+  `.worktrees/orch_sub_vimpl`] From the plan: wire the molecule
+  dependency the plan chose, build the wrapper (minimal, documented,
+  human-and-machine callable), and write apps/opencode's scenario
+  asserting the v2 migration end state on a Debian box. The scenario's
+  verify phase is the test suite for this work — plus pytest coverage
+  for the wrapper's argument handling where the house layout wants it.
+  Done when `molecule test` passes end-to-end against the real box and
+  each phase verb works when run alone.
+
+- **Topic VM test harness — run the v2 migration confirmation.**
+  [agent: orch_sub_vrun, worktree `.worktrees/orch_sub_vrun`] Execute
+  the harness end to end on a clean box: create, converge (run-role
+  path for apps/opencode), verify (v2 formula installed, v1 gone, the
+  migrated config loads without diagnostics, skills synced), then the
+  author's interactive flow exercised at least once (login, inspect,
+  destroy). Record the evidence with its conditions — box image,
+  provider, timings — and state the migration verdict naming what was
+  and was not exercised (spec § Evidence). Done when the run is
+  recorded on the PR and the verdict is explicit.
+
+- **Give `codex` an authenticated provider — Darwin only for now.**
+  `apps/mise` installs `npm:@openai/codex`, but no topic provisions
+  `~/.codex/config.toml`, so the binary has no backend and every model call
+  dies with "Not logged in"/401 (no codex subscription). Scoped to the Mac for
+  now; the Linux box waits. Done when an `apps/codex` topic (adopting the mise
+  entry, `topic_os: [Darwin]`) ships a chezmoi-managed config.toml with a
+  `model_providers` block on the already-provisioned OpenRouter key, a model
+  call succeeds on the Mac without a subscription, and the teardown removes
+  the config it created.
 
 ## Planned
 
@@ -3415,6 +3498,55 @@ author rather than the machine.
   once if a blocker arose, and the learnings land in
   `dotfiles/docs/research/coordinating-parallel-work-across-refactors.md`
   § What running it taught us. [claimed: coordinator, agent/queue-test]
+
+- **Restore ruff coverage for the extensionless Python scripts, and fix
+  what it surfaces.** [queued 2026-10-13; follow-up to PR #49] The ruff
+  hooks now select their input by type, and pre-commit's tags come from
+  identify, whose shebang detection requires the exec bit — chezmoi sources
+  carry that bit in the `executable_` name prefix at mode 644, so the ~15
+  extensionless Python scripts under `bin/` (8 `python3` shebangs, 6-7 PEP
+  723 `uv run --script` scripts) no longer reach ruff through any hook;
+  measured, `identify` tags `bin/executable_mailbox` (`#!/usr/bin/env
+  python3`) non-executable and not python. Restore the coverage as a test,
+  not a filter: a pytest globs `bin/` and `dotfiles/`, selects scripts
+  whose first line names `python` or `uv run --script`, and runs ruff with
+  the repo config — the test can decide "is this Python" by shebang, which
+  neither identify nor a filename filter can do here. One finding already
+  measured: `bin/executable_triage` D205 (docstring layout); fix it in the
+  same change so the test lands green. Done when: the test passes on every
+  selected script, has been seen to fail (mutation: make the selector match
+  nothing — the grep-over-empty trap), and no hook change is needed.
+
+- **Build a declarative mise module or role so Ansible calls mise the way it
+  calls apt/homebrew.** Every mise-managed tool — gita, codex, roborev,
+  skillet, and every future pipx: entry — currently shells out to
+  `mise use -g` / `mise unuse --global` / `mise upgrade` in its topic, with
+  probe-first greps to stay idempotent. A module or role turns those into
+  declarative tasks (present/absent, reported change, check-mode aware) like
+  `community.general.homebrew`. The gita topic's install/remove are the first
+  consumer and the migration pattern. Done when that topic runs through the
+  module and its mise shell-outs are gone. Gated on the backlog-md-py
+  migration below.
+
+- **Migrate the task queue to backlog-md-py, paired with worktrunk.**
+  Author direction 2026-10-18: before the mise module above, move full-time
+  to backlog-md-py (the markdown-native task tool under evaluation — see
+  PROCESS.md § Where the queue lives) and refactor/migrate all of `TASKS.md`
+  into it, paired with worktrunk (the mise wrapper that generates and checks
+  worktree-local denylists; evaluated 2026-09-24). Done when `TASKS.md` is an
+  index over per-task files and a task line never lives only in a chat.
+
+- **Refactor dotfiles storage and automate its presence, not its updates.**
+  Dotfiles stays a top-level repo (`~/.local/share/chezmoi`, deployed to
+  `~/dotfiles`), outside the `~/code` taxonomy. Requirement (author
+  2026-10-18): a target machine must GET dotfiles automatically, but dotfiles
+  is never auto-updated — pulling is deliberate. Two parts: (a) automate the
+  add — a fresh box gets the checkout from one step, no scheduled pass pulls
+  it; (b) refactor how it is stored and how changes are made to it to be
+  more seamless — this design is open. Interview the author before cutting
+  tasks; record the storage shape in `PRD.md`/`docs/LAYOUT.md` and the work
+  items here. Done when a fresh machine clones dotfiles automatically and no
+  update path pulls it.
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 

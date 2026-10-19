@@ -62,7 +62,10 @@ node = "lts"
 # to "latest" once the upgrade.yaml pin-print and the npx aliases are settled.
 # tasks/upgrade.yaml prints this pin at runtime so it is visible without
 # reading this file.
-"npm:@sentry/skillet" = { version = "1.8.0", postinstall = "skillet init", depends = ["node"] }
+# aube gate approved 2026-10-14: skillet is a known-verify tool (consumed via
+# @sentry/dotagents skills); aube refused it at 7 weekly downloads vs the
+# 1,000 threshold. verify=checks passed then.
+"npm:@sentry/skillet" = { version = "1.8.0", postinstall = "skillet init", depends = ["node"], allow_low_downloads = true }
 "npm:@sentry/dotagents" = "latest"
 # Second eval harness for skillet. skillet 1.7.0 runs a case's judge on the same
 # harness AND model as the trial itself (worker.js: runHarness(cfg.harness, …)
@@ -82,6 +85,10 @@ node = "lts"
 python = "3.14"
 "pipx:pre-commit" = "latest"
 "pipx:git-filter-repo" = "latest"
+# gita — owned by apps/gita through mise's first-party commands
+# (`mise use -g pipx:gita` on install, `mise unuse --global pipx:gita` on
+# remove), the herdr pattern. This line is the capture those commands write
+# through the deployed symlink; the topic never edits the file directly.
 "pipx:gita" = "latest"
 
 # http://llm.datasette.io/en/stable/setup.html

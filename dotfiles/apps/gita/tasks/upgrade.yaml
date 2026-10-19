@@ -1,0 +1,30 @@
+# apps/gita/tasks/upgrade.yaml
+#
+# The sync path. gita has no atomic "sync"; the honest day-to-day is to fetch
+# everything, then pull the clean repos and let dirty/conflicted ones report
+# for later. The parent playbook's topic loop has no rescue, so a repo problem
+# must not abort later topics: these run with failed_when false and the run
+# exits 0 either way (recorded in the README as the deviation from
+# TOPIC-RECIPES' "fail once at the end").
+
+- name: "Upgrade: fetch every registered repo (never touches the working tree)"
+  ansible.builtin.command:
+    cmd: gita fetch
+  register: gita_sync_fetch
+  changed_when: false
+  failed_when: false
+
+- name: "Upgrade: pull the clean repos, report the rest"
+  ansible.builtin.command:
+    cmd: gita pull
+  register: gita_sync_pull
+  changed_when: false
+  failed_when: false
+
+- name: "Upgrade: surface repo problems without failing the run"
+  ansible.builtin.debug:
+    msg: >-
+      gita pull exited {{ gita_sync_pull.rc }} — a non-zero here means one or
+      more repos are dirty, conflicted, detached, or failed; those repos are
+      reported above and left for a human, the run itself stays green.
+  when: gita_sync_pull.rc is defined and gita_sync_pull.rc != 0

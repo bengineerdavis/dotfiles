@@ -731,3 +731,61 @@ then-removed. Not exercised, recorded: the author's interactive login
 (self-serve via the wrapper's stepwise verbs), the Darwin leg (no macOS
 VMs; open questions live in the § Planned molecule item), real-machine
 apply (author-run; completed by the author 2026-10-15).
+## 2026-10-14
+
+- **run-role.sh: resolve the playbook relative to the script, not the
+  caller's cwd.** The 2026-10-03 observation's prescribed one-line fix
+  (`cd "$(dirname "$0")"` after `set -euo pipefail`) landed on
+  `run-role-cwd-fix` with `tests/run_role/` — the real script run from a
+  foreign cwd against a fake mise that records its argv (foreign-cwd
+  playbook resolution, unknown-topic error naming, second arg as
+  `--tags`). Mutation: with the `cd` line removed, the foreign-cwd and
+  tags tests go red; the unknown-topic test correctly stays green (it
+  asserts error naming, not cwd). Full suite on the rebased branch:
+  1023 passed, 6 skipped. PR #48 merged 2026-10-14 (`b9d1390`).
+  Deployed-tree file: the source fix is on main; the deployed copy still
+  needs the author's `chezmoi apply` to take effect.
+
+- **pre-commit: select the ruff hooks' input by type** (`types_or:
+  [python, pyi]`). pre-commit passes every staged file to a hook by
+  default, and ruff parses explicit paths as Python regardless of
+  extension — committing a shell script failed ruff-check (hit
+  2026-10-04; re-measured 2026-10-14 on executable_run-role.sh: 1 EXE001
+  plus 24 invalid-syntax diagnostics). First attempt used a filename
+  regex; author review with an external search drove the switch to the
+  documented canonical form (commit `83fb086`). Relent and fire both
+  proven in-session with `prek run --files` — shell file: ruff skipped,
+  shellcheck passed; bad `.py`: ruff-check Failed, exit 1; clean `.py`:
+  all hooks pass — and posted as PR #49 evidence. Boundary recorded:
+  identify's exec-bit-gated shebang detection cannot see chezmoi's 644
+  sources, so the ~15 extensionless Python scripts under bin/ no longer
+  reach ruff through any hook; restoring that coverage as a shebang-
+  selecting test is queued in TASKS.md § Planned. PR #49 merged
+  2026-10-14 (`8705383`).
+
+## 2026-10-15
+
+- **Add the roborev topic** (PR #50, merged `21c0d0e`). Both machines, per
+  the author's 2026-10-09 decisions: Darwin installs the `roborev` formula
+  from upstream's `kenn-io/tap` — trust → tap → install, the opencode
+  pattern (Homebrew 7 refuses an untrusted third-party tap at tap time with
+  `invalid syntax in tap!`, naming neither cause nor fix); Debian fetches
+  `roborev_<ver>_linux_<arch>.deb` checksum-verified against the releases
+  API's per-asset `digest` — the checksum never comes from the download's
+  own location — and reinstalls only when the installed dpkg version
+  differs, because `apt upgrade` cannot reach a GitHub-release deb;
+  upstream's `roborev update` self-updater is deliberately unused for the
+  same reason. `topic_requires` empty on purpose (declaring homebrew would
+  make the topic unschedulable on Debian); no separate Go topic (mise
+  provides go; the routes need no toolchain). Verified: syntax-check,
+  topic suites (33 passed), full suite (1020 passed, 6 skipped), skillet,
+  scoped ansible-lint at template baseline; the Debian fact chain and the
+  checksum-verified fetch ran for real under a facts-injected simulation —
+  which caught two `set_fact` bugs before any commit. NOT run anywhere:
+  the apt install step (needs a Debian box) and a real Darwin install.
+  Check-mode limits on both routes are recorded in the topic CHANGELOG's
+  known_issues. Author quiz 2026-10-14: dpkg-compare upgrades and the
+  requires-empty rationale answered cold; tap ordering corrected and the
+  digest channel explained before merge. Next step when wanted: a real
+  install from main (`dotfiles/executable_run-role.sh roborev` — the
+  author applies).

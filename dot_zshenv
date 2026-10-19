@@ -1,0 +1,26 @@
+# zshenv — sourced by every zsh, interactive or not (agents, scripts, cron).
+#
+# Keep per-user tool state out of shared /tmp: aube (mise's npm backend)
+# derives its lock dir from TMPDIR and defaults to /tmp/fslock — first
+# creator wins, and a root run once poisoned it for every user. Set TMPDIR
+# only when unset, and export only if the directory exists and is writable,
+# so an unusable cache dir falls back to the previous /tmp behavior instead
+# of breaking the session (review finding: export-before-mkdir would have
+# broken mktemp/aube/bun for every tool had the dir been unusable).
+#
+# Known bounds (deliberate): this redirects TMPDIR for every TMPDIR-honoring
+# tool; on Linux, accumulation is handled by the user tmpfiles rule in
+# ~/.config/user-tmpfiles.d/tmp.conf (30-day purge); darwin cleanup is
+# unhandled, and cron's /bin/sh bypasses zsh
+# entirely — /tmp/fslock is user-owned today, and the agentic layer's
+# stamped install-task preflight names the exact fix if that changes.
+# Covers root runs that do not inherit this environment (plain sudo strips
+# it); preserved-env privileged runs (sudo -E) remain out of reach of shell
+# config.
+
+if [[ -z "$TMPDIR" ]]; then
+  mkdir -p -m 700 "$HOME/.cache/tmp" 2>/dev/null || true
+  if [[ -d "$HOME/.cache/tmp" && -w "$HOME/.cache/tmp" ]]; then
+    export TMPDIR="$HOME/.cache/tmp"
+  fi
+fi

@@ -2,7 +2,12 @@
 name = "skill-trust"
 version = "0.1.0"
 description = "Decide whether an agent skill may be installed, by source ban, approval, or licence."
-requires-python = ">=3.11"
+# 3.14, matching the repo floor, not the aspirational 3.11 this once had:
+# the repo formatter targets py314 and rewrites `except (A, B):` to the
+# comma form, which 3.11-3.13 cannot parse — b1a5215 shipped that mangling
+# and the uv tool venv (3.13) could not start. A floor the toolchain
+# actively rewrites against is not a floor; this one matches what runs.
+requires-python = ">=3.14"
 dependencies = ["pyyaml>=6"]
 
 # The point of this file is graduation. When this tool outgrows the dotfiles
