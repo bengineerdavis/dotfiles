@@ -789,3 +789,18 @@ apply (author-run; completed by the author 2026-10-15).
   digest channel explained before merge. Next step when wanted: a real
   install from main (`dotfiles/executable_run-role.sh roborev` — the
   author applies).
+- **Run the worker-queue MVP test: the move's P1–P4 preps as execution
+  sessions.** [agent: opencode coordinator] Done 2026-10-19. All four preps
+  ran as headless execution sessions (`opencode run --agent autonomous`,
+  one branch per task, budget 3 capping concurrent dispatch) and are
+  collected: 219220b hooks → 2c9cba1, b4a4ff5 pin → ded65e7, 7520be2 seam
+  → de46484, 18b23b8 binned → 54e3d97. Isolation held throughout (executor
+  writes confined to their worktrees; push/merge refused by permissions).
+  The relay worked repeatedly — permission mechanics and intent-stops
+  recovered via `-s` continuation, one message per cycle; a second-
+  coordinator interlude was resolved by standing down dispatch. The move's
+  atomic commit is now just `.chezmoiroot` + the `git mv` + the flips,
+  sequenced behind the queued trunk-regression fixes (same file, § Planned).
+  Learnings: `dotfiles/docs/research/coordinating-parallel-work-across-
+  refactors.md` § What running it taught us (complete). The seam merge
+  also carries the pyrefly project-excludes guard fix (de46484).
