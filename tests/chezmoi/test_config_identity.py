@@ -14,13 +14,13 @@ than the tail of a comment.
 
 from __future__ import annotations
 
-import pathlib
 import shutil
 import subprocess
 
 import pytest
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
 
 pytestmark = pytest.mark.skipif(
     shutil.which("chezmoi") is None, reason="chezmoi not installed"
@@ -28,7 +28,7 @@ pytestmark = pytest.mark.skipif(
 
 
 def test_config_template_keeps_its_data_section():
-    tmpl = REPO / ".chezmoi.toml.tmpl"
+    tmpl = PAYLOAD_ROOT / ".chezmoi.toml.tmpl"
     out = subprocess.run(
         [
             "chezmoi",

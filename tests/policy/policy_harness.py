@@ -10,8 +10,10 @@ from __future__ import annotations
 import os
 import pathlib
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-SCRIPT = REPO / "bin" / "executable_policy"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+SCRIPT = PAYLOAD_ROOT / "bin" / "executable_policy"
 
 # Exit codes, mirrored from the script so a silent change to either shows up
 # as a failing test rather than as a test that quietly asserts nothing.

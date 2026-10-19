@@ -9,12 +9,15 @@ from __future__ import annotations
 
 import importlib.machinery
 import importlib.util
-import pathlib
 
 import pytest
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-SCRIPT = REPO / "dotfiles" / "apps" / "ollama" / "files" / "executable_ollama-evals"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+SCRIPT = (
+    PAYLOAD_ROOT / "dotfiles" / "apps" / "ollama" / "files" / "executable_ollama-evals"
+)
 
 
 @pytest.fixture(scope="session")

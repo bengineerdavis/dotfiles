@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import importlib.machinery
 import importlib.util
-import pathlib
 import sys
 
 import pytest
@@ -25,8 +24,10 @@ import pytest
 # spec.md § Layering — source and deployed are checked before editing describes.
 # tests/ollama_evals/conftest.py already loads its subject from source; this
 # brings binned into line.
-REPO = pathlib.Path(__file__).resolve().parents[2]
-BINNED_PATH = REPO / "bin" / "executable_binned"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+BINNED_PATH = PAYLOAD_ROOT / "bin" / "executable_binned"
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:

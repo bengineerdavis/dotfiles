@@ -16,13 +16,14 @@ Run:
 
 from __future__ import annotations
 
-import pathlib
 import subprocess
 
 import pytest
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-SCRIPT = REPO / "bin" / "executable_trace-public"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+SCRIPT = PAYLOAD_ROOT / "bin" / "executable_trace-public"
 
 # Tokens that must never appear in output, whatever the input format.
 LEAK_TOKENS = (

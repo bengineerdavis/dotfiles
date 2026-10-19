@@ -122,3 +122,8 @@ project-includes = [
     "**/*.py*",
     "**/*.ipynb",
 ]
+# Molecule scenario tests import testinfra, which lives in the opt-in
+# test-vm group — unresolvable in any default environment, so project-state
+# checking must skip them or every commit fails on machines without the
+# group. Their verification runs inside the VM, not under pyrefly.
+project-excludes = ["dotfiles/apps/opencode/molecule"]

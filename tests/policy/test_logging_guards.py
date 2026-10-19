@@ -26,13 +26,16 @@ import textwrap
 import pytest
 
 # pyrefly: ignore [missing-import]
-from policy_harness import REPO, uv_dir
+from policy_harness import uv_dir
+
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
 
 LOG_KEY = "boundaries.llm_processing.log_bodies_allowed"
 
 CALLERS = {
-    "triage": (REPO / "bin" / "executable_triage", "logging_permitted"),
-    "llm-ctx": (REPO / "bin" / "executable_llm-ctx", "policy_permits_logging"),
+    "triage": (PAYLOAD_ROOT / "bin" / "executable_triage", "logging_permitted"),
+    "llm-ctx": (PAYLOAD_ROOT / "bin" / "executable_llm-ctx", "policy_permits_logging"),
 }
 
 
@@ -70,7 +73,7 @@ def policy_env(tmp_path, monkeypatch):
     (state / "ai-policy").mkdir(parents=True)
     shim = tmp_path / "shim"
     shim.mkdir()
-    shutil.copy2(REPO / "bin" / "executable_policy", shim / "policy")
+    shutil.copy2(PAYLOAD_ROOT / "bin" / "executable_policy", shim / "policy")
     (shim / "policy").chmod(0o755)
 
     def configure(company: str | None, *, resolver_on_path: bool = True):

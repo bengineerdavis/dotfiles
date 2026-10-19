@@ -29,6 +29,8 @@ import subprocess
 import pytest
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
 
 # The five documents that govern the project, plus the conventions directory.
 # RESOURCES.md is deliberately absent: it IS a deployed dotfile.
@@ -59,8 +61,10 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture(scope="module")
 def managed() -> set[str]:
+    # -S targets the source dir, which is the payload seam; the docs probed
+    # below are repo-only trees and stay on REPO.
     out = subprocess.run(
-        ["chezmoi", "-S", str(REPO), "managed"],
+        ["chezmoi", "-S", str(PAYLOAD_ROOT), "managed"],
         cwd=REPO,
         capture_output=True,
         text=True,

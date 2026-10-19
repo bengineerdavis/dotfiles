@@ -42,11 +42,13 @@ import yaml
 pytest.importorskip("jinja2", reason="jinja2 not installed")
 import jinja2  # noqa: E402
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-TOPIC = REPO / "dotfiles" / "apps" / "herdr"
-CATALOGUE = REPO / "dotfiles" / "config" / "agents.yaml"
-MISE_CONFIG = REPO / "dotfiles" / "apps" / "mise" / "files" / "config.toml"
-ZSH_TREE = REPO / "dotfiles" / "zsh"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+TOPIC = PAYLOAD_ROOT / "dotfiles" / "apps" / "herdr"
+CATALOGUE = PAYLOAD_ROOT / "dotfiles" / "config" / "agents.yaml"
+MISE_CONFIG = PAYLOAD_ROOT / "dotfiles" / "apps" / "mise" / "files" / "config.toml"
+ZSH_TREE = PAYLOAD_ROOT / "dotfiles" / "zsh"
 
 # Every path the README § Structure tree names. A missing one is a named
 # failure, never a skip.
@@ -214,7 +216,7 @@ def hu_config_template() -> pathlib.Path:
     'deploys as a chezmoi template'; chezmoi source naming is
     dot_config/herdr/config.toml.tmpl at the repo (source) root.
     """
-    d = REPO / "dot_config" / "herdr"
+    d = PAYLOAD_ROOT / "dot_config" / "herdr"
     return d / "config.toml.tmpl"
 
 
@@ -539,8 +541,8 @@ def test_no_machine_specific_literals_in_topic_tree():
     # home dir in a template — this scan goes red.
     offenders = []
     for p in hu_topic_tree_files() + list(
-        (REPO / "dot_config" / "herdr").glob("*")
-        if (REPO / "dot_config" / "herdr").is_dir()
+        (PAYLOAD_ROOT / "dot_config" / "herdr").glob("*")
+        if (PAYLOAD_ROOT / "dot_config" / "herdr").is_dir()
         else []
     ):
         text = hu_code_lines(p.read_text(errors="replace"))
@@ -589,6 +591,6 @@ def test_readme_cross_links_and_named_paths():
     readme = hu_read(TOPIC / "README.md", "the design record")
     assert "TOPIC-RECIPES.md" in readme, "README does not link TOPIC-RECIPES.md"
     assert "TOPICS.md" in readme, "README does not link TOPICS.md (the binding rules)"
-    assert str(CATALOGUE.relative_to(REPO)) in readme, (
-        f"README does not name the catalogue path {CATALOGUE.relative_to(REPO)}"
+    assert str(CATALOGUE.relative_to(PAYLOAD_ROOT)) in readme, (
+        f"README does not name the catalogue path {CATALOGUE.relative_to(PAYLOAD_ROOT)}"
     )

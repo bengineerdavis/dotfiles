@@ -17,7 +17,8 @@ import subprocess
 
 import pytest
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
 
 pytestmark = pytest.mark.skipif(
     shutil.which("chezmoi") is None or shutil.which("git") is None,
@@ -28,7 +29,12 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture(scope="module")
 def gitconfig(tmp_path_factory) -> pathlib.Path:
     out = subprocess.run(
-        ["chezmoi", "execute-template", "--file", str(REPO / "dot_gitconfig.tmpl")],
+        [
+            "chezmoi",
+            "execute-template",
+            "--file",
+            str(PAYLOAD_ROOT / "dot_gitconfig.tmpl"),
+        ],
         capture_output=True,
         text=True,
         timeout=60,

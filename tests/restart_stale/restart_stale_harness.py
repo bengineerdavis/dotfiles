@@ -8,10 +8,11 @@ imported first. tests/guards/guard_harness.py records the same trap.
 from __future__ import annotations
 
 import importlib.util
-import pathlib
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-DOTFILES = REPO / "dotfiles"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+DOTFILES = PAYLOAD_ROOT / "dotfiles"
 ROLE = DOTFILES / "roles" / "restart-stale"
 FILTERS = ROLE / "filter_plugins" / "restart_stale.py"
 

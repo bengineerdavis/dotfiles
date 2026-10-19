@@ -8,11 +8,10 @@ tools/ grew one — the guards' tests silently imported the wrong module.
 
 from __future__ import annotations
 
-import pathlib
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
 
-
-REPO = pathlib.Path(__file__).resolve().parents[2]
-DOTFILES = REPO / "dotfiles"
+DOTFILES = PAYLOAD_ROOT / "dotfiles"
 GUARDS = DOTFILES / "roles" / "guards"
 
 HARNESS = """\

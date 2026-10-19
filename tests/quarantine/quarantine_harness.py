@@ -7,10 +7,11 @@ one pytest imported first. See tests/guards/guard_harness.py.
 
 from __future__ import annotations
 
-import pathlib
 import re
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-SCRIPT = REPO / "bin" / "executable_quarantine"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+SCRIPT = PAYLOAD_ROOT / "bin" / "executable_quarantine"
 
 SECRET_RE = re.compile(r"AGE-SECRET-KEY-1[A-Z0-9]+")

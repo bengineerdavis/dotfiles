@@ -14,8 +14,10 @@ import subprocess
 
 import yaml
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-INSTALL_YAML = REPO / "dotfiles" / "apps" / "ollama" / "tasks" / "install.yaml"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+INSTALL_YAML = PAYLOAD_ROOT / "dotfiles" / "apps" / "ollama" / "tasks" / "install.yaml"
 CONFIRM_NAME = "confirm each instance bound the GPU"
 REPORT_NAME = "report per-GPU instance state"
 

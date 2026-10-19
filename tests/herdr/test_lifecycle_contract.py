@@ -58,9 +58,11 @@ from pathlib import Path
 import pytest
 import yaml
 
-REPO = Path(__file__).resolve().parents[2]
-TOPIC = REPO / "dotfiles" / "apps" / "herdr"
-MISE_TOPIC = REPO / "dotfiles" / "apps" / "mise"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+TOPIC = PAYLOAD_ROOT / "dotfiles" / "apps" / "herdr"
+MISE_TOPIC = PAYLOAD_ROOT / "dotfiles" / "apps" / "mise"
 
 TOPIC_NAME = "herdr"
 
@@ -138,15 +140,18 @@ def hl_load_yaml(relpath: str):
     path = TOPIC / relpath
     if not path.is_file():
         pytest.fail(
-            f"{TOPIC.relative_to(REPO) / relpath} missing — herdr topic not implemented"
+            f"{TOPIC.relative_to(PAYLOAD_ROOT) / relpath} missing — "
+            "herdr topic not implemented"
         )
     try:
         data = yaml.safe_load(path.read_text())
     except yaml.YAMLError as exc:
-        pytest.fail(f"{TOPIC.relative_to(REPO) / relpath} is not valid YAML: {exc}")
+        pytest.fail(
+            f"{TOPIC.relative_to(PAYLOAD_ROOT) / relpath} is not valid YAML: {exc}"
+        )
     if data is None:
         pytest.fail(
-            f"{TOPIC.relative_to(REPO) / relpath} is empty — "
+            f"{TOPIC.relative_to(PAYLOAD_ROOT) / relpath} is empty — "
             f"herdr topic not implemented"
         )
     return data
@@ -157,7 +162,8 @@ def hl_text(relpath: str) -> str:
     path = TOPIC / relpath
     if not path.is_file():
         pytest.fail(
-            f"{TOPIC.relative_to(REPO) / relpath} missing — herdr topic not implemented"
+            f"{TOPIC.relative_to(PAYLOAD_ROOT) / relpath} missing — "
+            "herdr topic not implemented"
         )
     return path.read_text()
 
@@ -388,17 +394,17 @@ def hl_load_yaml_reldir(base: Path, relpath: str):
     path = base / relpath
     if not path.is_file():
         pytest.fail(
-            f"{base.relative_to(REPO) / relpath} missing — required for "
+            f"{base.relative_to(PAYLOAD_ROOT) / relpath} missing — required for "
             f"dependency resolution"
         )
     data = yaml.safe_load(path.read_text())
     if data is None:
-        pytest.fail(f"{base.relative_to(REPO) / relpath} is empty")
+        pytest.fail(f"{base.relative_to(PAYLOAD_ROOT) / relpath} is empty")
     return data
 
 
 def _all_topic_meta():
-    apps = REPO / "dotfiles" / "apps"
+    apps = PAYLOAD_ROOT / "dotfiles" / "apps"
     metas = []
     for topic_yml in sorted(apps.glob("*/topic.yml")):
         data = yaml.safe_load(topic_yml.read_text())
@@ -725,7 +731,8 @@ def test_playbook_passes_ansible_syntax_check():
             "--syntax-check",
             "apps/herdr/playbook.yaml",
         ],
-        cwd=REPO / "dotfiles",  # roles path is the dotfiles root, as run-role.sh
+        # roles path is the dotfiles root, as run-role.sh
+        cwd=PAYLOAD_ROOT / "dotfiles",
         capture_output=True,
         text=True,
     )

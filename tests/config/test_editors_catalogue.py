@@ -12,13 +12,12 @@ violation, not a style preference.
 
 from __future__ import annotations
 
-import pathlib
-
 import yaml
 
-CATALOGUE = (
-    pathlib.Path(__file__).resolve().parents[2] / "dotfiles" / "config" / "editors.yaml"
-)
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+CATALOGUE = PAYLOAD_ROOT / "dotfiles" / "config" / "editors.yaml"
 
 
 def _load() -> dict:
