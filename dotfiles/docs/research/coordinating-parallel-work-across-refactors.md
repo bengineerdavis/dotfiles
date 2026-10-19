@@ -132,34 +132,45 @@ in-flight work, then the move window opens.
 
 ## What running it taught us
 
-Partial — the pilot (the hooks prep, P3, one full cycle) is complete; the
-remaining three preps run in parallel as this is written. Recorded as they
-land, because they are exactly what the next dispatch needs.
+Complete as of 2026-10-19: all four preps (hooks, seam, binned, pin) ran as
+execution sessions and are collected on main; one branch per task held
+throughout; the budget (3) capped dispatch and queued the fourth. What the
+full run taught:
 
-- **Headless permission auto-reject is the main stall.** Compound bash
-  commands (`git a && git b`) fall through the `autonomous` agent's
-  allowlist to `ask`, and headless has no one to answer — auto-reject. So do
-  unallowlisted single commands (`bash -n`). Two working mitigations: the
-  dispatch prompt demands single, simple, allowlisted commands; and the
-  coordinator relays unanswerable checks — it ran `bash -n` itself and
-  returned the result into the same session via `opencode run -s <id>`.
-  The ask-list is also the feature: branch, worktree and PR mutations are
-  refused, which is what kept the executor in its lane.
-- **The agent loop can stop with intent instead of work.** First run ended
-  after "I'll add a focused test…" with nothing done. Recovery is the
-  designed one: `-s <id>` continuation with "end only when the commit
-  exists" in the correction. Dispatch prompts now say both.
-- **The relay held end to end.** Dispatch → stall → coordinator check →
-  relayed answer → continuation → commit → executor parked with "coordinator
-  collects". One live coordinator meant both interruptions cost one message.
-- **Isolation held.** The executor wrote only inside its worktree, committed
-  only on its branch, and never pushed or merged — enforced by the
-  permission refusals, not by politeness.
-- **Collect means verify, not trust.** The coordinator re-ran the focused
-  test and the full suite rather than accepting the executor's report; cheap
-  (52s) and it is what makes the executor's evidence admissible.
-- **The trunk moved mid-collect — expect it.** PR #41 landed between merge
-  and push; the push rejected, the fix was fetch + merge `origin/main` into
-  main + push. Also confirmed the pipe-trap the other way: `| tail -1`
-  masked the push failure long enough for the next command to run. Gates
-  read exit codes, not tails.
+- **Every stall was a permission mechanic, never a work problem.** Compound
+  commands, unallowlisted checks (`bash -n`, pyrefly), and checks against
+  other checkouts all auto-reject in headless. The relay absorbed each at
+  one message: the coordinator ran the check and returned the answer via
+  `-s` continuation. The executor's permission refusals (push, merge,
+  branches) are the lane enforcement working, not friction to remove.
+- **The coordinator hits the same walls.** My own relay commands were
+  auto-rejected twice for compounding; a session id grepped from a log went
+  stale ("Session not found") — session ids come from `opencode session
+  list`; a `cd` before `git branch -d` pointed the delete at the wrong
+  HEAD. One writer per worktree applies to the collector too.
+- **Intent-instead-of-work stops are normal, not failures.** Two executors
+  ended turns with plans. Each recovered on a one-message continuation;
+  dispatch prompts now say "end only when the commit exists".
+- **Sessions survive gaps.** Twelve days passed mid-test (dispatch Oct 7,
+  completion Oct 19); the worktrees held uncommitted work intact, the
+  sessions resumed via `-s`, and the catch-up was one fetch plus a
+  merge-tree check. The ground-shift devices (census, runbook) were what
+  made resuming legible.
+- **A second coordinator appeared mid-run.** Relay titles I did not write
+  sat between mine in the session list. I stood down on dispatch rather
+  than risk conflicting instructions, and resumed on the author's word.
+  The protocol needs a rule for this: when relay ownership is unclear, the
+  coordinator polls and collects but does not re-dispatch.
+- **Executor judgment earned trust twice.** The binned executor declined
+  `ruff format` on grounds the dispatch never mentioned (it would inject
+  3.14-only syntax into a portable script) and was right; the seam executor
+  designed around a conftest load-order collision the task line never
+  anticipated (the sys.modules alias). Naive workers are not mindless ones.
+- **pyrefly checks project state, and group-scoped deps break that.** The
+  molecule tests import testinfra (opt-in `test-vm` group), so the
+  pre-commit pyrefly hook failed on every machine without the group —
+  fixed by excluding the molecule tree (`merge de46484`), which had to ride
+  the merge commit because prek stashes unstaged changes during hooks:
+  config fixes must be staged with the commit that needs them.
+- **Collect means verify, not trust** (unchanged from the pilot, and it
+  held: executor reports matched coordinator re-runs every time).

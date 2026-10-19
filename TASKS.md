@@ -75,10 +75,6 @@ is exactly the collision it exists to prevent.
 
 Format: `- <UTC start> — <what> — <files or resource>`
 
-- 2026-10-04T18:00Z — coordinator for the worker-queue MVP test: prepare
-  execution slots, dispatch via `opencode run`, collect — `TASKS.md`,
-  `.worktrees/payload-*`
-
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
@@ -3476,28 +3472,6 @@ author rather than the machine.
   Done when no doc claims the repo root is the chezmoi source or that docs
   deploy; doc-link/doc-integrity tests green. Depends on the move item
   (nothing to describe until it exists). [unclaimed]
-
-- **Run the worker-queue MVP test: the move's P1–P4 preps as execution
-  sessions.** [decision 2026-10-04: three roles — coordination calls a
-  planner, dispatches execution sessions; docs/PROCESS.md § Three roles]
-  Re-sequenced per the plan-is-a-hypothesis rule: the preps are inert and
-  independently mergeable, so they branch off MAIN and land there first —
-  "land the inert parts, switch last" (AGENTS.md § Commits) — which shrinks
-  the move's atomic commit to `.chezmoiroot` + the `git mv` + the flips.
-  One branch per task, no nesting (agent/payload-seam, agent/payload-binned,
-  agent/payload-hooks, agent/payload-pin); dispatch is `opencode run` in
-  each slot's worktree (`--agent autonomous`, `--title`, session id recorded
-  on the line for relay re-dispatch via `-s`); the budget
-  (`.agent-budget.toml`, this machine: 3) caps concurrent runs — the fourth
-  queues. Executors commit on their branch, never push or merge; blocked →
-  `[blocked: <question>]` on the line, park, coordinator relays. Coordination
-  collects: merge serially, suite after each, gates, then the move branch
-  starts from main carrying all four. Done when: the four prep branches are
-  merged with isolation proven (two executors touched disjoint files
-  concurrently, one full-suite run per collect), the relay worked at least
-  once if a blocker arose, and the learnings land in
-  `dotfiles/docs/research/coordinating-parallel-work-across-refactors.md`
-  § What running it taught us. [claimed: coordinator, agent/queue-test]
 
 - **Restore ruff coverage for the extensionless Python scripts, and fix
   what it surfaces.** [queued 2026-10-13; follow-up to PR #49] The ruff
