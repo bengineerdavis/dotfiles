@@ -1,0 +1,40 @@
+# apps/gita/tasks/remove.yaml
+#
+# Teardown for everything install.yaml creates, per the CRUD ownership
+# invariant in docs/TOPICS.md: the mise entry it claims, and the registration
+# it writes. Ordered so the registration is cleared before the entry is
+# removed — the `gita` binary must still exist while it un-registers.
+#
+# Clones are never deleted — the repos are the author's, gita only indexes
+# them. The mise entry removal is the first-party `mise unuse --global`, which
+# writes through the deployed symlink into the tracked mise config; the change
+# is committed as the capture, same as install.
+
+- name: "Remove: clear all gita registrations (gated)"
+  ansible.builtin.command:
+    cmd: gita clear
+  when: gita_remove_registration | bool
+  changed_when: true
+
+- name: "Remove: probe whether the global mise config declares pipx:gita"
+  ansible.builtin.command:
+    cmd: grep -q -e pipx:gita {{ ansible_facts['env']['HOME'] }}/.config/mise/config.toml
+  register: gita_remove_entry_probe
+  changed_when: false
+  failed_when: false
+  # Read-only probe; runs under --check so the conditional below is defined.
+  check_mode: false
+
+- name: "Remove: unuse the pipx:gita entry through mise (first-party command; commit the captured change after the run)"
+  ansible.builtin.command:
+    cmd: mise unuse --global pipx:gita
+  when: gita_remove_entry_probe.rc == 0
+  changed_when: true
+
+- name: "Remove: report what teardown leaves in place"
+  ansible.builtin.debug:
+    msg: >-
+      Clones are never deleted — this topic indexes repos, it does not own
+      them. Registration was {{ 'cleared' if gita_remove_registration | bool
+         else 'kept (gita_remove_registration is false)' }}; the mise
+      pipx:gita entry was removed.
