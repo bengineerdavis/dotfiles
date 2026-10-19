@@ -40,6 +40,8 @@ def test_default_verb_is_test(scenario_repo: pathlib.Path):
     assert argv == [
         "run",
         "--frozen",
+        "--project",
+        str(scenario_repo),
         "--group",
         "test-vm",
         "molecule",
@@ -57,6 +59,8 @@ def test_every_verb_passes_through(scenario_repo: pathlib.Path):
         assert argv == [
             "run",
             "--frozen",
+            "--project",
+            str(scenario_repo),
             "--group",
             "test-vm",
             "molecule",
@@ -176,6 +180,8 @@ def test_extra_args_pass_through_to_molecule(scenario_repo: pathlib.Path):
     assert argv == [
         "run",
         "--frozen",
+        "--project",
+        str(scenario_repo),
         "--group",
         "test-vm",
         "molecule",
