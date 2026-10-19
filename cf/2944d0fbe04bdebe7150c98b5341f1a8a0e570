@@ -1,0 +1,20 @@
+TASKS.md
+  s_ce2061acb626d0::t_f7a9cb4c85d091 95
+  s_ce2061acb626d0::t_4a13a359a00cec 96-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cf2944d0fbe04bdebe7150c98b5341f1a8a0e570",
+  "prompts": {},
+  "sessions": {
+    "s_ce2061acb626d0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eab8d2e49ffeAMdlhL9hihe2Ng",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
