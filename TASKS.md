@@ -75,11 +75,6 @@ is exactly the collision it exists to prevent.
 
 Format: `- <UTC start> — <what> — <files or resource>`
 
-- 2026-10-19T19:30Z — root-cause the two trunk regressions from PRs #58–63
-  (branch `agent/trunk-regressions`, worktree `.worktrees/trunk-regressions`)
-  — `tests/topics/test_opencode_config_layers.py`,
-  `tests/topics/test_apt_source_audit.py`,
-  `dotfiles/apps/apt/files/apt_keyring.py`
 
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
@@ -3527,23 +3522,6 @@ author rather than the machine.
   tasks; record the storage shape in `PRD.md`/`docs/LAYOUT.md` and the work
   items here. Done when a fresh machine clones dotfiles automatically and no
   update path pulls it.
-
-- **Root-cause the two trunk regressions that landed with PRs #58–63.**
-  [observed 2026-10-19 by the coordinator collecting payload-seam; both
-  reproduced on pristine origin/main 92615ec in a scratch checkout] (a)
-  tests/topics/test_opencode_config_layers.py:
-  test_os_then_host_layers_override_common and
-  test_ruling3_small_model_and_trivial_agents_render fail — opencode-layer
-  rendering, likely from the oc2 work. (b) tests/topics/test_apt_source_audit.py:
-  seven tests error at fixture setup with CalledProcessError — the fixture
-  shells out to dotfiles/apps/apt/files/apt_keyring.py, which a PR in this
-  range changed; the fixture and the script need reconciling. Note for the
-  fixer: the pre-commit pyrefly hook checks project state and now excludes
-  dotfiles/apps/opencode/molecule (merge de46484) because testinfra is
-  group-scoped; check whether these failures share a root cause with that
-  environment split. Done when both suites pass on main from a default
-  environment (no extra groups) or each failure has a named owner and an
-  open PR. [unclaimed]
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 
