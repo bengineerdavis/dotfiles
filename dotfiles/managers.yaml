@@ -21,6 +21,16 @@
 
 version: 1
 
+# Canonical definitions for the playbook_vars a manager lists. The scaffolder
+# splices only the definitions the chosen managers need, so a formula topic
+# does not inherit user_appdir it never uses. Values verified identical across
+# every topic playbook on 2026-10-20 before being lifted here.
+playbook_var_defs:
+  homebrew_prefix: >-
+    {{ '/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local' }}
+  user_appdir: >-
+    {{ ansible_facts['env']['HOME'] }}/Applications
+
 managers:
 
   homebrew_formula:
