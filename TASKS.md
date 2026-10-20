@@ -3552,6 +3552,15 @@ author rather than the machine.
   environment split. Done when both suites pass on main from a default
   environment (no extra groups) or each failure has a named owner and an
   open PR. [unclaimed]
+- Audit the three filled-in old-style root `tasks.yaml` files the A9 sweep
+  left behind. starship (169 lines), zim (111) and ollama (281) carry
+  pre-roles-migration task bodies that nothing loads; the A9 sweep deleted
+  the boilerplate and verified duplicates but left these three because
+  their content may not have been fully absorbed by the migration —
+  starship's Fira Code font install is the visible example. Done when each
+  file's content is either confirmed absorbed by the topic's `tasks/`
+  lifecycle files (and the file deleted) or the missing pieces are moved
+  into the lifecycle files first. [unclaimed]
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 
