@@ -12,9 +12,7 @@
   gather_facts: true
   become: false
 
-  vars:
-    homebrew_prefix: "{{ '/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local' }}"
-    user_appdir: "{{ ansible_facts['env']['HOME'] }}/Applications"
+  # __PLAYBOOK_VARS__
 
   roles:
     - role: apps/<topic>
