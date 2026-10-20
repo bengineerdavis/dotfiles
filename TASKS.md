@@ -88,13 +88,6 @@ delete the line and say so in your commit.
   report (branch `agent/shift_left_scan`, worktree
   `.worktrees/shift-left-scan`) — `TASKS.md`, `.pre-commit-config.yaml`,
   `scripts/`, `tests/`, `.claude/RESEARCH-shift-left-surface-scan.md`
-- 2026-10-20T00:40Z — A9: manager-aware topic generator
-  (tools/topical), template_dir cleanup, scaffold-residue sweep,
-  firefox regeneration (branch agent/topic-cli-a9, worktree
-  .worktrees/topic-cli-a9) — TASKS.md, dotfiles/template_dir,
-  dotfiles/managers.yaml, dotfiles/apps/firefox,
-  dotfiles/apps/*/tasks.yaml, tools/topical, tests/topical,
-  dotfiles/docs/TOPICS.md
 
 ## Where things stand — 2026-09-23 (the session handoff)
 
@@ -1723,6 +1716,11 @@ nothing is.
   that says what it changed.
    [agent: topic-cli-a9 / OpenCode — worktree
    `.worktrees/topic-cli-a9`, branch `agent/topic-cli-a9`]
+   **Paused 2026-10-20 mid-build, clean state, resume from
+   `.claude/HANDOFF-topic-cli-a9.md` on the branch.** Landed: the
+   `playbook_var_defs` data and the template_dir marker cleanup. Next:
+   the generator itself, then the residue sweep, then the firefox
+   regeneration proof.
 
 
 ## Planned
