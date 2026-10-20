@@ -21,7 +21,7 @@ App-tier topics typically leave `bootstrap.yaml`, `prerequisites.yaml`, and
 
 The `meta/` directory is reserved for Ansible/Galaxy use. Our metadata lives
 at the role root (`topic.yml`) so it does not collide with Ansible's strict
-validation of `topic.yml`.
+validation of `meta/main.yml`.
 
 ## topic.yml schema
 
@@ -36,7 +36,7 @@ topic_tier: <pkg-manager|runtime-manager|app>
 ```
 
 The parent playbook reads every topic's `topic.yml` on every run. These keys
-are this project's convention. We deliberately do not use `topic.yml`
+are this project's convention. We deliberately do not use `meta/main.yml`
 because Ansible's role loader validates that file strictly and rejects
 unknown top-level keys.
 
@@ -406,14 +406,19 @@ per topic would be a versioning scheme nothing consumes.
 
 ## Template Conformance
 
-`template_dir/` is the canonical structure. `init-config.sh` copies it verbatim.  
-`migrate-to-roles.sh` uses it as the reference for LLM conformance checks.
+`template_dir/` is the canonical skeleton, and `topical new` (in
+`tools/topical/`) is the way to scaffold from it. The generator copies the
+skeleton, substitutes the topic name through it, and emits only the package
+manager blocks the topic declares — the catalog it reads is
+`dotfiles/managers.yaml`. `init-config.sh` remains as the verbatim-copy
+fallback; it does no substitution, so anything it produces needs the edits
+the generator would have made. `migrate-to-roles.sh` uses the skeleton as
+the reference for its conformance checks.
 
-If you change the canonical structure, update `template_dir/` first,  
-then run `migrate-to-roles.sh` to propagate changes to existing topics.
-
-Do not add `tasks/bootstrap.yaml` or `tasks/prerequisites.yaml` to `template_dir/` —  
-those are system-role-only files.
+All five lifecycle files ship in the template as stubs, because every topic
+must have all five (see § Topic structure above). If you change the
+canonical structure, update `template_dir/` first, then propagate with
+`migrate-to-roles.sh`.
 
 ## Commit granularity
 
@@ -451,16 +456,15 @@ ansible-playbook apps/<topic>/playbook.yaml --check --tags provision
 ```
 
 ```bash
-./init-config.sh my-topic
+uv run --script tools/topical/topical new my-topic --os Darwin --manager homebrew_cask
 ```
 
-This scaffolds `apps/my-topic/` from `template_dir/`. Edit:
-
-1. `apps/my-topic/meta/main.yml` — fill in `topic_name`, `topic_tier`,
-   `topic_requires`, `topic_os`.
-2. `apps/my-topic/tasks/install.yaml` — install steps.
-3. `apps/my-topic/tasks/remove.yaml` — matching teardown.
-4. `apps/my-topic/tasks/upgrade.yaml` — leave empty for app tier; fill in for
-   runtime-manager or pkg-manager tiers.
+This scaffolds `apps/my-topic/` from `template_dir/`, fills `topic.yml`
+from the flags, and emits only the install/remove blocks the declared
+managers need (`--manager` repeats; the catalog is
+`dotfiles/managers.yaml`). It refuses to overwrite an existing topic. What
+remains to edit by hand depends on the manager: nothing for a plain brew
+or apt package; the commented outlines for `apt_repository` and
+`release_artifact`.
 
 The parent playbook picks up the new topic automatically on next run.
