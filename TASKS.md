@@ -88,13 +88,6 @@ delete the line and say so in your commit.
   report (branch `agent/shift_left_scan`, worktree
   `.worktrees/shift-left-scan`) — `TASKS.md`, `.pre-commit-config.yaml`,
   `scripts/`, `tests/`, `.claude/RESEARCH-shift-left-surface-scan.md`
-- 2026-10-20T01:00Z — A9 resumed: generator build, residue sweep,
-  firefox regeneration (branch agent/topic-cli-a9, worktree
-  .worktrees/topic-cli-a9) — TASKS.md, dotfiles/template_dir,
-  dotfiles/managers.yaml, dotfiles/apps/firefox,
-  dotfiles/apps/*/tasks.yaml, tools/topical, tests/topical,
-  dotfiles/docs/TOPICS.md
-
 ## Where things stand — 2026-09-23 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
@@ -1722,11 +1715,13 @@ nothing is.
   that says what it changed.
    [agent: topic-cli-a9 / OpenCode — worktree
    `.worktrees/topic-cli-a9`, branch `agent/topic-cli-a9`]
-   **Paused 2026-10-20 mid-build, clean state, resume from
-   `.claude/HANDOFF-topic-cli-a9.md` on the branch.** Landed: the
-   `playbook_var_defs` data and the template_dir marker cleanup. Next:
-   the generator itself, then the residue sweep, then the firefox
-   regeneration proof.
+   **Generator half delivered 2026-10-20 on the branch, PR pending.**
+   Landed: `topical new` in `tools/topical/` with a suite seen to fail
+   (mutation trailers on the commit), the template_dir marker cleanup,
+   the 20-file scaffold-residue sweep, and firefox regenerated and
+   verified as the A2 proof case. Still open in A9: absorbing
+   `migrate-to-roles.sh`'s conformance logic, and the optional agent
+   pass. Handoff at `.claude/HANDOFF-topic-cli-a9.md` on the branch.
 
 
 ## Planned
