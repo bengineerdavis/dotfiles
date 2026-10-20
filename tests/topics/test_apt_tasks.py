@@ -137,15 +137,25 @@ def test_check_mode_retires_nothing(tmp_path, retired):
 def test_keyrings_with_no_configured_source_are_ok_and_unchanged(tmp_path):
     # The real apt_keyrings entries, but this box has no such sources configured
     # under tmp_path: the helper reports no-source and must not download.
+    # apt_gpg_path points the task's gpg check at a stub so the repair loop
+    # runs on machines whose gpg is not at /usr/bin/gpg (macOS).
+    stub = tmp_path / "gpg-stub"
+    stub.write_text("")
     extra = {
+        "apt_gpg_path": str(stub),
         "apt_keyrings": [
             {
                 "name": "t",
                 "repo_host": "repo.example.invalid",
                 "url": "https://repo.example.invalid/key",
             }
-        ]
+        ],
     }
     out = run(tmp_path, "keyrings.yaml", extra)
     assert recap_changed(out) == 0
-    assert "t: no-source" in out
+    # The loop ran for this keyring (a command-module loop prints the item
+    # label, never the helper's stdout), and the helper — whose no-source
+    # JSON is pinned at helper level by test_apt_source_audit — changed
+    # nothing and downloaded nothing.
+    assert "(item=t)" in out
+    assert not list(tmp_path.rglob("keyring*"))
