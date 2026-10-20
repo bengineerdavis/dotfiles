@@ -88,6 +88,13 @@ delete the line and say so in your commit.
   report (branch `agent/shift_left_scan`, worktree
   `.worktrees/shift-left-scan`) — `TASKS.md`, `.pre-commit-config.yaml`,
   `scripts/`, `tests/`, `.claude/RESEARCH-shift-left-surface-scan.md`
+- 2026-10-20T00:40Z — A9: manager-aware topic generator
+  (tools/topical), template_dir cleanup, scaffold-residue sweep,
+  firefox regeneration (branch agent/topic-cli-a9, worktree
+  .worktrees/topic-cli-a9) — TASKS.md, dotfiles/template_dir,
+  dotfiles/managers.yaml, dotfiles/apps/firefox,
+  dotfiles/apps/*/tasks.yaml, tools/topical, tests/topical,
+  dotfiles/docs/TOPICS.md
 
 ## Where things stand — 2026-09-23 (the session handoff)
 
@@ -1666,6 +1673,57 @@ nothing is.
   `model_providers` block on the already-provisioned OpenRouter key, a model
   call succeeds on the Mac without a subscription, and the teardown removes
   the config it created.
+- A9. **Make `template_dir/` manager-aware and fold it into the CLI, with an
+  optional agent pass on top.** Consumes A8. Today the template is one shape for
+  every topic, so `init-config.sh` copies a scaffold that is wrong for whichever
+  manager the topic actually uses — no `vars:` block for a cask, no `become` for
+  apt, an empty `upgrade.yaml` stub even when the manager's system role will
+  never reach the topic.
+
+  **Decided 2026-09-14: one template plus a generator that emits only what
+  applies, not a set of per-manager variants.** Variants would be five
+  near-identical scaffolds to keep in step, and `dotfiles/managers.yaml` (A8,
+  delivered) already holds the differences as data for the generator to read.
+  Write the generator to be carried into the separate `topical` project rather
+  than as something thrown away here. **Review the choice after using it, not
+  before** — variants read and diff more easily, so if the generator's
+  conditionals grow hairier than five small directories would have been, that is
+  the signal to switch. The trade is recorded so that comparison stays possible.
+
+  First thing the generator should delete: `template_dir/` scaffolds a commented
+  `snap` block that **zero topics use**, and that boilerplate is most of the 37
+  commented-out module lines now sitting in topics that never wanted them.
+  Emitting the one block a topic needs removes the category rather than
+  documenting it. **Also sweep for scaffold-residue artifacts when A9 runs**
+  (author, 2026-09-20): a topic-root `tasks.yaml` carrying unedited template
+  boilerplate is the known instance (deb-get ships one beside its real
+  `tasks/`; ollama carries the same leftover) — the sweep greps topics for
+  the template's comment markers and strips what no topic ever filled in,
+  rather than leaving dead boilerplate beside live tasks.
+  **Do not build a second agent mechanism for the rest.** `migrate-to-roles.sh`
+  already does this job and is the thing to absorb: it treats `template_dir/` as
+  canonical, checks conformance with a **local** LLM (an Ollama chain —
+  devstral-small-2, qwen3.5, mistral-small3.1, with deepseek-r1 and phi4 for
+  reasoning), is re-runnable, has `--dry-run` and prompt previews, and already
+  knows real legacy shapes: `uninstall.yaml` / `cleanup.yaml` / `teardown.yaml`
+  as remove-task sources, stray root files belonging in `files/`, and the
+  system-role topics that carry extra subtasks. That is the "migrations from
+  older or unsupported formats" capability, built and working, sitting outside
+  the CLI that should own it. A7 already covers the migration *inventory*; this
+  is the mechanism.
+  Keep the two passes separate and the second optional: the deterministic
+  scaffold must produce a valid topic on its own, with the agent extending it
+  only for cases the template does not encode — a manager nobody has written a
+  variant for yet, a topic arriving in a shape the rules do not describe. An
+  agent pass that is required rather than optional makes every `topical new`
+  depend on a model being installed and answering, which is a worse failure mode
+  than a scaffold that needs one manual edit. Done when `topical new` emits a
+  topic correct for its manager without an LLM in the loop, `migrate-to-roles.sh`
+  has no logic the CLI lacks, and the agent pass is reachable by an explicit flag
+  that says what it changed.
+   [agent: topic-cli-a9 / OpenCode — worktree
+   `.worktrees/topic-cli-a9`, branch `agent/topic-cli-a9`]
+
 
 ## Planned
 
@@ -2869,54 +2927,6 @@ against this machine and must not be re-litigated.
   end-to-end without editing a topic file directly.
 - A7. Work the roadmap's § Migration inventory. Explicitly out of MVP — do not
   start before A2 and A3 are working.
-- A9. **Make `template_dir/` manager-aware and fold it into the CLI, with an
-  optional agent pass on top.** Consumes A8. Today the template is one shape for
-  every topic, so `init-config.sh` copies a scaffold that is wrong for whichever
-  manager the topic actually uses — no `vars:` block for a cask, no `become` for
-  apt, an empty `upgrade.yaml` stub even when the manager's system role will
-  never reach the topic.
-
-  **Decided 2026-09-14: one template plus a generator that emits only what
-  applies, not a set of per-manager variants.** Variants would be five
-  near-identical scaffolds to keep in step, and `dotfiles/managers.yaml` (A8,
-  delivered) already holds the differences as data for the generator to read.
-  Write the generator to be carried into the separate `topical` project rather
-  than as something thrown away here. **Review the choice after using it, not
-  before** — variants read and diff more easily, so if the generator's
-  conditionals grow hairier than five small directories would have been, that is
-  the signal to switch. The trade is recorded so that comparison stays possible.
-
-  First thing the generator should delete: `template_dir/` scaffolds a commented
-  `snap` block that **zero topics use**, and that boilerplate is most of the 37
-  commented-out module lines now sitting in topics that never wanted them.
-  Emitting the one block a topic needs removes the category rather than
-  documenting it. **Also sweep for scaffold-residue artifacts when A9 runs**
-  (author, 2026-09-20): a topic-root `tasks.yaml` carrying unedited template
-  boilerplate is the known instance (deb-get ships one beside its real
-  `tasks/`; ollama carries the same leftover) — the sweep greps topics for
-  the template's comment markers and strips what no topic ever filled in,
-  rather than leaving dead boilerplate beside live tasks.
-  **Do not build a second agent mechanism for the rest.** `migrate-to-roles.sh`
-  already does this job and is the thing to absorb: it treats `template_dir/` as
-  canonical, checks conformance with a **local** LLM (an Ollama chain —
-  devstral-small-2, qwen3.5, mistral-small3.1, with deepseek-r1 and phi4 for
-  reasoning), is re-runnable, has `--dry-run` and prompt previews, and already
-  knows real legacy shapes: `uninstall.yaml` / `cleanup.yaml` / `teardown.yaml`
-  as remove-task sources, stray root files belonging in `files/`, and the
-  system-role topics that carry extra subtasks. That is the "migrations from
-  older or unsupported formats" capability, built and working, sitting outside
-  the CLI that should own it. A7 already covers the migration *inventory*; this
-  is the mechanism.
-  Keep the two passes separate and the second optional: the deterministic
-  scaffold must produce a valid topic on its own, with the agent extending it
-  only for cases the template does not encode — a manager nobody has written a
-  variant for yet, a topic arriving in a shape the rules do not describe. An
-  agent pass that is required rather than optional makes every `topical new`
-  depend on a model being installed and answering, which is a worse failure mode
-  than a scaffold that needs one manual edit. Done when `topical new` emits a
-  topic correct for its manager without an LLM in the loop, `migrate-to-roles.sh`
-  has no logic the CLI lacks, and the agent pass is reachable by an explicit flag
-  that says what it changed.
 
 ### Topic bundles — data-first grouping
 
