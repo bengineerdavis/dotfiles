@@ -88,6 +88,12 @@ delete the line and say so in your commit.
   report (branch `agent/shift_left_scan`, worktree
   `.worktrees/shift-left-scan`) — `TASKS.md`, `.pre-commit-config.yaml`,
   `scripts/`, `tests/`, `.claude/RESEARCH-shift-left-surface-scan.md`
+- 2026-10-20T01:00Z — A9 resumed: generator build, residue sweep,
+  firefox regeneration (branch agent/topic-cli-a9, worktree
+  .worktrees/topic-cli-a9) — TASKS.md, dotfiles/template_dir,
+  dotfiles/managers.yaml, dotfiles/apps/firefox,
+  dotfiles/apps/*/tasks.yaml, tools/topical, tests/topical,
+  dotfiles/docs/TOPICS.md
 
 ## Where things stand — 2026-09-23 (the session handoff)
 
