@@ -75,6 +75,12 @@ is exactly the collision it exists to prevent.
 
 Format: `- <UTC start> — <what> — <files or resource>`
 
+- 2026-10-19T19:30Z — root-cause the two trunk regressions from PRs #58–63
+  (branch `agent/trunk-regressions`, worktree `.worktrees/trunk-regressions`)
+  — `tests/topics/test_opencode_config_layers.py`,
+  `tests/topics/test_apt_source_audit.py`,
+  `dotfiles/apps/apt/files/apt_keyring.py`
+
 A stale claim is not a lock. If a line looks abandoned, check `git log -3` on the
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
