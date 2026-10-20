@@ -1,4 +1,4 @@
-# apps/<topic>/tasks/main.yaml — role lifecycle router
+# apps/firefox/tasks/main.yaml — role lifecycle router
 #
 # Imports lifecycle subtask files with appropriate tags. The parent playbook
 # (or a standalone topic playbook) drives which phase runs via --tags.
@@ -28,4 +28,6 @@
 
 - name: "Import remove tasks"
   ansible.builtin.import_tasks: remove.yaml
+  # `never` makes remove opt-in: skipped by bare runs and --tags install/provision,
+  # runs only with an explicit --tags remove. See docs/TOPICS.md.
   tags: [remove, never]
