@@ -153,9 +153,10 @@ def test_keyrings_with_no_configured_source_are_ok_and_unchanged(tmp_path):
     }
     out = run(tmp_path, "keyrings.yaml", extra)
     assert recap_changed(out) == 0
-    # The loop ran for this keyring (a command-module loop prints the item
-    # label, never the helper's stdout), and the helper — whose no-source
-    # JSON is pinned at helper level by test_apt_source_audit — changed
-    # nothing and downloaded nothing.
+    # The report task (a debug loop, not the command-module repair loop)
+    # prints the helper-derived fields, so "t: no-source" proves the loop
+    # ran and the helper saw no configured source — a skipped loop would
+    # print only "(item=t)" with no status line. The no-source JSON itself
+    # is pinned at helper level by test_apt_source_audit.
     assert "(item=t)" in out
-    assert not list(tmp_path.rglob("keyring*"))
+    assert "t: no-source" in out

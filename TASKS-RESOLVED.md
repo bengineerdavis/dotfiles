@@ -814,10 +814,12 @@ apply (author-run; completed by the author 2026-10-15).
   a regression test pinning the limit (b05e2a0, mutation-proven: re-
   lengthening the prefix reproduces the failure). (b, real) the
   test_apt_tasks no-source test has been deterministic-red since a44e7f0
-  (Oct 8) rewrote keyrings.yaml: it asserted pre-rewrite output no task
-  shape can produce, and the /usr/bin/gpg check defers on macOS — fixed by
-  an `apt_gpg_path` parameter (default unchanged) and an assertion matching
-  the current task (6fc04a2). (c, not reproduced) the opencode
+  (Oct 8) rewrote keyrings.yaml: the test failed because the task's
+  `/usr/bin/gpg` check defers the report loop on macOS, so the helper's
+  `t: no-source` status — which the loop *does* print — never appeared.
+  The old assertion was achievable, just gated by the deferral: fixed by
+  an `apt_gpg_path` parameter (default unchanged) and an assertion
+  matching the current task (6fc04a2). (c, not reproduced) the opencode
   config-layers pair passes in three independent runs here — standalone,
   pristine-92615ec scratch, two full suites — and is resolved as
   environmental (the observing box had the mise-shadowed opencode drift
