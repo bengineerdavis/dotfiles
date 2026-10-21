@@ -13,9 +13,9 @@ Standalone executable, checksum-verified — no node, bun, or python runtime.
 | | |
 |---|---|
 | Source | `BYK/loreai` GitHub releases |
-| Asset | `lore-{darwin,linux}-{arm64,x64}` (auto-detected) |
+| Asset | `lore-{darwin,linux}-{arm64,x64}.gz` (auto-detected) |
 | Destination | `~/.local/bin/lore` (on PATH via `files/zsh/path.zsh`, no sudo) |
-| Verification | SHA256 from the release's `lore-checksums.txt` |
+| Verification | SHA256 from the GitHub API's per-asset `digest` |
 
 Why not the hosted `curl … | bash`? It is only a downloader plus a
 shell-profile edit. Doing the download natively keeps it idempotent and
