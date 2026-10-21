@@ -70,6 +70,23 @@ provider now points at the gateway, so the gateway must be running —
 `lore start`, or keep launching via `lore run` (which manages the gateway
 per-invocation and needs no setup at all).
 
+## Independence and prerequisites
+
+The topic installs **independently of every other topic**:
+`topic_requires: []` — the binary is standalone and needs no package
+manager, so the parent playbook's dependency resolver asks for nothing.
+The one external tool it shells out to (`gunzip`) is probed up front with
+the fix named. The `llm` key probe degrades to "no OpenRouter key" when
+`llm` is absent; choosing `openrouter` without a resolvable key earns a
+loud warning at install, not a silent worker failure later.
+
+**Agents may arrive in any order, or never.** Detection re-runs on every
+install: an agent installed later is configured on the next run of the
+topic. When **no agent is detected**, the install still succeeds — the
+binary and the per-machine answers land — and the run reports each
+undetected agent with the fix ("install one and re-run the topic, or run
+`lore setup <app>`"). Nothing is half-configured and nothing fails.
+
 ## Worker model: the decision record
 
 Lore has **one** worker model for all background pipelines (distillation,

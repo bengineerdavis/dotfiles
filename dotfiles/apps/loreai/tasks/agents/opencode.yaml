@@ -29,7 +29,7 @@
       the plugin auto-installs on first run and routes sessions through
       the gateway.
       {% else %}
-      opencode detected, but @loreai/opencode is NOT in the deployed
+      opencode is installed, but @loreai/opencode is NOT in the deployed
       ~/.config/opencode/opencode.jsonc yet. The chezmoi template includes
       this topic's files/opencode/lore-plugin.jsonc behind a stat guard —
       run `chezmoi apply ~/.config/opencode` once the topic's commit is

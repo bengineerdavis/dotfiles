@@ -13,6 +13,7 @@
   register: loreai_agent_probes
   changed_when: false
   failed_when: false
+  check_mode: false  # read-only probe; keeps --check detection honest
   loop: "{{ loreai_setup_agents }}"
   loop_control:
     label: "{{ item.app }}"
@@ -38,8 +39,18 @@
         and (loreai_codex_config_stat.results
              | selectattr('item.app', 'equalto', item.0.app) | first).stat.exists)
 
+- name: "loreai: probe for opencode (CLI or deployed config)"
+  ansible.builtin.command: >-
+    command -v opencode ||
+    test -f {{ ansible_env.HOME }}/.config/opencode/opencode.jsonc
+  register: loreai_opencode_probe
+  changed_when: false
+  failed_when: false
+  check_mode: false  # read-only probe; keeps --check detection honest
+
 - name: "loreai: verify the opencode extension"
   ansible.builtin.include_tasks: agents/opencode.yaml
+  when: loreai_opencode_probe.rc == 0
 
 - name: "loreai: report undetected agents"
   ansible.builtin.debug:
