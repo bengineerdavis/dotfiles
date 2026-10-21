@@ -1,0 +1,135 @@
+# apps/loreai/tasks/install.yaml
+#
+# Native equivalent of `curl -fsSL https://withlore.ai/install | bash`
+# (stable channel): pick this platform's asset, read the release's
+# lore-checksums.txt, and place the binary with that checksum enforced —
+# the apps/ori pattern. What we deliberately do NOT inherit from the hosted
+# installer (see defaults/main.yaml for the full list): the shell-profile
+# PATH block (files/zsh/path.zsh owns it) and the telemetry default (the
+# operator answers on first install, saved per machine).
+#
+# Tagged `upgrade` as well as `install`: no system role reaches a
+# GitHub-release binary, so this topic owns its upgrade — one
+# checksum-compared fetch serves both phases (docs/TOPICS.md § "Presence vs
+# currency").
+
+# ── First-install questions, BEFORE anything else ───────────────────────────
+# Asks while the operator is still watching; no-ops once the answers file
+# exists. See prompts.yaml's header.
+
+- name: "Import first-install prompts"
+  ansible.builtin.import_tasks: prompts.yaml
+
+# ── The binary, checksum-verified ───────────────────────────────────────────
+
+- name: "loreai: resolve release asset for this platform"
+  # Upstream publishes lore-{darwin,linux}-{arm64,x64}.gz — no raw binary
+  # asset (verified against the 0.40.0 release 2026-10-21). No musl host is
+  # targeted.
+  ansible.builtin.set_fact:
+    loreai_asset: >-
+      lore-{{ 'darwin' if ansible_facts['system'] == 'Darwin' else 'linux' }}-{{
+        'arm64' if ansible_facts['architecture'] in ['arm64', 'aarch64'] else 'x64' }}.gz
+    loreai_api_base: >-
+      https://api.github.com/repos/BYK/loreai/releases/{{
+        'latest' if loreai_release_tag == 'latest'
+        else 'tags/' ~ loreai_release_tag }}
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: resolve the asset's digest and URL from the release API"
+  # Releases through 0.40.0 have NO lore-checksums.txt asset (the hosted
+  # installer grandfathers them; later releases carry one). The GitHub API
+  # exposes a server-computed sha256 digest per asset on every release —
+  # the same trust anchor the installer uses to authenticate the checksums
+  # file — so this one path verifies every release, checksummed or not
+  # (the apps/roborev pattern).
+  # check_mode: false — read-only GETs that --check needs resolved below.
+  ansible.builtin.uri:
+    url: "{{ loreai_api_base }}"
+    return_content: true
+  register: loreai_release
+  check_mode: false
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: extract this asset's download URL and sha256"
+  ansible.builtin.set_fact:
+    loreai_asset_url: "{{ (loreai_release.json.assets
+        | selectattr('name', 'equalto', loreai_asset) | first).browser_download_url }}"
+    loreai_sha256: "{{ (loreai_release.json.assets
+        | selectattr('name', 'equalto', loreai_asset) | first).digest | regex_replace('^sha256:', '') }}"
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: ensure the install directory exists"
+  ansible.builtin.file:
+    path: "{{ loreai_install_dir }}"
+    state: directory
+    mode: "0755"
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: fetch the release archive (checksum-verified)"
+  ansible.builtin.get_url:
+    url: "{{ loreai_asset_url }}"
+    dest: "{{ loreai_install_dir }}/.{{ loreai_asset }}"
+    checksum: "sha256:{{ loreai_sha256 }}"
+  register: loreai_download
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: decompress the binary and set its mode"
+  # Only on a changed fetch — an unchanged archive means the installed
+  # binary already matches. gunzip has no module for a bare .gz (unarchive
+  # wants a tar), hence the shell redirect; the chmod rides along so no
+  # separate task trips over the absent file in --check.
+  ansible.builtin.shell: >-
+    gunzip -c {{ loreai_install_dir }}/.{{ loreai_asset }}
+    > {{ loreai_install_dir }}/lore
+    && chmod 0755 {{ loreai_install_dir }}/lore
+  when: loreai_download.changed
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: clear the archive"
+  ansible.builtin.file:
+    path: "{{ loreai_install_dir }}/.{{ loreai_asset }}"
+    state: absent
+  when: loreai_download.changed
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: report install state"
+  ansible.builtin.debug:
+    msg: >-
+      lore {{ loreai_release_tag }} ({{ loreai_asset }}) —
+      {{ 'installed/updated' if loreai_download.changed else 'already current' }}
+      at {{ loreai_install_dir }}/lore.
+  tags: [loreai, install, upgrade]
+
+# ── Per-agent extensions, behind detection ──────────────────────────────────
+
+- name: "Import agent integrations"
+  ansible.builtin.import_tasks: agents.yaml
+  tags: [loreai, install]
+
+# ── Existing conversations: report-only (author ruling 2026-10-21) ──────────
+# `lore import` is per-project (default cwd) and idempotent; `lore run`
+# offers a one-time auto-import per newly detected agent. Provisioning does
+# not spend curator tokens: it shows what an import WOULD pick up for the
+# project the playbook runs from, and names the command for any project.
+
+- name: "loreai: show what `lore import` would pick up here"
+  ansible.builtin.command: "{{ loreai_install_dir }}/lore import --dry-run"
+  args:
+    chdir: "{{ playbook_dir }}"
+  register: loreai_import_report
+  changed_when: false
+  failed_when: false
+  tags: [loreai, install]
+
+- name: "loreai: report the import preview"
+  ansible.builtin.debug:
+    msg: >-
+      Existing-conversation import is per-project and idempotent.
+      `lore run` offers a one-time auto-import per newly detected agent;
+      from any project, `lore import --dry-run` previews and
+      `lore import --yes` imports. Preview for {{ playbook_dir }}:
+      {{ (loreai_import_report.stdout_lines | default([])) | join(' | ')
+         if loreai_import_report.rc | default(1) == 0
+         else 'unavailable (' ~ (loreai_import_report.stderr | default('no output')) | trim ~ ')' }}
+  tags: [loreai, install]

@@ -1,0 +1,52 @@
+# apps/loreai/tasks/agents.yaml
+#
+# Each supported coding agent is an "extension" of this topic: detected on
+# the machine, then configured by `lore setup <app>` (idempotent; writes the
+# agent's persistent routing config). Detection mirrors lore's own — a CLI
+# on PATH, plus an existing config file for codex (Codex Desktop ships no
+# CLI). opencode is handled separately: chezmoi owns opencode.jsonc on this
+# fleet, so its integration is a plugin fragment the chezmoi template
+# includes, verified in agents/opencode.yaml.
+
+- name: "loreai: probe for supported coding agents"
+  ansible.builtin.command: "command -v {{ item.probe }}"
+  register: loreai_agent_probes
+  changed_when: false
+  failed_when: false
+  loop: "{{ loreai_setup_agents }}"
+  loop_control:
+    label: "{{ item.app }}"
+
+- name: "loreai: probe for a codex config (Codex Desktop has no CLI)"
+  ansible.builtin.stat:
+    path: "{{ item.config_fallback }}"
+  register: loreai_codex_config_stat
+  when: item.config_fallback is defined
+  loop: "{{ loreai_setup_agents }}"
+  loop_control:
+    label: "{{ item.app }}"
+
+- name: "loreai: configure each detected agent"
+  ansible.builtin.include_tasks: "agents/{{ item.0.app }}.yaml"
+  loop: "{{ loreai_setup_agents | zip(loreai_agent_probes.results) | list }}"
+  loop_control:
+    label: "{{ item.0.app }}"
+  when: >
+    item.1.rc == 0
+    or (item.0.config_fallback is defined
+        and loreai_codex_config_stat.results is defined
+        and (loreai_codex_config_stat.results
+             | selectattr('item.app', 'equalto', item.0.app) | first).stat.exists)
+
+- name: "loreai: verify the opencode extension"
+  ansible.builtin.include_tasks: agents/opencode.yaml
+
+- name: "loreai: report undetected agents"
+  ansible.builtin.debug:
+    msg: >-
+      Not detected, so not configured:
+      {{ loreai_agent_probes.results | rejectattr('rc', 'eq', 0)
+         | map(attribute='item.app') | join(', ') }}.
+      Install one and re-run the topic, or run `lore setup <app>` by hand.
+  when: >
+    loreai_agent_probes.results | rejectattr('rc', 'eq', 0) | list | length > 0
