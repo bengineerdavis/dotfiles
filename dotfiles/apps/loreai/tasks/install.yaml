@@ -20,6 +20,36 @@
 - name: "Import first-install prompts"
   ansible.builtin.import_tasks: prompts.yaml
 
+# ── Prerequisites, flagged before anything is fetched ───────────────────────
+# topic_requires stays empty: the binary is standalone and needs no package
+# manager. What it DOES shell out to is checked here with the fix named —
+# being base-system on both OSes is exactly the assumption worth checking
+# (docs/TOPICS.md § guards). Everything else the topic calls is its own
+# binary or degrades on its own (the `llm` key probe is failed_when: false).
+
+- name: "loreai: check every external tool the install shells out to"
+  ansible.builtin.command: "command -v {{ item }}"
+  register: loreai_tool_probes
+  changed_when: false
+  failed_when: false
+  check_mode: false  # read-only probe; keeps --check detection honest
+  loop: [gunzip]
+  loop_control:
+    label: "{{ item }}"
+
+- name: "loreai: fail with the fix when an install tool is missing"
+  ansible.builtin.fail:
+    msg: >-
+      {{ item.item }} not found on PATH — the lore archive cannot be
+      decompressed without it. Fix: install the gzip package
+      (Debian: `sudo apt install gzip`; macOS: it ships with the base
+      system, so a missing gunzip means a broken PATH). Nothing has been
+      installed or changed.
+  when: item.rc != 0
+  loop: "{{ loreai_tool_probes.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
 # ── The binary, checksum-verified ───────────────────────────────────────────
 
 - name: "loreai: resolve release asset for this platform"
@@ -60,16 +90,25 @@
   tags: [loreai, install, upgrade]
 
 - name: "loreai: ensure the install directory exists"
+  # check_mode: false — get_url validates its destination directory even in
+  # --check, so a fresh machine's dry run fails here without the directory.
+  # Creating the empty dir is the run's own purpose and harmless if a later
+  # task fails.
   ansible.builtin.file:
     path: "{{ loreai_install_dir }}"
     state: directory
     mode: "0755"
+  check_mode: false
   tags: [loreai, install, upgrade]
 
 - name: "loreai: fetch the release archive (checksum-verified)"
+  # The archive is KEPT in the topic's config dir as the local reference:
+  # get_url compares it against the API digest and only re-downloads on a
+  # mismatch — deleting it after decompressing (an earlier cut) made every
+  # run re-download. remove.yaml takes the whole directory away.
   ansible.builtin.get_url:
     url: "{{ loreai_asset_url }}"
-    dest: "{{ loreai_install_dir }}/.{{ loreai_asset }}"
+    dest: "{{ loreai_config_dir }}/{{ loreai_asset }}"
     checksum: "sha256:{{ loreai_sha256 }}"
   register: loreai_download
   tags: [loreai, install, upgrade]
@@ -80,16 +119,9 @@
   # wants a tar), hence the shell redirect; the chmod rides along so no
   # separate task trips over the absent file in --check.
   ansible.builtin.shell: >-
-    gunzip -c {{ loreai_install_dir }}/.{{ loreai_asset }}
+    gunzip -c {{ loreai_config_dir }}/{{ loreai_asset }}
     > {{ loreai_install_dir }}/lore
     && chmod 0755 {{ loreai_install_dir }}/lore
-  when: loreai_download.changed
-  tags: [loreai, install, upgrade]
-
-- name: "loreai: clear the archive"
-  ansible.builtin.file:
-    path: "{{ loreai_install_dir }}/.{{ loreai_asset }}"
-    state: absent
   when: loreai_download.changed
   tags: [loreai, install, upgrade]
 

@@ -29,13 +29,16 @@
     and (ansible_facts['env'].get('TERM', 'dumb') in ['', 'dumb'])
 
 # ── Detection for the inference choices (runs before asking) ─────────────────
+# Probes run whenever answers are needed — also when loreai_inference arrived
+# via -e — because the key-resolvability warning below reads them too.
 
 - name: "loreai: probe for a local inference server (ollama)"
   ansible.builtin.command: command -v ollama
   register: loreai_ollama_probe
   changed_when: false
   failed_when: false
-  when: not loreai_env_stat.stat.exists and loreai_inference is none
+  check_mode: false  # read-only probe; keeps --check detection honest
+  when: not loreai_env_stat.stat.exists
 
 - name: "loreai: probe for an OpenRouter key without printing it"
   # `llm keys get` prints the key on stdout — no_log keeps it out of the run
@@ -45,8 +48,9 @@
   register: loreai_openrouter_probe
   changed_when: false
   failed_when: false
+  check_mode: false  # read-only probe; keeps --check detection honest
   no_log: true
-  when: not loreai_env_stat.stat.exists and loreai_inference is none
+  when: not loreai_env_stat.stat.exists
 
 - name: "loreai: default the inference choice from what is available"
   # Author ruling 2026-10-21: a machine with OpenRouter defaults to it;
@@ -135,6 +139,17 @@
                      if loreai_inference_final == 'local' else '')) }}
   when: not loreai_env_stat.stat.exists
 
+- name: "loreai: create the per-machine config directory"
+  # check_mode: false — get_url (install.yaml) validates its destination
+  # directory even in --check, and the archive lands here. An empty dir is
+  # the run's own purpose and harmless if a later task fails.
+  ansible.builtin.file:
+    path: "{{ loreai_config_dir }}"
+    state: directory
+    mode: "0700"
+  check_mode: false
+  when: not loreai_env_stat.stat.exists
+
 - name: "loreai: save the answers per machine"
   ansible.builtin.template:
     src: loreai-env.zsh.j2
@@ -151,6 +166,22 @@
          if loreai_worker_model_final | default('') | length > 0 else '' }}.
       Edit the file to change; delete it and re-run to be asked again.
   when: not loreai_env_stat.stat.exists
+
+- name: "loreai: warn loudly when openrouter was chosen without a resolvable key"
+  # Not a fail — the operator may be about to add the key. But a silent
+  # choice here fails later, at worker runtime, with a less obvious error.
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: inference=openrouter but no OpenRouter key was detected
+      (llm keys get openrouter failed; OPENROUTER_API_KEY unset). Workers
+      will fail at runtime until one exists. Fix any of: `llm keys set
+      openrouter`, export OPENROUTER_API_KEY, or fill in the 1Password line
+      in {{ loreai_env_file }}.
+  when: >
+    not loreai_env_stat.stat.exists
+    and loreai_inference_final == 'openrouter'
+    and loreai_openrouter_probe.rc | default(1) != 0
+    and ansible_facts['env'].get('OPENROUTER_API_KEY', '') | length == 0
 
 - name: "loreai: note the saved answers are in force"
   ansible.builtin.debug:
