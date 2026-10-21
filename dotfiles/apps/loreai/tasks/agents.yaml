@@ -9,7 +9,11 @@
 # includes, verified in agents/opencode.yaml.
 
 - name: "loreai: probe for supported coding agents"
-  ansible.builtin.command: "command -v {{ item.probe }}"
+  # The shell form, not the command module: the command module passes `||`
+  # as a literal operand, and `command -v a b c` then resolves ANY token —
+  # a false-positive detection machine (roborev review, PR #70).
+  ansible.builtin.shell:
+    cmd: command -v {{ item.probe | quote }} >/dev/null 2>&1
   register: loreai_agent_probes
   changed_when: false
   failed_when: false
@@ -40,9 +44,10 @@
              | selectattr('item.app', 'equalto', item.0.app) | first).stat.exists)
 
 - name: "loreai: probe for opencode (CLI or deployed config)"
-  ansible.builtin.command: >-
-    command -v opencode ||
-    test -f {{ ansible_env.HOME }}/.config/opencode/opencode.jsonc
+  ansible.builtin.shell:
+    cmd: >-
+      command -v opencode >/dev/null 2>&1
+      || test -f "$HOME/.config/opencode/opencode.jsonc"
   register: loreai_opencode_probe
   changed_when: false
   failed_when: false

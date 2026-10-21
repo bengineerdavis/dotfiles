@@ -33,7 +33,8 @@
 # via -e — because the key-resolvability warning below reads them too.
 
 - name: "loreai: probe for a local inference server (ollama)"
-  ansible.builtin.command: command -v ollama
+  ansible.builtin.shell:
+    cmd: command -v ollama >/dev/null 2>&1
   register: loreai_ollama_probe
   changed_when: false
   failed_when: false
@@ -44,7 +45,8 @@
   # `llm keys get` prints the key on stdout — no_log keeps it out of the run
   # log; only the exit code (key present or not) is used. The key itself is
   # resolved at shell start by the env file, never written down here.
-  ansible.builtin.command: llm keys get openrouter
+  ansible.builtin.shell:
+    cmd: llm keys get openrouter >/dev/null 2>&1
   register: loreai_openrouter_probe
   changed_when: false
   failed_when: false
