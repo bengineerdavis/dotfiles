@@ -1,9 +1,0 @@
-# apps/mise/main.yaml
----
-- name: "Run {{ role_name }} role standalone"
-  hosts: localhost
-  gather_facts: true
-  become: false
-
-  roles:
-    - apps/{{ role_name }}

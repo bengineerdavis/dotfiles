@@ -1,8 +1,8 @@
 # managers.yaml — what each dependency manager requires of a topic.
 #
-# Lives here, beside playbook.yaml and requirements.yml, and NOT inside
-# template_dir/: init-config.sh copies that directory verbatim, so anything
-# placed there lands in every generated topic.
+# Lives here, beside playbook.yaml and requirements.yml, because it is fleet
+# data: the scaffolder (topical, in its own repo) reads this file from the
+# checkout, while the canonical topic skeleton ships with the tool.
 #
 # Derived from the 27 existing topics on 2026-09-14, not invented — the counts
 # below are real usage with commented-out template blocks excluded. Consumed by
@@ -20,6 +20,16 @@
 #   os            which topic_os values it is valid for
 
 version: 1
+
+# Canonical definitions for the playbook_vars a manager lists. The scaffolder
+# splices only the definitions the chosen managers need, so a formula topic
+# does not inherit user_appdir it never uses. Values verified identical across
+# every topic playbook on 2026-10-20 before being lifted here.
+playbook_var_defs:
+  homebrew_prefix: >-
+    {{ '/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local' }}
+  user_appdir: >-
+    {{ ansible_facts['env']['HOME'] }}/Applications
 
 managers:
 

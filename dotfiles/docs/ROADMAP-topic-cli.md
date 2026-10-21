@@ -429,3 +429,15 @@ is not already one open for it. Offer, not act.
 This is the same posture `TASKS.md` already sets for `dotfiles-triage`: diagnose
 and propose, never self-apply. Two features arriving at the same rule
 independently is a good sign it is the right one.
+
+## The template items live in topical, then in the copier repo — 2026-10-20
+
+The author settled the ownership question the copier task (TASKS.md) left
+open — "they should share the canonical template rather than diverge;
+decide which owns it before the second is built." The canonical topic
+skeleton and the manager block templates moved into the topical repository
+with the generator (first commit there: the skeleton's import from
+`dotfiles/template_dir`). The copier topic template inherits from topical
+when it is built. `dotfiles/template_dir` and `init-config.sh` were removed
+in the same change; the fleet's `managers.yaml` stays in the dotfiles
+checkout — it is fleet data, read from the target repo at scaffold time.

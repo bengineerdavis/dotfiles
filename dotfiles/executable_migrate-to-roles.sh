@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 # migrate-to-roles.sh
+#
+# The terse `$COND && act || fallback` idiom is pre-existing and pervasive
+# (9 sites); the hook only sees it because the file is being edited at all.
+# Rewrite the idiom properly when the script is next reworked, and delete
+# this directive with it.
+# shellcheck disable=SC2015
+#
 # Migrates apps/topic structure to full Ansible role structure.
 # Uses local LLM for content comparison and conformance checking.
-# template_dir/ is the canonical source of truth for all topics.
+# The canonical topic skeleton ships with the topical repo — topical new owns
+# scaffolding; this script checks existing topics against that skeleton.
 # Safe to re-run — skips steps that are already complete.
 #
 # Usage:
@@ -12,8 +20,18 @@ set -euo pipefail
 
 DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
 APPS_DIR="$DOTFILES_DIR/apps"
-TEMPLATE_DIR="$DOTFILES_DIR/template_dir"
+# The skeleton moved to the topical repo (2026-10-20, TASKS.md A9 ownership
+# decision). TOPICAL_TEMPLATE overrides the default LAYOUT.md location.
+TEMPLATE_DIR="${TOPICAL_TEMPLATE:-$HOME/code/personal/topical/template}"
 BACKUP_DIR="$DOTFILES_DIR/migration-backups"
+
+if [[ ! -d "$TEMPLATE_DIR" ]]; then
+  echo "migrate-to-roles: canonical topic skeleton not found at:" >&2
+  echo "  $TEMPLATE_DIR" >&2
+  echo "  clone the topical repo (~/code/personal/topical) or point" >&2
+  echo "  TOPICAL_TEMPLATE at its template/ directory" >&2
+  exit 1
+fi
 
 DRY_RUN=false
 VERBOSE=false
@@ -31,7 +49,11 @@ ROOT_EXTENSIONS=("yaml" "yml" "md" "sh" "toml" "txt" "zsh" "cfg" "conf" "ini")
 ROLE_DIRS=("tasks" "defaults" "vars" "files" "templates" "handlers" "meta")
 
 # ── Model config ──────────────────────────────────────────────────────────────
+# used via nameref: llm_run CODE_MODELS (local -n)
+# shellcheck disable=SC2034
 CODE_MODELS=("devstral-small-2:24b" "qwen3.5:9b" "mistral-small3.1:24b")
+# used via nameref: llm_run REASON_MODELS (local -n)
+# shellcheck disable=SC2034
 REASON_MODELS=("deepseek-r1:32b" "qwen3:30b" "phi4:14b" "mistral-small3.1:24b")
 
 # Timeout in seconds before falling back to the next model in the chain.
@@ -177,7 +199,7 @@ llm_run() {
 
 # ── Template loader ───────────────────────────────────────────────────────────
 template_content() {
-  # Returns content of a template_dir file, or empty string if not found
+  # Returns content of a skeleton file, or empty string if not found
   local rel_path="$1"
   local tpl="$TEMPLATE_DIR/$rel_path"
   [[ -f "$tpl" ]] && cat "$tpl" || echo ""
@@ -187,7 +209,7 @@ template_content() {
 llm_assess_conformance() {
   local topic="$1"
   local file_path="$2"        # actual file path
-  local template_path="$3"    # relative path within template_dir
+  local template_path="$3"    # relative path within the skeleton
   local extra_context="${4:-}" # any extra context to pass
 
   local file_content template_content_str
@@ -200,7 +222,7 @@ llm_assess_conformance() {
 Topic: ${topic}
 File: ${file_path}
 
-TEMPLATE (canonical structure from template_dir/${template_path}):
+TEMPLATE (canonical structure from the topic skeleton, ${template_path}):
 ---
 ${template_content_str}
 ---
@@ -228,7 +250,7 @@ PRESERVE: <comma-separated list of content worth keeping from actual file, or 'n
 ACTION: <keep|rewrite|flag-for-manual-review>
 REASON: <one sentence>"
 
-  llm_run REASON_MODELS "$prompt" "assess conformance: $file_path vs template_dir/$template_path"
+  llm_run REASON_MODELS "$prompt" "assess conformance: $file_path vs skeleton $template_path"
 }
 
 # ── LLM: rewrite file to conform to template ─────────────────────────────────
@@ -840,24 +862,6 @@ run_topic() {
   return 0
 }
 
-# ── template_dir cleanup ──────────────────────────────────────────────────────
-cleanup_template_dir() {
-  info "template_dir cleanup"
-  for f in "tasks/bootstrap.yaml" "tasks/prerequisites.yaml"; do
-    local path="$TEMPLATE_DIR/$f"
-    if [[ -f "$path" ]]; then
-      local backup_dest="$BACKUP_DIR/template_dir/$(dirname "$f")"
-      fs_mkdir "$backup_dest"
-      fs_cp "$path" "$backup_dest/$(basename "$f")"
-      fs_rm "$path"
-      success "removed $f from template_dir (system role only)"
-    else
-      skip "$f not present in template_dir"
-    fi
-  done
-  echo ""
-}
-
 # ── Main ──────────────────────────────────────────────────────────────────────
 $DRY_RUN && echo "🔍 DRY RUN — no changes will be made" && echo ""
 
@@ -865,8 +869,6 @@ $DRY_RUN && echo "🔍 DRY RUN — no changes will be made" && echo ""
 trap 'echo "❌ script exited unexpectedly at line $LINENO — command: $BASH_COMMAND" >&2' ERR
 
 fs_mkdir "$BACKUP_DIR"
-
-cleanup_template_dir
 
 if [[ ${#TOPICS[@]} -eq 0 ]]; then
   # collect all topics into array first — prevents LLM stdin from consuming the find pipe

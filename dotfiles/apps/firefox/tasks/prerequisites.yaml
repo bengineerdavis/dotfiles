@@ -1,9 +1,9 @@
-# apps/<topic>/tasks/prerequisites.yaml
+# apps/firefox/tasks/prerequisites.yaml
 # Core dependencies required before this topic can install or upgrade.
 #
 # Only pkg-manager-tier topics typically need real content here (e.g., Xcode
 # CLI tools for Homebrew). App-tier and runtime-manager topics leave this
-# empty — their dependencies are expressed via topic_requires in meta/main.yml
+# empty — their dependencies are expressed via topic_requires in topic.yml
 # and resolved by the parent playbook.
 #
 # Idempotent: safe to re-run. No confirmation needed.

@@ -1,4 +1,4 @@
-# apps/<topic>/tasks/upgrade.yaml
+# apps/firefox/tasks/upgrade.yaml
 # Topic-level upgrade tasks. Refresh state this topic owns.
 #
 # App-tier topics (those installed via brew/apt/cask) typically leave this
@@ -22,9 +22,15 @@
 # Only add tasks here for state apt-upgrade does not refresh.
 
 # ── Topic-specific upgrade examples ───────────────────────────────────────────
-# - name: "Upgrade <topic>-managed tools"
+# - name: "Upgrade firefox-managed tools"
 #   ansible.builtin.command:
-#     cmd: <topic> upgrade --all
-#   register: <topic>_upgrade_result
-#   changed_when: <topic>_upgrade_result.rc == 0
+#     cmd: firefox upgrade --all
+#   register: firefox_upgrade_result
+#   changed_when: firefox_upgrade_result.rc == 0
 #   when: ansible_facts['os_family'] == 'Darwin'
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Generated upgrade guidance (topical new)
+# ──────────────────────────────────────────────────────────────────────────────
+# Covered by the apps/homebrew upgrade pass — nothing to add here.

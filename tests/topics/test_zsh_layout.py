@@ -18,8 +18,9 @@ file. That is not hypothetical — 1857605 wrote the PyMuPDF fix to both
 ever ran. A `trash-cli` copy also sat stale for months still aliasing `tr`,
 shadowing the coreutils binary, long after the live copy renamed it `trr`.
 
-`template_dir/` already scaffolds only `files/zsh/`, so nothing regenerates
-these. They can only return by hand, which is what this test catches.
+The scaffold side — that the skeleton only emits `files/zsh/` — is guarded
+where the skeleton now lives: tests/test_template_layout.py in the topical
+repo. This suite guards the topics.
 
 Run:
     pytest tests/topics -v
@@ -33,7 +34,6 @@ import pathlib
 from payload_seam import PAYLOAD_ROOT
 
 APPS = PAYLOAD_ROOT / "dotfiles" / "apps"
-TEMPLATE = PAYLOAD_ROOT / "dotfiles" / "template_dir"
 
 CANONICAL = "apps/<topic>/files/zsh/*.zsh"
 
@@ -77,18 +77,6 @@ def test_no_legacy_zsh_subdirectory_at_all():
             f"{d.relative_to(PAYLOAD_ROOT)}  ({len(list(d.iterdir()))} entries)"
             for d in legacy
         )
-    )
-
-
-def test_scaffold_only_emits_the_canonical_layout():
-    """If the generator drifts, every new topic reintroduces the bug."""
-    if not TEMPLATE.is_dir():
-        return  # scaffold is optional; nothing to guard
-    stray = sorted(TEMPLATE.glob("*.zsh")) + sorted((TEMPLATE / "zsh").glob("*.zsh"))
-    assert not stray, (
-        "template_dir scaffolds zsh fragments outside files/zsh/, so every "
-        "topic generated from it starts with dead copies:\n  "
-        + "\n  ".join(str(p.relative_to(PAYLOAD_ROOT)) for p in stray)
     )
 
 

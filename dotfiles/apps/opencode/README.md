@@ -32,6 +32,9 @@ decision 2's safe default, 2026-10-06). A machine carrying a homebrew/core
 `opencode` rather than this tap's fails with brew's readable conflict error
 instead.
 
+A second install channel can shadow this binary — see the CHANGELOG
+known_issues entry dated 2026-10-19 before trusting `opencode --version`.
+
 ### The tap must be trusted first
 
 Homebrew 7 refuses to load formulae from a third-party tap until the tap is
