@@ -1764,6 +1764,7 @@ nothing is.
   open with syntax-check and `--check` evidence and the author has
   answered the merge quiz. [agent: this session] (branch
   `agent/loreai_topic`, worktree `.worktrees/loreai-topic`).
+  **PR #70 open 2026-10-21** — awaiting author review + quiz.
 
 ## Planned
 
