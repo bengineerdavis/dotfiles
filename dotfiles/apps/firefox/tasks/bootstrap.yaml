@@ -1,4 +1,4 @@
-# apps/<topic>/tasks/bootstrap.yaml
+# apps/firefox/tasks/bootstrap.yaml
 # First-time setup of a system tool on a fresh machine. Confirmed, never silent.
 #
 # Only pkg-manager-tier topics typically need real content here. App-tier and
@@ -9,20 +9,20 @@
 # Do NOT put install, upgrade, or remove logic here.
 
 # ── Example: bootstrap a pkg-manager binary ───────────────────────────────────
-# - name: "Bootstrap: check <topic> binary exists"
+# - name: "Bootstrap: check firefox binary exists"
 #   ansible.builtin.stat:
-#     path: "{{ <topic>_bin }}"
-#   register: <topic>_bootstrap_stat
+#     path: "{{ firefox_bin }}"
+#   register: firefox_bootstrap_stat
 #
-# - name: "Bootstrap: confirm <topic> installation"
+# - name: "Bootstrap: confirm firefox installation"
 #   ansible.builtin.pause:
 #     prompt: |
-#       <topic> not found. Install now? [y/N]
-#   register: <topic>_bootstrap_confirm
-#   when: not <topic>_bootstrap_stat.stat.exists
+#       firefox not found. Install now? [y/N]
+#   register: firefox_bootstrap_confirm
+#   when: not firefox_bootstrap_stat.stat.exists
 #
-# - name: "Bootstrap: install <topic>"
+# - name: "Bootstrap: install firefox"
 #   ansible.builtin.shell: <install command>
 #   when:
-#     - not <topic>_bootstrap_stat.stat.exists
-#     - <topic>_bootstrap_confirm.user_input | default('n') | lower == 'y'
+#     - not firefox_bootstrap_stat.stat.exists
+#     - firefox_bootstrap_confirm.user_input | default('n') | lower == 'y'

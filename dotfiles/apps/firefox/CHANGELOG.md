@@ -1,4 +1,4 @@
-# <topic> — changelog
+# firefox — changelog
 
 This topic's own history. It travels with the directory, so a topic lifted into
 another repository arrives with its history and its edge cases intact. See
