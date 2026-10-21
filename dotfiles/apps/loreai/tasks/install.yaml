@@ -1,12 +1,16 @@
 # apps/loreai/tasks/install.yaml
 #
 # Native equivalent of `curl -fsSL https://withlore.ai/install | bash`
-# (stable channel): pick this platform's asset, read the release's
-# lore-checksums.txt, and place the binary with that checksum enforced —
-# the apps/ori pattern. What we deliberately do NOT inherit from the hosted
-# installer (see defaults/main.yaml for the full list): the shell-profile
-# PATH block (files/zsh/path.zsh owns it) and the telemetry default (the
-# operator answers on first install, saved per machine).
+# (stable channel): pick this platform's .gz asset, read its SHA256 from
+# the GitHub API's per-asset `digest` field, download with that checksum
+# enforced, and gunzip into place. Releases through 0.40.0 carry no
+# lore-checksums.txt (the hosted installer grandfathers them), so the API
+# digest — the same trust anchor the installer uses to authenticate the
+# checksums file — is the one mechanism that covers every release shape
+# (the apps/roborev pattern). What we deliberately do NOT inherit from the
+# hosted installer (see defaults/main.yaml for the full list): the
+# shell-profile PATH block (files/zsh/path.zsh owns it) and the telemetry
+# default (the operator answers on first install, saved per machine).
 #
 # Tagged `upgrade` as well as `install`: no system role reaches a
 # GitHub-release binary, so this topic owns its upgrade — one
@@ -28,7 +32,8 @@
 # binary or degrades on its own (the `llm` key probe is failed_when: false).
 
 - name: "loreai: check every external tool the install shells out to"
-  ansible.builtin.command: "command -v {{ item }}"
+  ansible.builtin.shell:
+    cmd: command -v {{ item | quote }} >/dev/null 2>&1
   register: loreai_tool_probes
   changed_when: false
   failed_when: false
@@ -84,9 +89,27 @@
 - name: "loreai: extract this asset's download URL and sha256"
   ansible.builtin.set_fact:
     loreai_asset_url: "{{ (loreai_release.json.assets
-        | selectattr('name', 'equalto', loreai_asset) | first).browser_download_url }}"
+        | selectattr('name', 'equalto', loreai_asset) | first
+        | default({})).browser_download_url | default('') }}"
     loreai_sha256: "{{ (loreai_release.json.assets
-        | selectattr('name', 'equalto', loreai_asset) | first).digest | regex_replace('^sha256:', '') }}"
+        | selectattr('name', 'equalto', loreai_asset) | first
+        | default({})).digest | default('') | regex_replace('^sha256:', '') }}"
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: fail closed when no digest or URL resolved for this asset"
+  # The apps/roborev guard for this exact failure: an asset that never got a
+  # digest (a pinned tag predating them, a changed release shape) must name
+  # the problem and the fix, not die on a cryptic Jinja undefined or —
+  # worse — download unverified.
+  ansible.builtin.assert:
+    that:
+      - loreai_sha256 is match('^[0-9a-f]{64}$')
+      - loreai_asset_url is match('^https://')
+    fail_msg: >-
+      No sha256 digest or download URL resolved for {{ loreai_asset }} at
+      {{ loreai_api_base }} — the release shape may have changed, or the
+      pinned loreai_release_tag ({{ loreai_release_tag }}) predates
+      per-asset digests. Nothing has been downloaded.
   tags: [loreai, install, upgrade]
 
 - name: "loreai: ensure the install directory exists"
