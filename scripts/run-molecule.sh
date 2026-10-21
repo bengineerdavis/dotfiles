@@ -71,8 +71,12 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 # Collections are user-level state the wrapper may write (PLAN.md § Destroy
-# safety): idempotent, skips what is present.
-uv run --frozen --group test-vm \
+# safety): idempotent, skips what is present. --project pins uv to THIS
+# checkout's pyproject: uv otherwise discovers the project from the caller's
+# cwd, so a run from outside the worktree that has the test-vm group fails
+# with "Group `test-vm` is not defined" — caught by the confirmation run
+# 2026-10-19 executing from the main checkout (measured, see the commit).
+uv run --frozen --project "$REPO_ROOT" --group test-vm \
   ansible-galaxy collection install -r "$DOTFILES/requirements.yml"
 
 # molecule 26.9.0 ships the vagrant driver's `vagrant` module inside the
@@ -83,7 +87,7 @@ uv run --frozen --group test-vm \
 # path is computed from the locked environment, never hand-written, and
 # stops being needed the moment molecule fixes the wiring upstream
 # (re-check at the next molecule re-lock per O2).
-VAGRANT_MODULES="$(uv run --frozen --group test-vm python -c \
+VAGRANT_MODULES="$(uv run --frozen --project "$REPO_ROOT" --group test-vm python -c \
   'import molecule_plugins.vagrant.modules as m, os; print(os.path.dirname(m.__file__))')"
 export ANSIBLE_LIBRARY="$VAGRANT_MODULES"
 
@@ -103,4 +107,4 @@ cd "$SCENARIO_PARENT"
 # --driver-name on create/prepare/destroy/test but rejects it on
 # converge/idempotence/verify/login (measured 2026-10-11), and an override
 # the config already names is not worth per-verb dispatch.
-exec uv run --frozen --group test-vm molecule "$VERB" -s default "$@"
+exec uv run --frozen --project "$REPO_ROOT" --group test-vm molecule "$VERB" -s default "$@"
