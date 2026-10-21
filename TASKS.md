@@ -88,6 +88,10 @@ delete the line and say so in your commit.
   report (branch `agent/shift_left_scan`, worktree
   `.worktrees/shift-left-scan`) — `TASKS.md`, `.pre-commit-config.yaml`,
   `scripts/`, `tests/`, `.claude/RESEARCH-shift-left-surface-scan.md`
+- 2026-10-21T21:35Z — skill-trust ask-first resolution (branch
+  agent/skill_trust_resolve, worktree .worktrees/skill-trust-resolve) —
+  `TASKS.md`, `tools/skill-trust/`, `dotfiles/roles/guards/`,
+  `dotfiles/executable_update.sh`, `dotfiles/apps/opencode/`
 ## Where things stand — 2026-09-23 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
