@@ -179,11 +179,13 @@ def cmd_audit(args) -> int:
                 declared[entry["name"]] = entry["source"]
 
     vendored = set(config.get("vendored") or [])
+    include_hidden = set(config.get("include_hidden") or [])
     foreign = bool(config.get("foreign_buckets", True))
     buckets = find_buckets(root) if foreign else []
     bucket_ids = {b.id for b in buckets}
     today = datetime.date.today().isoformat()
     problems: list[tuple[str, Decision]] = []
+    skipped_hidden: list[str] = []
     # Counted before the vendored skip on purpose: a directory whose skills are
     # all exempt is fully accounted for, not unexamined. Conflating the two would
     # report UNKNOWN for a correctly configured machine.
@@ -194,6 +196,19 @@ def cmd_audit(args) -> int:
         # a .DS_Store — is not an undeclared skill, and reporting it as one
         # trains people to ignore the audit.
         name = path.name
+        if name.startswith(".") and name not in include_hidden:
+            # Hidden directories are not skill load paths for the loaders that
+            # could be checked (verified 2026-10-21): dotagents excludes them
+            # mechanically (its SKILL_NAME_RE requires an alphanumeric first
+            # character, and its sync names hidden dirs — including .trash/ —
+            # as non-skills); opencode's skill-scan filters dot entries;
+            # codex's host loader prunes hidden directories. claude-code,
+            # cursor and copilot are closed or minified and are UNVERIFIED —
+            # which is why a skip is still REPORTED below: a skip nobody can
+            # see is a place to hide something, and include_hidden puts a
+            # named directory back under judgement.
+            skipped_hidden.append(name)
+            continue
         if name == "synced" and foreign:
             # The `synced` container is not a skill. Its evidenced children are
             # foreign buckets and get the recorded `external` verdict; its other
@@ -252,13 +267,23 @@ def cmd_audit(args) -> int:
         if not decision.permitted:
             problems.append((name, decision))
 
+    for name in skipped_hidden:
+        print(
+            f"SKIPPED [hidden] {name}: hidden directory, not audited; "
+            "name it in include_hidden to audit it"
+        )
     for name, decision in problems:
         print(f"DENIED [{decision.rule}] {name}: {decision.reason}")
     if not seen:
         print(f"skill-trust: {root} holds no skill directories", file=sys.stderr)
         return UNKNOWN
     if not problems:
-        print(f"PERMITTED all {seen} skill(s) in {root} are accounted for")
+        suffix = ""
+        if skipped_hidden:
+            suffix = (
+                f" ({len(skipped_hidden)} hidden skipped: {', '.join(skipped_hidden)})"
+            )
+        print(f"PERMITTED all {seen} skill(s) in {root} are accounted for{suffix}")
         return PERMITTED
     return DENIED
 
