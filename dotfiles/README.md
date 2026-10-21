@@ -125,10 +125,8 @@ handles bulk-pulling new models. Completions are installed to
 dotfiles/
 ├── playbook.yaml           # Ansible entry point (dynamically loads topic roles)
 ├── ansible.cfg             # Ansible configuration
-├── init-config.sh          # scaffold a new topic from template_dir
 ├── migrate-to-roles.sh     # migrate old topic structure to current standard
 ├── update.sh               # run Ansible update pass (also called by cron)
-├── template_dir/           # canonical topic template (role layout)
 ├── test/                   # BATS bash test suite
 ├── apps/                   # one subdirectory per topic
 │   ├── homebrew/           # system role: macOS package manager

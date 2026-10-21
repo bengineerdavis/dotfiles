@@ -1,5 +1,13 @@
 # HANDOFF — A9: manager-aware topic generator (topic-cli-a9)
 
+> **Superseded 2026-10-20, after the pause.** The author redirected the
+> interim home this handoff chose (`tools/topical/` here): the generator,
+> block templates and canonical skeleton moved to the topical repo
+> (`~/code/personal/topical`), which the copier topic template will later
+> inherit from. The design below stands apart from that one decision —
+> "Interim home" and anything naming `tools/topical/` or a local
+> `template_dir/` is stale.
+
 Paused 2026-10-20, mid-build, in a clean state: three commits on the branch,
 working tree clean, next step is writing the generator itself. Resume in
 worktree `.worktrees/topic-cli-a9`, branch `agent/topic-cli-a9`.

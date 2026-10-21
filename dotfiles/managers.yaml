@@ -1,8 +1,8 @@
 # managers.yaml — what each dependency manager requires of a topic.
 #
-# Lives here, beside playbook.yaml and requirements.yml, and NOT inside
-# template_dir/: init-config.sh copies that directory verbatim, so anything
-# placed there lands in every generated topic.
+# Lives here, beside playbook.yaml and requirements.yml, because it is fleet
+# data: the scaffolder (topical, in its own repo) reads this file from the
+# checkout, while the canonical topic skeleton ships with the tool.
 #
 # Derived from the 27 existing topics on 2026-09-14, not invented — the counts
 # below are real usage with commented-out template blocks excluded. Consumed by

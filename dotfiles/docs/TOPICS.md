@@ -406,19 +406,19 @@ per topic would be a versioning scheme nothing consumes.
 
 ## Template Conformance
 
-`template_dir/` is the canonical skeleton, and `topical new` (in
-`tools/topical/`) is the way to scaffold from it. The generator copies the
-skeleton, substitutes the topic name through it, and emits only the package
-manager blocks the topic declares — the catalog it reads is
-`dotfiles/managers.yaml`. `init-config.sh` remains as the verbatim-copy
-fallback; it does no substitution, so anything it produces needs the edits
-the generator would have made. `migrate-to-roles.sh` uses the skeleton as
-the reference for its conformance checks.
+The canonical topic skeleton ships with the topical repo (checked out at
+`~/code/personal/topical` on this fleet's layout — see `docs/LAYOUT.md`;
+`TOPICAL_TEMPLATE` overrides the lookup), and `topical new` is the way to
+scaffold from it. The generator copies the skeleton, substitutes the topic
+name through it, and emits only the package manager blocks the topic
+declares — the catalog it reads is `dotfiles/managers.yaml` here.
+`migrate-to-roles.sh` uses the same skeleton as the reference for its
+conformance checks.
 
-All five lifecycle files ship in the template as stubs, because every topic
+All five lifecycle files ship in the skeleton as stubs, because every topic
 must have all five (see § Topic structure above). If you change the
-canonical structure, update `template_dir/` first, then propagate with
-`migrate-to-roles.sh`.
+canonical structure, change it in the topical repo first, then propagate
+with `migrate-to-roles.sh`.
 
 ## Commit granularity
 
@@ -456,7 +456,8 @@ ansible-playbook apps/<topic>/playbook.yaml --check --tags provision
 ```
 
 ```bash
-uv run --script tools/topical/topical new my-topic --os Darwin --manager homebrew_cask
+# while topical is a checkout (its install topic is queued, TASKS.md A2):
+uv run --script ~/code/personal/topical/topical new my-topic --os Darwin --manager homebrew_cask
 ```
 
 This scaffolds `apps/my-topic/` from `template_dir/`, fills `topic.yml`
