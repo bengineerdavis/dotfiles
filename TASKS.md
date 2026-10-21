@@ -1715,13 +1715,17 @@ nothing is.
   that says what it changed.
    [agent: topic-cli-a9 / OpenCode — worktree
    `.worktrees/topic-cli-a9`, branch `agent/topic-cli-a9`]
-   **Generator half delivered 2026-10-20 on the branch, PR pending.**
-   Landed: `topical new` in `tools/topical/` with a suite seen to fail
-   (mutation trailers on the commit), the template_dir marker cleanup,
-   the 20-file scaffold-residue sweep, and firefox regenerated and
-   verified as the A2 proof case. Still open in A9: absorbing
+   **Generator half delivered 2026-10-20, PR #66 pending.** Redirected by
+   the author mid-review: the generator, block templates and canonical
+   skeleton live in the topical repo (`~/code/personal/topical`), which
+   the copier template inherits from. The branch carries the move
+   (`template_dir` and `init-config.sh` removed, `migrate-to-roles.sh`
+   pointed at the new home), the 20-file residue sweep, the
+   router-comment sweep, and firefox regenerated — byte-identical to the
+   topical generator's output. Still open in A9: absorbing
    `migrate-to-roles.sh`'s conformance logic, and the optional agent
-   pass. Handoff at `.claude/HANDOFF-topic-cli-a9.md` on the branch.
+   pass. Handoff at `.claude/HANDOFF-topic-cli-a9.md` (superseded banner
+   on it).
 
 
 ## Planned
@@ -3284,6 +3288,10 @@ author rather than the machine.
   rather than diverge — decide which owns it before the second is built. The
   module boundary itself is deferred to `ROADMAP.md` and is not a blocker; build
   against the format as it stands.
+  **Ownership decided 2026-10-20 (author):** topical owns the canonical
+  template first — the skeleton and manager block templates live in the
+  topical repo with the generator — and this template inherits from there
+  rather than copying.
 - Keep `docs/REFERENCES.md` current. The register exists and is verified
   as of 2026-09-11; what is missing is the habit. Re-check on quarter boundaries
   and whenever a listed tool is upgraded, updating `verified` even when nothing
