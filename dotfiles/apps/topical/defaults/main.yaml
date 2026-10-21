@@ -1,0 +1,7 @@
+# apps/topical/defaults/main.yaml
+topical_repo: "https://github.com/bengineerdavis/topical.git"
+# The LAYOUT.md personal-projects location, resolved on the target.
+topical_checkout: "{{ ansible_facts['env']['HOME'] }}/code/personal/topical"
+# Deleting a clone is opt-in: it is machine-local state the human may have
+# work in (docs/TOPICS.md § Shared dependencies, same opt-in shape).
+topical_remove_checkout: false

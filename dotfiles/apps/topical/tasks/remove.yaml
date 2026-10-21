@@ -1,0 +1,19 @@
+# apps/topical/tasks/remove.yaml
+# Explicit uninstall tasks. Never run as part of provision or install.
+# Only invoked via --tags remove.
+# CRUD invariant: anything install.yaml creates, this file tears down.
+
+# ── The symlink ─────────────────────────────────────────────────────────────
+- name: "Remove the ~/bin/topical symlink"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/bin/topical"
+    state: absent
+
+# ── The checkout (opt-in) ───────────────────────────────────────────────────
+# The clone is machine-local state the human may have work in; deleting it
+# is opt-in, mirroring the shared-dep pattern in docs/TOPICS.md.
+- name: "Remove the topical checkout"
+  ansible.builtin.file:
+    path: "{{ topical_checkout }}"
+    state: absent
+  when: topical_remove_checkout | bool
