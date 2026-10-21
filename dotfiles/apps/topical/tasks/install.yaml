@@ -1,45 +1,14 @@
 # apps/topical/tasks/install.yaml
-# Thin install for the topical generator: a clone at the LAYOUT.md location
-# plus a ~/bin symlink. The clone is the single source of the tool; this
-# topic owns presence, currency (pull on rerun) and teardown.
+# Installs the topical CLI as a uv tool from the git remote. uv tool owns
+# the environment and the ~/.local/bin shim; this topic owns presence,
+# currency and teardown. topic_requires: [uv] guarantees the binary.
 
-# ── Guard: a pre-existing checkout path must be a git clone ─────────────────
-- name: "Check whether the topical checkout path already exists"
-  ansible.builtin.stat:
-    path: "{{ topical_checkout }}"
-  register: topical_checkout_stat
+- name: "List installed uv tools"
+  ansible.builtin.command: uv tool list
+  register: topical_uv_tools
+  changed_when: false
+  check_mode: false  # read-only probe; --check must see it to gate on it
 
-- name: "Check for a git dir inside the existing checkout"
-  ansible.builtin.stat:
-    path: "{{ topical_checkout }}/.git"
-  register: topical_checkout_git_stat
-  when: topical_checkout_stat.stat.exists
-
-- name: "Fail with the fix if the checkout path is taken by a non-clone"
-  ansible.builtin.fail:
-    msg: >-
-      {{ topical_checkout }} exists but is not a git checkout. Move it aside
-      (or delete it) and re-run — this topic clones {{ topical_repo }}
-      there. Nothing has been installed or moved.
-  when:
-    - topical_checkout_stat.stat.exists
-    - not topical_checkout_git_stat.stat.exists
-
-# ── The clone ───────────────────────────────────────────────────────────────
-# Tagged [install, upgrade]: re-running pulls origin/main, which is this
-# topic's whole upgrade path — no system role reaches a git clone.
-- name: "Clone or update the topical repo"
-  ansible.builtin.git:
-    repo: "{{ topical_repo }}"
-    dest: "{{ topical_checkout }}"
-    version: main
-  tags: [install, upgrade]
-
-# ── The ~/bin symlink ───────────────────────────────────────────────────────
-- name: "Symlink topical into ~/bin"
-  ansible.builtin.file:
-    src: "{{ topical_checkout }}/topical"
-    dest: "{{ ansible_facts['env']['HOME'] }}/bin/topical"
-    state: link
-    force: true
-  tags: [install, upgrade]
+- name: "Install topical as a uv tool"
+  ansible.builtin.command: "uv tool install {{ topical_install_spec }}"
+  when: topical_uv_tools.stdout is not search("^topical v", multiline=True)

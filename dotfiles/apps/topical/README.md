@@ -1,12 +1,13 @@
 # topical App Module
 
-Installs the [topical](https://github.com/bengineerdavis/topical) topic
-scaffolder: a clone at `~/code/personal/topical` and a `~/bin/topical`
-symlink.
+Installs the [topical](https://github.com/bengineerdavis/topical) CLI —
+the manager for topic-structured chezmoi-Ansible dotfiles repos — as a
+**uv tool** from the git remote.
 
-The clone is the single source of the tool; this topic owns presence,
-currency (pull on rerun, tagged `[install, upgrade]`) and teardown. The
-checkout is removed only with `-e topical_remove_checkout=true`.
+uv tool owns the environment and the `~/.local/bin/topical` shim; this
+topic owns presence (`uv tool install` when absent), currency
+(`uv tool upgrade` — no system role reaches uv tools) and teardown
+(`uv tool uninstall`).
 
 ## Links
 

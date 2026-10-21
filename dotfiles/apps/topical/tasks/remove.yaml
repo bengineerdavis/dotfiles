@@ -3,17 +3,12 @@
 # Only invoked via --tags remove.
 # CRUD invariant: anything install.yaml creates, this file tears down.
 
-# ── The symlink ─────────────────────────────────────────────────────────────
-- name: "Remove the ~/bin/topical symlink"
-  ansible.builtin.file:
-    path: "{{ ansible_facts['env']['HOME'] }}/bin/topical"
-    state: absent
+- name: "List installed uv tools"
+  ansible.builtin.command: uv tool list
+  register: topical_uv_tools_remove
+  changed_when: false
+  check_mode: false  # read-only probe; --check must see it to gate on it
 
-# ── The checkout (opt-in) ───────────────────────────────────────────────────
-# The clone is machine-local state the human may have work in; deleting it
-# is opt-in, mirroring the shared-dep pattern in docs/TOPICS.md.
-- name: "Remove the topical checkout"
-  ansible.builtin.file:
-    path: "{{ topical_checkout }}"
-    state: absent
-  when: topical_remove_checkout | bool
+- name: "Uninstall topical"
+  ansible.builtin.command: uv tool uninstall topical
+  when: topical_uv_tools_remove.stdout is search("^topical v", multiline=True)

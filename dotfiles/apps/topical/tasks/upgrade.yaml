@@ -1,29 +1,13 @@
 # apps/topical/tasks/upgrade.yaml
 # Topic-level upgrade tasks. Refresh state this topic owns.
-#
-# App-tier topics (those installed via brew/apt/cask) typically leave this
-# empty — their binaries are refreshed by the system pkg-manager upgrade pass.
-# Runtime-manager topics (mise, ollama) MUST own upgrade logic that refreshes
-# their managed subordinate state (tools, models, plugins).
-# Pkg-manager topics own upgrade logic for the binaries they install.
-#
-# Idempotent: safe to re-run. No confirmation needed.
-# Do NOT put install or remove logic here.
-
-# ── macOS (Homebrew) ──────────────────────────────────────────────────────────
-# Most app-tier topics need nothing here — `apps/homebrew/tasks/upgrade.yaml`
-# already runs `brew upgrade` across all formulae and casks.
-#
-# Only add tasks here if this topic owns state that brew upgrade does not
-# refresh (managed sub-packages, downloaded archives, plugin registries, etc.).
-
-# ── Linux (apt) ───────────────────────────────────────────────────────────────
-# Same principle: `apps/apt/tasks/upgrade.yaml` already runs dist-upgrade.
-# Only add tasks here for state apt-upgrade does not refresh.
 
 # ── This topic's upgrade path ─────────────────────────────────────────────────
-# Covered: the git task in install.yaml is tagged [install, upgrade], so a
-# plain --tags upgrade run pulls origin/main. No system role reaches a git
-# clone (dotfiles/managers.yaml → release_artifact is the same case), which
-# is why the tag is on the clone itself. uv resolves the script's PEP 723
-# dependencies per run from its cache, so there is nothing else to refresh.
+# No system role reaches uv tools, so the topic owns currency itself
+# (docs/TOPICS.md § "Presence vs currency" — the release_artifact case).
+# `uv tool upgrade` follows the install spec's ref; the changed_when reads
+# the verified "Nothing to upgrade" string rather than a guessed update one
+# (uv 0.9.x output, this machine, 2026-10-21).
+- name: "Upgrade topical via uv tool"
+  ansible.builtin.command: uv tool upgrade topical
+  register: topical_upgrade_result
+  changed_when: "'Nothing to upgrade' not in topical_upgrade_result.stdout"
