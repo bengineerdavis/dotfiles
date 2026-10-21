@@ -21,10 +21,13 @@ import yaml
 from .buckets import ForeignBucket, find_buckets
 
 # pyrefly: ignore [missing-import]
-from .decide import Decision, Verdict, decide
+from .decide import Decision, Verdict, decide, layer_configs
 
 # pyrefly: ignore [missing-import]
 from .discover import licence_from_dir, licence_from_repo
+
+# pyrefly: ignore [missing-import]
+from . import store as store_mod
 
 PERMITTED, DENIED, UNKNOWN, ERROR = 0, 1, 2, 3
 
@@ -122,8 +125,19 @@ def _external_line(bucket: ForeignBucket, config: dict, today: str) -> str:
     )
 
 
+def _load_layered(args) -> dict:
+    """The repo rules with the machine-local store layered underneath.
+
+    The store tightens or admits names; it cannot overturn a repo ban or touch
+    licence policy — see decide.layer_configs.
+    """
+    base = load_config(args.config)
+    overlay = store_mod.normalised(store_mod.read_store(args.store))
+    return layer_configs(base, overlay)
+
+
 def cmd_check(args) -> int:
-    config = load_config(args.config)
+    config = _load_layered(args)
     skill_dir = pathlib.Path(args.skill_dir) if args.skill_dir else None
     decision = _judge(args.source, args.skill, config, skill_dir, args.offline)
     marker = "PERMITTED" if decision.permitted else "DENIED"
@@ -138,7 +152,7 @@ def cmd_audit(args) -> int:
     say whether what it declared is present, but never whether something is
     present that it never declared.
     """
-    config = load_config(args.config)
+    config = _load_layered(args)
     root = pathlib.Path(args.skills_dir)
     if not root.is_dir():
         print(f"skill-trust: no such skills directory: {root}", file=sys.stderr)
@@ -212,17 +226,27 @@ def cmd_audit(args) -> int:
             continue
         source = declared.get(name)
         if source is None:
-            spdx = licence_from_dir(path)
-            decision = (
-                decide(name, None, config, spdx=spdx)
-                if spdx
-                else Decision(
+            if name in (config.get("deny_skills") or []):
+                decision = Decision(
                     Verdict.DENIED,
-                    "undeclared",
-                    f'"{name}" is installed but nothing declares it, and it carries '
-                    "no licence of its own. Every agent on this machine loads it.",
+                    "deny_skills",
+                    f'"{name}" is installed, nothing declares it, and it is '
+                    "denied by name in the trust rules. Remove it from disk, or "
+                    "retract the denial with `skill-trust trust remove`.",
                 )
-            )
+            else:
+                spdx = licence_from_dir(path)
+                decision = (
+                    decide(name, name, config, spdx=spdx)
+                    if spdx
+                    else Decision(
+                        Verdict.DENIED,
+                        "undeclared",
+                        f'"{name}" is installed but nothing declares it, and '
+                        "it carries no licence of its own. Every agent on this "
+                        "machine loads it.",
+                    )
+                )
         else:
             decision = _judge(source, name, config, path, args.offline)
         if not decision.permitted:
@@ -239,6 +263,100 @@ def cmd_audit(args) -> int:
     return DENIED
 
 
+# Flag dest → store kind, for `trust add` / `trust remove`.
+_TRUST_KINDS = {
+    "source": "approved_sources",
+    "deny_source": "deny_sources",
+    "deny_skill": "deny_skills",
+    "vendor": "vendored",
+    "include_hidden": "include_hidden",
+    "exclude": "exclude",
+}
+
+
+def _trust_kind_value(args) -> tuple[str, str]:
+    for flag, kind in _TRUST_KINDS.items():
+        value = getattr(args, flag)
+        if value is not None:
+            return kind, value
+    raise ConfigError(
+        "trust needs one of "
+        + ", ".join(f"--{f.replace('_', '-')}" for f in _TRUST_KINDS)
+    )
+
+
+def cmd_trust_list(args) -> int:
+    found = store_mod.read_store(args.store)
+    if not found:
+        print(f"no decisions recorded ({args.store})")
+        return PERMITTED
+    for kind, entries in found.items():
+        print(f"{kind}:")
+        for entry in entries:
+            if kind == "exclude":
+                label = f"{entry['source']} : {entry['name']}"
+            else:
+                label = entry[store_mod.KIND_KEYS[kind]]
+            meta = " — ".join(x for x in (entry.get("why"), entry.get("decided")) if x)
+            print(f"  {label}" + (f"  ({meta})" if meta else ""))
+    return PERMITTED
+
+
+def cmd_trust_add(args) -> int:
+    kind, value = _trust_kind_value(args)
+    if kind == "exclude" and not args.from_source:
+        raise ConfigError("--exclude names a skill; --from names its source")
+    if kind != "exclude" and args.from_source:
+        raise ConfigError("--from only makes sense with --exclude")
+    found = store_mod.read_store(args.store)
+    if kind == "exclude":
+        updated = store_mod.add_entry(
+            found,
+            kind,
+            source=args.from_source,
+            name=value,
+            why=args.why,
+            decided=args.decided,
+        )
+    else:
+        key = store_mod.KIND_KEYS[kind]
+        if key is None:  # exclude carries a source and a name, handled above
+            raise ConfigError(f"{kind} needs a source and a name, not a bare value")
+        updated = store_mod.add_entry(
+            found, kind, why=args.why, decided=args.decided, **{key: value}
+        )
+    store_mod.save_store(args.store, updated)
+    print(f"recorded in {args.store}: {kind} += {value}")
+    return PERMITTED
+
+
+def cmd_trust_remove(args) -> int:
+    kind, value = _trust_kind_value(args)
+    found = store_mod.read_store(args.store)
+    updated, removed = store_mod.remove_entry(found, kind, value)
+    if not removed:
+        print(
+            f"skill-trust: no {kind} entry matching {value!r} in {args.store}",
+            file=sys.stderr,
+        )
+        return ERROR
+    store_mod.save_store(args.store, updated)
+    print(f"retracted from {args.store}: {kind} -= {value}")
+    return PERMITTED
+
+
+def _trust_value_flags(parser: argparse.ArgumentParser) -> None:
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--source", help="approve this source (owner/repo or org)")
+    group.add_argument("--deny-source", help="ban this source outright")
+    group.add_argument("--deny-skill", help="deny this skill directory by name")
+    group.add_argument("--vendor", help="allow this directory to exist undeclared")
+    group.add_argument("--include-hidden", help="audit this hidden directory after all")
+    group.add_argument(
+        "--exclude", metavar="SKILL", help="veto this skill from its source"
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="skill-trust",
@@ -247,6 +365,14 @@ def build_parser() -> argparse.ArgumentParser:
         "2 unknown, 3 error (matching bin/policy).",
     )
     parser.add_argument("--config", type=pathlib.Path, help="trust rules, YAML")
+    parser.add_argument(
+        "--store",
+        type=pathlib.Path,
+        default=store_mod.default_store_path(),
+        help="machine-local decisions, YAML (default "
+        "~/.config/skill-trust/trust.yaml). Absent reads as empty — point at a "
+        "nonexistent path to judge the repo rules alone.",
+    )
     parser.add_argument(
         "--offline",
         action="store_true",
@@ -269,6 +395,29 @@ def build_parser() -> argparse.ArgumentParser:
         "'-' reads stdin (e.g. dotagents list --json | ...)",
     )
     audit.set_defaults(func=cmd_audit)
+
+    trust = sub.add_parser(
+        "trust", help="inspect and edit the machine-local decision store"
+    )
+    tsub = trust.add_subparsers(dest="trust_command", required=True)
+    tlist = tsub.add_parser("list", help="show every recorded decision")
+    tlist.set_defaults(func=cmd_trust_list)
+    tadd = tsub.add_parser("add", help="record a decision")
+    _trust_value_flags(tadd)
+    tadd.add_argument(
+        "--from",
+        dest="from_source",
+        metavar="SOURCE",
+        help="the source --exclude vetoes the skill from",
+    )
+    tadd.add_argument(
+        "--why", required=True, help="the reason a human can check later; required"
+    )
+    tadd.add_argument("--decided", help="decision date, ISO (default: today)")
+    tadd.set_defaults(func=cmd_trust_add)
+    trem = tsub.add_parser("remove", help="retract a decision")
+    _trust_value_flags(trem)
+    trem.set_defaults(func=cmd_trust_remove)
     return parser
 
 
@@ -280,7 +429,7 @@ def main(argv: list[str] | None = None) -> int:
         require("gh")
     try:
         return args.func(args)
-    except ConfigError as exc:
+    except (ConfigError, store_mod.StoreError) as exc:
         print(f"skill-trust: {exc}", file=sys.stderr)
         return ERROR
     except SystemExit:
