@@ -88,9 +88,6 @@ delete the line and say so in your commit.
   report (branch `agent/shift_left_scan`, worktree
   `.worktrees/shift-left-scan`) — `TASKS.md`, `.pre-commit-config.yaml`,
   `scripts/`, `tests/`, `.claude/RESEARCH-shift-left-surface-scan.md`
-- 2026-10-21T21:30Z — loreai topic build (branch `agent/loreai_topic`,
-  worktree `.worktrees/loreai-topic`) — `TASKS.md`,
-  `dot_config/opencode/opencode.jsonc.tmpl`, `dotfiles/apps/loreai/`
 ## Where things stand — 2026-09-23 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
@@ -1764,7 +1761,8 @@ nothing is.
   open with syntax-check and `--check` evidence and the author has
   answered the merge quiz. [agent: this session] (branch
   `agent/loreai_topic`, worktree `.worktrees/loreai-topic`).
-  **PR #70 open 2026-10-21** — awaiting author review + quiz.
+  **PR #70 open 2026-10-21** — quiz answered 2026-10-21; awaiting
+  author review and merge.
 
 ## Planned
 
