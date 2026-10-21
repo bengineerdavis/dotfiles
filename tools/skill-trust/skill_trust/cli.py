@@ -9,6 +9,7 @@ of question and a caller should not have to learn two vocabularies:
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import datetime
 import json
 import pathlib
@@ -158,12 +159,32 @@ def cmd_audit(args) -> int:
         print(f"skill-trust: no such skills directory: {root}", file=sys.stderr)
         return ERROR
 
+    out = gather(root, config, _load_declared(args, config), args.offline)
+    _print_report(out)
+    if not out.seen:
+        print(f"skill-trust: {root} holds no skill directories", file=sys.stderr)
+        return UNKNOWN
+    if not out.problems:
+        suffix = ""
+        if out.skipped_hidden:
+            suffix = (
+                f" ({len(out.skipped_hidden)} hidden skipped: "
+                f"{', '.join(out.skipped_hidden)})"
+            )
+        print(f"PERMITTED all {out.seen} skill(s) in {root} are accounted for{suffix}")
+        return PERMITTED
+    return DENIED
+
+
+def _load_declared(args, config: dict) -> dict[str, str]:
+    """What declares what, from the config's `installed` plus a manager's
+    inventory. Deliberately a JSON shape rather than a call to any particular
+    tool: `dotagents list --json` produces it today, and anything that can
+    emit {"skills":[{"name","source"}]} works tomorrow.
+    """
     declared: dict[str, str] = {}
     for entry in config.get("installed") or []:
         declared[entry["name"]] = entry["source"]
-    # A manager's own inventory, piped in. Deliberately a JSON shape rather than
-    # a call to any particular tool: `dotagents list --json` produces it today,
-    # and anything that can emit {"skills":[{"name","source"}]} works tomorrow.
     if args.declared_json:
         raw = (
             sys.stdin.read()
@@ -177,7 +198,28 @@ def cmd_audit(args) -> int:
         for entry in payload.get("skills") or []:
             if entry.get("name") and entry.get("source"):
                 declared[entry["name"]] = entry["source"]
+    return declared
 
+
+@dataclasses.dataclass
+class Gathered:
+    """One pass over the skills store. `problems` carries the declaring source
+    (None for undeclared directories) because resolve needs it to offer
+    source-level choices; audit simply does not print it.
+    """
+
+    problems: list[tuple[str, str | None, Decision]] = dataclasses.field(
+        default_factory=list
+    )
+    external: list[str] = dataclasses.field(default_factory=list)
+    skipped_hidden: list[str] = dataclasses.field(default_factory=list)
+    seen: int = 0
+
+
+def gather(
+    root: pathlib.Path, config: dict, declared: dict[str, str], offline: bool
+) -> Gathered:
+    out = Gathered()
     vendored = set(config.get("vendored") or [])
     include_hidden = set(config.get("include_hidden") or [])
     foreign = bool(config.get("foreign_buckets", True))
@@ -207,7 +249,7 @@ def cmd_audit(args) -> int:
             # which is why a skip is still REPORTED below: a skip nobody can
             # see is a place to hide something, and include_hidden puts a
             # named directory back under judgement.
-            skipped_hidden.append(name)
+            out.skipped_hidden.append(name)
             continue
         if name == "synced" and foreign:
             # The `synced` container is not a skill. Its evidenced children are
@@ -215,16 +257,17 @@ def cmd_audit(args) -> int:
             # children are undeclared and fail closed — a directory merely named
             # like a bucket is not one.
             for bucket in buckets:
-                seen += 1
-                print(_external_line(bucket, config, today))
+                out.seen += 1
+                out.external.append(_external_line(bucket, config, today))
             for child in sorted(p for p in path.iterdir() if p.is_dir()):
                 child_name = child.name
                 if child_name in bucket_ids:
                     continue
-                seen += 1
-                problems.append(
+                out.seen += 1
+                out.problems.append(
                     (
                         child_name,
+                        None,
                         Decision(
                             Verdict.DENIED,
                             "undeclared",
@@ -236,7 +279,7 @@ def cmd_audit(args) -> int:
                     )
                 )
             continue
-        seen += 1
+        out.seen += 1
         if name in vendored:
             continue
         source = declared.get(name)
@@ -263,28 +306,169 @@ def cmd_audit(args) -> int:
                     )
                 )
         else:
-            decision = _judge(source, name, config, path, args.offline)
+            decision = _judge(source, name, config, path, offline)
         if not decision.permitted:
-            problems.append((name, decision))
+            out.problems.append((name, source, decision))
+    return out
 
-    for name in skipped_hidden:
+
+def _print_report(out: Gathered) -> None:
+    for line in out.external:
+        print(line)
+    for name in out.skipped_hidden:
         print(
             f"SKIPPED [hidden] {name}: hidden directory, not audited; "
             "name it in include_hidden to audit it"
         )
-    for name, decision in problems:
+    for name, _source, decision in out.problems:
         print(f"DENIED [{decision.rule}] {name}: {decision.reason}")
-    if not seen:
+
+
+# ── resolve ──────────────────────────────────────────────────────────────────
+
+# Rules that are already decisions — a repo ban, a recorded denial, a veto.
+# resolve does not re-ask them; it only asks about FIRST detections.
+_DECIDED_RULES = {"deny_sources", "deny_skills", "exclude"}
+
+
+def _choices_for(source: str | None, decision: Decision) -> list[tuple[str, str]]:
+    """The menu for one finding, keyed by single-letter answer."""
+    if source is None:
+        return [
+            ("v", "vendor it — allowed to exist undeclared, with your why recorded"),
+            ("d", "deny it by name — recorded, and it keeps failing until removed"),
+            ("l", "leave it — still denied, decide later"),
+        ]
+    choices = []
+    if decision.rule == "default":
+        choices.append(
+            ("a", f"approve source {source} — everything in it, now and future")
+        )
+    else:
+        choices.append(
+            (
+                "a",
+                f"approve source {source} anyway — an explicit exception, why recorded",
+            )
+        )
+    choices.extend(
+        [
+            ("d", f"deny source {source} — a ban; nothing from there installs"),
+            ("l", "leave it — still denied, decide later"),
+        ]
+    )
+    return choices
+
+
+def _ask(prompt: str, valid: set[str], input_fn) -> str:
+    while True:
+        answer = input_fn(prompt).strip().lower()
+        if answer in valid:
+            return answer
+        print(f"  one of: {', '.join(sorted(valid))}")
+
+
+def _apply_choice(
+    store_path: pathlib.Path,
+    found: dict,
+    name: str,
+    source: str | None,
+    choice: str,
+    input_fn,
+) -> dict:
+    """Record one answered choice in the store. Returns the updated store."""
+    why = ""
+    while not why.strip():
+        why = input_fn("  why (required — the reason a human can check later): ")
+    if choice == "v":
+        updated = store_mod.add_entry(found, "vendored", name=name, why=why)
+    elif choice == "d" and source is None:
+        updated = store_mod.add_entry(found, "deny_skills", name=name, why=why)
+    elif choice == "d":
+        updated = store_mod.add_entry(found, "deny_sources", source=source, why=why)
+    elif choice == "a":
+        updated = store_mod.add_entry(found, "approved_sources", source=source, why=why)
+    else:
+        raise ConfigError(f"no such choice: {choice}")
+    store_mod.save_store(store_path, updated)
+    return updated
+
+
+def cmd_resolve(args, input_fn=None) -> int:
+    """Ask once per undecided finding, persist the answer, re-judge.
+
+    First detection asks; a recorded decision is never re-asked. Each answer
+    lands in the machine-local store the moment it is given, so an interrupted
+    run keeps the decisions already made.
+    """
+    if input_fn is None:
+        # Resolved at call time, not def time: a default of `input` would bind
+        # the original builtin at import and be unpatchable in tests.
+        input_fn = input
+    if not sys.stdin.isatty():
+        print(
+            "skill-trust: resolve needs a terminal — it asks questions. "
+            "Run it in one, or use `skill-trust trust add` non-interactively.",
+            file=sys.stderr,
+        )
+        return ERROR
+    config = _load_layered(args)
+    root = pathlib.Path(args.skills_dir)
+    if not root.is_dir():
+        print(f"skill-trust: no such skills directory: {root}", file=sys.stderr)
+        return ERROR
+    out = gather(root, config, _load_declared(args, config), args.offline)
+    _print_report(out)
+    if not out.seen:
         print(f"skill-trust: {root} holds no skill directories", file=sys.stderr)
         return UNKNOWN
-    if not problems:
-        suffix = ""
-        if skipped_hidden:
-            suffix = (
-                f" ({len(skipped_hidden)} hidden skipped: {', '.join(skipped_hidden)})"
-            )
-        print(f"PERMITTED all {seen} skill(s) in {root} are accounted for{suffix}")
+    if not out.problems:
+        print("nothing to resolve — every skill is accounted for")
         return PERMITTED
+
+    undecided = [(n, s, d) for n, s, d in out.problems if d.rule not in _DECIDED_RULES]
+    decided = [(n, d) for n, _s, d in out.problems if d.rule in _DECIDED_RULES]
+    for name, decision in decided:
+        print(
+            f"── {name}: already decided [{decision.rule}] — to revisit, "
+            "`skill-trust trust remove` or edit the repo rules"
+        )
+
+    store_path = args.store
+    found = store_mod.read_store(store_path)
+    for name, source, decision in undecided:
+        origin = f" ← {source}" if source else " (undeclared)"
+        print(f"\n── {name}{origin} [{decision.rule}]")
+        print(f"   {decision.reason}")
+        choices = _choices_for(source, decision)
+        valid = {key for key, _label in choices}
+        for key, label in choices:
+            print(f"   [{key}] {label}")
+        try:
+            answer = _ask(f"   choice [{'/'.join(sorted(valid))}]: ", valid, input_fn)
+            if answer == "l":
+                continue
+            found = _apply_choice(store_path, found, name, source, answer, input_fn)
+            print(f"   recorded in {store_path}")
+        except EOFError, KeyboardInterrupt:
+            # Every answer so far is already on disk — an interruption loses
+            # nothing, which is the point of saving per decision.
+            print("\ninterrupted — decisions already made are recorded")
+            break
+
+    # Re-judge with the decisions now recorded: this is the report the next
+    # guard run will produce.
+    config = _load_layered(args)
+    out = gather(root, config, _load_declared(args, config), args.offline)
+    print()
+    _print_report(out)
+    if not out.problems:
+        print("PERMITTED — every skill is now accounted for")
+        return PERMITTED
+    print(
+        f"DENIED — {len(out.problems)} finding(s) remain; the guard will keep "
+        "failing on them. Remove the skills, or re-run resolve."
+    )
     return DENIED
 
 
@@ -389,7 +573,12 @@ def build_parser() -> argparse.ArgumentParser:
         "ban, approval, or licence. Exit: 0 permitted, 1 denied, "
         "2 unknown, 3 error (matching bin/policy).",
     )
-    parser.add_argument("--config", type=pathlib.Path, help="trust rules, YAML")
+    parser.add_argument(
+        "--config",
+        type=pathlib.Path,
+        help="trust rules, YAML (default: ~/.config/skill-trust/rules.yaml when "
+        "the Ansible guard has written it — judge as the guard would)",
+    )
     parser.add_argument(
         "--store",
         type=pathlib.Path,
@@ -421,6 +610,23 @@ def build_parser() -> argparse.ArgumentParser:
     )
     audit.set_defaults(func=cmd_audit)
 
+    resolve = sub.add_parser(
+        "resolve",
+        help="ask once per undecided finding, remember each answer (interactive)",
+    )
+    resolve.add_argument(
+        "--skills-dir",
+        default=str(pathlib.Path.home() / ".agents" / "skills"),
+        help="default: ~/.agents/skills",
+    )
+    resolve.add_argument(
+        "--declared-json",
+        metavar="FILE",
+        help='a manager\'s inventory as {"skills":[{name,source}]}; '
+        "'-' reads stdin (e.g. dotagents list --json | ...)",
+    )
+    resolve.set_defaults(func=cmd_resolve)
+
     trust = sub.add_parser(
         "trust", help="inspect and edit the machine-local decision store"
     )
@@ -448,6 +654,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.config is None and store_mod.default_rules_path().is_file():
+        # Judge as the guard would: the composed rules it writes every run.
+        args.config = store_mod.default_rules_path()
     if not args.offline:
         # gh is only needed for the repository fallback, so it is required only
         # when that fallback is reachable.
