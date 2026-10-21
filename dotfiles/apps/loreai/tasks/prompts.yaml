@@ -93,24 +93,31 @@
   register: loreai_inference_answer
   when: not loreai_env_stat.stat.exists and loreai_inference is none
 
-- name: "loreai: settle the answers (prompt result beats empty Enter)"
+# Each answer settles independently — an explicit -e beats the prompt beats
+# the default. Keying the settle on the OTHER answer's presence (an earlier
+# cut) silently inverted an explicit -e opt-out, or discarded a collected
+# prompt answer and failed validation on 'None' (roborev review, PR #70).
+
+- name: "loreai: settle the telemetry answer (-e beats prompt beats default)"
   ansible.builtin.set_fact:
     loreai_telemetry_final: >-
-      {{ (loreai_telemetry_answer.user_input | default('') | trim)
-         if (loreai_telemetry_answer.user_input | default('') | trim) in ['0', '1']
-         else '1' }}
-    loreai_inference_final: >-
-      {{ (loreai_inference_answer.user_input | default('') | trim | lower)
-         if (loreai_inference_answer.user_input | default('') | trim | lower)
-            in ['openrouter', 'local', 'none']
-         else loreai_inference_default }}
-  when: not loreai_env_stat.stat.exists and loreai_inference is none
+      {{ loreai_telemetry | string
+         if loreai_telemetry is not none
+         else ((loreai_telemetry_answer.user_input | default('') | trim)
+               if (loreai_telemetry_answer.user_input | default('') | trim) in ['0', '1']
+               else '1') }}
+  when: not loreai_env_stat.stat.exists
 
-- name: "loreai: settle answers provided non-interactively (-e)"
+- name: "loreai: settle the inference answer (-e beats prompt beats detection)"
   ansible.builtin.set_fact:
-    loreai_telemetry_final: "{{ loreai_telemetry | string }}"
-    loreai_inference_final: "{{ loreai_inference | lower }}"
-  when: not loreai_env_stat.stat.exists and loreai_inference is not none
+    loreai_inference_final: >-
+      {{ loreai_inference | lower
+         if loreai_inference is not none
+         else ((loreai_inference_answer.user_input | default('') | trim | lower)
+               if (loreai_inference_answer.user_input | default('') | trim | lower)
+                  in ['openrouter', 'local', 'none']
+               else loreai_inference_default) }}
+  when: not loreai_env_stat.stat.exists
 
 - name: "loreai: validate the inference answer"
   ansible.builtin.fail:
