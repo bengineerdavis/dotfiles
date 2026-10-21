@@ -21,8 +21,10 @@ set -euo pipefail
 DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
 APPS_DIR="$DOTFILES_DIR/apps"
 # The skeleton moved to the topical repo (2026-10-20, TASKS.md A9 ownership
-# decision). TOPICAL_TEMPLATE overrides the default LAYOUT.md location.
-TEMPLATE_DIR="${TOPICAL_TEMPLATE:-$HOME/code/personal/topical/template}"
+# decision), and then inside that repo's Python package (2026-10-21, when
+# topical became a uv-tool-installable package). TOPICAL_TEMPLATE overrides
+# the default LAYOUT.md checkout location.
+TEMPLATE_DIR="${TOPICAL_TEMPLATE:-$HOME/code/personal/topical/src/topical/template}"
 BACKUP_DIR="$DOTFILES_DIR/migration-backups"
 
 if [[ ! -d "$TEMPLATE_DIR" ]]; then
