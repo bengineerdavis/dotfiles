@@ -1,9 +1,0 @@
-# apps/<topic>/tasks/remove.yaml
-# Explicit uninstall tasks. Never run as part of provision or install.
-# Only invoked via --tags remove.
-# Mirror the install.yaml structure — one block per package manager.
-# CRUD invariant: anything install.yaml creates, this file tears down.
-#
-# Blocks arrive the same way install.yaml's do — see that file's header.
-
-# __MANAGER_BLOCKS__
