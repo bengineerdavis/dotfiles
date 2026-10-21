@@ -156,6 +156,41 @@
       at {{ loreai_install_dir }}/lore.
   tags: [loreai, install, upgrade]
 
+# ── Smoke check: prove the binary runs, not just that it is present ─────────
+# The checksum proves the bytes match the release; it does not prove they
+# execute here (wrong-arch asset, post-install corruption). Skipped in
+# --check: check mode never places the binary, so there is nothing to run.
+
+- name: "loreai: smoke check the installed binary"
+  ansible.builtin.command: "{{ loreai_install_dir }}/lore --version"
+  register: loreai_smoke
+  changed_when: false
+  failed_when: false
+  when: not ansible_check_mode
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: fail when the installed binary cannot run"
+  ansible.builtin.fail:
+    msg: >-
+      `lore --version` exited {{ loreai_smoke.rc | default('(skipped)') }}
+      ({{ loreai_smoke.stderr | default('no stderr') | trim }}). The checksum
+      only proves the bytes match the release — likely a wrong-architecture
+      asset ({{ loreai_asset }}) or a corrupted binary. Repair: delete BOTH
+      {{ loreai_install_dir }}/lore and {{ loreai_config_dir }}/{{ loreai_asset }}
+      (the fetch no-ops while the archive matches, so the corrupt binary
+      would otherwise stay) and re-run the topic.
+  when: >
+    not ansible_check_mode
+    and (loreai_smoke.rc != 0
+         or loreai_smoke.stdout | default('') | trim == '')
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: report the running version"
+  ansible.builtin.debug:
+    msg: "lore runs: {{ loreai_smoke.stdout | trim }}"
+  when: not ansible_check_mode
+  tags: [loreai, install, upgrade]
+
 # ── Per-agent extensions, behind detection ──────────────────────────────────
 
 - name: "Import agent integrations"
