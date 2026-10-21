@@ -1751,6 +1751,30 @@ nothing is.
   scenario is green, the scoped tests pass, the drift is named in the
   topic docs, and the author's cleanup commands are written.
 
+- **skill-trust: ask-first resolution for unexpected skills — machine-local
+  decision store, `resolve`/`trust` commands, hidden-directory skip.**
+  Author-directed 2026-10-21 after the dotagents-approved-sources guard failed
+  an upgrade run on `~/.agents/skills/.trash` (the author's trash-cli target
+  for scripted removal). Design settled with the author this session: (1)
+  first detection ASKS rather than fails — a pre-flight `skill-trust resolve`
+  in update.sh before ansible runs (mid-play `pause` prompting deferred, see
+  Planned); (2) decisions persist to a machine-local store
+  `~/.config/skill-trust/trust.yaml`, never versioned, layered under the
+  repo-composed rules with deny winning across layers, each entry carrying a
+  why and a date; (3) reject persists a denial and keeps failing until the
+  thing is removed from disk; (4) hidden directories are skipped as
+  non-loadable, every skip is reported, and `include_hidden` re-audits a
+  named dot-dir — per-agent loader behaviour verified where checkable and
+  named where not. Done when: skill-trust gains the store, layering,
+  `deny_skills`, hidden-skip, `resolve` and `trust` with tests seen to fail
+  (mutation trailers on the commits); the guard writes composed rules to
+  `~/.config/skill-trust/rules.yaml` and its failure message names the
+  resolver; update.sh pre-flights without blocking on unresolved findings;
+  README, guard comments and the opencode CHANGELOG are updated; PR open for
+  human review (deployed-tree file `executable_update.sh` is touched).
+  [agent: OpenCode session, worktree .worktrees/skill-trust-resolve, branch
+  agent/skill_trust_resolve]
+
 ## Planned
 
 
