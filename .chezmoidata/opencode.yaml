@@ -26,6 +26,16 @@ opencode:
     # (TASKS.md § Now) — until that lands, the tag only resolves where it
     # has been pulled by hand.
     small_model: ollama/qwen3.5:9b
+    # roborev review data as in-session MCP tools (2026-10-22): the stdio
+    # server reads from the roborev daemon and exposes status/jobs/reviews/
+    # comments/snooze tools; reviews cannot be started over MCP, so the CLI
+    # stays the enqueue surface. Diagnostics go to stderr, stdout is pure
+    # protocol (verified against roborev 0.72.0 with a live initialize).
+    mcp:
+      roborev:
+        type: local
+        command: ["roborev", "mcp", "serve"]
+        enabled: true
     provider:
       openrouter:
         models:
