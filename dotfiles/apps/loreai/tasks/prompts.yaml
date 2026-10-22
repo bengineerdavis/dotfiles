@@ -148,18 +148,10 @@
                      if loreai_inference_final == 'local' else '')) }}
   when: not loreai_env_stat.stat.exists
 
-- name: "loreai: create the per-machine config directory"
-  # check_mode: false — get_url (install.yaml) validates its destination
-  # directory even in --check, and the archive lands here. An empty dir is
-  # the run's own purpose and harmless if a later task fails.
-  ansible.builtin.file:
-    path: "{{ loreai_config_dir }}"
-    state: directory
-    mode: "0700"
-  check_mode: false
-  when: not loreai_env_stat.stat.exists
-
 - name: "loreai: save the answers per machine"
+  # The directory itself is created in install.yaml, tagged [install,
+  # upgrade] — --tags upgrade skips this import but the fetch still lands
+  # its archive there.
   ansible.builtin.template:
     src: loreai-env.zsh.j2
     dest: "{{ loreai_env_file }}"

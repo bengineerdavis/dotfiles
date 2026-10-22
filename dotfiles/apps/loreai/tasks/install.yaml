@@ -17,6 +17,20 @@
 # checksum-compared fetch serves both phases (docs/TOPICS.md § "Presence vs
 # currency").
 
+# ── The topic's config directory, before anything that writes into it ───────
+# Created here, not in prompts.yaml: --tags upgrade skips the prompts import
+# entirely, and the fetch below lands its archive in this directory
+# (roborev round 2). check_mode: false so a fresh machine's dry run exercises
+# the real flow; an empty dir is the run's own purpose.
+
+- name: "loreai: create the per-machine config directory"
+  ansible.builtin.file:
+    path: "{{ loreai_config_dir }}"
+    state: directory
+    mode: "0700"
+  check_mode: false
+  tags: [loreai, install, upgrade]
+
 # ── First-install questions, BEFORE anything else ───────────────────────────
 # Asks while the operator is still watching; no-ops once the answers file
 # exists. See prompts.yaml's header.
@@ -136,16 +150,58 @@
   register: loreai_download
   tags: [loreai, install, upgrade]
 
+- name: "loreai: compare the installed binary against the archive"
+  # Gate for the decompress, NOT the fetch's changed flag: a run that dies
+  # between fetch and decompress leaves the archive matching the digest, so
+  # every later fetch no-ops and the old binary reports 'already current'
+  # forever (roborev round 2). cmp against the decompressed bytes also
+  # self-heals a deleted or corrupted binary on the next run.
+  ansible.builtin.shell:
+    cmd: >-
+      gunzip -c {{ loreai_config_dir }}/{{ loreai_asset }}
+      | cmp -s - {{ loreai_install_dir }}/lore
+  register: loreai_binary_cmp
+  changed_when: false
+  failed_when: false
+  check_mode: false  # read-only comparison; keeps --check honest
+  tags: [loreai, install, upgrade]
+
 - name: "loreai: decompress the binary and set its mode"
-  # Only on a changed fetch — an unchanged archive means the installed
-  # binary already matches. gunzip has no module for a bare .gz (unarchive
-  # wants a tar), hence the shell redirect; the chmod rides along so no
-  # separate task trips over the absent file in --check.
-  ansible.builtin.shell: >-
-    gunzip -c {{ loreai_config_dir }}/{{ loreai_asset }}
-    > {{ loreai_install_dir }}/lore
-    && chmod 0755 {{ loreai_install_dir }}/lore
-  when: loreai_download.changed
+  # gunzip has no module for a bare .gz (unarchive wants a tar). The write
+  # goes to a temp file moved into place atomically: truncating a running
+  # gateway's executable fails text-busy (the gateway keeps its old inode
+  # across the rename and picks the new binary on its next start).
+  ansible.builtin.shell:
+    cmd: >-
+      gunzip -c {{ loreai_config_dir }}/{{ loreai_asset }}
+      > {{ loreai_install_dir }}/.lore.new
+      && chmod 0755 {{ loreai_install_dir }}/.lore.new
+      && mv {{ loreai_install_dir }}/.lore.new {{ loreai_install_dir }}/lore
+  when: loreai_binary_cmp.rc | default(1) != 0
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: note when a running gateway holds an older binary"
+  # The atomic rename lets a live gateway finish on its old inode; only a
+  # restart picks the new binary. Report, never kill — the session's work
+  # is the user's, not this topic's to interrupt.
+  ansible.builtin.shell:
+    cmd: pgrep -f 'lore (start|serve|run)' >/dev/null 2>&1
+  register: loreai_gateway_probe
+  changed_when: false
+  failed_when: false
+  when: loreai_binary_cmp.rc | default(1) != 0 and not ansible_check_mode
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: advise a gateway restart after a binary change"
+  ansible.builtin.debug:
+    msg: >-
+      The lore binary changed while a gateway process is running; it keeps
+      the old binary until restarted. `lore stop && lore start` when the
+      current session allows.
+  when: >
+    loreai_binary_cmp.rc | default(1) != 0
+    and not ansible_check_mode
+    and loreai_gateway_probe.rc | default(1) == 0
   tags: [loreai, install, upgrade]
 
 - name: "loreai: report install state"
@@ -170,15 +226,17 @@
   tags: [loreai, install, upgrade]
 
 - name: "loreai: fail when the installed binary cannot run"
+  # The cmp gate above re-decompresses a deleted or corrupted binary before
+  # this runs, so reaching here means the binary STILL fails after a fresh
+  # decompress: wrong-architecture asset or a bad archive, not drift.
   ansible.builtin.fail:
     msg: >-
       `lore --version` exited {{ loreai_smoke.rc | default('(skipped)') }}
-      ({{ loreai_smoke.stderr | default('no stderr') | trim }}). The checksum
-      only proves the bytes match the release — likely a wrong-architecture
-      asset ({{ loreai_asset }}) or a corrupted binary. Repair: delete BOTH
-      {{ loreai_install_dir }}/lore and {{ loreai_config_dir }}/{{ loreai_asset }}
-      (the fetch no-ops while the archive matches, so the corrupt binary
-      would otherwise stay) and re-run the topic.
+      ({{ loreai_smoke.stderr | default('no stderr') | trim }}) even after a
+      fresh decompress from the verified archive — likely a
+      wrong-architecture asset ({{ loreai_asset }}). Check
+      `lore_release_tag` and the platform detection, or delete
+      {{ loreai_config_dir }}/{{ loreai_asset }} and re-run to refetch.
   when: >
     not ansible_check_mode
     and (loreai_smoke.rc != 0
