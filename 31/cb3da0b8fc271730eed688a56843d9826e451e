@@ -1,0 +1,20 @@
+dotfiles/docs/research/topic-migrations/PRACTICE.md
+  s_8cd64dea59cf6d::t_c061c1308e45b3 449-450
+  s_8cd64dea59cf6d::t_e6bd817e5de7a8 1-448,451-650
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "31cb3da0b8fc271730eed688a56843d9826e451e",
+  "prompts": {},
+  "sessions": {
+    "s_8cd64dea59cf6d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e9c170671ffeUhahsiLnrqxmDz",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
