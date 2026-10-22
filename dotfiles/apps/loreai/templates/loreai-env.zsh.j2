@@ -10,20 +10,7 @@
 # https://withlore.ai/docs/install/#operational-telemetry
 export SENTRY_ENABLED={{ loreai_telemetry_final }}
 
-{% if loreai_inference_final == 'openrouter' -%}
-# ── Background workers → OpenRouter ──────────────────────────────────────────
-# Lore runs distillation, curation and query expansion through ONE worker
-# model (no per-pipeline knob — verified in BYK/loreai source). The pick
-# must clear the curation bar; the decision record is in the topic README.
-export LORE_WORKER_MODEL="{{ loreai_worker_model_final }}"
-# Key resolution: an existing environment wins; a secrets manager is the
-# intended home (1Password CLI is installed — fill in the item path and
-# uncomment); `llm keys` is the fallback, NOT the source of truth.
-if [[ -z "$OPENROUTER_API_KEY" ]]; then
-  # export OPENROUTER_API_KEY="$(op read 'op://<vault>/<item>/credential' 2>/dev/null)"
-  export OPENROUTER_API_KEY="$(llm keys get openrouter 2>/dev/null)"
-fi
-{% elif loreai_inference_final == 'local' -%}
+{% if loreai_inference_final == 'local' -%}
 # ── Background workers + upstreams → local server (ollama) ──────────────────
 # LORE_UPSTREAM_OLLAMA routes sessions launched through the plugins;
 # LORE_WORKER_UPSTREAM pins the background pipeline to the same server.
@@ -31,11 +18,25 @@ fi
 # the curator in .lore.json and run distillation-only.
 export LORE_UPSTREAM_OLLAMA="{{ loreai_local_upstream }}"
 export LORE_WORKER_UPSTREAM="{{ loreai_local_upstream }}"
+{% endif -%}
+{% if loreai_worker_model_final | length > 0 -%}
+# ── Background-worker model ──────────────────────────────────────────────────
+# Lore runs distillation, curation and query expansion through ONE worker
+# model (no per-pipeline knob — verified in BYK/loreai source). The pick
+# must clear the curation bar; the decision record is in the topic README.
+# Exported whenever set, for any inference choice: LORE_WORKER_MODEL is the
+# top-priority override independent of where workers run.
 export LORE_WORKER_MODEL="{{ loreai_worker_model_final }}"
-{% else -%}
-# ── Background workers → session provider ────────────────────────────────────
-# No override: workers follow each session's own provider and credentials.
-{% endif %}
+{% endif -%}
+{% if loreai_inference_final == 'openrouter' or loreai_worker_model_final is match('^openrouter/') -%}
+# Key resolution: an existing environment wins; a secrets manager is the
+# intended home (1Password CLI is installed — fill in the item path and
+# uncomment); `llm keys` is the fallback, NOT the source of truth.
+if [[ -z "$OPENROUTER_API_KEY" ]]; then
+  # export OPENROUTER_API_KEY="$(op read 'op://<vault>/<item>/credential' 2>/dev/null)"
+  export OPENROUTER_API_KEY="$(llm keys get openrouter 2>/dev/null)"
+fi
+{% endif -%}
 # ── Reviewed alternates (OpenRouter catalog IDs + prices, 2026-10-21) ───────
 # Lore reads ONE worker model — switching is editing LORE_WORKER_MODEL above.
 {% for c in loreai_worker_model_candidates -%}

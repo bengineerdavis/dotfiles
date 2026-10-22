@@ -20,6 +20,8 @@
   register: loreai_opencode_plugin_check
   changed_when: false
   failed_when: false
+  check_mode: false  # read-only grep; without it --check fabricates rc=0
+                     # and reports the plugin registered unread
 
 - name: "loreai: report opencode extension state"
   ansible.builtin.debug:

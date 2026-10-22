@@ -57,12 +57,28 @@
   ansible.builtin.include_tasks: agents/opencode.yaml
   when: loreai_opencode_probe.rc == 0
 
+- name: "loreai: note whether codex configured via its config-file fallback"
+  # The report must match what the configure step actually did: a codex
+  # configured via ~/.codex/config.toml has a failed CLI probe and is NOT
+  # undetected (roborev round 2).
+  ansible.builtin.set_fact:
+    loreai_codex_fallback_hit: >-
+      {{ loreai_codex_config_stat.results is defined
+         and (loreai_codex_config_stat.results
+              | selectattr('item.app', 'equalto', 'codex')
+              | first).stat.exists }}
+
 - name: "loreai: report undetected agents"
   ansible.builtin.debug:
     msg: >-
       Not detected, so not configured:
-      {{ loreai_agent_probes.results | rejectattr('rc', 'eq', 0)
-         | map(attribute='item.app') | join(', ') }}.
+      {{ loreai_setup_agents | zip(loreai_agent_probes.results)
+         | rejectattr('1.rc', 'eq', 0) | map(attribute='0.app') | list
+         | difference(loreai_codex_fallback_hit | ternary(['codex'], []))
+         | join(', ') }}.
       Install one and re-run the topic, or run `lore setup <app>` by hand.
   when: >
-    loreai_agent_probes.results | rejectattr('rc', 'eq', 0) | list | length > 0
+    loreai_setup_agents | zip(loreai_agent_probes.results)
+    | rejectattr('1.rc', 'eq', 0) | map(attribute='0.app') | list
+    | difference(loreai_codex_fallback_hit | ternary(['codex'], []))
+    | length > 0
