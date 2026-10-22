@@ -83,11 +83,7 @@ delete the line and say so in your commit.
   (skill-trust foreign buckets, test-perf-xdist) into TASKS-RESOLVED
   (branch `agent/queue_closeout`, worktree `.worktrees/queue-closeout`) —
   `TASKS.md`, `TASKS-RESOLVED.md`
-- 2026-10-03T21:05Z — shift-left surface scan (mini project): research
-  inventory, comparison, four-voice council, run-shellharden.sh build,
-  report (branch `agent/shift_left_scan`, worktree
-  `.worktrees/shift-left-scan`) — `TASKS.md`, `.pre-commit-config.yaml`,
-  `scripts/`, `tests/`, `.claude/RESEARCH-shift-left-surface-scan.md`
+
 ## Where things stand — 2026-09-23 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
