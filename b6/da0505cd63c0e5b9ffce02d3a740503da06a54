@@ -1,0 +1,19 @@
+.chezmoidata/opencode.yaml
+  s_42f134a75d5d7d::t_6512a5809215c6 29-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b6da0505cd63c0e5b9ffce02d3a740503da06a54",
+  "prompts": {},
+  "sessions": {
+    "s_42f134a75d5d7d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eca33e122ffe5xwvwYU2xe6h4B",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
