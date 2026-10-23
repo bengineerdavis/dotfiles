@@ -139,6 +139,39 @@ def source_matches(pattern: str, source: str) -> bool:
     return source.split("/", 1)[0] == pattern
 
 
+# Keys the machine-local store may add to: lists of decisions. `licences`,
+# `foreign_buckets` and `installed` are deliberately absent — the store
+# decides names, it does not loosen licence policy, bucket handling, or the
+# manager's inventory.
+_LAYERED_LISTS = (
+    "deny_sources",
+    "deny_skills",
+    "approved_sources",
+    "vendored",
+    "include_hidden",
+)
+
+
+def layer_configs(base: dict, overlay: dict) -> dict:
+    """Merge a machine-local store UNDER the repo-composed rules.
+
+    Decision lists union (base first); `exclude` unions per source. Everything
+    else comes from `base` alone, so the overlay can tighten (a store denial
+    outranks a repo approval, because deny is checked first) but never loosen
+    (a store approval cannot overturn a repo ban, and the store cannot touch
+    licence policy at all).
+    """
+    merged = dict(base)
+    for key in _LAYERED_LISTS:
+        merged[key] = [*(base.get(key) or []), *(overlay.get(key) or [])]
+    exclude = {k: list(v) for k, v in (base.get("exclude") or {}).items()}
+    for source, names in (overlay.get("exclude") or {}).items():
+        exclude[source] = [*exclude.get(source, []), *names]
+    if exclude:
+        merged["exclude"] = exclude
+    return merged
+
+
 def decide(
     source: str,
     skill: str | None,
@@ -160,6 +193,14 @@ def decide(
                 f'"{source}" matches the banned source "{pattern}". A ban '
                 "outranks approval and licence both; nothing from here installs.",
             )
+
+    if skill and skill in (config.get("deny_skills") or []):
+        return Decision(
+            Verdict.DENIED,
+            "deny_skills",
+            f'"{skill}" is denied by name. A named denial outranks approval '
+            "and licence both; retract it with `skill-trust trust remove`.",
+        )
 
     excludes = config.get("exclude") or {}
     if skill:

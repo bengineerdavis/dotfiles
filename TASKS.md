@@ -88,6 +88,10 @@ delete the line and say so in your commit.
   report (branch `agent/shift_left_scan`, worktree
   `.worktrees/shift-left-scan`) — `TASKS.md`, `.pre-commit-config.yaml`,
   `scripts/`, `tests/`, `.claude/RESEARCH-shift-left-surface-scan.md`
+- 2026-10-21T21:35Z — skill-trust ask-first resolution (branch
+  agent/skill_trust_resolve, worktree .worktrees/skill-trust-resolve) —
+  `TASKS.md`, `tools/skill-trust/`, `dotfiles/roles/guards/`,
+  `dotfiles/executable_update.sh`, `dotfiles/apps/opencode/`
 ## Where things stand — 2026-09-23 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
@@ -1763,6 +1767,30 @@ nothing is.
   `agent/loreai_topic`, worktree `.worktrees/loreai-topic`).
   **PR #70 open 2026-10-21** — quiz answered 2026-10-21; awaiting
   author review and merge.
+
+- **skill-trust: ask-first resolution for unexpected skills — machine-local
+  decision store, `resolve`/`trust` commands, hidden-directory skip.**
+  Author-directed 2026-10-21 after the dotagents-approved-sources guard failed
+  an upgrade run on `~/.agents/skills/.trash` (the author's trash-cli target
+  for scripted removal). Design settled with the author this session: (1)
+  first detection ASKS rather than fails — a pre-flight `skill-trust resolve`
+  in update.sh before ansible runs (mid-play `pause` prompting deferred, see
+  Planned); (2) decisions persist to a machine-local store
+  `~/.config/skill-trust/trust.yaml`, never versioned, layered under the
+  repo-composed rules with deny winning across layers, each entry carrying a
+  why and a date; (3) reject persists a denial and keeps failing until the
+  thing is removed from disk; (4) hidden directories are skipped as
+  non-loadable, every skip is reported, and `include_hidden` re-audits a
+  named dot-dir — per-agent loader behaviour verified where checkable and
+  named where not. Done when: skill-trust gains the store, layering,
+  `deny_skills`, hidden-skip, `resolve` and `trust` with tests seen to fail
+  (mutation trailers on the commits); the guard writes composed rules to
+  `~/.config/skill-trust/rules.yaml` and its failure message names the
+  resolver; update.sh pre-flights without blocking on unresolved findings;
+  README, guard comments and the opencode CHANGELOG are updated; PR open for
+  human review (deployed-tree file `executable_update.sh` is touched).
+  [agent: OpenCode session, worktree .worktrees/skill-trust-resolve, branch
+  agent/skill_trust_resolve]
 
 ## Planned
 
@@ -3600,6 +3628,15 @@ author rather than the machine.
   file's content is either confirmed absorbed by the topic's `tasks/`
   lifecycle files (and the file deleted) or the missing pieces are moved
   into the lifecycle files first. [unclaimed]
+
+- **Review mid-play `pause` prompting for the skill-trust approved-sources
+  guard.** Deferred from the 2026-10-21 ask-first design, which chose the
+  update.sh pre-flight: revisit whether the guard should also ask in-play via
+  ansible's `pause` once the pre-flight has run in anger. That needs a
+  `--json` findings mode from skill-trust and a non-interactive detection
+  rule, and it trades the guard file's own note — decisions belong in the
+  tested program, not in YAML — against asking at the exact moment of
+  detection. [unclaimed]
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 

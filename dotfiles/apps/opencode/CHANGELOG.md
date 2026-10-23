@@ -3,6 +3,28 @@
 Section names come from antsibull-changelog; see `docs/TOPICS.md`
 § "Per-topic changelog and local edge cases".
 
+## 2026-10-21
+
+### major_changes
+
+- **Unexpected skills are now asked about, not just failed on.** The
+  dotagents-approved-sources guard still fails closed, but the run no longer
+  dead-ends there: `update.sh` probes the store before the play and, on a
+  first detection with a terminal attached, opens `skill-trust resolve` —
+  approve, vendor or deny each finding once, with a recorded why, and the
+  decision persists in `~/.config/skill-trust/trust.yaml` (machine-local,
+  never versioned; deny outranks approve across the layers). A recorded
+  rejection keeps failing until the thing is actually removed. The guard's
+  failure message now names both that resolver and the non-interactive
+  `skill-trust trust add`, alongside the one-run
+  `-e guard_allow_unapproved_skills=true` escape.
+- **Hidden directories no longer fail the audit.** Dot-dirs (`.trash` is the
+  one that fired) are skipped as non-load-paths and *reported* every run;
+  `include_hidden` in the topic's guard vars or the trust store re-audits a
+  named directory. Loader verification (dotagents, opencode, codex verified
+  to skip dot-dirs; claude-code, cursor, copilot unverified) is recorded in
+  `tools/skill-trust/README.md`.
+
 ## 2026-10-19
 
 ### known_issues
