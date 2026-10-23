@@ -19,6 +19,14 @@
 # Project configs are owned by each project's git, not by chezmoi.
 opencode:
   common:
+    # roborev's agent-hook installer wrote this block into the deployed file
+    # on 2026-10-22; adopted into the source the same day so `chezmoi apply`
+    # stops clobbering it. If the installer ever changes the block, re-adopt.
+    mcp:
+      servers:
+        roborev:
+          type: local
+          command: ["roborev", "mcp", "serve"]
     model: openrouter/z-ai/glm-5.3-flash
     # Author ruling 3, 2026-10-06 (opencode v2 migration): the trivial-call
     # roles stay local on the current-generation qwen3.5 tag. Pending its
