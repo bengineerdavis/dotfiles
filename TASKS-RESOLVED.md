@@ -804,3 +804,19 @@ apply (author-run; completed by the author 2026-10-15).
   Learnings: `dotfiles/docs/research/coordinating-parallel-work-across-
   refactors.md` § What running it taught us (complete). The seam merge
   also carries the pyrefly project-excludes guard fix (de46484).
+
+## 2026-10-22
+
+- **Add loreai topic (Lore.AI agent-memory gateway).** Done: PR #70 merged
+  2026-10-23 (merge commit 6642983), quiz answered by the author, two
+  maximum-reasoning roborev rounds triaged to zero open findings (9
+  findings, all fixed with mutations recorded in commit trailers). The
+  topic then installed on this machine for real: provision
+  `ok=39 failed=0`, `lore --version` 0.40.0, `lore setup status` shows
+  claude-code and codex routed at the gateway with backups present,
+  answers saved to `~/.config/loreai/env.zsh` (telemetry on, workers on
+  `openrouter/z-ai/glm-5.3-flash`), and the gateway smoke passed
+  (`lore start` → dashboard HTTP 200 at :3207/ui → `lore stop`).
+  Follow-ups live in the topic CHANGELOG known_issues and on
+  `agent/loreai_apply` (PR #72, the roborev MCP adoption discovered
+  during apply). Durable record: PR #70 and its two triage comments.
