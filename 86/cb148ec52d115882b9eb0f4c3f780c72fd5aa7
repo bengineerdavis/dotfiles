@@ -1,0 +1,23 @@
+dotfiles/apps/opencode/CHANGELOG.md
+  s_1c50c5a4508ca2::t_28361e0f059250 6-31
+dotfiles/apps/opencode/README.md
+  s_1c50c5a4508ca2::t_521340fc5a9cdf 138
+  s_1c50c5a4508ca2::t_1a5d7f6d7bcd61 28-33,38-59
+  s_1c50c5a4508ca2::t_67425037ed6486 60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "86cb148ec52d115882b9eb0f4c3f780c72fd5aa7",
+  "prompts": {},
+  "sessions": {
+    "s_1c50c5a4508ca2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e968f300fffeuOf7Ot8eEVODf9",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
