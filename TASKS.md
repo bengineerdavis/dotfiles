@@ -1746,6 +1746,19 @@ nothing is.
   mise entry if local, reshim, re-resolve. Done when the molecule
   scenario is green, the scoped tests pass, the drift is named in the
   topic docs, and the author's cleanup commands are written.
+- **Topic: install topical (the A9 generator) as a first-class tool.**
+  [agent: topical-install / OpenCode — worktree `.worktrees/topical-install`,
+  branch `agent/topical-install`] Thin `apps/topical` topic: install the
+  topical CLI as a **uv tool** from the git remote (author's distribution
+  decision, 2026-10-21: a Python CLI tool via pip — uvx/uv tool on this
+  machine; PyPI later, the bare name is taken there by a dormant package).
+  The topic owns presence (`uv tool install`), currency (`uv tool upgrade`
+  — no system role reaches uv tools) and teardown (`uv tool uninstall`).
+  `topic_requires: [uv]`. Scaffolded by `topical new` itself (dogfooding
+  the no-manager path). Done when the topic is syntax-clean, `--check
+  --tags provision` is green against the machine's real state, and the
+  author has applied it — the install is machine state, so the live apply
+  is the author's step after merge.
 - **Add loreai topic (Lore.AI agent-memory gateway).** Author-directed
   2026-10-21. New `apps/loreai/`: checksum-verified standalone binary
   install from BYK/loreai releases (the `apps/ori` pattern — topic owns

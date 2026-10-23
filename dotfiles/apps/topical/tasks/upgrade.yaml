@@ -1,0 +1,13 @@
+# apps/topical/tasks/upgrade.yaml
+# Topic-level upgrade tasks. Refresh state this topic owns.
+
+# ── This topic's upgrade path ─────────────────────────────────────────────────
+# No system role reaches uv tools, so the topic owns currency itself
+# (docs/TOPICS.md § "Presence vs currency" — the release_artifact case).
+# `uv tool upgrade` follows the install spec's ref; the changed_when reads
+# the verified "Nothing to upgrade" string rather than a guessed update one
+# (uv 0.9.x output, this machine, 2026-10-21).
+- name: "Upgrade topical via uv tool"
+  ansible.builtin.command: uv tool upgrade topical
+  register: topical_upgrade_result
+  changed_when: "'Nothing to upgrade' not in topical_upgrade_result.stdout"
