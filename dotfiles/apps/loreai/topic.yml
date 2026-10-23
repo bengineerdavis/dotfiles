@@ -1,0 +1,14 @@
+# apps/loreai/topic.yml — topic metadata read by the parent playbook.
+# See docs/TOPICS.md.
+topic_name: loreai
+
+# The probeable binary is `lore` (LORE_INSTALL_DIR, default ~/.local/bin).
+topic_provides: [lore]
+
+# Standalone executable — no runtime deps (not even node), the same shape as
+# apps/ori. The per-agent setup steps shell out to `lore` only, and the
+# OpenRouter key probe degrades to "unavailable" when `llm` is absent.
+topic_requires: []
+
+topic_os: [Darwin, Debian]
+topic_tier: app

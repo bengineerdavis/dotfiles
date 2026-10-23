@@ -1,0 +1,59 @@
+# apps/loreai/tasks/remove.yaml
+# Teardown for everything install.yaml creates. Never runs as part of
+# provision/install — only via --tags remove (tagged `never` in main.yaml).
+#
+# What the topic creates, and how each piece is torn down:
+#   per-agent `lore setup` config  → `lore setup undo <app>` (needs the
+#                                    binary, so undo runs BEFORE removal)
+#   the lore binary                → deleted below
+#   ~/.config/loreai/env.zsh       → deleted below (the per-machine answers)
+#   files/zsh/path.zsh PATH entry  → self-guarding; nothing to do
+#   opencode plugin key            → disappears with the topic directory;
+#                                    the chezmoi include is stat-guarded —
+#                                    delete the topic, `chezmoi apply`
+# What it deliberately preserves: the memory database and Lore's own
+# config/channel dirs (loreai_preserved_dirs) — the database is the point
+# of the tool, and `lore uninstall` makes the same choice. The printed
+# paths are the manual purge list.
+
+- name: "loreai: undo each agent's setup (before removing the binary)"
+  ansible.builtin.command: "{{ loreai_install_dir }}/lore setup undo {{ item.app }}"
+  register: loreai_setup_undo
+  changed_when: false
+  failed_when: false
+  loop: "{{ loreai_setup_agents }}"
+  loop_control:
+    label: "{{ item.app }}"
+
+- name: "loreai: report setup undo"
+  ansible.builtin.debug:
+    msg: >-
+      {{ item.item.app }}:
+      {{ (item.stdout_lines | default([])) | join(' | ')
+         if item.rc == 0 else 'skipped (' ~ (item.stderr | default('no output')) | trim ~ ')' }}
+  loop: "{{ loreai_setup_undo.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.app }}"
+
+- name: "loreai: remove the lore binary"
+  ansible.builtin.file:
+    path: "{{ loreai_install_dir }}/lore"
+    state: absent
+
+- name: "loreai: remove the per-machine answers and disposable caches"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ loreai_config_dir }}"
+    - "{{ ansible_env.HOME }}/.cache/lore"
+
+- name: "loreai: name what is preserved, and the opencode note"
+  ansible.builtin.debug:
+    msg: >-
+      Removed: the lore binary, {{ loreai_config_dir }}, ~/.cache/lore, and
+      each agent's setup config. PRESERVED for manual review (the memory
+      database is the point of the tool): {{ loreai_preserved_dirs | join(', ') }} —
+      delete by hand to purge. opencode: the plugin key lives in the
+      chezmoi-included fragment; it disappears from the deployed config on
+      the next `chezmoi apply` after the topic directory is removed.

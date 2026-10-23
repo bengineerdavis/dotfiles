@@ -22,7 +22,10 @@
 
 - name: "Keyrings: check gpg is available"
   ansible.builtin.stat:
-    path: /usr/bin/gpg
+    # Debian's layout by default; apt_gpg_path exists so the task-level tests
+    # can point the check at a stub and pin the repair path on machines
+    # (macOS) whose gpg does not live at /usr/bin/gpg.
+    path: "{{ apt_gpg_path | default('/usr/bin/gpg') }}"
   register: apt_keyrings_gpg
 
 - name: "Keyrings: defer until gnupg is installed"

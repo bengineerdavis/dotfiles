@@ -1,0 +1,40 @@
+# apps/loreai/tasks/agents/opencode.yaml — extension: opencode
+#
+# NOT a `lore setup opencode` run. chezmoi owns opencode.jsonc on this fleet
+# (dot_config/opencode/), and when both opencode.json and .jsonc exist the
+# .jsonc wins (measured 2026-09-12, recorded in that file's header) — setup's
+# writes would be shadowed or reverted. The integration is instead the
+# plugin fragment the chezmoi template includes from this topic
+# (files/opencode/lore-plugin.jsonc): opencode auto-installs a listed plugin
+# on first run, and the plugin itself disables compaction and routes every
+# session through the gateway, auto-starting one in-process.
+#
+# This file only VERIFIES the wiring landed, and names the fix when it has
+# not. It warns rather than fails: render order (chezmoi apply vs this run)
+# is not this topic's to enforce.
+
+- name: "loreai: check the deployed opencode config for the lore plugin"
+  ansible.builtin.command: >-
+    grep -l "@loreai/opencode"
+    {{ ansible_env.HOME }}/.config/opencode/opencode.jsonc
+  register: loreai_opencode_plugin_check
+  changed_when: false
+  failed_when: false
+  check_mode: false  # read-only grep; without it --check fabricates rc=0
+                     # and reports the plugin registered unread
+
+- name: "loreai: report opencode extension state"
+  ansible.builtin.debug:
+    msg: >-
+      {% if loreai_opencode_plugin_check.rc == 0 %}
+      opencode: @loreai/opencode is registered in the deployed config —
+      the plugin auto-installs on first run and routes sessions through
+      the gateway.
+      {% else %}
+      opencode is installed, but @loreai/opencode is NOT in the deployed
+      ~/.config/opencode/opencode.jsonc yet. The chezmoi template includes
+      this topic's files/opencode/lore-plugin.jsonc behind a stat guard —
+      run `chezmoi apply ~/.config/opencode` once the topic's commit is
+      merged and deployed. Nothing on this machine is broken meanwhile;
+      opencode just runs without the gateway until then.
+      {% endif %}

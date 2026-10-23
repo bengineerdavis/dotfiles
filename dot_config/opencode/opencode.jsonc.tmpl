@@ -12,6 +12,16 @@
   // upgrade path, so `auto` stays off.
   "update": "notify",
 
+  // The Lore.AI plugin key lives in the loreai topic
+  // (dotfiles/apps/loreai/files/opencode/lore-plugin.jsonc) and is included
+  // here behind a stat guard: removing the topic removes the key from the
+  // deployed config without breaking `chezmoi apply`. Keep `plugin` out of
+  // .chezmoidata/opencode.yaml — two `plugin` keys would collide.
+  {{- $lore_plugin := "dotfiles/apps/loreai/files/opencode/lore-plugin.jsonc" }}
+  {{- if stat (joinPath .chezmoi.sourceDir $lore_plugin) }}
+  {{ includeTemplate $lore_plugin . | trim }},
+  {{- end }}
+
   // Models, providers and agents come from .chezmoidata/opencode.yaml:
   // common, then os.<os>, then hosts.<hostname>, deep-merged. Edit that file,
   // not this block. The default runs hosted; the small model (titles,
