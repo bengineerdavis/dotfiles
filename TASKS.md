@@ -91,7 +91,9 @@ delete the line and say so in your commit.
 - 2026-10-21T21:35Z — skill-trust ask-first resolution (branch
   agent/skill_trust_resolve, worktree .worktrees/skill-trust-resolve) —
   `TASKS.md`, `tools/skill-trust/`, `dotfiles/roles/guards/`,
-  `dotfiles/executable_update.sh`, `dotfiles/apps/opencode/`
+  `dotfiles/executable_update.sh`, `dotfiles/apps/opencode/`. Scope widened
+  2026-10-22 (author): `pyproject.toml` + `uv.lock` (backlog-md-py into the
+  project venv) and `backlog/` (queue init + first entry).
 ## Where things stand — 2026-09-23 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
