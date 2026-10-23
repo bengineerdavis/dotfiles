@@ -84,6 +84,10 @@ delete the line and say so in your commit.
   (branch `agent/queue_closeout`, worktree `.worktrees/queue-closeout`) —
   `TASKS.md`, `TASKS-RESOLVED.md`
 
+- 2026-10-22T14:00Z — backlog-md-py queue migration (branch
+  `agent/backlog_migration`, worktree `.worktrees/backlog-migration`) —
+  `TASKS.md`, `TASKS-RESOLVED.md`, `docs/PROCESS.md`, `AGENTS.md`,
+  `spec.md`, `tests/tasks_doc/`
 ## Where things stand — 2026-09-23 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
@@ -1738,6 +1742,17 @@ nothing is.
   `agent/loreai_topic`, worktree `.worktrees/loreai-topic`).
   **PR #70 open 2026-10-21** — quiz answered 2026-10-21; awaiting
   author review and merge.
+
+- **Migrate the task queue to backlog-md-py, paired with worktrunk.**
+  Promoted from § Planned 2026-10-22 (author direction of 2026-10-18);
+  decisions settled with the author 2026-10-22: migrate EVERYTHING (§ Now
+  and every § Planned essay becomes a backlog task), REMOVE the old
+  workflow entirely (TASKS.md hand-maintained queue, TASKS-RESOLVED.md,
+  tests/tasks_doc; PROCESS.md/AGENTS.md queue rules rewritten), pair
+  worktrunk now, and land a decision PR before any migration work. Done
+  when `TASKS.md` is an index over per-task files and a task line never
+  lives only in a chat. [agent: this session] (branch
+  `agent/backlog_migration`, worktree `.worktrees/backlog-migration`).
 
 ## Planned
 
@@ -3529,14 +3544,6 @@ author rather than the machine.
   consumer and the migration pattern. Done when that topic runs through the
   module and its mise shell-outs are gone. Gated on the backlog-md-py
   migration below.
-
-- **Migrate the task queue to backlog-md-py, paired with worktrunk.**
-  Author direction 2026-10-18: before the mise module above, move full-time
-  to backlog-md-py (the markdown-native task tool under evaluation — see
-  PROCESS.md § Where the queue lives) and refactor/migrate all of `TASKS.md`
-  into it, paired with worktrunk (the mise wrapper that generates and checks
-  worktree-local denylists; evaluated 2026-09-24). Done when `TASKS.md` is an
-  index over per-task files and a task line never lives only in a chat.
 
 - **Refactor dotfiles storage and automate its presence, not its updates.**
   Dotfiles stays a top-level repo (`~/.local/share/chezmoi`, deployed to
