@@ -726,9 +726,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.config is None and store_mod.default_rules_path().is_file():
         # Judge as the guard would: the composed rules it writes every run.
         args.config = store_mod.default_rules_path()
-    if not args.offline:
-        # gh is only needed for the repository fallback, so it is required only
-        # when that fallback is reachable.
+    # gh is only needed for the repository licence fallback, which only these
+    # commands can reach — never for trust, which touches only the store. The
+    # guard's failure message names `trust add` as the non-interactive fix, so
+    # it must work on a box without gh (roborev job 16, finding 2).
+    if not args.offline and args.command in {"check", "audit", "resolve"}:
         require("gh")
     try:
         return args.func(args)

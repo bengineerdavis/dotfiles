@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import textwrap
 
+import pytest
+
 # pyrefly: ignore [missing-import]
 from skill_trust.cli import DENIED, ERROR, PERMITTED, main
 
@@ -143,6 +145,24 @@ def test_trust_remove_without_a_match_says_so(tmp_path, capsys):
     code = main(["--store", store, "trust", "remove", "--source", "ghost/lib"])
     assert code == ERROR
     assert "no approved_sources entry" in capsys.readouterr().err
+
+
+def test_trust_commands_do_not_require_gh(tmp_path, monkeypatch):
+    """The remediation path the guard's failure message names must work on a
+    box without gh: trust never touches the network or a licence lookup.
+    """
+    monkeypatch.setattr("skill_trust.cli.shutil.which", lambda _c: None)
+    assert main(["--store", str(tmp_path / "s.yaml"), "trust", "list"]) == PERMITTED
+
+
+def test_check_still_requires_gh_when_online(tmp_path, monkeypatch):
+    """The requirement relents, it is not gone: the commands that can reach the
+    repository licence fallback still refuse without gh.
+    """
+    monkeypatch.setattr("skill_trust.cli.shutil.which", lambda _c: None)
+    with pytest.raises(SystemExit) as exc:
+        main(["--config", _config(tmp_path, "{}\n"), "check", "owner/lib"])
+    assert exc.value.code == 127
 
 
 def test_trust_add_exclude_needs_its_source(tmp_path, capsys):
