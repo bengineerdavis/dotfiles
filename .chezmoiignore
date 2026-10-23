@@ -73,6 +73,10 @@ smartparts/
 # Worker budget — machine-local contributor state, not a home-directory file.
 .agent-budget*
 
+# Backlog task queue — repo tooling, never a home-directory file.
+backlog
+backlog/**
+
 {{ if ne .chezmoi.os "linux" }}
 .config/user-tmpfiles.d/tmp.conf
 {{ end }}
