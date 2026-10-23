@@ -761,6 +761,10 @@ root holds only the five documents that govern the project:
   flat `.worktrees/<sid>` names, underscores never slashes in branches, one
   writer per worktree, ephemeral merge scratch, deletion only after
   `merge-base --is-ancestor`.
+- **`docs/BACKLOG-MIGRATION.md`** — the 2026-10-22 decision record for
+  migrating the task queue to backlog-md-py: the rulings, the mapping from
+  `TASKS.md`, the MCP wiring plan, and the cutover procedure. The migration
+  PR folds its outcomes into `docs/PROCESS.md` and this file.
 
 `CONTRIBUTING.md` is the human entry point and lives there rather than
 here on purpose: GitHub only discovers `CONTRIBUTING.md` in `.github/`, the
