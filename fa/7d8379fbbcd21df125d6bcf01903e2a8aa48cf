@@ -1,0 +1,22 @@
+dotfiles/docs/TOPICS.md
+  s_1c50c5a4508ca2::t_6de6cce6b8b8a8 79-134
+  s_1c50c5a4508ca2::t_f08dee0e5f5df7 475-479
+  s_1c50c5a4508ca2::t_ec0fcac24f7246 66,68
+  s_1c50c5a4508ca2::t_54250d2e4fcafc 495-498
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fa7d8379fbbcd21df125d6bcf01903e2a8aa48cf",
+  "prompts": {},
+  "sessions": {
+    "s_1c50c5a4508ca2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e968f300fffeuOf7Ot8eEVODf9",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
