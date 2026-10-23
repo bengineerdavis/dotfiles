@@ -828,3 +828,18 @@ apply (author-run; completed by the author 2026-10-15).
   the diff). The item's "shells out to apt_keyring.py" mechanism note was
   imprecise: the keyring tests import the helper via importlib; the
   errors were gpg, not the helper.
+- **Shift-left surface scan: save/add/commit, quality-and-maintainability
+  focus (mini project).** [agent: opencode coordinator] Done 2026-10-22.
+  Steps 1-2 (inventory with timings + comparison vs the 2026-09-22 study)
+  committed at `.claude/RESEARCH-shift-left-surface-scan.md` (0f9b254);
+  the four-voice council resolved all seven open questions at
+  `.claude/COUNCIL-shift-left-scan.md` (2868cd0) — headline: the 47
+  bin/executable_* files are skipped by every hook (no exec bit), and
+  shellcheck is already red on 30 shell-shebang bin files today. The
+  run-shellharden helper landed with its population census and 9-test
+  bats suite (a30b8d6, mutation-proven: breaking the zsh-skip guard
+  turned exactly tests 3+4 red); the dangling line-42 exclusion dropped
+  (3df2078) so the bats hook now maps the helper to its own suite. Full
+  suite 1089 passed / 6 skipped on the post-PR-67 trunk. Merged to main
+  via 6a9d64b. Ranked follow-on plan (P1a..P5) lives in the council doc;
+  queued items land on author approval.
