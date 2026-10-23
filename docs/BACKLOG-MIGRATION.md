@@ -115,11 +115,12 @@ rollout, not deferred** — this fleet's design point is concurrent agents,
 and the docs are explicit that direct stdio is the *rollback path* which
 "does not provide a shared singleton process"; the daemon is what
 serializes project mutations through filesystem locks shared with the
-CLI. Its lifecycle is decided with implementation: a per-user launchd
-service on macOS, a systemd *user* timer on Debian — the mapping trap in
-AGENTS.md § Cross-platform applies (a user timer only fires while the
-user has a session; report `loginctl enable-linger`, never silently
-change login behaviour).
+CLI. **Lifecycle (author ruling 2026-10-23): a managed service** — a
+per-user launchd agent on macOS, a systemd *user* timer on Debian,
+installed by a topic task with KeepAlive. The mapping trap in AGENTS.md
+§ Cross-platform applies: a user timer only fires while the user has a
+session, so the task reports `loginctl enable-linger` and never silently
+changes login behaviour.
 
 `backlog-py agents --update-instructions` maintains a Backlog-owned,
 marker-delimited workflow block in AGENTS.md; our house sections stay
@@ -133,6 +134,21 @@ are not re-added.
   `.worktrees/<sid>`, underscores, one writer) predates worktrunk's
   adoption. The migration PR evaluates its commands against that contract
   and records what replaces what; WORKTREES.md is updated in the same PR.
+
+## Queue commit policy (author ruling 2026-10-23)
+
+**`backlog/` writes go straight to main.** Task create/edit/claim commits
+are coordination overhead — one commit per task, proportional messages,
+hooks run — not writer work, the same class PROCESS.md already gives
+coordination's merge-backs. Code, docs, and policy stay branched. This is
+a deliberate carve-out from § Everything is branched, and the AGENTS.md
+rewrite records it. Two properties make it safe here where it was not for
+a single shared TASKS.md: per-task files only collide when two sessions
+edit the *same* task, and that case is caught by the tool's version
+check, which fails the second claim cleanly rather than merging garbage.
+The branch-visibility caveat for claims carries over: a claim committed
+on one machine is visible on the other only after a pull — the § Claimed
+gap with a new shape, documented rather than solved.
 
 ## Rewrite scope
 
