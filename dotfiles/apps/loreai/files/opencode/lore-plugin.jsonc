@@ -1,0 +1,9 @@
+// Lore.AI gateway integration — owned by the loreai topic
+  // (dotfiles/apps/loreai/files/opencode/lore-plugin.jsonc), included by
+  // dot_config/opencode/opencode.jsonc.tmpl behind a stat guard so removing
+  // the topic removes this key without breaking `chezmoi apply`. The plugin
+  // auto-installs on first run, disables OpenCode's auto-compaction itself,
+  // and routes every session through the Lore gateway (auto-starting one
+  // in-process). Do NOT add a `plugin` key to .chezmoidata/opencode.yaml —
+  // a second `plugin` key would collide with this one.
+  "plugin": ["@loreai/opencode"]
