@@ -131,8 +131,17 @@ class Decision:
         return self.verdict is Verdict.PERMITTED
 
 
-def source_matches(pattern: str, source: str) -> bool:
-    """`owner/repo` matches that repo; a bare `owner` matches the whole org."""
+def source_matches(pattern: str, source: str | None) -> bool:
+    """`owner/repo` matches that repo; a bare `owner` matches the whole org.
+
+    A None source matches nothing — undeclared directories are judged on their
+    own licence alone, never on patterns meant for publishers. (This guard
+    used to be missing: undeclared-with-licence crashed the whole audit on
+    None.strip() whenever any source pattern was configured. Found by roborev
+    review job 10, 2026-10-22.)
+    """
+    if not source:
+        return False
     pattern, source = pattern.strip().lower(), source.strip().lower()
     if "/" in pattern:
         return pattern == source
@@ -173,7 +182,7 @@ def layer_configs(base: dict, overlay: dict) -> dict:
 
 
 def decide(
-    source: str,
+    source: str | None,
     skill: str | None,
     config: dict,
     spdx: str | None = None,
@@ -185,6 +194,9 @@ def decide(
     source carrying an impeccable MIT licence is still denied, because the
     licence was never what the ban was about.
     """
+    # What messages call the thing being judged: its source when it has one,
+    # its directory name when it does not (an undeclared directory).
+    subject = source if source is not None else skill
     for pattern in config.get("deny_sources") or []:
         if source_matches(pattern, source):
             return Decision(
@@ -226,19 +238,19 @@ def decide(
         return Decision(
             Verdict.PERMITTED,
             "licence",
-            f'"{source}" is not named, but its licence {spdx} is permissive.',
+            f'"{subject}" is not named, but its licence {spdx} is permissive.',
         )
     if tier is Tier.COPYLEFT:
         if (config.get("licences") or {}).get("allow_copyleft"):
             return Decision(
                 Verdict.PERMITTED,
                 "licence",
-                f'"{source}" is {spdx}; copyleft is allowed by config.',
+                f'"{subject}" is {spdx}; copyleft is allowed by config.',
             )
         return Decision(
             Verdict.DENIED,
             "licence",
-            f'"{source}" is {spdx}. Copyleft is open, but vendoring into a '
+            f'"{subject}" is {spdx}. Copyleft is open, but vendoring into a '
             "shared library is redistribution and carries obligations, so it "
             "needs licences.allow_copyleft or an explicit approval.",
         )
@@ -246,21 +258,21 @@ def decide(
         return Decision(
             Verdict.DENIED,
             "licence",
-            f'"{source}" is {spdx} — source-available, not open source, '
+            f'"{subject}" is {spdx} — source-available, not open source, '
             "however much it reads like it.",
         )
     if tier is Tier.PROPRIETARY:
         return Decision(
             Verdict.DENIED,
             "licence",
-            f'"{source}" declares itself {spdx}. It is not unlicensed by '
+            f'"{subject}" declares itself {spdx}. It is not unlicensed by '
             "oversight — it is someone else's, deliberately. Nothing here can "
             "approve it; the owner can.",
         )
     return Decision(
         Verdict.DENIED,
         "default",
-        f'"{source}" is not approved and has no licence this tool recognises '
+        f'"{subject}" is not approved and has no licence this tool recognises '
         f"({spdx or 'none found'}). Absent is not permissive: unlicensed means "
         "all rights reserved. Approve the source explicitly if you have another "
         "basis for trusting it.",

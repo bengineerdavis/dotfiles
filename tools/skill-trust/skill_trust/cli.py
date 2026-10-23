@@ -226,12 +226,9 @@ def gather(
     buckets = find_buckets(root) if foreign else []
     bucket_ids = {b.id for b in buckets}
     today = datetime.date.today().isoformat()
-    problems: list[tuple[str, Decision]] = []
-    skipped_hidden: list[str] = []
-    # Counted before the vendored skip on purpose: a directory whose skills are
-    # all exempt is fully accounted for, not unexamined. Conflating the two would
-    # report UNKNOWN for a correctly configured machine.
-    seen = 0
+    # `seen` counts before the vendored skip on purpose: a directory whose
+    # skills are all exempt is fully accounted for, not unexamined. Conflating
+    # the two would report UNKNOWN for a correctly configured machine.
 
     for path in sorted(p for p in root.iterdir() if p.is_dir()):
         # Directories only. A loose file beside the skills — a config, a README,
@@ -295,7 +292,10 @@ def gather(
             else:
                 spdx = licence_from_dir(path)
                 decision = (
-                    decide(name, name, config, spdx=spdx)
+                    # No source exists for an undeclared directory: it is judged
+                    # on its own licence alone (source_patterns never match
+                    # None), with the name still passed so deny_skills fires.
+                    decide(None, name, config, spdx=spdx)
                     if spdx
                     else Decision(
                         Verdict.DENIED,
