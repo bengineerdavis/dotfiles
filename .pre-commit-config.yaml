@@ -54,8 +54,7 @@ repos:
         exclude: >-
           (?x)^(
             tests/|                       # test files are not subjects
-            scripts/run-bats\.sh|         # the runner itself
-            scripts/run-shellharden\.sh   # shellharden helper
+            scripts/run-bats\.sh          # the runner itself
           )$
         # bin/ at either payload root: root bin/ today, home/bin/ after
         # the .chezmoiroot move (TASKS.md § Planned, payload move step 3).

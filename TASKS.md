@@ -83,11 +83,7 @@ delete the line and say so in your commit.
   (skill-trust foreign buckets, test-perf-xdist) into TASKS-RESOLVED
   (branch `agent/queue_closeout`, worktree `.worktrees/queue-closeout`) —
   `TASKS.md`, `TASKS-RESOLVED.md`
-- 2026-10-03T21:05Z — shift-left surface scan (mini project): research
-  inventory, comparison, four-voice council, run-shellharden.sh build,
-  report (branch `agent/shift_left_scan`, worktree
-  `.worktrees/shift-left-scan`) — `TASKS.md`, `.pre-commit-config.yaml`,
-  `scripts/`, `tests/`, `.claude/RESEARCH-shift-left-surface-scan.md`
+
 ## Where things stand — 2026-09-23 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
@@ -241,41 +237,6 @@ reversed earlier positions on purpose.
 
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
-
-- **Shift-left surface scan: save/add/commit, quality-and-maintainability
-  focus (mini project).** Author-directed 2026-10-03, three steps after
-  plan approval. Narrower and different from the 2026-09-22 shift-left
-  testing study (TASKS-RESOLVED.md § 2026-09-22, first entry — build on
-  it, do not repeat it): this scan asks what runs — or could run — at
-  **file save, git add, and git commit, in speed order** (budgets: save
-  ≤2s, add ≤5s, commit ≤30s), for code quality, readability and
-  maintainability, across this repo's code **and chezmoi-deployable code**
-  (`bin/executable_*`, `scripts/`, zsh fragments, `*.tmpl` templates).
-  Step 1: a read-only research agent inventories every shift-left surface
-  with measured timings. Step 2: the findings are compared against the
-  2026-09-22 study's adopted/queued/rejected sets — what landed, what is
-  still queued, what is stale — and every candidate is classified
-  check-vs-rewrite against the hooks-only-check policy. Step 3: a
-  four-voice advisor council (incrementalist, trust architect,
-  agent-workflow, fleet/provisioning — the first three same as the
-  2026-09-22 council) ranks the full set including the re-ranked queued
-  items and names rejections. Author scoping decisions folded in: save
-  tier covers BOTH the opencode agent loop and a human editor; the
-  deliverable includes a **layered global user-level editor-tooling
-  config** (chezmoi topic) copyable into projects with per-project
-  overrides, covering opencode, Zed, VS Code/Cursor, and Neovim (not
-  Helix — author has not adopted it). `scripts/run-shellharden.sh` is an
-  author-directed build after the scan confirms shellharden's modes
-  (4.3.4: `--check` exit-2, `--replace` rewrite); the dangling
-  `.pre-commit-config.yaml` exclusion for it (line 42, file never in
-  history) is a scan finding with a council verdict. Done when: the
-  inventory exists with timings, the have-vs-recommended comparison is
-  written, the council's rankings and rejections are recorded, the
-  helper lands with its own test seen to fail, the report is committed
-  at `.claude/RESEARCH-shift-left-surface-scan.md`, and the synthesis is
-  in front of the author. Adoptions become queued tasks only on author
-  approval. [me, research agent read-only, branch agent/shift_left_scan,
-  worktree .worktrees/shift-left-scan]
 
 - **Evaluate interchangeable components for agent work.**
   [handoff ready, unclaimed; initial comparison complete, container setup
@@ -1715,7 +1676,8 @@ nothing is.
   that says what it changed.
    [agent: topic-cli-a9 / OpenCode — worktree
    `.worktrees/topic-cli-a9`, branch `agent/topic-cli-a9`]
-   **Generator half delivered 2026-10-20, PR #66 pending.** Redirected by
+   **Generator half delivered and merged 2026-10-21 (PR #66, merge commit `8d32782`).**
+   Redirected by
    the author mid-review: the generator, block templates and canonical
    skeleton live in the topical repo (`~/code/personal/topical`), which
    the copier template inherits from. The branch carries the move
@@ -1750,6 +1712,33 @@ nothing is.
   mise entry if local, reshim, re-resolve. Done when the molecule
   scenario is green, the scoped tests pass, the drift is named in the
   topic docs, and the author's cleanup commands are written.
+- **Topic: install topical (the A9 generator) as a first-class tool.**
+  [agent: topical-install / OpenCode — worktree `.worktrees/topical-install`,
+  branch `agent/topical-install`] Thin `apps/topical` topic: install the
+  topical CLI as a **uv tool** from the git remote (author's distribution
+  decision, 2026-10-21: a Python CLI tool via pip — uvx/uv tool on this
+  machine; PyPI later, the bare name is taken there by a dormant package).
+  The topic owns presence (`uv tool install`), currency (`uv tool upgrade`
+  — no system role reaches uv tools) and teardown (`uv tool uninstall`).
+  `topic_requires: [uv]`. Scaffolded by `topical new` itself (dogfooding
+  the no-manager path). Done when the topic is syntax-clean, `--check
+  --tags provision` is green against the machine's real state, and the
+  author has applied it — the install is machine state, so the live apply
+  is the author's step after merge.
+- **Add loreai topic (Lore.AI agent-memory gateway).** Author-directed
+  2026-10-21. New `apps/loreai/`: checksum-verified standalone binary
+  install from BYK/loreai releases (the `apps/ori` pattern — topic owns
+  its upgrade), per-agent `lore setup` extensions behind detection
+  (claude-code, codex, pi, hermes; opencode via a chezmoi-included
+  plugin fragment, because chezmoi owns that config), first-install
+  prompts (telemetry, worker-model inference) saved per machine under
+  `~/.config/loreai/`, `lore import` report-only. Done when the PR is
+  open with syntax-check and `--check` evidence and the author has
+  answered the merge quiz. [agent: this session] (branch
+  `agent/loreai_topic`, worktree `.worktrees/loreai-topic`).
+  **PR #70 open 2026-10-21** — quiz answered 2026-10-21; awaiting
+  author review and merge.
+
 ## Planned
 
 
