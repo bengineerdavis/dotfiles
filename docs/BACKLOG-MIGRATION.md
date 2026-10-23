@@ -50,7 +50,7 @@ keys, designed for multi-agent use.
 
 | Old | New |
 |---|---|
-| § Now items | tasks, status In Progress; branch/worktree/owner metadata moves into the task body |
+| § Now items | tasks, status **To Do** — "In Progress" is a *claimed workflow state*, not a storage status: claiming an In-Progress task errors (`transition is not allowed`, verified 2026-10-23). In-flight items carry branch/worktree/owner in the body; the owner re-claims via orchestration on resume |
 | § Planned essays | tasks, status To Do; the essay becomes the description |
 | Unsorted ideas | `backlog-py draft` (the tool's promotion flow) |
 | § Claimed lines | `orchestration claim` leases; stale leases are queryable instead of rotting in a file |
@@ -62,6 +62,40 @@ keys, designed for multi-agent use.
 replacement is a test that runs `backlog-py doctor` (read-only; reports
 unreadable task files and id collisions) plus a board render, so the queue
 file can never again pass while being structurally broken.
+
+## Verified against the tool (the doc-interrogation pass, 2026-10-23)
+
+Every load-bearing claim above was checked against the artifact
+(`uvx backlog-md-py`, 2.1.0) and the official docs — findings that changed
+the design:
+
+- **Lease mechanics (verified).** A claim writes an `orchestration:`
+  block into the task file: `lease_owner`, `lease_expires_at` (1h
+  default), `idempotency_key`, version counter. Leases git-sync with the
+  task, expire on their own, and conflicting mutations fail cleanly
+  (probed: expected-version conflict and wrong-status claim both error
+  without touching the file). § Claimed's known branch-visibility gap
+  carries over unchanged and stays documented.
+- **Daemon required for multi-agent (design amended above).**
+- **Default statuses are To Do / In Progress / Done** — no Blocked
+  status; blocked items carry a `blocked` label and the reason in the
+  body.
+- **`autoCommit: false` by default** (kept — task files are committed by
+  the house commit discipline, never by the tool), `bypassGitHooks:
+  false`, `remoteOperations: false`.
+- **Never install upstream Backlog.md alongside.** Its locks are
+  incompatible with backlog-md-py's (documented); nothing here installs
+  it. Standing rule, recorded here because the MCP server name in the
+  codex config is literally `backlog`.
+- **Codex MCP shape (verified):** `[mcp_servers.backlog]` with
+  `command = "backlog-py-mcp"`.
+- **Task format (verified):** YAML frontmatter + marker-delimited
+  sections; multi-line Markdown descriptions (our essay bodies)
+  round-trip intact.
+- **`compat status`:** `agent_cutover_ready: true` against the audited
+  upstream baseline (Backlog.md 1.50.1, 2026-09-01). Browser-board
+  readiness is false upstream of their own release gates — irrelevant
+  here; the board is an optional human surface, not a requirement.
 
 ## MCP wiring
 
@@ -76,10 +110,16 @@ local stdio server for each agent that reads MCP config:
 - **claude-code** — via `claude mcp add` (writes `~/.claude.json`); a manual
   step recorded in the migration PR, not automated config.
 
-stdio-direct to start. The shared singleton daemon (`backlog-py daemon
-ensure`) is the documented multi-agent path and stays **out of scope** —
-adopt it when concurrent-MCP contention is actually observed, with its
-lifecycle (launchd/systemd user service) decided then.
+The shared singleton daemon (`backlog-py daemon ensure`) is **required at
+rollout, not deferred** — this fleet's design point is concurrent agents,
+and the docs are explicit that direct stdio is the *rollback path* which
+"does not provide a shared singleton process"; the daemon is what
+serializes project mutations through filesystem locks shared with the
+CLI. Its lifecycle is decided with implementation: a per-user launchd
+service on macOS, a systemd *user* timer on Debian — the mapping trap in
+AGENTS.md § Cross-platform applies (a user timer only fires while the
+user has a session; report `loginctl enable-linger`, never silently
+change login behaviour).
 
 `backlog-py agents --update-instructions` maintains a Backlog-owned,
 marker-delimited workflow block in AGENTS.md; our house sections stay
@@ -115,4 +155,8 @@ changelog.d entry.
    `TASKS-RESOLVED.md` with the `archive/tasks-md` tag → changelog.
 3. Validation per the tool's own cutover checklist: the import runs against
    a **copy** of the repo first; `backlog-py doctor` and `board` must be
-   clean; the full repo suite runs before the deletion commit lands.
+   clean; the MCP server answers `initialize`
+   (`printf '{"jsonrpc":"2.0","id":1,"method":"initialize"}\n' | backlog-py-mcp`);
+   the daemon smoke passes (`daemon ensure` → one `backlog_py daemon run`
+   process → `daemon status --json` → `daemon stop`); and the full repo
+   suite runs before the deletion commit lands.
