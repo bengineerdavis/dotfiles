@@ -1,0 +1,12 @@
+# apps/backlog/topic.yml — topic metadata read by the parent playbook.
+# See docs/TOPICS.md.
+topic_name: backlog
+
+# The probeable binaries, installed via mise's first-party capture.
+topic_provides: [backlog-py, backlog-py-mcp]
+
+# mise installs the pipx package; nothing else is needed at install time.
+topic_requires: [mise]
+
+topic_os: [Darwin, Debian]
+topic_tier: app
