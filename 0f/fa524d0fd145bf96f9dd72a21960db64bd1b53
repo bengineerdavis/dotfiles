@@ -1,0 +1,79 @@
+scripts/run-molecule.sh
+  s_1c50c5a4508ca2::t_b8be04b4e10d5f 53-56
+  s_1c50c5a4508ca2::t_e6f741d6c2039b 11-15
+  s_1c50c5a4508ca2::t_40c5a8a96f7916 108-109,117
+dotfiles/apps/opencode/molecule/from-v1/tests/test_pre_state.py
+  s_1c50c5a4508ca2::t_98d7a137ff6148 1-2,7-19,22-26
+  s_1c50c5a4508ca2::t_5bcb8809c930f9 3-6,20-21,27-28
+dotfiles/apps/opencode/molecule/shared/converge-migrate.yml
+  s_1c50c5a4508ca2::t_27c031a6326885 1-28
+tests/run_molecule/run_molecule_harness.py
+  s_1c50c5a4508ca2::t_409f1199b9f401 93-96,102-103
+dotfiles/apps/opencode/molecule/shadow-guard/tests/test_decline.py
+  s_1c50c5a4508ca2::t_e0d345a2824ff2 20,22,28-29,45-46
+  s_1c50c5a4508ca2::t_05df9d0c4d5844 34
+  s_1c50c5a4508ca2::t_34c7639bdca122 3-5
+  s_1c50c5a4508ca2::t_f6767fc9fdef26 1-2,6-19,21,23-27,30-33,35-44
+dotfiles/apps/opencode/molecule/shared/converge-migrate-decline.yml
+  s_1c50c5a4508ca2::t_677a73c20ab715 1-47
+dotfiles/apps/opencode/molecule/shared/prepare.yml
+  s_1c50c5a4508ca2::t_82d165af902a0c 1-188
+dotfiles/apps/opencode/molecule/shared/verify/test_verify.py
+  s_1c50c5a4508ca2::t_1f16240846aa2e 4-10
+  s_1c50c5a4508ca2::t_b4b2f349c31d81 127,166-168,170,174-189,194-199
+  s_1c50c5a4508ca2::t_321f251dd6c5cd 190-193
+  s_1c50c5a4508ca2::t_36d83746c1c63a 1-3
+  s_1c50c5a4508ca2::t_1a9263913a7425 169,171-173
+  s_1c50c5a4508ca2::t_6fe3a3111ec6dc 11-13,124-126
+  s_1c50c5a4508ca2::t_4e1aa25c131caf 128-130,163-165
+dotfiles/apps/opencode/molecule/default/README.md
+  s_1c50c5a4508ca2::t_901d0ca3f991df 1,3-14,17-19,22-27,29,34,36-44,48-64,68-75,78-80,83-86,89-94,100-104
+dotfiles/apps/opencode/molecule/default/tests/test_default_state.py
+  s_1c50c5a4508ca2::t_a0d696271d3b0f 1-6,20-21,23-24
+  s_1c50c5a4508ca2::t_7fb0b533b80013 7-18,22,25
+  s_1c50c5a4508ca2::t_37c038e25f0992 19
+dotfiles/apps/opencode/molecule/shared/converge.yml
+  s_1c50c5a4508ca2::t_74e092c14d24f9 1-28
+tests/run_molecule/test_run_molecule.py
+  s_1c50c5a4508ca2::t_1541d8dc196aa7 195
+  s_1c50c5a4508ca2::t_ed1a7afa76cec0 194,196-214,216-226
+  s_1c50c5a4508ca2::t_6df598c770de4f 215
+dotfiles/apps/opencode/molecule/default/converge.yml
+  s_1c50c5a4508ca2::t_e3b860b37576e0 2-4
+dotfiles/apps/opencode/molecule/default/molecule.yml
+  s_1c50c5a4508ca2::t_aa7e592026e3b5 19,40,50-57
+dotfiles/apps/opencode/molecule/default/prepare.yml
+  s_1c50c5a4508ca2::t_35fac41054f1f7 2-3
+dotfiles/apps/opencode/molecule/default/tests/test_verify.py
+  s_1c50c5a4508ca2::t_0d5b8ed83c2697 1
+dotfiles/apps/opencode/molecule/from-v1/converge.yml
+  s_1c50c5a4508ca2::t_a270803597cc7c 1-6
+dotfiles/apps/opencode/molecule/from-v1/molecule.yml
+  s_1c50c5a4508ca2::t_135f1352ea2676 1-57
+dotfiles/apps/opencode/molecule/from-v1/prepare.yml
+  s_1c50c5a4508ca2::t_469e3f26401928 1-3
+dotfiles/apps/opencode/molecule/from-v1/tests/test_verify.py
+  s_1c50c5a4508ca2::t_a03de2ba89c333 1
+dotfiles/apps/opencode/molecule/shadow-guard/converge.yml
+  s_1c50c5a4508ca2::t_bd574f8a8908dc 1-4
+dotfiles/apps/opencode/molecule/shadow-guard/molecule.yml
+  s_1c50c5a4508ca2::t_8813062a1009d8 1-57
+dotfiles/apps/opencode/molecule/shadow-guard/prepare.yml
+  s_1c50c5a4508ca2::t_d201a07d619724 1-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0ffa524d0fd145bf96f9dd72a21960db64bd1b53",
+  "prompts": {},
+  "sessions": {
+    "s_1c50c5a4508ca2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e968f300fffeuOf7Ot8eEVODf9",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
