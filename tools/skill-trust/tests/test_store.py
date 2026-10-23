@@ -130,3 +130,24 @@ def test_save_round_trips_and_locks_permissions(tmp_path):
     save_store(p, store)
     assert read_store(p) == store
     assert (p.stat().st_mode & 0o777) == 0o600
+    assert not [f for f in p.parent.iterdir() if "tmp-" in f.name]
+
+
+def test_a_failed_replace_leaves_the_old_store_intact(tmp_path, monkeypatch):
+    """The point of the atomic write: a save that fails mid-way (disk full,
+    kill) must leave the previous valid store readable, not a truncated file
+    every later run would refuse to parse.
+    """
+    p = tmp_path / "trust.yaml"
+    save_store(p, add_entry({}, "vendored", name="one", why="w"))
+    original = p.read_text()
+
+    def _boom(*_a):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("skill_trust.store.os.replace", _boom)
+    with pytest.raises(OSError, match="disk full"):
+        save_store(p, add_entry({}, "vendored", name="two", why="w"))
+    assert p.read_text() == original
+    assert read_store(p)  # and it still parses
+    assert not [f for f in tmp_path.iterdir() if "tmp-" in f.name]

@@ -24,6 +24,9 @@ import pathlib
 
 import yaml
 
+# os is imported (not `from os import replace`) so tests can monkeypatch
+# os.replace and watch the failure path of an atomic save.
+
 
 class StoreError(Exception):
     """A store file that could not be read. Distinct from an absent store on
@@ -199,8 +202,11 @@ def remove_entry(
 
 
 def save_store(path: pathlib.Path, store: dict[str, list[dict]]) -> None:
-    """Write the store, 0700 dir / 0600 file. Kinds in a fixed order so the
-    file diffs calmly between decisions.
+    """Write the store, 0700 dir / 0600 file, ATOMICALLY: temp sibling plus
+    os.replace, so an interrupt mid-write can never replace a valid store
+    with a truncated one — every later run would read that as a corrupt
+    store and error (roborev job 16, finding 3). Kinds in a fixed order so
+    the file diffs calmly between decisions.
     """
     path.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
     ordered = {kind: store[kind] for kind in KIND_KEYS if store.get(kind)}
@@ -210,5 +216,10 @@ def save_store(path: pathlib.Path, store: dict[str, list[dict]]) -> None:
         "# Written by `skill-trust resolve` / `skill-trust trust`; hand edits are\n"
         "# read strictly (an unknown field or kind is an error, not a skip).\n"
     )
-    path.write_text(header + body, encoding="utf-8")
-    path.chmod(0o600)
+    tmp = path.with_name(f".{path.name}.tmp-{os.getpid()}")
+    try:
+        tmp.write_text(header + body, encoding="utf-8")
+        tmp.chmod(0o600)
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
