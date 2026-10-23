@@ -1,0 +1,23 @@
+tests/topics/test_opencode_v2_tasks.py
+  s_1c50c5a4508ca2::t_04e253d2655f30 114-115,117-120,124-125,128-131,135-136,142-144
+tests/topics/test_opencode_migrations.py
+  s_1c50c5a4508ca2::t_e65e0a1aaeafa8 210-226,230-234,238-243
+  s_1c50c5a4508ca2::t_5ba92c91a2e5d1 1-209,227-229,235-237,244-288
+  s_1c50c5a4508ca2::t_fefd51274465fd 289-291
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "973ed83c42f855b3cb1555f4b788bfddc6ca8856",
+  "prompts": {},
+  "sessions": {
+    "s_1c50c5a4508ca2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e968f300fffeuOf7Ot8eEVODf9",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
