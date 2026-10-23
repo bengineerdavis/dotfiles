@@ -88,6 +88,9 @@ delete the line and say so in your commit.
   report (branch `agent/shift_left_scan`, worktree
   `.worktrees/shift-left-scan`) — `TASKS.md`, `.pre-commit-config.yaml`,
   `scripts/`, `tests/`, `.claude/RESEARCH-shift-left-surface-scan.md`
+- 2026-10-23T01:15Z — loreai install on this machine post-merge (branch
+  `agent/loreai_apply`, worktree `.worktrees/loreai-apply`) —
+  `TASKS.md`, `chezmoi apply`, `~/.local/bin/lore`, `~/.config/loreai/`
 ## Where things stand — 2026-09-23 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
