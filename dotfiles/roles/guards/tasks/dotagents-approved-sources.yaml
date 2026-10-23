@@ -108,8 +108,8 @@
       Nothing has been installed, moved or deleted. A first detection does not
       have to fail next time: run `skill-trust resolve` in a terminal to
       approve, vendor or deny each finding once — the answer is remembered in
-      ~/.config/skill-trust/trust.yaml, and a recorded denial keeps failing
-      until the thing is removed. Non-interactive:
+      {{ guard_skill_trust_rules | dirname }}/trust.yaml, and a recorded
+      denial keeps failing until the thing is removed. Non-interactive:
       `skill-trust trust list` / `skill-trust trust add --help`. Accept
       unapproved skills for one run with
       `-e guard_allow_unapproved_skills=true`.
