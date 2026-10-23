@@ -34,16 +34,21 @@ rules="${XDG_CONFIG_HOME:-$HOME/.config}/skill-trust/rules.yaml"
 skills_dir="$HOME/.agents/skills"
 export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
 if command -v skill-trust >/dev/null 2>&1 && [ -f "$rules" ] && [ -d "$skills_dir" ]; then
-  if inventory="$(npx -y @sentry/dotagents@latest --user list --json 2>/dev/null)"; then
+  # The inventory goes to a FILE, not a pipe: resolve prompts on stdin, and
+  # piping the inventory in would take the terminal away with it.
+  # Explicit X-template: `mktemp -t prefix` needs X's appended on GNU and is
+  # a different flag shape on BSD; the long form is identical on both.
+  inventory_file="$(mktemp "${TMPDIR:-/tmp}/skill-trust-inventory.XXXXXXXX")"
+  if npx -y @sentry/dotagents@latest --user list --json >"$inventory_file" 2>/dev/null; then
     rc=0
-    printf '%s' "$inventory" | skill-trust --offline --config "$rules" audit \
-      --skills-dir "$skills_dir" --declared-json - >/dev/null 2>&1 || rc=$?
+    skill-trust --offline --config "$rules" audit \
+      --skills-dir "$skills_dir" --declared-json "$inventory_file" >/dev/null 2>&1 || rc=$?
     if [ "$rc" -eq 1 ]; then
       if [ -t 0 ]; then
         echo "› unexpected skills detected — resolving interactively" >&2
         resolve_rc=0
-        printf '%s' "$inventory" | skill-trust --offline --config "$rules" resolve \
-          --skills-dir "$skills_dir" --declared-json - || resolve_rc=$?
+        skill-trust --offline --config "$rules" resolve \
+          --skills-dir "$skills_dir" --declared-json "$inventory_file" || resolve_rc=$?
         if [ "$resolve_rc" -ne 0 ]; then
           echo "› findings remain unresolved; the play's guard will report them" >&2
         fi
@@ -52,6 +57,7 @@ if command -v skill-trust >/dev/null 2>&1 && [ -f "$rules" ] && [ -d "$skills_di
       fi
     fi
   fi
+  rm -f "$inventory_file"
 fi
 
 # Upgrade ansible FIRST, out-of-band, before it becomes the controller for the
