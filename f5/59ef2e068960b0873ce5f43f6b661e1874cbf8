@@ -1,0 +1,35 @@
+dotfiles/apps/opencode/defaults/main.yaml
+  s_1c50c5a4508ca2::t_998b33d8b5fde4 129-136
+dotfiles/apps/opencode/tasks/migrations/remove-shadow-channel.yaml
+  s_1c50c5a4508ca2::t_2891fef47714f6 1-34,36-43,45-75
+  s_1c50c5a4508ca2::t_c46e3a449bc302 44
+  s_1c50c5a4508ca2::t_ab8244651a7f5f 35
+dotfiles/apps/opencode/tasks/migrate.yaml
+  s_1c50c5a4508ca2::t_7f2f8b212898c9 1-28
+dotfiles/apps/opencode/tasks/shadow-channel-check.yaml
+  s_1c50c5a4508ca2::t_00ba80c2ff8823 1-90
+dotfiles/apps/opencode/tasks/main.yaml
+  s_1c50c5a4508ca2::t_e74572013e6f89 21-29
+dotfiles/apps/opencode/tasks/migrations/remove-v1-formula.yaml
+  s_1c50c5a4508ca2::t_c42140a8514596 1-61
+dotfiles/apps/opencode/playbook.yaml
+  s_1c50c5a4508ca2::t_adf33afeb6b02e 3,5-6
+dotfiles/playbook.yaml
+  s_1c50c5a4508ca2::t_2aba368142031b 15-16,117,131,145
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f559ef2e068960b0873ce5f43f6b661e1874cbf8",
+  "prompts": {},
+  "sessions": {
+    "s_1c50c5a4508ca2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e968f300fffeuOf7Ot8eEVODf9",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
