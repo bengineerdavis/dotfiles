@@ -159,6 +159,64 @@ def test_an_interruption_keeps_the_decisions_already_made(
     assert "interrupted" in capsys.readouterr().out
 
 
+def test_declared_json_dash_is_refused_with_the_fix_named(
+    tmp_path, monkeypatch, capsys
+):
+    """Resolve's stdin is the prompt channel. A piped inventory used to take
+    the terminal away with it, and the TTY refusal read as the tool being
+    broken (roborev job 10, finding 1).
+    """
+    _tty(monkeypatch)
+    _skill(tmp_path, "mystery")
+    assert _resolve(tmp_path, "--declared-json", "-") == ERROR
+    assert "pass the inventory as a file" in capsys.readouterr().err
+
+
+def test_resolve_fetches_the_inventory_itself_by_default(tmp_path, monkeypatch):
+    """With an inventory, a declared skill from an unapproved source is
+    offered (and accepts) approve-source — the choice that fits. Without it
+    the same skill looks undeclared and only vendor/deny would appear.
+    """
+    _tty(monkeypatch)
+    _skill(tmp_path, "cool-skill")
+    stub_dir = tmp_path.parent / f"cfg-{tmp_path.name}"
+    stub_dir.mkdir(exist_ok=True)
+    stub = stub_dir / "inv.sh"
+    payload = json.dumps(
+        {"skills": [{"name": "cool-skill", "source": "thirdparty/skills"}]}
+    )
+    stub.write_text(f"#!/bin/sh\necho '{payload}'\n")
+    stub.chmod(0o755)
+    _answers(monkeypatch, "a", "MIT, reviewed the repo")
+    assert _resolve(tmp_path, "--inventory-cmd", str(stub)) == PERMITTED
+    store = read_store(tmp_path / "store.yaml")
+    assert store["approved_sources"][0]["source"] == "thirdparty/skills"
+
+
+def test_an_inventory_failure_warns_and_degrades(tmp_path, monkeypatch, capsys):
+    """A failed fetch must not read as 'everything is undeclared by
+    coincidence' — the warning says the inventory is missing, and the
+    choices degrade to the undeclared set.
+    """
+    _tty(monkeypatch)
+    _skill(tmp_path, "cool-skill")
+    _answers(monkeypatch, "v", "vendor is what is offered without a source")
+    assert (
+        _resolve(tmp_path, "--inventory-cmd", "definitely-not-a-command-xyz")
+        == PERMITTED
+    )
+    assert "treated as undeclared" in capsys.readouterr().err
+    assert read_store(tmp_path / "store.yaml")["vendored"][0]["name"] == "cool-skill"
+
+
+def test_no_inventory_skips_the_fetch_without_warning(tmp_path, monkeypatch, capsys):
+    _tty(monkeypatch)
+    _skill(tmp_path, "cool-skill")
+    _answers(monkeypatch, "v", "w")
+    assert _resolve(tmp_path, "--no-inventory") == PERMITTED
+    assert "treated as undeclared" not in capsys.readouterr().err
+
+
 def test_already_decided_findings_are_reported_not_asked(tmp_path, monkeypatch, capsys):
     """A recorded denial is never re-asked — that is what makes first
     detection the only question a human ever answers twice.

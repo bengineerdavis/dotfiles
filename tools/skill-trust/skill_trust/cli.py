@@ -14,6 +14,7 @@ import datetime
 import json
 import pathlib
 import shutil
+import subprocess
 import sys
 
 import yaml
@@ -31,6 +32,12 @@ from .discover import licence_from_dir, licence_from_repo
 from . import store as store_mod
 
 PERMITTED, DENIED, UNKNOWN, ERROR = 0, 1, 2, 3
+
+# The manager inventory command resolve runs for itself. Mirrors
+# guard_dotagents_list_cmd in dotfiles/roles/guards/defaults/main.yaml — keep
+# the two in step; it is a parameter there and a flag (--inventory-cmd) here
+# precisely so a different manager can be wired in from either side.
+_INVENTORY_CMD_DEFAULT = "npx -y @sentry/dotagents@latest --user list --json"
 
 
 class ConfigError(Exception):
@@ -176,28 +183,74 @@ def cmd_audit(args) -> int:
     return DENIED
 
 
-def _load_declared(args, config: dict) -> dict[str, str]:
+def _merge_declared_json(raw: str, declared: dict[str, str], *, what: str) -> None:
+    """A manager's inventory, merged in. Deliberately a JSON shape rather than
+    a call to any particular tool: `dotagents list --json` produces it today,
+    and anything that can emit {"skills":[{"name","source"}]} works tomorrow.
+    """
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ConfigError(f"{what} is not JSON: {exc}") from exc
+    for entry in payload.get("skills") or []:
+        if entry.get("name") and entry.get("source"):
+            declared[entry["name"]] = entry["source"]
+
+
+def _inventory_from_cmd(cmd: str) -> str | None:
+    """The manager's inventory, fetched by resolve itself. None — with a loud
+    stderr warning — when the command cannot produce one: proceeding then
+    degrades declared skills to 'undeclared', and the human must see that
+    rather than record decisions on wrong information (roborev job 10,
+    finding 2).
+    """
+    try:
+        done = subprocess.run(
+            cmd, shell=True, capture_output=True, text=True, timeout=120
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        print(
+            f"skill-trust: inventory command could not run ({exc}); "
+            "declared skills will be treated as undeclared",
+            file=sys.stderr,
+        )
+        return None
+    if done.returncode != 0:
+        print(
+            f"skill-trust: inventory command exited {done.returncode} "
+            f"({(done.stderr or '').strip()[:200]}); "
+            "declared skills will be treated as undeclared",
+            file=sys.stderr,
+        )
+        return None
+    return done.stdout
+
+
+def _load_declared(args, config: dict, *, interactive: bool = False) -> dict[str, str]:
     """What declares what, from the config's `installed` plus a manager's
-    inventory. Deliberately a JSON shape rather than a call to any particular
-    tool: `dotagents list --json` produces it today, and anything that can
-    emit {"skills":[{"name","source"}]} works tomorrow.
+    inventory — piped or filed in, or fetched with --inventory-cmd.
     """
     declared: dict[str, str] = {}
     for entry in config.get("installed") or []:
         declared[entry["name"]] = entry["source"]
-    if args.declared_json:
-        raw = (
-            sys.stdin.read()
-            if args.declared_json == "-"
-            else pathlib.Path(args.declared_json).read_text(encoding="utf-8")
-        )
-        try:
-            payload = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise ConfigError(f"--declared-json is not JSON: {exc}") from exc
-        for entry in payload.get("skills") or []:
-            if entry.get("name") and entry.get("source"):
-                declared[entry["name"]] = entry["source"]
+    if getattr(args, "declared_json", None):
+        if args.declared_json == "-":
+            if interactive:
+                # resolve's stdin is the prompt channel; piping the inventory
+                # in also pipes away the terminal, and the TTY refusal below
+                # would fire (roborev job 10, finding 1).
+                raise ConfigError(
+                    "resolve prompts on stdin — pass the inventory as a file "
+                    "(--declared-json FILE), or let --inventory-cmd fetch it"
+                )
+            raw = sys.stdin.read()
+        else:
+            raw = pathlib.Path(args.declared_json).read_text(encoding="utf-8")
+        _merge_declared_json(raw, declared, what="--declared-json")
+    elif interactive and not getattr(args, "no_inventory", False):
+        raw = _inventory_from_cmd(args.inventory_cmd)
+        if raw is not None:
+            _merge_declared_json(raw, declared, what="inventory command output")
     return declared
 
 
@@ -417,7 +470,10 @@ def cmd_resolve(args, input_fn=None) -> int:
     if not root.is_dir():
         print(f"skill-trust: no such skills directory: {root}", file=sys.stderr)
         return ERROR
-    out = gather(root, config, _load_declared(args, config), args.offline)
+    # Loaded once: the initial gather and the re-judge after the prompts must
+    # see the same inventory (and a second read of a piped '-' would be empty).
+    declared = _load_declared(args, config, interactive=True)
+    out = gather(root, config, declared, args.offline)
     _print_report(out)
     if not out.seen:
         print(f"skill-trust: {root} holds no skill directories", file=sys.stderr)
@@ -459,7 +515,7 @@ def cmd_resolve(args, input_fn=None) -> int:
     # Re-judge with the decisions now recorded: this is the report the next
     # guard run will produce.
     config = _load_layered(args)
-    out = gather(root, config, _load_declared(args, config), args.offline)
+    out = gather(root, config, declared, args.offline)
     print()
     _print_report(out)
     if not out.problems:
@@ -622,8 +678,21 @@ def build_parser() -> argparse.ArgumentParser:
     resolve.add_argument(
         "--declared-json",
         metavar="FILE",
-        help='a manager\'s inventory as {"skills":[{name,source}]}; '
-        "'-' reads stdin (e.g. dotagents list --json | ...)",
+        help='a manager\'s inventory as {"skills":[{name,source}]}, as a file. '
+        "'-' is refused: resolve's stdin is the prompt channel. Overrides "
+        "--inventory-cmd.",
+    )
+    resolve.add_argument(
+        "--inventory-cmd",
+        default=_INVENTORY_CMD_DEFAULT,
+        help="how to fetch the manager's inventory (default: the dotagents "
+        "command, mirroring the guard). Without an inventory, declared skills "
+        "are treated as undeclared and the offered choices degrade.",
+    )
+    resolve.add_argument(
+        "--no-inventory",
+        action="store_true",
+        help="do not fetch the manager's inventory",
     )
     resolve.set_defaults(func=cmd_resolve)
 
