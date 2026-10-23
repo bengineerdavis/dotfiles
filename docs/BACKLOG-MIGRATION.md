@@ -8,8 +8,8 @@ done-condition is amended by ruling 2 below).
 
 ## Rulings
 
-1. **Migrate everything.** § Now (58 items) and every § Planned essay (121
-   items) become backlog tasks. Nothing in the queue is dropped; content
+1. **Migrate everything.** § Now (58 items) and every § Planned
+   essay (~120 items) become backlog tasks. Nothing in the queue is dropped; content
    moves, it is not triaged.
 2. **Remove the old workflow entirely.** `TASKS.md` and `TASKS-RESOLVED.md`
    are deleted, not kept as generated indexes. One queue, one source of
@@ -27,14 +27,14 @@ done-condition is amended by ruling 2 below).
 ## Tool of record
 
 `backlog-md-py` (rmusser01/backlog-md-py; PyPI `backlog-md-py`, GPL-3.0-only
-— upstream Backlog.md is MIT; the licence difference is recorded in
-docs/REFERENCES.md). Entry points: `backlog-py` (CLI) and `backlog-py-mcp`
-(SDK-free stdio MCP server, no extra deps). We make the upstream-documented
-cutover decision **not** to alias `backlog` — nothing here provides a
-`backlog` command, so `backlog-py` stands. Installed via
-`pipx:backlog-md-py` in `dotfiles/apps/mise/files/config.toml`; this change
-owns that entry (TOPIC-RECIPES.md § tool-entry-ownership — no ad-hoc
-`mise use -g`).
+— upstream Backlog.md is MIT; the licence difference will be recorded in
+docs/REFERENCES.md by the migration PR). Entry points: `backlog-py` (CLI)
+and `backlog-py-mcp` (SDK-free stdio MCP server, no extra deps). We make
+the upstream-documented cutover decision **not** to alias `backlog` —
+nothing here provides a `backlog` command, so `backlog-py` stands. The
+migration PR installs it via `pipx:backlog-md-py` in
+`dotfiles/apps/mise/files/config.toml` and owns that entry
+(TOPIC-RECIPES.md § tool-entry-ownership — no ad-hoc `mise use -g`).
 
 The tool's own model covers what our conventions bolted on: per-task
 Markdown files (the capture-commit rule becomes "commit the task file"),
@@ -66,8 +66,10 @@ file can never again pass while being structurally broken.
 ## Verified against the tool (the doc-interrogation pass, 2026-10-23)
 
 Every load-bearing claim above was checked against the artifact
-(`uvx backlog-md-py`, 2.1.0) and the official docs — findings that changed
-the design:
+(`uvx --from backlog-md-py backlog-py`, 2.1.0) and the official docs —
+findings that changed the design. Note: 2.2.0 was published 2026-10-19,
+after the version probed here; the migration PR pins a version and
+re-verifies these checks against it:
 
 - **Lease mechanics (verified).** A claim writes an `orchestration:`
   block into the task file: `lease_owner`, `lease_expires_at` (1h
@@ -165,7 +167,10 @@ changelog.d entry.
 
 1. This decision PR merges.
 2. Migration PR, staged commits: mise entry → `backlog-py init` →
-   script-assisted import of all 179 items (titles extracted, bodies moved
+   script-assisted import of every item — roughly 178 at last count
+   (counting basis: top-level `- ` items under § Now and § Planned as of
+   the migration commit; **recount at cutover** — the count is the
+   completeness baseline for ruling 1) — titles extracted, bodies moved
    verbatim, statuses mapped; script lives in the PR for review) → docs and
    tests rewrite → MCP registration → deletion of `TASKS.md` and
    `TASKS-RESOLVED.md` with the `archive/tasks-md` tag → changelog.

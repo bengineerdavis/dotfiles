@@ -79,15 +79,14 @@ A stale claim is not a lock. If a line looks abandoned, check `git log -3` on th
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
 
-- 2026-10-03T00:00Z — close out two landed-but-still-open § Now items
-  (skill-trust foreign buckets, test-perf-xdist) into TASKS-RESOLVED
-  (branch `agent/queue_closeout`, worktree `.worktrees/queue-closeout`) —
-  `TASKS.md`, `TASKS-RESOLVED.md`
-
 - 2026-10-22T14:00Z — backlog-md-py queue migration (branch
   `agent/backlog_migration`, worktree `.worktrees/backlog-migration`) —
   `TASKS.md`, `TASKS-RESOLVED.md`, `docs/PROCESS.md`, `AGENTS.md`,
-  `spec.md`, `tests/tasks_doc/`
+  `spec.md`, `tests/tasks_doc/`, `docs/WORKTREES.md`,
+  `docs/REFERENCES.md`, `docs/BACKLOG-MIGRATION.md`,
+  `dotfiles/apps/mise/files/config.toml`, `.chezmoidata/opencode.yaml`,
+  `changelog.d/`, `backlog/`
+
 ## Where things stand — 2026-09-23 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
@@ -1751,7 +1750,11 @@ nothing is.
   tests/tasks_doc; PROCESS.md/AGENTS.md queue rules rewritten), pair
   worktrunk now, and land a decision PR before any migration work. Done
   when `TASKS.md` is an index over per-task files and a task line never
-  lives only in a chat. [agent: this session] (branch
+  lives only in a chat. **Done-condition amended 2026-10-22 (ruling 2):
+  no TASKS.md survives — done when the cutover in
+  docs/BACKLOG-MIGRATION.md § Procedure lands, `TASKS.md` and
+  `TASKS-RESOLVED.md` are deleted, and `backlog/` is the one queue.**
+  [agent: this session] (branch
   `agent/backlog_migration`, worktree `.worktrees/backlog-migration`).
 
 ## Planned
@@ -3543,7 +3546,7 @@ author rather than the machine.
   `community.general.homebrew`. The gita topic's install/remove are the first
   consumer and the migration pattern. Done when that topic runs through the
   module and its mise shell-outs are gone. Gated on the backlog-md-py
-  migration below.
+  queue migration (§ Now).
 
 - **Refactor dotfiles storage and automate its presence, not its updates.**
   Dotfiles stays a top-level repo (`~/.local/share/chezmoi`, deployed to
