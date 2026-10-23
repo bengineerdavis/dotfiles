@@ -7,6 +7,10 @@ edge cases". Section names follow antsibull-changelog.
 
 ### minor_changes
 
+- 2026-10-20: the keyring repair's gpg check accepts `apt_gpg_path`
+  (default unchanged: `/usr/bin/gpg`). Test-only seam so the task-level
+  suite can pin the repair path on machines whose gpg does not live at
+  the Debian path.
 - 2026-09-23: signing-key repair for configured third-party repos
   (`apt_keyrings`, `tasks/keyrings.yaml`, `files/apt_keyring.py`). The keyring
   path is read from each source's `signed-by=`; the download is dearmored and

@@ -804,3 +804,27 @@ apply (author-run; completed by the author 2026-10-15).
   Learnings: `dotfiles/docs/research/coordinating-parallel-work-across-
   refactors.md` § What running it taught us (complete). The seam merge
   also carries the pyrefly project-excludes guard fix (de46484).
+- **Root-cause the two trunk regressions that landed with PRs #58–63.**
+  [agent: opencode coordinator] Done 2026-10-20, PR #67. Neither failure
+  came from #58–63 — both predate them. (a, real) test_apt_keyring's 7
+  fixture errors are a macOS unix-socket limit: gpg-agent binds
+  `<GNUPGHOME>/S.gpg-agent` and pytest's resolved tmp_path_factory path
+  had grown past the kernel's 104-byte cap (measured 152 chars), so gpg
+  exited 2 with "No agent running" — fixed by a short mkdtemp homedir plus
+  a regression test pinning the limit (b05e2a0, mutation-proven: re-
+  lengthening the prefix reproduces the failure). (b, real) the
+  test_apt_tasks no-source test has been deterministic-red since a44e7f0
+  (Oct 8) rewrote keyrings.yaml: the test failed because the task's
+  `/usr/bin/gpg` check defers the report loop on macOS, so the helper's
+  `t: no-source` status — which the loop *does* print — never appeared.
+  The old assertion was achievable, just gated by the deferral: fixed by
+  an `apt_gpg_path` parameter (default unchanged) and an assertion
+  matching the current task (6fc04a2). (c, not reproduced) the opencode
+  config-layers pair passes in three independent runs here — standalone,
+  pristine-92615ec scratch, two full suites — and is resolved as
+  environmental (the observing box had the mise-shadowed opencode drift
+  oc2-reconcile documented the same day). Full suite 1090 passed / 6
+  skipped; scoped ansible-lint baseline unchanged (verified by stashing
+  the diff). The item's "shells out to apt_keyring.py" mechanism note was
+  imprecise: the keyring tests import the helper via importlib; the
+  errors were gpg, not the helper.
