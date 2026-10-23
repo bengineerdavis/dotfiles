@@ -85,6 +85,14 @@ re-judges so you see the report the next guard run will produce. Recorded
 denials are reported, never re-asked. Without a terminal it refuses and
 points at `trust add`.
 
+To offer source-level choices it needs the manager's inventory, which it
+fetches itself by default (`--inventory-cmd`, mirroring the guard's
+`guard_dotagents_list_cmd`; `--no-inventory` opts out). If the fetch fails
+it warns loudly and degrades to the undeclared choice set rather than
+quietly mislabelling declared skills. You can also supply an inventory as a
+file with `--declared-json FILE` — never as `-`, because resolve's stdin is
+the prompt channel.
+
 ## Hidden directories
 
 A dot-prefixed directory in the skills store is not a skill load path for any

@@ -18,6 +18,10 @@ Section names come from antsibull-changelog; see `docs/TOPICS.md`
   failure message now names both that resolver and the non-interactive
   `skill-trust trust add`, alongside the one-run
   `-e guard_allow_unapproved_skills=true` escape.
+  (roborev review #10 on the branch caught the pre-flight piping the
+  inventory into resolve's stdin — taking the terminal with it — and a bare
+  resolve judging without the inventory; both fixed before merge: the
+  inventory travels as a file, and resolve fetches it itself by default.)
 - **Hidden directories no longer fail the audit.** Dot-dirs (`.trash` is the
   one that fired) are skipped as non-load-paths and *reported* every run;
   `include_hidden` in the topic's guard vars or the trust store re-audits a
