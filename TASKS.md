@@ -1676,7 +1676,8 @@ nothing is.
   that says what it changed.
    [agent: topic-cli-a9 / OpenCode — worktree
    `.worktrees/topic-cli-a9`, branch `agent/topic-cli-a9`]
-   **Generator half delivered 2026-10-20, PR #66 pending.** Redirected by
+   **Generator half delivered and merged 2026-10-21 (PR #66, merge commit `8d32782`).**
+   Redirected by
    the author mid-review: the generator, block templates and canonical
    skeleton live in the topical repo (`~/code/personal/topical`), which
    the copier template inherits from. The branch carries the move
