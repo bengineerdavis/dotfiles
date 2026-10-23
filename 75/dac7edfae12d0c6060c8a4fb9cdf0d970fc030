@@ -1,0 +1,22 @@
+dotfiles/apps/opencode/tasks/install.yaml
+  s_1c50c5a4508ca2::t_0cabe3385d97cd 140
+  s_1c50c5a4508ca2::t_2e37f77610d4f4 40-42
+  s_1c50c5a4508ca2::t_9b46da17265c8d 76,81-139,141-143
+  s_1c50c5a4508ca2::t_13606474977545 144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "75dac7edfae12d0c6060c8a4fb9cdf0d970fc030",
+  "prompts": {},
+  "sessions": {
+    "s_1c50c5a4508ca2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e968f300fffeuOf7Ot8eEVODf9",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
