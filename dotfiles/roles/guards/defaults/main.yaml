@@ -54,6 +54,12 @@ guard_denied_sources: []
 # Per-source skill vetoes, as {source: [names]}.
 guard_skill_excludes: {}
 
+# Hidden (dot-prefixed) directories to audit after all, by name. The audit
+# skips hidden directories as non-load-paths — reporting each skip — and a
+# directory named here is judged like any other. The machine-local
+# alternative is `skill-trust trust add --include-hidden`.
+guard_skill_include_hidden: []
+
 # Copyleft is open, but vendoring into a library every agent loads is
 # redistribution and carries obligations, so it arrives only on purpose.
 guard_allow_copyleft: false
