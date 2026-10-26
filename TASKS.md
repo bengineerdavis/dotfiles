@@ -86,10 +86,6 @@ delete the line and say so in your commit.
   `docs/REFERENCES.md`, `docs/BACKLOG-MIGRATION.md`,
   `dotfiles/apps/mise/files/config.toml`, `.chezmoidata/opencode.yaml`,
   `changelog.d/`, `backlog/`
-- 2026-10-26T15:57Z — build `apps/dotagents`, move the global skill declaration
-  out of `apps/opencode`, add `mattpocock/skills` (branch `dotagents-topic`,
-  worktree `.worktrees/dotagents-topic`) — `dotfiles/apps/dotagents/`,
-  `dotfiles/apps/opencode/`, `tests/guards/`, `TASKS.md`
 
 ## Where things stand — 2026-09-23 (the session handoff)
 
