@@ -1,0 +1,25 @@
+dotfiles/apps/dotagents/CHANGELOG.md
+  s_77d3b692985a60::t_bade012c216419 24-26,31-49
+changelog.d/20261026_160500_bengineerdavis_mattpocock-skills.md
+  s_77d3b692985a60::t_0e89e95e517e0c 1-14
+dotfiles/apps/dotagents/defaults/main.yaml
+  s_77d3b692985a60::t_d5b487b328b0d3 66-74
+dotfiles/apps/dotagents/README.md
+  s_77d3b692985a60::t_5595b287b0018f 63-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c07ea6101ee0d078c46e75522ef9c4cb0bc0e283",
+  "prompts": {},
+  "sessions": {
+    "s_77d3b692985a60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8740494fffeKeLAPc4yoUweyC",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
