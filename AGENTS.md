@@ -761,6 +761,9 @@ root holds only the five documents that govern the project:
   flat `.worktrees/<sid>` names, underscores never slashes in branches, one
   writer per worktree, ephemeral merge scratch, deletion only after
   `merge-base --is-ancestor`.
+- **`docs/BACKLOG-UPSTREAM-CONFIG.md`** — a draft, not a rule: the evidence
+  that neither Backlog.md nor backlog-md-py can point docs or decisions outside
+  the backlog folder, and the two upstream PRs that would change it.
 - **`docs/BACKLOG-MIGRATION.md`** — the 2026-10-22 decision record for
   migrating the task queue to backlog-md-py: the rulings, the mapping from
   `TASKS.md`, the MCP wiring plan, and the cutover procedure. The migration
@@ -1017,4 +1020,5 @@ The five canonical roles, label strings unchanged. See
 
 ### Domain docs
 
-Single-context: `docs/GLOSSARY.md` and `docs/adr/`. See `docs/agents/domain.md`.
+Single-context: `docs/GLOSSARY.md`; ADRs in `backlog/decisions/` via
+`backlog-py decision create`. See `docs/agents/domain.md`.

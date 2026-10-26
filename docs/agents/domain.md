@@ -6,23 +6,36 @@ How the engineering skills consume this repo's domain documentation.
 
 - `docs/GLOSSARY.md` — project terminology. Use its vocabulary; do not drift to
   synonyms it avoids.
-- `docs/adr/` — decisions that touch the area you are about to change. The
-  directory does not exist yet; `/domain-modeling` creates it lazily.
+- `backlog/decisions/` — decisions that touch the area you are about to change,
+  once the queue cutover lands.
 
-`dotfiles/docs/` is an older copy of the convention docs. The glossary and ADRs
-of record are the root `docs/` paths above.
+`dotfiles/docs/` is an older copy of the convention docs. The glossary of
+record is the root `docs/GLOSSARY.md`.
 
 ## Layout
 
-Single-context: one glossary, one ADR directory. There is no `GLOSSARY-MAP.md`
+Single-context: one glossary, one decision store. There is no `GLOSSARY-MAP.md`
 and no per-package context.
 
-## ADRs stay here, not in the queue
+## ADRs use the queue's decision store
 
-`backlog-py` has its own decision store (`backlog/decisions/` via
-`backlog-py decision create`). Do not use it. Architecture decisions belong in
-`docs/adr/`, next to the existing decision records, so there is one place to
-read. The queue tracks work; it does not store architecture decisions.
+Create an architecture decision with:
+
+```bash
+backlog-py decision create "<title>" --status accepted
+```
+
+That writes `backlog/decisions/decision-N - Title.md` with Context / Decision /
+Consequences sections. Fill those sections; do not hand-write a different
+format.
+
+This follows the tool's convention, so tasks and decisions live in one store
+and `backlog/` stays the single source of truth. It also means decisions are
+CLI-only for now: `backlog-py-mcp` exposes no decision tools.
+
+Upstream does not support pointing the decision store at `docs/adr`. The
+evidence and the drafted upstream work are in
+`docs/BACKLOG-UPSTREAM-CONFIG.md`. Do not create `docs/adr/` while that is true.
 
 ## If a concept is missing
 

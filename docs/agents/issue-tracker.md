@@ -41,9 +41,9 @@ loses them, so it is a fallback.
   blocking edges in `dependencies`. Never encode blockers in prose.
 - **Implementation** — `orchestration_claim_task` before work,
   `orchestration_record_run` for progress, `task_complete` at the end.
-- **Decisions** — architecture decisions are repo docs in `docs/adr/`, not
-  queue items; see `domain.md`. The tool's `backlog/decisions/` store is
-  deliberately unused, so there is one decision record.
+- **Decisions** — `backlog-py decision create` writes `backlog/decisions/`;
+  see `domain.md`. The MCP has no decision tools, so this one verb stays on
+  the CLI.
 - **Triage** — labels on tasks; see `triage-labels.md`.
 
 ## Wayfinding
