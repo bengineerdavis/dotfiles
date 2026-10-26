@@ -1001,3 +1001,20 @@ Prefer evidence over assertion, and say plainly what was and was not checked.
 - A model call that times out may just be a cold model load. Loading an 18 GB model
   can exceed a 120 s timeout, and the warmup timing out cascades into every
   subsequent run failing, which looks like a model problem and is not.
+
+## Agent skills
+
+### Issue tracker
+
+`backlog/` via `backlog-py` / `backlog-py-mcp`; the interim queue is `TASKS.md`
+until the cutover in `docs/BACKLOG-MIGRATION.md`. See
+`docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical roles, label strings unchanged. See
+`docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `docs/GLOSSARY.md` and `docs/adr/`. See `docs/agents/domain.md`.
