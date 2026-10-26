@@ -1,0 +1,19 @@
+TASKS.md
+  s_b1705fb8c46288::t_7aaf4d5c70784c 1760-1769
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5d64fb9ab93335c211716729b33a6eab9fe22a71",
+  "prompts": {},
+  "sessions": {
+    "s_b1705fb8c46288": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e86d17045ffe1HLPEq3DR0VSi1",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
