@@ -1,0 +1,28 @@
+docs/agents/domain.md
+  s_77d3b692985a60::t_0371e259084f10 9-10,12-13,17,20,22-38
+docs/agents/issue-tracker.md
+  s_77d3b692985a60::t_71a11ac646c4e6 44-46
+changelog.d/20261026_181500_bengineerdavis_agents-setup.md
+  s_77d3b692985a60::t_dd593420421477 6-7,10-12,20-21
+AGENTS.md
+  s_77d3b692985a60::t_2387e3ee3a7aa1 764-766
+  s_77d3b692985a60::t_c2435a328691d9 1023-1024
+docs/BACKLOG-UPSTREAM-CONFIG.md
+  s_77d3b692985a60::t_59612a6228936a 1-87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "57bea6e6f025b9a6092f2659f5a1fcc39e8c7afa",
+  "prompts": {},
+  "sessions": {
+    "s_77d3b692985a60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8740494fffeKeLAPc4yoUweyC",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
