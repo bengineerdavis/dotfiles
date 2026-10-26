@@ -63,6 +63,15 @@ dotagents_sources:
     # than merely from a tolerated source.
     exclude: []
 
+  - source: mattpocock/skills
+    why: >-
+      MIT (verified 2026-10-26 via `gh api repos/mattpocock/skills`), by a
+      public author with a named identity behind the work. It is a plugin
+      marketplace repository, so dotagents installs it as a plugin rather than
+      as a wildcard skill source; see `known_issues` in CHANGELOG.md for what
+      that does and does not wire.
+    exclude: []
+
 # On-disk skill directories allowed to exist without being declared. Each needs
 # a reason a human can check, which in practice means a LICENSE and a
 # PROVENANCE note in the directory itself. Vendoring is a deliberate act;

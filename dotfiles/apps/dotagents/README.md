@@ -60,6 +60,27 @@ Order matters:
 Re-running is idempotent. `--tags upgrade` re-runs the sync, which is the whole
 skill-upgrade procedure.
 
+## Plugin sources: what is and is not wired
+
+`mattpocock/skills` is a plugin-marketplace repository. dotagents discovers
+plugins before skills and refuses a named skill from such a source, so the
+source installs as a plugin (`[[plugins]]` in `agents.toml`).
+
+Measured on 2026-10-26:
+
+- Plugin skills are linked into `~/.config/opencode/skills`, so opencode sees
+  them in every repository.
+- dotagents also publishes client marketplaces under `~/.agents/`
+  (`.claude-plugin/marketplace.json`, `.cursor-plugin/`, `.github/plugin/`),
+  but it does **not** point claude, cursor, codex or copilot at them. Those
+  clients do not see the plugin's skills yet.
+- The provenance guard audits `~/.agents/skills`; plugin skills live elsewhere,
+  so they are outside that audit.
+
+Per-client marketplace wiring is queued as its own task. Until it lands, treat
+a plugin source as opencode-only and say so, rather than claiming the skill set
+is uniform across agents.
+
 ## Teardown
 
 ```bash
