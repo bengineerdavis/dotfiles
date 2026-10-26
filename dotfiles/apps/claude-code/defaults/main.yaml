@@ -35,6 +35,6 @@ claude_code_remove_mise_orphan: true
 # `brew uninstall --zap` trashes ~/.claude.json*, ~/.config/claude,
 # ~/.local/share/claude and ~/.cache/claude — that is credentials, settings and
 # session history, not just the binary. Off by default and deliberately so: the
-# same reasoning as opencode_remove_skills, which guards state the topic did not
-# author. Flip it only when the account is genuinely going away.
+# same reasoning as dotagents_remove_skills, which guards state the topic did
+# not author. Flip it only when the account is genuinely going away.
 claude_code_remove_config: false

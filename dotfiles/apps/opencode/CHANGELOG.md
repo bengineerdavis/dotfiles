@@ -3,6 +3,22 @@
 Section names come from antsibull-changelog; see `docs/TOPICS.md`
 § "Per-topic changelog and local edge cases".
 
+## 2026-10-26
+
+### major_changes
+
+- The topic no longer declares or syncs the machine's skill set. The approved
+  sources, trust allow-list, excludes, vendored exceptions and the dotagents
+  sync moved to `apps/dotagents`; the artifacts are user-global and belong to
+  no single coding tool's topic. `node` is no longer a dependency of this topic
+  because nothing here runs `npx` any more.
+
+### known_issues
+
+- **Installing this topic alone does not install or refresh skills.** A run
+  that converged opencode before this change used to leave the skill set
+  current; it no longer does. Run `./run-role.sh dotagents` (or the parent
+  playbook) after, or provision both.
 ## 2026-10-19
 
 ### known_issues
@@ -125,10 +141,12 @@ Section names come from antsibull-changelog; see `docs/TOPICS.md`
 
 - **`./update` will not install a missing binary.** `update.sh` runs
   `--tags upgrade`, and the binary tasks are tagged `install`/`provision` only,
-  so an upgrade pass syncs skills and leaves an absent opencode absent. This is
+  so an upgrade pass leaves an absent opencode absent. This is
   the tier model working as designed — `brew upgrade` refreshes what is
   installed — but it means a machine that has only ever run `./update` never
   gets the topic. Use `./run-role.sh opencode install` or `--tags provision`.
+  The skill sync is no longer part of this topic's upgrade path either; see
+  `apps/dotagents`.
 
 - **The tap tracks releases; homebrew/core trails it.** Measured 2026-09-14:
   tap 1.18.31, core 1.18.30. core's formula sets `livecheck { throttle 5 }`, so
