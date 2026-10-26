@@ -1,0 +1,71 @@
+dotfiles/apps/opencode/tasks/remove.yaml
+  s_77d3b692985a60::t_f706f0b323f050 67
+  s_77d3b692985a60::t_39bbcf693c2716 68-69
+  s_77d3b692985a60::t_daa41b588efb69 3-4
+dotfiles/apps/dotagents/tasks/remove.yaml
+  s_77d3b692985a60::t_2776b4c29f7b78 1-71
+dotfiles/apps/opencode/README.md
+  s_77d3b692985a60::t_b1ed7eceb7eea9 4,18-20,68-71
+  s_77d3b692985a60::t_526975848171be 90-91,101-103,108,113,116
+dotfiles/apps/dotagents/playbook.yaml
+  s_77d3b692985a60::t_c6d4cb80f0abf1 1-16
+dotfiles/apps/dotagents/CHANGELOG.md
+  s_77d3b692985a60::t_bade012c216419 1-27
+tests/guards/test_guard_wiring.py
+  s_77d3b692985a60::t_5ca87e29b84d35 69,71,76,97,101-102,106-107
+  s_77d3b692985a60::t_3ebc8eceef8a9c 117,122,127-136,138-140,142-147
+  s_77d3b692985a60::t_a9bd79f38b7e16 137,141,148-149
+dotfiles/apps/opencode/topic.yml
+  s_77d3b692985a60::t_8080c398a521d0 19-21
+dotfiles/apps/opencode/defaults/main.yaml
+  s_77d3b692985a60::t_d6dee2113a95b6 3-5
+dotfiles/apps/claude-code/tasks/remove.yaml
+  s_77d3b692985a60::t_b00efc5cd73937 29
+dotfiles/apps/dotagents/tasks/prerequisites.yaml
+  s_77d3b692985a60::t_f5927b4a0a352c 1-7
+changelog.d/20261026_155746_bengineerdavis_dotagents-topic.md
+  s_77d3b692985a60::t_2d4946d3e28f82 22-23
+  s_77d3b692985a60::t_5c63ed2e2a9b64 1-21
+dotfiles/apps/dotagents/tasks/install.yaml
+  s_77d3b692985a60::t_7ca827be7e1c97 1-104,106-257
+  s_77d3b692985a60::t_46665490cb5a5d 105
+dotfiles/docs/AGENT-ARTIFACTS.md
+  s_77d3b692985a60::t_2685d1e5742ed1 34
+dotfiles/apps/dotagents/topic.yml
+  s_77d3b692985a60::t_60f855ce495f14 1-24
+dotfiles/apps/opencode/CHANGELOG.md
+  s_77d3b692985a60::t_2489cb3955a2de 6-22,106,110-111
+dotfiles/apps/dotagents/README.md
+  s_77d3b692985a60::t_5595b287b0018f 1-86
+dotfiles/apps/dotagents/tasks/upgrade.yaml
+  s_77d3b692985a60::t_f633ebca14e9a3 1-13
+dotfiles/apps/opencode/tasks/upgrade.yaml
+  s_77d3b692985a60::t_010c6bafc71843 7,9-10
+dotfiles/apps/dotagents/defaults/main.yaml
+  s_77d3b692985a60::t_d5b487b328b0d3 1-148
+dotfiles/apps/claude-code/defaults/main.yaml
+  s_77d3b692985a60::t_17f7d760907fdc 38-39
+dotfiles/apps/dotagents/tasks/bootstrap.yaml
+  s_77d3b692985a60::t_2ad5debd1ec3dd 1-11
+dotfiles/apps/dotagents/tasks/main.yaml
+  s_77d3b692985a60::t_a5758dd67d698c 1-29
+dotfiles/apps/opencode/tasks/install.yaml
+  s_77d3b692985a60::t_8fb7dfb0e8d6cd 2
+  s_77d3b692985a60::t_b7daa6505fdcdb 60-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "949b21a54f0eaf518f39f9c789d9e620501fd505",
+  "prompts": {},
+  "sessions": {
+    "s_77d3b692985a60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8740494fffeKeLAPc4yoUweyC",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
