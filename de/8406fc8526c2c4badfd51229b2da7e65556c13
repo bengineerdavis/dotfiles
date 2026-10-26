@@ -1,0 +1,25 @@
+docs/agents/domain.md
+  s_77d3b692985a60::t_43adc066857181 1-31
+docs/agents/triage-labels.md
+  s_77d3b692985a60::t_7c52bfd3973d3e 1-17
+docs/agents/issue-tracker.md
+  s_77d3b692985a60::t_3427f3a099f5d6 1-63
+AGENTS.md
+  s_77d3b692985a60::t_229d62d2eb5d53 1004-1020
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "de8406fc8526c2c4badfd51229b2da7e65556c13",
+  "prompts": {},
+  "sessions": {
+    "s_77d3b692985a60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8740494fffeKeLAPc4yoUweyC",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
