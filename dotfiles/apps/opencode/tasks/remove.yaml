@@ -1,7 +1,7 @@
 # apps/opencode/tasks/remove.yaml
 # Teardown for everything install.yaml creates, per the CRUD ownership
-# invariant in docs/TOPICS.md. Two states are deliberately guarded behind
-# flags (see defaults/main.yaml) because they are shared beyond this topic.
+# invariant in docs/TOPICS.md. The tap is guarded behind a flag (see
+# defaults/main.yaml) because it is shared beyond this topic.
 
 # ── The binary ───────────────────────────────────────────────────────────────
 - name: "Uninstall opencode v2 from the pinned tap"
@@ -49,65 +49,6 @@
   changed_when: "'Not trusted' not in opencode_untrust_tap.stdout"
   when: opencode_remove_tap | bool
 
-# ── The shared skill set ─────────────────────────────────────────────────────
-- name: "Remove every skill from each approved source"
-  # By source, not by skill: the topic no longer knows which skills exist, and
-  # `dotagents remove <source>` removes every dependency from it. -y skips the
-  # confirmation, which has no terminal to answer it under Ansible.
-  ansible.builtin.command:
-    cmd: >-
-      npx -y @sentry/dotagents@latest --user
-      remove {{ item.source }} -y
-  environment:
-    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
-  loop: "{{ opencode_skill_sources }}"
-  loop_control:
-    label: "{{ item.source }}"
-  register: opencode_skill_remove
-  # Same reason as install.yaml: dotagents writes its errors to stderr and
-  # leaves stdout empty, so failing here would discard the only diagnosis.
-  failed_when: false
-  changed_when: "'Removed' in opencode_skill_remove.stdout"
-  # Off by default. Skills install user-global and serve every agent on the
-  # machine — claude and cursor load the same ~/.agents/skills — so removing
-  # opencode must not silently strip the shared library. Flip
-  # opencode_remove_skills only when the whole skill set is going away.
-  when: opencode_remove_skills | bool
-
-- name: "Stop trusting each approved source"
-  # The trust entries are state this topic created, so the CRUD invariant in
-  # docs/TOPICS.md says it tears them down. Gated behind the same flag: leaving a
-  # source trusted while its skills are gone is harmless, but removing trust
-  # while another topic still installs from it is not.
-  ansible.builtin.command:
-    cmd: >-
-      npx -y @sentry/dotagents@latest --user
-      trust remove {{ item.source }}
-  environment:
-    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
-  loop: "{{ opencode_skill_sources }}"
-  loop_control:
-    label: "{{ item.source }}"
-  register: opencode_trust_remove
-  failed_when: false
-  changed_when: "'Removed' in opencode_trust_remove.stdout"
-  when: opencode_remove_skills | bool
-
-- name: "Fail with everything dotagents could not remove"
-  ansible.builtin.fail:
-    msg: >-
-      dotagents could not remove
-      {{ (opencode_skill_remove.results | default([]) + opencode_trust_remove.results | default([]))
-         | rejectattr('rc', 'eq', 0) | map(attribute='item.source') | unique | join(', ') }}.
-      What it actually said:
-      {{ (opencode_skill_remove.results | default([]) + opencode_trust_remove.results | default([]))
-         | rejectattr('rc', 'eq', 0) | map(attribute='stderr') | map('trim') | select | join(' | ')
-         | default('nothing on stderr; re-run the failing `npx` command by hand', true) }}
-  when:
-    - opencode_remove_skills | bool
-    - (opencode_skill_remove.results | default([]) + opencode_trust_remove.results | default([]))
-      | rejectattr('rc', 'eq', 0) | list | length > 0
-
 # ── What is intentionally NOT removed here ───────────────────────────────────
 # ~/.config/opencode is chezmoi-managed: opencode.jsonc deploys from
 # dot_config/opencode/ in the chezmoi source, and removing it is a chezmoi
@@ -123,7 +64,6 @@
     msg: >-
       Binary removed. ~/.config/opencode config is chezmoi-owned; v2's sqlite
       credentials and the session database are machine-local and left
-      untouched — sessions were migrated in place by v2's first run. Skills
-      were
-      {{ 'removed, and their sources untrusted' if opencode_remove_skills | bool
-         else 'kept (opencode_remove_skills is false)' }}.
+      untouched — sessions were migrated in place by v2's first run. The skill
+      set is user-global and owned by the global-skills topic, so it is
+      untouched by this teardown; remove it there.

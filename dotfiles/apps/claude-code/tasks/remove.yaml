@@ -26,7 +26,7 @@
   # credentials, settings and session history — none of which this topic
   # created, and all of which a reinstall cannot restore.
   #
-  # Off by default for the same reason opencode_remove_skills is: removing a
+  # Off by default for the same reason dotagents_remove_skills is: removing a
   # tool should not silently destroy the work done with it. Note the VS Code
   # extension, the JetBrains plugin and the desktop app also write ~/.claude/,
   # so zapping while any of those remain installed removes state they still use.
