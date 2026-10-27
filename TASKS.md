@@ -79,21 +79,15 @@ A stale claim is not a lock. If a line looks abandoned, check `git log -3` on th
 file and whether a process is still running before assuming it is safe — then
 delete the line and say so in your commit.
 
-- 2026-10-03T00:00Z — close out two landed-but-still-open § Now items
-  (skill-trust foreign buckets, test-perf-xdist) into TASKS-RESOLVED
-  (branch `agent/queue_closeout`, worktree `.worktrees/queue-closeout`) —
-  `TASKS.md`, `TASKS-RESOLVED.md`
-- 2026-10-03T21:05Z — shift-left surface scan (mini project): research
-  inventory, comparison, four-voice council, run-shellharden.sh build,
-  report (branch `agent/shift_left_scan`, worktree
-  `.worktrees/shift-left-scan`) — `TASKS.md`, `.pre-commit-config.yaml`,
-  `scripts/`, `tests/`, `.claude/RESEARCH-shift-left-surface-scan.md`
-- 2026-10-21T21:35Z — skill-trust ask-first resolution (branch
-  agent/skill_trust_resolve, worktree .worktrees/skill-trust-resolve) —
-  `TASKS.md`, `tools/skill-trust/`, `dotfiles/roles/guards/`,
-  `dotfiles/executable_update.sh`, `dotfiles/apps/opencode/`. Scope widened
-  2026-10-22 (author): `pyproject.toml` + `uv.lock` (backlog-md-py into the
-  project venv) and `backlog/` (queue init + first entry).
+- 2026-10-22T14:00Z — backlog-md-py queue migration (branch
+  `agent/backlog_migration`, worktree `.worktrees/backlog-migration`) —
+  `TASKS.md`, `TASKS-RESOLVED.md`, `docs/PROCESS.md`, `AGENTS.md`,
+  `spec.md`, `tests/tasks_doc/`, `docs/WORKTREES.md`,
+  `docs/REFERENCES.md`, `docs/BACKLOG-MIGRATION.md`,
+  `dotfiles/apps/mise/files/config.toml`, `.chezmoidata/opencode.yaml`,
+  `changelog.d/`, `backlog/`
+
+
 ## Where things stand — 2026-09-23 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
@@ -247,41 +241,6 @@ reversed earlier positions on purpose.
 
 The handful actually next. Keep this short — if everything is Now,
 nothing is.
-
-- **Shift-left surface scan: save/add/commit, quality-and-maintainability
-  focus (mini project).** Author-directed 2026-10-03, three steps after
-  plan approval. Narrower and different from the 2026-09-22 shift-left
-  testing study (TASKS-RESOLVED.md § 2026-09-22, first entry — build on
-  it, do not repeat it): this scan asks what runs — or could run — at
-  **file save, git add, and git commit, in speed order** (budgets: save
-  ≤2s, add ≤5s, commit ≤30s), for code quality, readability and
-  maintainability, across this repo's code **and chezmoi-deployable code**
-  (`bin/executable_*`, `scripts/`, zsh fragments, `*.tmpl` templates).
-  Step 1: a read-only research agent inventories every shift-left surface
-  with measured timings. Step 2: the findings are compared against the
-  2026-09-22 study's adopted/queued/rejected sets — what landed, what is
-  still queued, what is stale — and every candidate is classified
-  check-vs-rewrite against the hooks-only-check policy. Step 3: a
-  four-voice advisor council (incrementalist, trust architect,
-  agent-workflow, fleet/provisioning — the first three same as the
-  2026-09-22 council) ranks the full set including the re-ranked queued
-  items and names rejections. Author scoping decisions folded in: save
-  tier covers BOTH the opencode agent loop and a human editor; the
-  deliverable includes a **layered global user-level editor-tooling
-  config** (chezmoi topic) copyable into projects with per-project
-  overrides, covering opencode, Zed, VS Code/Cursor, and Neovim (not
-  Helix — author has not adopted it). `scripts/run-shellharden.sh` is an
-  author-directed build after the scan confirms shellharden's modes
-  (4.3.4: `--check` exit-2, `--replace` rewrite); the dangling
-  `.pre-commit-config.yaml` exclusion for it (line 42, file never in
-  history) is a scan finding with a council verdict. Done when: the
-  inventory exists with timings, the have-vs-recommended comparison is
-  written, the council's rankings and rejections are recorded, the
-  helper lands with its own test seen to fail, the report is committed
-  at `.claude/RESEARCH-shift-left-surface-scan.md`, and the synthesis is
-  in front of the author. Adoptions become queued tasks only on author
-  approval. [me, research agent read-only, branch agent/shift_left_scan,
-  worktree .worktrees/shift-left-scan]
 
 - **Evaluate interchangeable components for agent work.**
   [handoff ready, unclaimed; initial comparison complete, container setup
@@ -1721,7 +1680,8 @@ nothing is.
   that says what it changed.
    [agent: topic-cli-a9 / OpenCode — worktree
    `.worktrees/topic-cli-a9`, branch `agent/topic-cli-a9`]
-   **Generator half delivered 2026-10-20, PR #66 pending.** Redirected by
+   **Generator half delivered and merged 2026-10-21 (PR #66, merge commit `8d32782`).**
+   Redirected by
    the author mid-review: the generator, block templates and canonical
    skeleton live in the topical repo (`~/code/personal/topical`), which
    the copier template inherits from. The branch carries the move
@@ -1756,30 +1716,47 @@ nothing is.
   mise entry if local, reshim, re-resolve. Done when the molecule
   scenario is green, the scoped tests pass, the drift is named in the
   topic docs, and the author's cleanup commands are written.
+- **Topic: install topical (the A9 generator) as a first-class tool.**
+  [agent: topical-install / OpenCode — worktree `.worktrees/topical-install`,
+  branch `agent/topical-install`] Thin `apps/topical` topic: install the
+  topical CLI as a **uv tool** from the git remote (author's distribution
+  decision, 2026-10-21: a Python CLI tool via pip — uvx/uv tool on this
+  machine; PyPI later, the bare name is taken there by a dormant package).
+  The topic owns presence (`uv tool install`), currency (`uv tool upgrade`
+  — no system role reaches uv tools) and teardown (`uv tool uninstall`).
+  `topic_requires: [uv]`. Scaffolded by `topical new` itself (dogfooding
+  the no-manager path). Done when the topic is syntax-clean, `--check
+  --tags provision` is green against the machine's real state, and the
+  author has applied it — the install is machine state, so the live apply
+  is the author's step after merge.
+- **Add loreai topic (Lore.AI agent-memory gateway).** Author-directed
+  2026-10-21. New `apps/loreai/`: checksum-verified standalone binary
+  install from BYK/loreai releases (the `apps/ori` pattern — topic owns
+  its upgrade), per-agent `lore setup` extensions behind detection
+  (claude-code, codex, pi, hermes; opencode via a chezmoi-included
+  plugin fragment, because chezmoi owns that config), first-install
+  prompts (telemetry, worker-model inference) saved per machine under
+  `~/.config/loreai/`, `lore import` report-only. Done when the PR is
+  open with syntax-check and `--check` evidence and the author has
+  answered the merge quiz. [agent: this session] (branch
+  `agent/loreai_topic`, worktree `.worktrees/loreai-topic`).
+  **PR #70 open 2026-10-21** — quiz answered 2026-10-21; awaiting
+  author review and merge.
 
-- **skill-trust: ask-first resolution for unexpected skills — machine-local
-  decision store, `resolve`/`trust` commands, hidden-directory skip.**
-  Author-directed 2026-10-21 after the dotagents-approved-sources guard failed
-  an upgrade run on `~/.agents/skills/.trash` (the author's trash-cli target
-  for scripted removal). Design settled with the author this session: (1)
-  first detection ASKS rather than fails — a pre-flight `skill-trust resolve`
-  in update.sh before ansible runs (mid-play `pause` prompting deferred, see
-  Planned); (2) decisions persist to a machine-local store
-  `~/.config/skill-trust/trust.yaml`, never versioned, layered under the
-  repo-composed rules with deny winning across layers, each entry carrying a
-  why and a date; (3) reject persists a denial and keeps failing until the
-  thing is removed from disk; (4) hidden directories are skipped as
-  non-loadable, every skip is reported, and `include_hidden` re-audits a
-  named dot-dir — per-agent loader behaviour verified where checkable and
-  named where not. Done when: skill-trust gains the store, layering,
-  `deny_skills`, hidden-skip, `resolve` and `trust` with tests seen to fail
-  (mutation trailers on the commits); the guard writes composed rules to
-  `~/.config/skill-trust/rules.yaml` and its failure message names the
-  resolver; update.sh pre-flights without blocking on unresolved findings;
-  README, guard comments and the opencode CHANGELOG are updated; PR open for
-  human review (deployed-tree file `executable_update.sh` is touched).
-  [agent: OpenCode session, worktree .worktrees/skill-trust-resolve, branch
-  agent/skill_trust_resolve]
+- **Migrate the task queue to backlog-md-py, paired with worktrunk.**
+  Promoted from § Planned 2026-10-22 (author direction of 2026-10-18);
+  decisions settled with the author 2026-10-22: migrate EVERYTHING (§ Now
+  and every § Planned essay becomes a backlog task), REMOVE the old
+  workflow entirely (TASKS.md hand-maintained queue, TASKS-RESOLVED.md,
+  tests/tasks_doc; PROCESS.md/AGENTS.md queue rules rewritten), pair
+  worktrunk now, and land a decision PR before any migration work. Done
+  when `TASKS.md` is an index over per-task files and a task line never
+  lives only in a chat. **Done-condition amended 2026-10-22 (ruling 2):
+  no TASKS.md survives — done when the cutover in
+  docs/BACKLOG-MIGRATION.md § Procedure lands, `TASKS.md` and
+  `TASKS-RESOLVED.md` are deleted, and `backlog/` is the one queue.**
+  [agent: this session] (branch
+  `agent/backlog_migration`, worktree `.worktrees/backlog-migration`).
 
 ## Planned
 
@@ -3570,15 +3547,7 @@ author rather than the machine.
   `community.general.homebrew`. The gita topic's install/remove are the first
   consumer and the migration pattern. Done when that topic runs through the
   module and its mise shell-outs are gone. Gated on the backlog-md-py
-  migration below.
-
-- **Migrate the task queue to backlog-md-py, paired with worktrunk.**
-  Author direction 2026-10-18: before the mise module above, move full-time
-  to backlog-md-py (the markdown-native task tool under evaluation — see
-  PROCESS.md § Where the queue lives) and refactor/migrate all of `TASKS.md`
-  into it, paired with worktrunk (the mise wrapper that generates and checks
-  worktree-local denylists; evaluated 2026-09-24). Done when `TASKS.md` is an
-  index over per-task files and a task line never lives only in a chat.
+  queue migration (§ Now).
 
 - **Refactor dotfiles storage and automate its presence, not its updates.**
   Dotfiles stays a top-level repo (`~/.local/share/chezmoi`, deployed to

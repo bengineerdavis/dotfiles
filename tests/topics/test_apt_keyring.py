@@ -16,6 +16,7 @@ import os
 import pathlib
 import shutil
 import subprocess
+import tempfile
 
 import pytest
 
@@ -23,6 +24,14 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 SCRIPT = REPO / "dotfiles" / "apps" / "apt" / "files" / "apt_keyring.py"
 
 pytestmark = pytest.mark.skipif(shutil.which("gpg") is None, reason="needs gpg")
+
+# Unix-domain sockets bind no longer than 104 bytes (macOS sun_path). gpg-agent
+# listens on <GNUPGHOME>/S.gpg-agent, so a long homedir silently kills the agent
+# ("agent_genkey failed: No agent running"). pytest's tmp_path_factory resolves
+# to the long /private/var/... realpath and its per-run counter only grows, so
+# homedirs under it cross the limit and the fixture fails intermittently by
+# nothing but path length. The fixture therefore takes a SHORT mkdtemp home.
+SOCKET_LIMIT = 104
 
 
 @pytest.fixture(scope="module")
@@ -38,11 +47,18 @@ def ak():
 
 
 @pytest.fixture(scope="module")
-def pubkey(tmp_path_factory):
-    """(armored, binary, key_id) for a freshly generated throwaway key."""
-    home = tmp_path_factory.mktemp("gnupg")
+def gnupg_home():
+    """A short-lived GNUPGHOME short enough for gpg-agent's socket."""
+    home = pathlib.Path(tempfile.mkdtemp(prefix="aptkr-gpg-"))
     os.chmod(home, 0o700)
-    env = {**os.environ, "GNUPGHOME": str(home)}
+    yield home
+    shutil.rmtree(home, ignore_errors=True)
+
+
+@pytest.fixture(scope="module")
+def pubkey(gnupg_home):
+    """(armored, binary, key_id) for a freshly generated throwaway key."""
+    env = {**os.environ, "GNUPGHOME": str(gnupg_home)}
     subprocess.run(
         [
             "gpg",
@@ -254,3 +270,19 @@ def test_main_exit_code_and_json(ak, tmp_path, capsys):
     )
     assert rc == 0
     assert '"status": "no-source"' in capsys.readouterr().out
+
+
+def test_gnupghome_fits_the_unix_socket_limit(gnupg_home):
+    """The homedir handed to gpg must keep S.gpg-agent under the sun_path cap.
+
+    Bound on 2026-10-20 after the fixture began failing intermittently: gpg
+    reports "agent_genkey failed: No agent running" when the agent socket
+    path exceeds the kernel's 104-byte limit — and pytest's tmp_path_factory
+    resolves to the long /private/var/... realpath whose per-run counter only
+    grows, so the old fixture crossed the line by nothing but path length.
+    """
+    socket = gnupg_home / "S.gpg-agent"
+    assert len(str(socket)) <= SOCKET_LIMIT, (
+        f"{socket} is {len(str(socket))} chars; gpg-agent's unix socket "
+        f"binds at most {SOCKET_LIMIT}"
+    )

@@ -1,0 +1,38 @@
+# apps/loreai/tasks/upgrade.yaml
+# Topic-level upgrade tasks. Refresh state this topic owns.
+#
+# App-tier topics (those installed via brew/apt/cask) typically leave this
+# empty — their binaries are refreshed by the system pkg-manager upgrade pass.
+# Runtime-manager topics (mise, ollama) MUST own upgrade logic that refreshes
+# their managed subordinate state (tools, models, plugins).
+# Pkg-manager topics own upgrade logic for the binaries they install.
+#
+# Idempotent: safe to re-run. No confirmation needed.
+# Do NOT put install or remove logic here.
+
+# ── macOS (Homebrew) ──────────────────────────────────────────────────────────
+# Most app-tier topics need nothing here — `apps/homebrew/tasks/upgrade.yaml`
+# already runs `brew upgrade` across all formulae and casks.
+#
+# Only add tasks here if this topic owns state that brew upgrade does not
+# refresh (managed sub-packages, downloaded archives, plugin registries, etc.).
+
+# ── Linux (apt) ───────────────────────────────────────────────────────────────
+# Same principle: `apps/apt/tasks/upgrade.yaml` already runs dist-upgrade.
+# Only add tasks here for state apt-upgrade does not refresh.
+
+# ── Topic-specific upgrade examples ───────────────────────────────────────────
+# - name: "Upgrade loreai-managed tools"
+#   ansible.builtin.command:
+#     cmd: loreai upgrade --all
+#   register: loreai_upgrade_result
+#   changed_when: loreai_upgrade_result.rc == 0
+#   when: ansible_facts['os_family'] == 'Darwin'
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Generated upgrade guidance (topical new)
+# ──────────────────────────────────────────────────────────────────────────────
+# WARNING: release_artifact is upgraded_by: topic — no system role reaches it.
+# This topic MUST own its upgrade (docs/TOPICS.md § Presence vs currency);
+# tag the install fetch [install, upgrade] as the outline shows.

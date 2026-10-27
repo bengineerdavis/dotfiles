@@ -804,3 +804,76 @@ apply (author-run; completed by the author 2026-10-15).
   Learnings: `dotfiles/docs/research/coordinating-parallel-work-across-
   refactors.md` § What running it taught us (complete). The seam merge
   also carries the pyrefly project-excludes guard fix (de46484).
+
+## 2026-10-22
+
+- **Add loreai topic (Lore.AI agent-memory gateway).** Done: PR #70 merged
+  2026-10-23 (merge commit 6642983), quiz answered by the author, two
+  maximum-reasoning roborev rounds triaged to zero open findings (9
+  findings, all fixed with mutations recorded in commit trailers). The
+  topic then installed on this machine for real: provision
+  `ok=39 failed=0`, `lore --version` 0.40.0, `lore setup status` shows
+  claude-code and codex routed at the gateway with backups present,
+  answers saved to `~/.config/loreai/env.zsh` (telemetry on, workers on
+  `openrouter/z-ai/glm-5.3-flash`), and the gateway smoke passed
+  (`lore start` → dashboard HTTP 200 at :3207/ui → `lore stop`).
+  Follow-ups live in the topic CHANGELOG known_issues and on
+  `agent/loreai_apply` (PR #72, the roborev MCP adoption discovered
+  during apply). Durable record: PR #70 and its two triage comments.
+- **Root-cause the two trunk regressions that landed with PRs #58–63.**
+  [agent: opencode coordinator] Done 2026-10-20, PR #67. Neither failure
+  came from #58–63 — both predate them. (a, real) test_apt_keyring's 7
+  fixture errors are a macOS unix-socket limit: gpg-agent binds
+  `<GNUPGHOME>/S.gpg-agent` and pytest's resolved tmp_path_factory path
+  had grown past the kernel's 104-byte cap (measured 152 chars), so gpg
+  exited 2 with "No agent running" — fixed by a short mkdtemp homedir plus
+  a regression test pinning the limit (b05e2a0, mutation-proven: re-
+  lengthening the prefix reproduces the failure). (b, real) the
+  test_apt_tasks no-source test has been deterministic-red since a44e7f0
+  (Oct 8) rewrote keyrings.yaml: the test failed because the task's
+  `/usr/bin/gpg` check defers the report loop on macOS, so the helper's
+  `t: no-source` status — which the loop *does* print — never appeared.
+  The old assertion was achievable, just gated by the deferral: fixed by
+  an `apt_gpg_path` parameter (default unchanged) and an assertion
+  matching the current task (6fc04a2). (c, not reproduced) the opencode
+  config-layers pair passes in three independent runs here — standalone,
+  pristine-92615ec scratch, two full suites — and is resolved as
+  environmental (the observing box had the mise-shadowed opencode drift
+  oc2-reconcile documented the same day). Full suite 1090 passed / 6
+  skipped; scoped ansible-lint baseline unchanged (verified by stashing
+  the diff). The item's "shells out to apt_keyring.py" mechanism note was
+  imprecise: the keyring tests import the helper via importlib; the
+  errors were gpg, not the helper.
+- **Shift-left surface scan: save/add/commit, quality-and-maintainability
+  focus (mini project).** [agent: opencode coordinator] Done 2026-10-22.
+  Steps 1-2 (inventory with timings + comparison vs the 2026-09-22 study)
+  committed at `.claude/RESEARCH-shift-left-surface-scan.md` (0f9b254);
+  the four-voice council resolved all seven open questions at
+  `.claude/COUNCIL-shift-left-scan.md` (2868cd0) — headline: the 47
+  bin/executable_* files are skipped by every hook (no exec bit), and
+  shellcheck is already red on 30 shell-shebang bin files today. The
+  run-shellharden helper landed with its population census and 9-test
+  bats suite (a30b8d6, mutation-proven: breaking the zsh-skip guard
+  turned exactly tests 3+4 red); the dangling line-42 exclusion dropped
+  (3df2078) so the bats hook now maps the helper to its own suite. Full
+  suite 1089 passed / 6 skipped on the post-PR-67 trunk. Merged to main
+  via 6a9d64b. Ranked follow-on plan (P1a..P5) lives in the council doc;
+  queued items land on author approval.
+
+## 2026-10-26
+
+- **skill-trust: ask-first resolution for unexpected skills.** Resolved as
+  PR #71 (`agent/skill_trust_resolve`, 25 commits): first detection asks
+  instead of failing — the machine-local store at
+  `~/.config/skill-trust/trust.yaml` layered under the guard-composed rules
+  with deny winning across layers; `resolve`/`trust` for interactive and
+  non-interactive decisions; hidden directories skipped with every skip
+  reported and `include_hidden` to re-audit; `deny_skills` for persistent
+  rejections; the guard writes `rules.yaml` at a stable path and its
+  failure message names the resolver; update.sh pre-flights without
+  blocking. Evidence: 111 skill-trust tests with mutation trailers; roborev
+  job 10 (fail) fully fixed, job 16 pass with its three low findings also
+  closed; live guard exercise both directions; pty-verified interactive
+  pre-flight; loader verification table in `tools/skill-trust/README.md`.
+  Follow-on queued in the backlog: TASK-1 (resolve --revisit) plus the
+  § Planned mid-play `pause` review.
