@@ -6,61 +6,31 @@ created_date: 2026-10-27 02:55
 labels:
 - now
 priority: high
+references:
+- .claude/HANDOFF-modular-agent-runtime.md
+updated_date: 2026-10-27 22:18
 ---
 
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-**Evaluate interchangeable components for agent work.**
-  [handoff ready, unclaimed; initial comparison complete, container setup
-  assessment pending; 2026-09-24] The author approved the expanded brief. Task queues,
-  orchestration, workspace creation, sandbox runtimes,
-  and environment setup must be independently replaceable or removable.
-  Include Backlog.md, workmux, herdr, and other relevant options; verify each
-  tool's actual role instead of assuming all are queue managers. Compare
-  Sandcastle (`mattpocock/sandcastle`), `anthropics/sandbox-runtime`, and
-  maintained bubblewrap/Seatbelt consumers on macOS and Debian. Worktrunk and
-  mise are the baseline, not mandatory dependencies; include a workspace
-  alternative that does not require Git worktrees. Use local repositories,
-  prior research and queued decisions alongside upstream docs, source and
-  practitioner reports. This feeds the existing sandboxing and coordination
-  items. Done when an evidenced report identifies replaceable boundaries,
-  ownership and lifecycle contracts, ranks compatible combinations, records
-  rejected options and platform gaps, and is reviewed with the author.
+Agent-work components must be independently replaceable: task queues, orchestration, workspace creation, sandbox runtimes, and environment setup — session/UI tooling optionally. Verify each tool's actual role instead of assuming all are queue managers.
 
-  Author clarification, 2026-09-24: non-root containers, including Sandcastle's
-  approach, are first-class candidates when applying them requires very little
-  configuration. Native execution is a workload capability, not a universal
-  selection requirement. Compare host prerequisites, fresh-project setup,
-  required files/settings/commands, reusable images or templates, credential
-  wiring, and ongoing configuration maintenance. Preserve independent task,
-  workspace and runtime choices. Next evidence needed: a low-configuration
-  Sandcastle/container walkthrough against the native-wrapper baseline.
+State 2026-10-27: initial comparison complete; native macOS probes done (SRT 0.0.77's false-success exit and mise 2026.9.12's host-network failure both reproduced; filesystem restrictions worked); Debian and end-to-end swaps unrun. The missing evidence is a low-configuration container walkthrough. No research agent is running — resume from the handoff.
 
-  Report: `.claude/RESEARCH-modular-agent-runtime.md` (committed on `main`
-  2026-10-03). The research agent mapped local prior work, verified
-  queue/runtime interfaces, and ran macOS synthetic probes. Coordinator review
-  reproduced SRT 0.0.77's false-success signal exit and mise 2026.9.12's failed
-  host-network exception, alongside successful filesystem restrictions.
-  Queue and workspace substitutions are interface-supported proposals;
-  Debian and end-to-end swaps remain unrun. Decide next: serialized versus
-  autonomous claims, worker commit authority, required network/IPC controls,
-  and resume/retention ownership. The completed research unit is archived in
-  `TASKS-RESOLVED.md`; implementation remains a separate decision.
+Compare: Sandcastle (mattpocock/sandcastle) non-root containers, anthropics/sandbox-runtime, maintained bubblewrap/Seatbelt consumers on macOS and Debian, workmux's container workflow, and a native-wrapper baseline. Worktrunk and mise are the baseline, not mandatory dependencies; include a workspace alternative that does not require Git worktrees.
 
-  **Pickup:** `.claude/HANDOFF-modular-agent-runtime.md`, committed on `main`.
-  The initial research and coordinator review
-  are complete; no research agent remains running. The author clarified that
-  low-configuration non-root containers are primary options. Next: compare
-  Sandcastle's shipped container setup, workmux's container workflow and a
-  native wrapper. The handoff and sibling report are committed under
-  `.claude/` on `main`.
-  They retain the latest requirements and evidence where this queue's older
-  research text differs.
+Author clarifications 2026-09-24: non-root containers are first-class candidates when applying them requires very low configuration; native execution is a workload capability, not a universal requirement; task storage, dispatch, workspace allocation, sandboxing and environment setup stay independently swappable.
+
+Feeds the existing sandboxing and coordination items. Report: .claude/RESEARCH-modular-agent-runtime.md (committed on main). Pickup: .claude/HANDOFF-modular-agent-runtime.md.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
+- [ ] #1 Evidenced report identifies the replaceable boundary for each component: queue, orchestration, workspace allocation, sandbox runtime, environment setup
+- [ ] #2 Ownership and lifecycle contracts recorded per component (who creates, who reaps, what survives a session death)
+- [ ] #3 Compatible combinations ranked; rejected options and platform gaps recorded
+- [ ] #4 Container-setup effort measured on a real backend (the missing evidence) and reviewed with the author
 <!-- AC:END -->
 
 ## Implementation Notes

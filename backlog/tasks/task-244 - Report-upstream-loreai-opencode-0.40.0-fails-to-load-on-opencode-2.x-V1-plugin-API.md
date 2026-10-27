@@ -1,5 +1,5 @@
 ---
-id: TASK-241
+id: TASK-244
 title: 'Report upstream: @loreai/opencode 0.40.0 fails to load on opencode 2.x (V1
   plugin API)'
 status: To Do
@@ -8,6 +8,7 @@ labels:
 - loreai
 - upstream
 priority: high
+updated_date: 2026-10-27 22:13
 ---
 
 ## Description
