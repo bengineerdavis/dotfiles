@@ -14,6 +14,19 @@ heading is worse than an absent one. Record upstream behaviour you had to work
 around under `known_issues`, and keep the *reason* for the workaround in a
 comment beside the task that does it.
 
+## 2026-10-27
+
+### known_issues
+
+- **opencode v2 requires `mcp.servers.<name>`, not bare `mcp.<name>`.** The
+  block adopted on 2026-10-22 is correct as `mcp.servers.roborev`. opencode
+  2.1.4's published schema (`https://opencode.ai/config.json`) defines
+  `mcp.servers` as the map of server definitions and marks a bare
+  `mcp.<name>` as `deprecated: true` — so "fixing" the config to
+  `mcp.roborev` moves it backwards. Both shapes still load, which is why the
+  inversion looks like an improvement. Checked against the schema on
+  2026-10-27.
+
 ## 2026-10-13
 
 ### minor_changes
