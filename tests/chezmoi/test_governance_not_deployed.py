@@ -33,8 +33,12 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 from payload_seam import PAYLOAD_ROOT
 
 # The five documents that govern the project, plus the conventions directory.
-# RESOURCES.md is deliberately absent: it IS a deployed dotfile.
-GOVERNANCE = ["AGENTS.md", "PRD.md", "ROADMAP.md", "spec.md", "TASKS.md"]
+# RESOURCES.md is deliberately absent: it IS a deployed dotfile. TASKS.md was
+# the fifth until the backlog-md-py cutover deleted it (2026-10-26); the
+# queue now lives in backlog/, which IS committed but must still never
+# deploy — it is covered by the dot-prefix rule like .worktrees/, asserted
+# in tests/backlog.
+GOVERNANCE = ["AGENTS.md", "PRD.md", "ROADMAP.md", "spec.md"]
 # Not a whole directory any more: docs/ mixes repository conventions (which must
 # not deploy) with dotfiles documentation (which must). Named files only.
 GOVERNANCE_FILES_IN_DOCS = [
