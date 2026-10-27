@@ -1057,9 +1057,10 @@ Prefer evidence over assertion, and say plainly what was and was not checked.
 
 ### Issue tracker
 
-`backlog/` via `backlog-py` / `backlog-py-mcp`; the interim queue is `TASKS.md`
-until the cutover in `docs/BACKLOG-MIGRATION.md`. See
-`docs/agents/issue-tracker.md`.
+`backlog/` via `backlog-py` / `backlog-py-mcp`. The 2026-10-27 cutover is a
+breaking change for any branch carrying `TASKS.md` — the conversion procedure
+and per-branch disposition live in `docs/BACKLOG-CUTOVER.md`; the decision
+record is `docs/BACKLOG-MIGRATION.md`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
