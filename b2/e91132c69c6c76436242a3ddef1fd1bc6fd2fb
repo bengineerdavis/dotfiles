@@ -1,0 +1,19 @@
+"backlog/drafts/draft-1 - Unify-zshrc-on-the-topic-loading-pattern-retire-the-isMac-dual-template.md"
+  s_64c37cc93e90b2::t_206600bc36b6b7 1-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b2e91132c69c6c76436242a3ddef1fd1bc6fd2fb",
+  "prompts": {},
+  "sessions": {
+    "s_64c37cc93e90b2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e810fe670ffeuSppN8tjc9c1Zf",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
