@@ -48,3 +48,20 @@ Feeds the existing sandboxing and coordination items. Report: .claude/RESEARCH-m
 ## Definition of Done
 <!-- DOD:BEGIN -->
 <!-- DOD:END -->
+
+## Run History
+<!-- SECTION:RUN_HISTORY:BEGIN -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-48d0f7d6f94d48d38addd4d7bd64a76f
+type: record_run
+actor: opencode-coordinator
+timestamp: '2026-10-27T22:54:05.451875Z'
+result: succeeded
+task_id: DOT-52
+verification:
+- backlog-py task 52 shows the rewritten description and 4 ACs
+```
+State restored after the cutover import flattened it: description rewritten from the raw TASKS.md fragment, four acceptance criteria replacing the done-when prose, handoff attached as ref. The content fix rode inside renumber commit f4ad28d (git notes PROVENANCE documents why); this run event is the queue-side record.
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- SECTION:RUN_HISTORY:END -->
