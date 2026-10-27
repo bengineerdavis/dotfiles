@@ -1,0 +1,21 @@
+changelog.d/20261027_130500_bengineerdavis_ignore-repo-tooling.md
+  s_77d3b692985a60::t_4727a8e63baff4 1-7
+.chezmoiignore
+  s_77d3b692985a60::t_bfc8f90c3977db 33-36,52-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "88191c6490fc9037397f0373e6b7d3b44abaa48f",
+  "prompts": {},
+  "sessions": {
+    "s_77d3b692985a60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8740494fffeKeLAPc4yoUweyC",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
