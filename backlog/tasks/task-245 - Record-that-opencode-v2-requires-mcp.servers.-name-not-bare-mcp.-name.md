@@ -1,9 +1,9 @@
 ---
-id: TASK-241
+id: TASK-245
 title: Record that opencode v2 requires mcp.servers.<name>, not bare mcp.<name>
 status: Done
 created_date: 2026-10-27 20:21
-updated_date: 2026-10-27 20:27
+updated_date: 2026-10-27 22:20
 ---
 
 ## Description
