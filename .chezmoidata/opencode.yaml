@@ -25,6 +25,9 @@ opencode:
     # backlog-py: the queue's MCP server (docs/BACKLOG-MIGRATION.md) — the
     # SDK-free stdio entry point, which forwards to the apps/backlog daemon
     # when one is running.
+    # Shape: opencode v2 requires `mcp.servers.<name>`. A bare `mcp.<name>`
+    # is accepted but deprecated, so moving a server up a level looks like a
+    # fix and is a regression. See apps/roborev/CHANGELOG.md 2026-10-27.
     mcp:
       servers:
         roborev:
