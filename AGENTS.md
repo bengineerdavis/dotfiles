@@ -342,7 +342,7 @@ surprise waiting for the next session.
 
 **One branch per work item**, named `<group>-<item>` — `topic-cli-a2`,
 `ai-factor-out-b4`. Work items are the queue's tasks; the branch name echoes
-the task (`backlog-TASK-42`, `topic-cli-a2`).
+the task (`backlog-DOT-42`, `topic-cli-a2`).
 
 Two exceptions, and both must be stated in the task itself:
 
