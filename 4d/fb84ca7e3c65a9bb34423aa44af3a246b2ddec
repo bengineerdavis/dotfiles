@@ -1,0 +1,19 @@
+"backlog/tasks/task-240 - Decide-and-scope-the-capture-trigger-for-symlinked-chezmoi-managed-files.md"
+  s_77d3b692985a60::t_480b9d9a912040 1-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4dfb84ca7e3c65a9bb34423aa44af3a246b2ddec",
+  "prompts": {},
+  "sessions": {
+    "s_77d3b692985a60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8740494fffeKeLAPc4yoUweyC",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
