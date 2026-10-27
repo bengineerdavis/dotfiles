@@ -1,0 +1,46 @@
+tests/guards/test_guard_wiring.py
+  s_77d3b692985a60::t_f8b0b06051a4a3 127-160
+dotfiles/roles/guards/defaults/main.yaml
+  s_77d3b692985a60::t_a5353fec24c2d6 82-91
+dot_config/opencode/opencode.jsonc.tmpl
+  s_77d3b692985a60::t_b4f93a25201c72 80-84
+tests/guards/test_no_root_authority.py
+  s_77d3b692985a60::t_b35b5bbb48383f 1-62
+opencode.jsonc
+  s_77d3b692985a60::t_45ce4e8c3315ae 248-252,428-430
+dotfiles/apps/mise/tasks/install.yaml
+  s_77d3b692985a60::t_fa70916950f8e9 62-64
+  s_77d3b692985a60::t_39dba291a2bf84 117
+dotfiles/apps/mise/tasks/upgrade.yaml
+  s_77d3b692985a60::t_1e765dff9856e3 37,90
+dotfiles/apps/mise/tasks/main.yaml
+  s_77d3b692985a60::t_4ae44f2e12cc5c 13-21,27-28
+  s_77d3b692985a60::t_f370d9e508b444 22-26
+dotfiles/roles/guards/tasks/no-root-authority.yaml
+  s_77d3b692985a60::t_b434984d36935c 1-29
+dotfiles/roles/guards/README.md
+  s_77d3b692985a60::t_396a62eb904597 54
+changelog.d/20261027_120000_bengineerdavis_sudo-guard.md
+  s_77d3b692985a60::t_7a97ea107db839 1-25
+tests/zsh/test_sudo_guard.py
+  s_77d3b692985a60::t_f96511d281802d 1-80
+  s_77d3b692985a60::t_e2dcedced4e707 81
+dot_functions
+  s_77d3b692985a60::t_c5a2bb4a74c910 90-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b8732542b094f08da5897f9fa4df9b6c7a0d6cf9",
+  "prompts": {},
+  "sessions": {
+    "s_77d3b692985a60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8740494fffeKeLAPc4yoUweyC",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
