@@ -1757,6 +1757,13 @@ nothing is.
   [agent: this session] (branch
   `agent/backlog_migration`, worktree `.worktrees/backlog-migration`).
 
+- **Give `pipx:agentsview` an owner, or drop it.** It was added to the global
+  mise config as a local trial and appears in no topic, so nothing owns its
+  entry or its removal (`dotfiles/docs/TOPIC-RECIPES.md` § tool-entry-ownership).
+  Done when either an `apps/agentsview` topic owns the entry through mise's
+  first-party commands (install and remove), or the entry is gone from
+  `dotfiles/apps/mise/files/config.toml`.
+
 ## Planned
 
 
