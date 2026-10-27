@@ -108,6 +108,12 @@
     { "action": "external_directory", "resource": "*", "effect": "deny" },
     { "action": "external_directory", "resource": "$HOME/.local/share/chezmoi/*", "effect": "allow" },
     { "action": "external_directory", "resource": "$HOME/code/*", "effect": "allow" },
+    // Handoff documents and scratch files live under the agent temp root. The
+    // private path is the narrow boundary; `/tmp` is kept because tools that
+    // ignore $TMPDIR write there. v2 expands `$HOME` in these patterns, so
+    // both stay literal and portable.
+    { "action": "external_directory", "resource": "$HOME/.cache/tmp/*", "effect": "allow" },
+    { "action": "external_directory", "resource": "/tmp/*", "effect": "allow" },
     // The external-skill trees opencode scans (~/.agents/skills and its
     // ~/.claude mirror) — one intent: agent-installed skills are readable.
     // The runtime also auto-allows each skill directory registered at
