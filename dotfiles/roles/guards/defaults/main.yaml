@@ -54,6 +54,12 @@ guard_denied_sources: []
 # Per-source skill vetoes, as {source: [names]}.
 guard_skill_excludes: {}
 
+# Hidden (dot-prefixed) directories to audit after all, by name. The audit
+# skips hidden directories as non-load-paths — reporting each skip — and a
+# directory named here is judged like any other. The machine-local
+# alternative is `skill-trust trust add --include-hidden`.
+guard_skill_include_hidden: []
+
 # Copyleft is open, but vendoring into a library every agent loads is
 # redistribution and carries obligations, so it arrives only on purpose.
 guard_allow_copyleft: false
@@ -68,7 +74,16 @@ guard_skill_trust_cmd: skill-trust
 # against whatever this machine happens to have installed.
 guard_dotagents_list_cmd: "npx -y @sentry/dotagents@latest --user list --json"
 
-# Accept unapproved or undeclared skills for one run.
+# Where the guard writes the composed trust rules each run. A stable path, so
+# `skill-trust resolve` (interactive: approve/vendor/deny each finding once)
+# and bare `skill-trust check` judge with exactly what the guard enforces.
+# Machine-local decisions live beside it in trust.yaml, never in this file.
+guard_skill_trust_rules: >-
+  {{ ansible_facts['env']['XDG_CONFIG_HOME'] | default(ansible_facts['env']['HOME'] ~ '/.config', true) }}/skill-trust/rules.yaml
+
+# Accept unapproved or undeclared skills for one run. For anything meant to
+# LAST, prefer `skill-trust resolve` — this flag is the one-run escape, not
+# the way decisions are made.
 guard_allow_unapproved_skills: false
 
 # Recognise a foreign skill bucket — a directory another program owns in the

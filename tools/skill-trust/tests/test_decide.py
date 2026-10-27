@@ -22,6 +22,43 @@ from skill_trust.decide import Tier, decide, licence_tier, source_matches
 APPROVED = {"approved_sources": ["owner/lib"]}
 
 
+# --- a None source (undeclared directories) ------------------------------------
+
+
+def test_a_none_source_matches_no_pattern():
+    """Undeclared directories are judged on their own licence alone. This
+    guard used to be missing: undeclared-with-licence crashed the whole audit
+    on None.strip() whenever any source pattern was configured — and the
+    naive fix (pass the directory name as the source) lets a directory named
+    like a bare-org pattern inherit that pattern's approval.
+    """
+    assert source_matches("owner", None) is False
+    assert source_matches("owner/lib", None) is False
+    assert source_matches("owner", "") is False
+
+
+def test_a_directory_named_like_an_org_pattern_gains_no_approval():
+    """The exploit the naive fix opened: approved_sources carries a bare org,
+    and a dropped directory happens to share its name. It must still be
+    judged on its licence — here, none, so denied.
+    """
+    config = {"approved_sources": ["evilorg"]}
+    d = decide(None, "evilorg", config, spdx=None)
+    assert not d.permitted
+    d_mit = decide(None, "evilorg", config, spdx="MIT")
+    assert d_mit.permitted
+    assert d_mit.rule == "licence"  # via its own licence, never approved_sources
+
+
+def test_a_none_source_still_fires_deny_skills():
+    """The name is passed for exactly this: a recorded denial by directory
+    name must bite even with no source to match.
+    """
+    d = decide(None, ".trash", {"deny_skills": [".trash"]})
+    assert not d.permitted
+    assert d.rule == "deny_skills"
+
+
 # --- precedence ---------------------------------------------------------------
 
 

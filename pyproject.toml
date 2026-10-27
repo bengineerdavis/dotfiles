@@ -8,9 +8,14 @@ dependencies = []           # nothing installs this; scripts declare their own d
 test = ["pytest>=9", "hypothesis", "typer", "questionary", "pyyaml", "pillow", "jinja2"]
 test-llm = ["llm", "files-to-prompt"]   # opt-in: pulls ~34 packages
 lint = ["ruff", "ty"]
+# The task queue is migrating to backlog-md-py (TASKS.md § Planned, author
+# direction 2026-10-18). In the project venv so `uv run backlog-py` works
+# without a mise shim.
+tools = ["backlog-md-py>=2.2.0"]
 dev = [
     { include-group = "test" },
     { include-group = "lint" },
+    { include-group = "tools" },
 ]
 test-vm = [
     "ansible-core==2.21.5",
