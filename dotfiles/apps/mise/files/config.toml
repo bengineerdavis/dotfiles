@@ -66,7 +66,7 @@ node = "lts"
 # @sentry/dotagents skills); aube refused it at 7 weekly downloads vs the
 # 1,000 threshold. verify=checks passed then.
 "npm:@sentry/skillet" = { version = "1.8.0", postinstall = "skillet init", depends = ["node"], allow_low_downloads = true }
-"npm:@sentry/dotagents" = "latest"
+"npm:@sentry/dotagents" = "3.3.0"
 # Second eval harness for skillet. skillet 1.7.0 runs a case's judge on the same
 # harness AND model as the trial itself (worker.js: runHarness(cfg.harness, …)
 # with only a fresh temp dir), so a single-harness run always self-grades. Two
@@ -214,7 +214,12 @@ usage = "latest"
 # on every run ("Upgraded 1 tool: fabric v1.4.478 → 1.4.478"), kept a duplicate
 # tree under installs/.../v1.4.478 alongside 1.4.478, and left the topic
 # reporting `changed` forever — which hides the changes that are real.
-"github:danielmiessler/fabric" = "1.4.478"
+#
+# Bumped 1.4.478 → 1.4.516 on 2026-10-27 (author decision). The duplicate-tree
+# symptom was measured at 1.4.478 and has not been rechecked at the new pin.
+# Before treating the bump as settled, watch whether upstream fixed the
+# version-prefix handling; if it did, this comment and the pin move together.
+"github:danielmiessler/fabric" = "1.4.516"
 
 [tasks.sk]
 description = "Core skillet command"

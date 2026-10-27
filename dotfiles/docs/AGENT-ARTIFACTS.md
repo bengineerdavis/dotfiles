@@ -31,7 +31,7 @@ of wiring one canonical store, is disqualified.
 | Format | what a skill is | [Agent Skills spec](https://agentskills.io) (open standard, Anthropic-originated) |
 | Authoring + verification | how skills are written and proven | [skillet](https://github.com/getsentry/skillet) — spec.md → SKILL.md → evals with `--baseline` lift |
 | Distribution | how skills arrive and update | [dotagents](https://github.com/getsentry/dotagents) — `agents.toml` declares, `agents.lock` locks, `~/.agents/skills/` is the canonical store, per-agent dirs get symlinks |
-| Provisioning | what installs the installer and triggers sync | Ansible topics (install and trigger, never hold logic or state) |
+| Provisioning | what installs the installer and triggers sync | Ansible topics (install and trigger, never hold logic or state) — `apps/dotagents` owns the declaration and sync |
 | Config | per-tool settings | chezmoi, unchanged |
 
 This is the same stack Sentry runs, which the author named as the reference:

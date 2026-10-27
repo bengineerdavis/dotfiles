@@ -30,6 +30,8 @@ opencode:
         roborev:
           type: local
           command: ["roborev", "mcp", "serve"]
+        # The task queue's MCP surface (docs/BACKLOG-MIGRATION.md § MCP wiring).
+        # Verified 2026-10-26: the server starts and answers initialize.
         backlog-py:
           type: local
           command: ["backlog-py-mcp"]

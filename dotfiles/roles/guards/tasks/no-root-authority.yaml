@@ -1,0 +1,29 @@
+# roles/guards/tasks/no-root-authority.yaml
+#
+# Guard: a topic that installs into the user's home must not run with root
+# authority.
+#
+# The incident this guards, 2026-10-27: `mise` was run under sudo while trying
+# to clear a lock. Root installed a second tool tree under /root and left stale
+# locks under the temp directory. Ansible was NOT the cause — its mise tasks
+# never elevated — but a whole play started through sudo would reproduce it,
+# and `become: false` cannot prevent that: it means "do not elevate", not
+# "refuse to run as root".
+#
+# Callers must also set `become: false` on the commands that own user state.
+# This guard catches the process-level case that setting cannot.
+#
+# Parameters (see roles/guards/defaults/main.yaml):
+#   guard_caller, guard_no_root_user_id, guard_no_root_sudo_user
+
+- name: "Guard: refuse to run {{ guard_caller }} with root authority"
+  ansible.builtin.fail:
+    msg: >-
+      [no-root-authority] {{ guard_caller }} must run as the invoking user, but
+      this run is root (or was started with sudo). Root gets a second tool tree
+      under /root and stale locks in the temporary directory. Re-run as your
+      user; the privileged package steps elevate per task instead. Nothing has
+      been installed or moved.
+  when: >-
+    guard_no_root_user_id == 'root'
+    or (guard_no_root_sudo_user | length > 0)

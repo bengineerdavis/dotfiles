@@ -245,7 +245,11 @@
       "git push -f *": "deny",
       "git push --force-with-lease *": "deny",
       // The `=` form has no space after the flag, so the rule above misses it.
-      "git push --force-with-lease=*": "deny"
+      "git push --force-with-lease=*": "deny",
+      // Root authority is never a default: mise and Ansible must run as the
+      // invoking user, so the apt steps elevate per task instead.
+      "sudo *": "deny",
+      "command sudo *": "deny"
     }
   },
 
@@ -421,7 +425,9 @@
           "git push --force *": "deny",
           "git push -f *": "deny",
           "git push --force-with-lease *": "deny",
-          "git push --force-with-lease=*": "deny"
+          "git push --force-with-lease=*": "deny",
+          "sudo *": "deny",
+          "command sudo *": "deny"
         },
         "webfetch": "allow",
         "websearch": "allow"

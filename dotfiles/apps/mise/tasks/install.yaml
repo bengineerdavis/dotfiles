@@ -59,6 +59,9 @@
 # tools in config.toml (python, node, ...) were never explicitly materialized.
 # uv is deliberately absent — it is astral-installed at the system level.
 - name: "Materialize mise-managed tools from config.toml"
+  # Explicit: mise owns a tree in the invoking user's home. A play started with
+  # become must not elevate this command, or root gets a second tree.
+  become: false
   ansible.builtin.command:
     cmd: mise install --yes
   register: mise_install_result
@@ -111,6 +114,7 @@
   changed_when: false
 
 - name: "Rebuild the llm tool venv to pick up newly declared plugins"
+  become: false
   ansible.builtin.command:
     cmd: mise install --force pipx:llm
   when: mise_llm_missing_plugins.stdout | trim | length > 0
