@@ -1,0 +1,105 @@
+.chezmoidata/opencode.yaml
+  s_77d3b692985a60::t_a19014cb4a1881 30-37
+AGENTS.md
+  s_77d3b692985a60::t_64bd93415dfe16 764-766,1007-1024
+TASKS-RESOLVED.md
+  s_77d3b692985a60::t_ba75e02a6f51bf 862-879
+TASKS.md
+  s_77d3b692985a60::t_bb9a4c82e2a266 90,1786-1792,3622-3630
+backlog/config.yml
+  s_77d3b692985a60::t_35716379244fcf 1-17
+"backlog/tasks/task-1 - skill-trust-resolve---revisit-change-of-mind-workflow-for-recorded-denials.md"
+  s_77d3b692985a60::t_09d6c1d4d586ff 1-37
+changelog.d/20261026_181500_bengineerdavis_agents-setup.md
+  s_77d3b692985a60::t_bc2fab9640445c 1-21
+changelog.d/20261027_115000_bengineerdavis_main-cleanup.md
+  s_77d3b692985a60::t_a7a3fc60d0f5f6 1-12
+changelog.d/20261027_120000_bengineerdavis_sudo-guard.md
+  s_77d3b692985a60::t_27a5ab03059918 1-23
+docs/BACKLOG-UPSTREAM-CONFIG.md
+  s_77d3b692985a60::t_04a9e92439b5e4 1-87
+docs/agents/domain.md
+  s_77d3b692985a60::t_c7534b21271909 1-44
+docs/agents/issue-tracker.md
+  s_77d3b692985a60::t_2c1f5ba0b458ae 1-63
+docs/agents/triage-labels.md
+  s_77d3b692985a60::t_984b4f5d5f68dd 1-17
+dot_config/opencode/opencode.jsonc.tmpl
+  s_77d3b692985a60::t_9a96e2990f9952 80-84,116-121
+dot_functions
+  s_77d3b692985a60::t_3d56c89b6b22f6 90-118
+dotfiles/apps/mise/files/config.toml
+  s_77d3b692985a60::t_e58fcc87fad6bd 69,213-218
+dotfiles/apps/mise/tasks/install.yaml
+  s_77d3b692985a60::t_0d827e8c418e4a 62-64,117
+dotfiles/apps/mise/tasks/main.yaml
+  s_77d3b692985a60::t_90ee669557800e 13-28
+dotfiles/apps/mise/tasks/upgrade.yaml
+  s_77d3b692985a60::t_4e87edb8a1edfd 37,90
+dotfiles/apps/opencode/CHANGELOG.md
+  s_77d3b692985a60::t_b28aadf41752cb 22-47
+dotfiles/executable_update.sh
+  s_77d3b692985a60::t_e988dfe52962de 23-62
+dotfiles/machines.yml
+  s_77d3b692985a60::t_9018afd1b13d37 13-18,24-26,28-38,41-47,49-50
+dotfiles/roles/guards/README.md
+  s_77d3b692985a60::t_13e1a942c486e5 54
+dotfiles/roles/guards/defaults/main.yaml
+  s_77d3b692985a60::t_9c6a9a0625224f 57-62,77-86,97-106
+dotfiles/roles/guards/tasks/dotagents-approved-sources.yaml
+  s_77d3b692985a60::t_a0893f61f87cec 26-29,51-55,57-62,64,67-69,75,88,110-116
+dotfiles/roles/guards/tasks/no-root-authority.yaml
+  s_77d3b692985a60::t_d36ee77821a76d 1-29
+opencode.jsonc
+  s_77d3b692985a60::t_a8cab1c29f343e 248-252,428-430
+pyproject.toml
+  s_77d3b692985a60::t_0ab06ea2d96a4e 11-14,18
+tests/guards/test_guard_wiring.py
+  s_77d3b692985a60::t_c55b3717452b4f 155-188
+tests/guards/test_no_root_authority.py
+  s_77d3b692985a60::t_e3fb82082b93f8 1-62
+tests/zsh/test_sudo_guard.py
+  s_77d3b692985a60::t_8e769792c77ed2 1-81
+tools/skill-trust/README.md
+  s_77d3b692985a60::t_a7ba3f30212f27 4-6,11-12,15-17,59-111,133-135,140,148-157
+tools/skill-trust/skill_trust/cli.py
+  s_77d3b692985a60::t_f235de16a7fed1 12,17,26,31-33,36-41,136-146,148,163,169-232,236-269,271-275,277,282-284,291-303,310-311,316-317,320,332,337-338,340-359,362,364-366,368-376,378-478,481-522,524-527,531-624,632-645,668-720,726-733,737
+tools/skill-trust/skill_trust/decide.py
+  s_77d3b692985a60::t_4f0d2f5517ba45 134-144,151-183,185,197-199,209-216,241,248,253,261,268,275
+tools/skill-trust/skill_trust/store.py
+  s_77d3b692985a60::t_a13d3d5f8412f4 1-225
+tools/skill-trust/tests/test_decide.py
+  s_77d3b692985a60::t_e2452c1f9fb525 25-61
+tools/skill-trust/tests/test_discover_and_cli.py
+  s_77d3b692985a60::t_5ebf025eead67a 209-270
+tools/skill-trust/tests/test_layering_property.py
+  s_77d3b692985a60::t_12b4c08b698444 1-108
+tools/skill-trust/tests/test_python_floor.py
+  s_77d3b692985a60::t_0f68df0ff990a3 3-9,16,23-35,39,42-44
+tools/skill-trust/tests/test_resolve.py
+  s_77d3b692985a60::t_fec8cd79c71a43 1-240
+tools/skill-trust/tests/test_store.py
+  s_77d3b692985a60::t_7dc6209425591d 1-153
+tools/skill-trust/tests/test_trust.py
+  s_77d3b692985a60::t_0ce3978880d0d7 1-174
+tools/skill-trust/uv.lock
+  s_77d3b692985a60::t_3ea50851679db9 2-3
+uv.lock
+  s_77d3b692985a60::t_16adb007a231f8 2,85-98,251,285-287,293,327,577-585
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1f05e0e4dfb977684e49a58c5674174fd901ae53",
+  "prompts": {},
+  "sessions": {
+    "s_77d3b692985a60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8740494fffeKeLAPc4yoUweyC",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
