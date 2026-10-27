@@ -199,10 +199,10 @@ malformed, because the producer is a sampling process and not a program.
 
 ### Behavior: Work — agent work is defined and assigned before it starts
 
-Work carried out by an agent or subagent SHALL have a task in `TASKS.md` before
-the work begins. The task SHALL state what done means and who is doing it. Work
-fanned out across several agents SHALL be several tasks, one per unit of work,
-rather than one task naming the fan-out.
+Work carried out by an agent or subagent SHALL have a task in the backlog
+queue (`backlog/`) before the work begins. The task SHALL state what done
+means and who is doing it. Work fanned out across several agents SHALL be
+several tasks, one per unit of work, rather than one task naming the fan-out.
 
 Agents are fast and leave no trace of intent. Without a task written first there
 is no record of what was asked, no statement of done to check the result
@@ -295,7 +295,7 @@ without being part of a company?*
 - **THEN** apply the test. 1Password, Okta, Kandji and a public npm SDK stay; a
   work email, a `~/code/work/<employer>/` path and an internal tool name do not.
   Open items are tracked machine-locally, never in a committed file — see
-  `TASKS.md` § Private tasks, and note that an earlier committed doc reproduced
+  machine-local tracking (never committed), and note that an earlier committed doc reproduced
   the very patterns it existed to remove
 
 ### Behavior: Data — eval cases are synthesised
@@ -578,7 +578,7 @@ Tooling MUST NOT assume ollama. `ollama-evals` addresses local tags and
 A tool MUST NOT begin holding data until one owner and one retention rule exist
 for it. Today usage data is scattered across `~/.local/share/ollama-{usage,bench,
 evals}` and the `llm` CLI's sqlite log with no retention applied — the open
-finding that `TASKS.md` tracks.
+finding that the backlog queue tracks.
 
 <!-- Grammar is skillet's, so `skillet validate` can check it. This is a
      repository spec rather than an agent skill: there is no SKILL.md derived
