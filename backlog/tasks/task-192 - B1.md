@@ -1,0 +1,47 @@
+---
+id: TASK-192
+title: B1
+status: To Do
+created_date: 2026-10-27 02:58
+labels:
+- planned
+- group:refactor-b-factor-the-ai-llm-tooling-out-of-this-repo
+---
+
+## Description
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+B1. Decide the new home and its install method. **Home decided by the author
+  2026-09-12:** `ai-prompt-library` now (skills, evals, policy, tooling work
+  lands there), `impromptu` eventually once the tool is built up. **Addendum
+  2026-09-14, a candidate supersession:** the author announced `llocallabs.ai`
+  — a collection of repositories consolidating the AI tooling and agent
+  projects, starting with a new anchor repo, with AI research, testing and
+  benchmarking moving out of this repo (tasks in § Now). ai-prompt-library
+  and impromptu may consolidate under it; whether that replaces the 09-12
+  home decision or sits above it is part of what B1 still answers. Still
+  open, and deliberately so: the install method this repo pins (B1's other
+  half), and whether policy management has full scope in any home — the
+  author marked this unresolved; see `ROADMAP.md` § Over-arching policy.
+  Blocks B2 below only on the install-method half.
+<!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+<!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
+
+<!-- SECTION:IMPLEMENTATION_NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+
+<!-- SECTION:FINAL_SUMMARY:END -->
+
+## Definition of Done
+<!-- DOD:BEGIN -->
+<!-- DOD:END -->
