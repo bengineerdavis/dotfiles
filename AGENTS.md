@@ -246,7 +246,7 @@ chezmoi -S "$PWD" add ~/bin/<script>     # -S is required, see below
   overwrites the other.
 
 **Claim hot files with an orchestration lease** before touching anything listed
-under § Cross-session hazards below: `backlog-py orchestration claim TASK-N
+under § Cross-session hazards below: `backlog-py orchestration claim DOT-N
 --actor <you> --expected-version <v>` on the covering task (or claim the task
 you are doing, which covers its own files). Leases expire on their own;
 `orchestration stale-leases` replaces the abandoned-claim check. The lease is
@@ -342,7 +342,7 @@ surprise waiting for the next session.
 
 **One branch per work item**, named `<group>-<item>` — `topic-cli-a2`,
 `ai-factor-out-b4`. Work items are the queue's tasks; the branch name echoes
-the task (`backlog-TASK-42`, `topic-cli-a2`).
+the task (`backlog-DOT-42`, `topic-cli-a2`).
 
 Two exceptions, and both must be stated in the task itself:
 
