@@ -4,29 +4,25 @@
 # (dot_config/opencode/), and when both opencode.json and .jsonc exist the
 # .jsonc wins (measured 2026-09-12, recorded in that file's header) — setup's
 # writes would be shadowed or reverted. The integration is instead the
-# fragment the chezmoi template merges from this topic
-# (files/opencode/lore-plugin.jsonc): the same three settings setup writes
-# (plugin, gateway baseURL, compaction.auto=false), translated to this
-# config's shape, deep-merged ahead of the model overrides.
+# plugin fragment the chezmoi template includes from this topic
+# (files/opencode/lore-plugin.jsonc).
 #
-# The package itself is installed here, through opencode's own channel.
-# Measured 2026-10-27 (opencode 2.x): the shared server's in-process
-# auto-install of a listed plugin can wedge for hours (NpmInstallFailedError
-# then LockTimeoutError) while `opencode plugin add` converges immediately.
-# Probing first keeps the run idempotent; `plugin add` also registers the
-# package in opencode.json, which is harmless — the jsonc still wins.
-
-- name: "loreai: probe for the installed opencode plugin package"
-  ansible.builtin.command: npm ls -g @loreai/opencode --depth=0
-  register: loreai_opencode_package_probe
-  changed_when: false
-  failed_when: false
-  check_mode: false  # read-only probe; keeps --check honest
-
-- name: "loreai: install the opencode plugin package"
-  ansible.builtin.command: opencode plugin add @loreai/opencode
-  register: loreai_opencode_package_install
-  when: loreai_opencode_package_probe.rc != 0 and not ansible_check_mode
+# Registration in the deployed config is only the first of three states:
+# registered, installed, loading. Measured 2026-10-27 (opencode 2.0.32 and
+# 2.1.4): the shared server's in-process auto-install of a listed plugin
+# can fail for hours on a long-lived server with no local symptom beyond a
+# WARN in ~/.local/share/opencode/log/opencode.log (NpmInstallFailedError,
+# then LockTimeoutError as retries collided) — a fresh `opencode plugin
+# add @loreai/opencode` installed the same package immediately, and the
+# wedged server needed `opencode service restart` to converge. And once
+# installed, the v2 loader still rejected 0.40.0 ("Plugin must export a
+# default definition with an id and an effect or setup function"): the
+# package ships the pre-v2 function-shaped default export, so loading
+# needs an upstream release (BYK/loreai), not a local change.
+#
+# This file VERIFIES the wiring landed, and names the fix when it has not.
+# It warns rather than fails: render order (chezmoi apply vs this run) is
+# not this topic's to enforce, and neither is opencode's own install path.
 
 - name: "loreai: check the deployed opencode config for the lore plugin"
   ansible.builtin.command: >-
@@ -38,18 +34,66 @@
   check_mode: false  # read-only grep; without it --check fabricates rc=0
                      # and reports the plugin registered unread
 
+# `plugin list` rows come from the loaded module, not the config: a loaded
+# local plugin lists id and version (git-ai), while an installed-but-
+# unloadable npm plugin lists "- -" (measured 2026-10-27, @loreai/opencode
+# 0.40.0 on opencode 2.1.4). Empty id ⇒ not installed or rejected at load.
+
+- name: "loreai: check the opencode plugin's install and load state"
+  ansible.builtin.command: opencode plugin list
+  register: loreai_opencode_plugin_list
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: "loreai: resolve the plugin row's load state"
+  vars:
+    loreai_plugin_row: >-
+      {{ loreai_opencode_plugin_list.stdout_lines
+         | select('search', '@loreai/opencode') | first | default('') }}
+  ansible.builtin.set_fact:
+    loreai_opencode_plugin_loaded: >-
+      {{ (loreai_plugin_row.split() | length > 1)
+         and (loreai_plugin_row.split()[0] != '-') }}
+  check_mode: false
+
+- name: "loreai: pull the plugin's last server-log failure line"
+  ansible.builtin.command: >-
+    grep -F "target=@loreai/opencode"
+    {{ ansible_env.HOME }}/.local/share/opencode/log/opencode.log
+  register: loreai_opencode_plugin_log
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
 - name: "loreai: report opencode extension state"
   ansible.builtin.debug:
     msg: >-
-      {% if loreai_opencode_plugin_check.rc == 0 %}
-      opencode: @loreai/opencode is installed and registered in the deployed
-      config — plugin, gateway baseURL, and compaction.auto=false are
-      deep-merged ahead of the model overrides.
-      {% else %}
+      {% if loreai_opencode_plugin_check.rc != 0 %}
       opencode is installed, but @loreai/opencode is NOT in the deployed
       ~/.config/opencode/opencode.jsonc yet. The chezmoi template includes
       this topic's files/opencode/lore-plugin.jsonc behind a stat guard —
       run `chezmoi apply ~/.config/opencode` once the topic's commit is
       merged and deployed. Nothing on this machine is broken meanwhile;
       opencode just runs without the gateway until then.
+      {% elif loreai_opencode_plugin_loaded %}
+      opencode: @loreai/opencode is registered, installed, and loading —
+      sessions route through the gateway.
+      {% else %}
+      opencode: @loreai/opencode is registered in the deployed config but
+      NOT loading (plugin list shows an empty id). Two causes measured
+      2026-10-27, fix named per cause. (1) The shared server never
+      completed the auto-install — long-lived servers can wedge on it:
+      fix with `opencode plugin add @loreai/opencode` (fresh process,
+      works while the server is wedged) then `opencode service restart`.
+      (2) The loader rejected the module — v2 requires a default export
+      with an id and a setup/effect function, and pre-v2 releases (0.40.0)
+      export a bare function: fix is an upstream BYK/loreai release;
+      nothing local to do. Which one applies is visible in the server log
+      (~/.local/share/opencode/log/opencode.log, "failed to load plugin
+      target=@loreai/opencode"): LockTimeoutError/NpmInstallFailedError
+      means (1), PluginModule.LoadError means (2).
+      {% if loreai_opencode_plugin_log.stdout | length > 0 %}
+      Last logged failure: {{ loreai_opencode_plugin_log.stdout_lines | last }}.
+      {% endif %}
       {% endif %}
