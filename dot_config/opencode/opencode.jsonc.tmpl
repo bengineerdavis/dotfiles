@@ -77,6 +77,11 @@
     { "action": "shell", "resource": "find *-delete*", "effect": "deny" },
     { "action": "shell", "resource": "find *-exec*", "effect": "deny" },
     { "action": "shell", "resource": "find *-execdir*", "effect": "deny" },
+    // Root authority is never a default. mise and Ansible must run as the
+    // invoking user: root gets a second tool tree under /root and leaves locks
+    // in the temp dir. The apt steps elevate per task instead.
+    { "action": "shell", "resource": "sudo *", "effect": "deny" },
+    { "action": "shell", "resource": "command sudo *", "effect": "deny" },
     // Reads are free EXCEPT .env files, which ask (author ruling 2,
     // 2026-10-06: v2's built-in .env protection is kept, not v1 parity).
     // The three rules below mirror v2's base policy verbatim

@@ -34,6 +34,7 @@
   when: mise_skillet_pin not in ['latest', 'unset']
 
 - name: "Upgrade: bump all mise-managed tools (except ansible — see below)"
+  become: false
   ansible.builtin.command:
     # pipx:ansible is the controller RUNNING this very playbook. Upgrading it
     # mid-run swaps its venv on disk, so a later task's module loads mismatched
@@ -86,6 +87,7 @@
 # the run has not delivered what the config asked for. A tool that fails to
 # UPGRADE still works at its current version.
 - name: "Upgrade: install any tools newly added to mise config"
+  become: false
   ansible.builtin.command:
     cmd: mise install --yes
   register: mise_install_result

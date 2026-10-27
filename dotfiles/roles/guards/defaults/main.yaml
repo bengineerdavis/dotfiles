@@ -79,3 +79,13 @@ guard_allow_unapproved_skills: false
 # byte-identical on the next session. On by default for that reason; off
 # restores the old fail-closed denial.
 guard_foreign_buckets: true
+
+# ── no-root-authority ────────────────────────────────────────────────────────
+
+# The identity this run executes as, and the invoking user when the whole run
+# was started through sudo. Parameters rather than direct fact reads so the
+# tests can simulate both cases without running as root: a guard that can
+# decline is only proven by also showing it relents.
+guard_no_root_user_id: "{{ ansible_facts['user_id'] | default('') }}"
+guard_no_root_sudo_user: >-
+  {{ (ansible_facts['env'] | default({})).get('SUDO_USER', '') }}
