@@ -56,4 +56,15 @@ metadata:
   lease_ttl_seconds: '3600'
 ```
 <!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-934993b9a86b408aa5188aeee81c71a0
+type: record_run
+actor: opencode-loreai-service
+timestamp: '2026-10-27T22:30:37.815546Z'
+result: pr-opened
+task_id: TASK-243
+```
+Gateway service implemented and verified on macOS. PR #88 open for review (service-lifecycle path, per merge gates). launchd agent ai.withlore.gateway live: doctor 5/5 PASS, adoption of hand-started gateway confirmed, respawn after lore stop confirmed, second apply idempotent. Debian unit renders verified, not applied there. remove.yaml teardown updated (service stop, units, logs, bg gateway).
+<!-- RUN_HISTORY_ENTRY:END -->
 <!-- SECTION:RUN_HISTORY:END -->
