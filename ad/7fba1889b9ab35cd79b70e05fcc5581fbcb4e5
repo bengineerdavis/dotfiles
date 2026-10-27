@@ -1,0 +1,475 @@
+.chezmoidata/opencode.yaml
+  s_77d3b692985a60::t_7e7adbfc043be7 25-27,34
+AGENTS.md
+  s_77d3b692985a60::t_5c752e8686a768 13-27,207,248-254,260-293,344-345,364-375,410,412,436-443,464-466,499-500,742-748,1068-1071
+backlog/config.yml
+  s_77d3b692985a60::t_5e10843cb021e7 11
+"backlog/docs/doc-1 - Sandbox-isolation-verified-findings-2026-09-20.md"
+  s_77d3b692985a60::t_1b80b2b7ffc2cd 1-75
+"backlog/drafts/draft-1 - Unify-zshrc-on-the-topic-loading-pattern-retire-the-isMac-dual-template.md"
+  s_77d3b692985a60::t_4e13234146cd49 1-32
+"backlog/tasks/task-100 - Declare-ollama-qwen3.5-9b-in-the-model-manifest-and-prove-it-on-this-machine.md"
+  s_77d3b692985a60::t_c673e9d68591e9 1-47
+"backlog/tasks/task-101 - Topic-VM-test-harness-plan-molecule-Vagrant-per-topic-scenarios.md"
+  s_77d3b692985a60::t_d2dcc11b6fa236 1-14,44,46-48,50,52,54,56,58,60,62-64
+"backlog/tasks/task-102 - Topic-VM-test-harness-implement-molecule-scaffolding-apps-opencode-scenario.md"
+  s_77d3b692985a60::t_e702bdab6d756b 1-44
+"backlog/tasks/task-103 - Topic-VM-test-harness-run-the-v2-migration-confirmation.md"
+  s_77d3b692985a60::t_d74dcf7b6cfdd1 1-44
+"backlog/tasks/task-104 - Give-codex-an-authenticated-provider-Darwin-only-for-now.md"
+  s_77d3b692985a60::t_6cc05003b71d7f 1-43
+"backlog/tasks/task-105 - A9.md"
+  s_77d3b692985a60::t_c042a1cfb1a2aa 1-96
+"backlog/tasks/task-106 - Reconcile-apps-opencode-s-install-story-with-the-box-that-drifted-off-it.md"
+  s_77d3b692985a60::t_e808aaed4c9886 1-56
+"backlog/tasks/task-107 - Topic-install-topical-the-A9-generator-as-a-first-class-tool.md"
+  s_77d3b692985a60::t_5a4466dacc3927 1-47
+"backlog/tasks/task-108 - Add-loreai-topic-Lore.AI-agent-memory-gateway.md"
+  s_77d3b692985a60::t_d7b7427093bf8d 1-47
+"backlog/tasks/task-109 - Migrate-the-task-queue-to-backlog-md-py-paired-with-worktrunk.md"
+  s_77d3b692985a60::t_5e03204d8f889e 1-49
+"backlog/tasks/task-110 - Grow-a-dotfiles-agent-skill-set-an-additive-agentic-layer-that-compounds-one-capture-per-session.md"
+  s_77d3b692985a60::t_9d42252118fd4e 1-52
+"backlog/tasks/task-111 - Add-a-uv-topic-the-astral-installed-runtime-manager-mise-consumes.md"
+  s_77d3b692985a60::t_7be4ddd2eb982c 1-41
+"backlog/tasks/task-112 - Make-mise-declare-topic-requires-uv-and-add-an-idempotent-mise-reshim.md"
+  s_77d3b692985a60::t_e55445cd93e9b6 1-39
+"backlog/tasks/task-113 - Shift-Python-ownership-from-mise-to-uv-mise-syncing.md"
+  s_77d3b692985a60::t_e5e50ff1731b3c 1-44
+"backlog/tasks/task-114 - Move-the-bootstrap-into-chezmoi-a-minimal-curl-sh-fetches-chezmoi-and-chezmoi-runs-the-rest.md"
+  s_77d3b692985a60::t_be3dcbd29dbbab 1-41
+"backlog/tasks/task-115 - Add-a-chezmoi-topic-so-Ansible-updates-chezmoi-post-bootstrap.md"
+  s_77d3b692985a60::t_1d2f597fd6314a 1-37
+"backlog/tasks/task-116 - Watch-the-pytest-agent--ecosystem-reopen-trigger-not-a-standing-task.md"
+  s_77d3b692985a60::t_0ec514f70cc9dc 1-46
+"backlog/tasks/task-117 - Revisit-the-HOME--exception-list-reopen-trigger-not-a-standing-task.md"
+  s_77d3b692985a60::t_910f2a31aefdd0 1-41
+"backlog/tasks/task-118 - Add-an-ollama-model-health-check-for-every-model-project-tooling-invokes.md"
+  s_77d3b692985a60::t_6a2981bef9eb48 1-54
+"backlog/tasks/task-119 - Author-the-explain-calibration-skill-whether-and-how-much-to-explain.md"
+  s_77d3b692985a60::t_3b9855add8f61f 1-48
+"backlog/tasks/task-120 - Author-the-feynman-explanation-skill-how-to-explain-from-first-principles.md"
+  s_77d3b692985a60::t_accd9eff26b902 1-44
+"backlog/tasks/task-121 - Declare-explain-calibration-and-feynman-explanation-as-agentic-dependencies.md"
+  s_77d3b692985a60::t_0a1e4c09afadbb 1-42
+"backlog/tasks/task-122 - Migrate-the-mise-python.uv-venv-auto-setting-before-mise-2027.7.0-removes.md"
+  s_77d3b692985a60::t_8422e224b7ed11 1-44
+"backlog/tasks/task-123 - Stop-repo-tooling-leaking-into-HOME.md"
+  s_77d3b692985a60::t_97fafa48451003 1-46
+"backlog/tasks/task-124 - Build-the-subscription-machinery-topic-subscribes-playbook-resolution-injection.md"
+  s_77d3b692985a60::t_9d991690df34dc 1-55
+"backlog/tasks/task-125 - Switch-the-visual-studio-code-topic-from-the-interim-direct-read-to-playbook-injection.md"
+  s_77d3b692985a60::t_e62c38d3ed0bf7 1-43
+"backlog/tasks/task-126 - Wire-the-cursor-topic-and-align-it-with-the-catalogue-contract.md"
+  s_77d3b692985a60::t_569b27b65775f7 1-43
+"backlog/tasks/task-127 - Decide-whether-to-add-the-opencode-sentry-monitor-plugin-to-the-apps-opencode-topic-and-if-so-h.md"
+  s_77d3b692985a60::t_af1a1fa1f03707 1-53
+"backlog/tasks/task-128 - Make-opencode-permission-rules-deterministically-editable-per-config-project-or-global.md"
+  s_77d3b692985a60::t_05e16aacc8cd15 1-61
+"backlog/tasks/task-129 - Design-the-replacement-for-the-TASKS.md-state-and-handoff-process.md"
+  s_77d3b692985a60::t_3ed386e3dce515 1-56
+"backlog/tasks/task-130 - Research-agent-sandboxing-for-projects-and-user-tasks-on-this-machine-deep-research-debated-with.md"
+  s_77d3b692985a60::t_1cc2b639bd2770 1-97
+"backlog/tasks/task-131 - Research-agent-session-management-and-inter-session-handoff-deep-research-with-expert-involvement.md"
+  s_77d3b692985a60::t_9e1189661bcc60 1-61
+"backlog/tasks/task-132 - Research-RAG-and-knowledge-graphs-for-preprocessed-agent-context-deep-research-with-expert-involve.md"
+  s_77d3b692985a60::t_47af99e817d902 1-51
+"backlog/tasks/task-133 - Verify-and-evaluate-Caliber-caliber-ai-org-ai-setup-as-an-agent-config-generator.md"
+  s_77d3b692985a60::t_4585b40ca08895 1-60
+"backlog/tasks/task-134 - Create-a-git-topic-that-owns-git-config-and-extensions-git-ai-is-its-first-extension.md"
+  s_77d3b692985a60::t_cfa4a985ec9e57 1-65
+"backlog/tasks/task-135 - Study-pkgup-and-turn-its-migration-to-the-topic-format-into-a-queued-collection-of-tasks.md"
+  s_77d3b692985a60::t_90bcd86b3a5413 1-52
+"backlog/tasks/task-136 - Harden-cosine-beyond-the-subnormal-guard-the-overflow-tail-and-scale-invariance.md"
+  s_77d3b692985a60::t_4c175722e99bef 1-46
+"backlog/tasks/task-137 - Decide-the-capture-store-contract-private-shareable-separation-versioning-retention.md"
+  s_77d3b692985a60::t_4f55f94852cc92 1-44
+"backlog/tasks/task-138 - Run-the-lessons-learned-advisor-pass-captured-2026-09-15-deliberately-not-run-to-completion-in-it.md"
+  s_77d3b692985a60::t_7339f31fd88b90 1-52
+"backlog/tasks/task-139 - Extend-tests-tasks-doc-to-fail-on-referenced-paths-that-do-not-exist.md"
+  s_77d3b692985a60::t_acb3d3700ed35f 1-41
+"backlog/tasks/task-140 - Bring-the-portable-half-of-.claude-under-chezmoi.md"
+  s_77d3b692985a60::t_d23dc913bbf2e3 1-49
+"backlog/tasks/task-141 - Extend-apps-claude-code-to-Debian-via-the-signed-apt-repository.md"
+  s_77d3b692985a60::t_4bbf090b00caef 1-48
+"backlog/tasks/task-142 - Extract-the-model-benchmarking-and-scouting-tools-into-their-own-repository.md"
+  s_77d3b692985a60::t_1e54f0d49c2fbd 1-48
+"backlog/tasks/task-143 - Create-the-worktrunk-topic-the-wt-Git-worktree-manager-installed-via-mise.md"
+  s_77d3b692985a60::t_7efbcc32076749 1-43
+"backlog/tasks/task-144 - Add-voice-typing-topics-apps-openwhispr-and-apps-superwhisper-macOS-first-with-a-Linux-path-t.md"
+  s_77d3b692985a60::t_b89eeb30b5b5d8 1-103
+"backlog/tasks/task-145 - Explore-OpenTypeless-before-committing-to-it.md"
+  s_77d3b692985a60::t_c91a24edf5feab 1-39
+"backlog/tasks/task-146 - Give-privileged-topics-a-dedicated-ansible-user-per-environment-and-a-service-that-runs-configurati.md"
+  s_77d3b692985a60::t_b39e0f09c54c5e 1-58
+"backlog/tasks/task-147 - Bootstrap-a-whole-machine-from-chezmoi-alone-including-Ansible-itself.md"
+  s_77d3b692985a60::t_510af3f6075915 1-46
+"backlog/tasks/task-148 - Write-a-ground-truth-a-dependency-skill-from-scratch.md"
+  s_77d3b692985a60::t_1c16565dcb1ea1 1-47
+"backlog/tasks/task-149 - 1-Promote-gpt-oss-20b-and-ministral-3-8b-in-bin-binned.md"
+  s_77d3b692985a60::t_e433da7c51a92e 1-37
+"backlog/tasks/task-150 - 2-Repopulate-bin-binned-s-SaaS-tier-from-the-frontier-evaluation.md"
+  s_77d3b692985a60::t_8aa12ece6ae023 1-36
+"backlog/tasks/task-151 - 5-Give-Ansible-sole-ownership-of-ollama-zsh-completion.md"
+  s_77d3b692985a60::t_a57413d06b52ee 1-39
+"backlog/tasks/task-152 - Evaluate-frontier-cloud-alternatives-to-OpenAI-Grok-as-judge-and-generation.md"
+  s_77d3b692985a60::t_34608cda0bc4a8 1-38
+"backlog/tasks/task-153 - Retired-2026-09-12-do-not-hand-symlink-skills-into-.claude-skills.md"
+  s_77d3b692985a60::t_50382016cc4aa8 1-47
+"backlog/tasks/task-154 - File-the-upstream-issue-on-simonw-llm-pdf-to-images.md"
+  s_77d3b692985a60::t_ba9d2811c997bc 1-37
+"backlog/tasks/task-155 - Move-Commit-granularity-and-Messages-out-of.md"
+  s_77d3b692985a60::t_16f8c8a1c222e7 1-42
+"backlog/tasks/task-156 - Scope-and-apply-retention-to-the-8-rows-of-work-content-already-in-the-llm.md"
+  s_77d3b692985a60::t_41c771d349bd42 1-38
+"backlog/tasks/task-157 - Add-tests-for-bin-triage.md"
+  s_77d3b692985a60::t_8dd538eb19cf45 1-8,10,12-17,19-21,23,25,27,29,31,33,35-37
+"backlog/tasks/task-158 - Define-how-this-repo-s-policy-reaches-builders-and-the-save-back-contract.md"
+  s_77d3b692985a60::t_e389fd65b83ff7 1-43
+"backlog/tasks/task-159 - Run-the-eval-suites-for-the-library-skills.md"
+  s_77d3b692985a60::t_e0776bdd7ab88a 1-38
+"backlog/tasks/task-160 - Evaluate-whether-contract-testing-earns-its-keep-here.md"
+  s_77d3b692985a60::t_e2a1828fe013bf 1-39
+"backlog/tasks/task-161 - Decide-whether-a-panel-of-judges-LLM-council-pattern-earns-its-keep-for-work.md"
+  s_77d3b692985a60::t_b944f6c0ff3b07 1-41
+"backlog/tasks/task-162 - Adopt-a-technical-plain-language-standard-as-the-default-for-technical-docs-in.md"
+  s_77d3b692985a60::t_4c6391069128a3 1-42
+"backlog/tasks/task-163 - Reconcile-changelog-style.md"
+  s_77d3b692985a60::t_5e547d252c29a5 1-48
+"backlog/tasks/task-164 - Reconcile-prek-and-pre-commit.md"
+  s_77d3b692985a60::t_0e2467e1bf50aa 1-36
+"backlog/tasks/task-165 - Add-a-pytest-hook-to-pre-commit-or-decide-deliberately-not-to.md"
+  s_77d3b692985a60::t_3b1be8e2bb1106 1-45
+"backlog/tasks/task-166 - Use-local-models-to-generate-a-machine-local-policy-layer-from-on-device.md"
+  s_77d3b692985a60::t_8ab300c36d7fb5 1-40
+"backlog/tasks/task-167 - Design-the-state-backup-path-classified-by-machine-ownership-and-data.md"
+  s_77d3b692985a60::t_e7888c6f19971a 1-45
+"backlog/tasks/task-168 - Review-what-may-and-may-not-leave-a-machine-the-author-does-not-own-against.md"
+  s_77d3b692985a60::t_811184b05d893a 1-37
+"backlog/tasks/task-169 - Add-employer-specific-data-filters-as-a-machine-local-generated-artifact.md"
+  s_77d3b692985a60::t_56fe3f7681fa73 1-37
+"backlog/tasks/task-170 - Generalise-the-work-AI-policy-so-topics-consume-it-rather-than-embedding-it.md"
+  s_77d3b692985a60::t_42183c34681b28 1-43
+"backlog/tasks/task-171 - G2-document-and-establish-the-catalogue-and-machine-file-contract.md"
+  s_77d3b692985a60::t_1160be12425ad2 1-60
+"backlog/tasks/task-172 - G3-clone-missing-declarations-and-adopt-existing-gita-registrations.md"
+  s_77d3b692985a60::t_0781af4c1346bc 1-68
+"backlog/tasks/task-173 - G4-sync-on-update-without-allowing-repo-problems-to-abort-the-run.md"
+  s_77d3b692985a60::t_77124e7b4cd2f2 1-54
+"backlog/tasks/task-174 - G5-schedule-sync-and-warn-only-when-stored-state-is-stale-or-blocked.md"
+  s_77d3b692985a60::t_9d0959e0bcdab3 1-58
+"backlog/tasks/task-175 - G6-give-gh-one-installation-owner-and-adopt-the-existing-Debian-install.md"
+  s_77d3b692985a60::t_95aeb903b56ad8 1-52
+"backlog/tasks/task-176 - G7-discover-repositories-through-gh-with-explicit-per-machine-modes.md"
+  s_77d3b692985a60::t_a39d0f7e992f5a 1-59
+"backlog/tasks/task-177 - BK2-prove-home-machine-local-backup-and-explicit-recovery-in-a-sandbox.md"
+  s_77d3b692985a60::t_69f7b56f972cbb 1-69
+"backlog/tasks/task-178 - BK3-prove-lost-home-machine-recovery-from-the-independent-borg-host.md"
+  s_77d3b692985a60::t_2296480becf1f5 1-57
+"backlog/tasks/task-179 - BK4-prove-work-Mac-machine-file-recovery-using-work-1Password-only.md"
+  s_77d3b692985a60::t_375f275e3d8337 1-52
+"backlog/tasks/task-180 - Decide-the-history-scrub-for-the-published-machine-hostname.md"
+  s_77d3b692985a60::t_ee5e2f9b1e37e6 1-46
+"backlog/tasks/task-181 - Amend-Topic-bundles-machine-binding-to-named-sets-plus-a-local-pick.md"
+  s_77d3b692985a60::t_bcb5dd764e863f 1-44
+"backlog/tasks/task-182 - A10.md"
+  s_77d3b692985a60::t_6bc8fe86d678ac 1-50
+"backlog/tasks/task-183 - A2.md"
+  s_77d3b692985a60::t_7fe7632a9ed7d8 1-40
+"backlog/tasks/task-184 - A3.md"
+  s_77d3b692985a60::t_f615153f965e04 1-38
+"backlog/tasks/task-185 - A4.md"
+  s_77d3b692985a60::t_fc92e92d7aeb73 1-37
+"backlog/tasks/task-186 - A5.md"
+  s_77d3b692985a60::t_a1813e9d5fde92 1-37
+"backlog/tasks/task-187 - A6.md"
+  s_77d3b692985a60::t_701283843682bd 1-37
+"backlog/tasks/task-188 - A7.md"
+  s_77d3b692985a60::t_f89e32d9da5592 1-36
+"backlog/tasks/task-189 - Define-the-bundle-schema-and-document-it-in-dotfiles-docs-TOPICS.md.md"
+  s_77d3b692985a60::t_317328f474440f 1-40
+"backlog/tasks/task-190 - Add-bundle-aware-limiting-to-the-parent-playbook.md"
+  s_77d3b692985a60::t_a2ff92eebcf6ea 1-39
+"backlog/tasks/task-191 - Create-the-first-bundle-ai-strategy.md"
+  s_77d3b692985a60::t_dd03f3499c74e2 1-39
+"backlog/tasks/task-192 - B1.md"
+  s_77d3b692985a60::t_ad3e848476fd82 1-47
+"backlog/tasks/task-193 - B2.md"
+  s_77d3b692985a60::t_f049dd3797dc8b 1-60
+"backlog/tasks/task-194 - B3.md"
+  s_77d3b692985a60::t_b4989e2fc94e63 1-38
+"backlog/tasks/task-195 - B4.md"
+  s_77d3b692985a60::t_5afad591674543 1-44
+"backlog/tasks/task-196 - B5.md"
+  s_77d3b692985a60::t_c9048a9e9e774f 1-36
+"backlog/tasks/task-197 - B6.md"
+  s_77d3b692985a60::t_5ec355d1d392c5 1-35
+"backlog/tasks/task-198 - B7.md"
+  s_77d3b692985a60::t_57abb4fb7ff962 1-37
+"backlog/tasks/task-199 - B8.md"
+  s_77d3b692985a60::t_063e8fc4151a3a 1-37
+"backlog/tasks/task-200 - Build-a-CLI-that-manages-provisioning-config-and-state-including.md"
+  s_77d3b692985a60::t_49ed76bf845a2b 1-60
+"backlog/tasks/task-201 - Research-best-practices-for-multi-agent-branch-orchestration-then-design-the.md"
+  s_77d3b692985a60::t_a0d3315eac8cd9 1-44
+"backlog/tasks/task-202 - Get-a-fast-test-loop.md"
+  s_77d3b692985a60::t_5a5d341c96d329 1-56
+"backlog/tasks/task-203 - Add-a-periodic-nightly-full-suite-run-separate-from-any-per-merge-gate.md"
+  s_77d3b692985a60::t_366d437938a1f2 1-48
+"backlog/tasks/task-204 - Add-a-collected-0-tripwire.md"
+  s_77d3b692985a60::t_88507fbc4e673f 1-42
+"backlog/tasks/task-205 - Generalize-the-golden-transcript-pattern-for-llm-judge-tests-instead-of-a-VCR-style-HTTP-recorder.md"
+  s_77d3b692985a60::t_d72002f95e53a8 1-51
+"backlog/tasks/task-206 - Add-pytest-timeout.md"
+  s_77d3b692985a60::t_07f5fd656c2f50 1-49
+"backlog/tasks/task-207 - Put-the-AI-tooling-under-characterization-tests-BEFORE-starting-refactor-B-and.md"
+  s_77d3b692985a60::t_b5154586314ff3 1-41
+"backlog/tasks/task-208 - Build-the-LEDGER-for-the-trust-ladder.md"
+  s_77d3b692985a60::t_384cc652ebd923 1-107
+"backlog/tasks/task-209 - Factor-a-general-git-repository-template-out-of-this-work-using-copier.md"
+  s_77d3b692985a60::t_87af9e246e25c6 1-54
+"backlog/tasks/task-210 - Factor-a-copier-template-for-the-chezmoi-Ansible-topic-format.md"
+  s_77d3b692985a60::t_c4357ad7a7fdb2 1-76
+"backlog/tasks/task-211 - Keep-docs-REFERENCES.md-current.md"
+  s_77d3b692985a60::t_e956ca1fe2866e 1-42
+"backlog/tasks/task-212 - Build-a-dotagents-topic-and-make-opencode-s-skill-set-an-optional-dependency.md"
+  s_77d3b692985a60::t_d7aeaa369914e5 1-54
+"backlog/tasks/task-213 - Choose-a-project-templating-tool-and-benchmark-rather-than-assume.md"
+  s_77d3b692985a60::t_2324771ad7b33f 1-47
+"backlog/tasks/task-214 - Rebuild-the-64-allow-rules-in-.claude-settings.json.md"
+  s_77d3b692985a60::t_a935807ea23f65 1-40
+"backlog/tasks/task-215 - Deal-with-dotfiles-.claude-settings.local.json.md"
+  s_77d3b692985a60::t_c7678b1bee8c87 1-42
+"backlog/tasks/task-216 - Prune-.claude-settings.local.json.md"
+  s_77d3b692985a60::t_3b502f47884692 1-39
+"backlog/tasks/task-217 - Resolve-the-CONTRIBUTING.md-question-and-the-repo-root-docs-topology.md"
+  s_77d3b692985a60::t_706effd7207674 1-43
+"backlog/tasks/task-218 - Make-rerere.enabled-and-merge.conflictstyle-zdiff3-portable.md"
+  s_77d3b692985a60::t_702e96e7a4fe02 1-71
+"backlog/tasks/task-219 - Promote-the-bucketing-procedure-to-a-skill-in-ai-prompt-library.md"
+  s_77d3b692985a60::t_231b0a0705f0bc 1-44
+"backlog/tasks/task-220 - Make-docs-repo-only-by-relocating-them-out-of-the-payload.md"
+  s_77d3b692985a60::t_a42dd28060fe42 1-48
+"backlog/tasks/task-221 - Clean-dead-payload-before-the-source-root-move.md"
+  s_77d3b692985a60::t_ccd6d5e9aba456 1-43
+"backlog/tasks/task-222 - Move-the-payload-under-home-via-.chezmoiroot.md"
+  s_77d3b692985a60::t_401b4b2e423fc2 1-77
+"backlog/tasks/task-223 - Sweep-docs-governance-for-the-new-layout.md"
+  s_77d3b692985a60::t_a9ab30107c95b2 1-44
+"backlog/tasks/task-224 - Restore-ruff-coverage-for-the-extensionless-Python-scripts-and-fix-what-it-surfaces.md"
+  s_77d3b692985a60::t_b07c184cefb859 1-52
+"backlog/tasks/task-225 - Build-a-declarative-mise-module-or-role-so-Ansible-calls-mise-the-way-it-calls-apt-homebrew.md"
+  s_77d3b692985a60::t_58838a1081f8b3 1-45
+"backlog/tasks/task-226 - Refactor-dotfiles-storage-and-automate-its-presence-not-its-updates.md"
+  s_77d3b692985a60::t_6ea20b3c04110e 1-45
+"backlog/tasks/task-227 - Root-cause-the-two-trunk-regressions-that-landed-with-PRs-58-63.md"
+  s_77d3b692985a60::t_484f1ca3c3d901 1-50
+"backlog/tasks/task-228 - Audit-the-three-filled-in-old-style-root-tasks.yaml-files-the-A9-sweep.md"
+  s_77d3b692985a60::t_ba9a6ef4e21bb0 1-43
+"backlog/tasks/task-230 - Adopt-the-2026-10-22-machines.yml-refresh-into-the-chezmoi-source.md"
+  s_77d3b692985a60::t_1fbdb7876b234b 1-37
+"backlog/tasks/task-231 - Review-mid-play-pause-prompting-for-the-skill-trust-approved-sources-guard.md"
+  s_77d3b692985a60::t_64f5be5c5f3113 1-34
+"backlog/tasks/task-232 - Build-a-dotagents-topic-and-move-the-global-skill-declaration-into-it..md"
+  s_77d3b692985a60::t_491ba936b8faa6 1-34
+"backlog/tasks/task-233 - Wire-each-agent-runtime-to-the-dotagents-published-plugin-marketplace..md"
+  s_77d3b692985a60::t_3ad3551b61680e 1-34
+"backlog/tasks/task-234 - Give-pipx-agentsview-an-owner-or-drop-it.md"
+  s_77d3b692985a60::t_b4c40b8879f519 1-34
+"backlog/tasks/task-235 - Update-the-external-directory-pinning-test-for-the-agent-temp-root-allow.md"
+  s_77d3b692985a60::t_0f14aa767b858b 1-60
+"backlog/tasks/task-236 - Convert-the-agent-container-setup-branch-to-the-backlog-format.md"
+  s_77d3b692985a60::t_3903740e93e293 1-35
+"backlog/tasks/task-237 - Close-dotagents-topic-superseded-by-dotagents-topic-rebased.md"
+  s_77d3b692985a60::t_2cc000fac9ff27 1-35
+"backlog/tasks/task-238 - Roll-out-the-backlog-cutover-on-the-other-machine.md"
+  s_77d3b692985a60::t_976856f5f40395 1-35
+"backlog/tasks/task-239 - Review-and-close-local-stale-branches-carrying-TASKS.md.md"
+  s_77d3b692985a60::t_0e591a0a941306 1-35
+"backlog/tasks/task-240 - Decide-and-scope-the-capture-trigger-for-symlinked-chezmoi-managed-files.md"
+  s_77d3b692985a60::t_d9b0c69eb87e6c 1-33
+"backlog/tasks/task-52 - Evaluate-interchangeable-components-for-agent-work.md"
+  s_77d3b692985a60::t_adb9ffd93c3273 1-80
+"backlog/tasks/task-53 - Review-the-automatic-restart-topics-on-feat-topic-restart-stale.md"
+  s_77d3b692985a60::t_9b96d6d8606057 1-80
+"backlog/tasks/task-54 - Repo-manager-research-find-or-compose-the-repository-fleet-manager-then-decide-Path-A-Ansible-now.md"
+  s_77d3b692985a60::t_5e530b02aaa489 1-51
+"backlog/tasks/task-55 - G1-find-a-maintainable-existing-repository-manager-before-selecting-the-Gita-Ansible-path.md"
+  s_77d3b692985a60::t_374ce22f714eed 1-58
+"backlog/tasks/task-56 - BK1-decide-the-backup-host-installation-and-recovery-key-design.md"
+  s_77d3b692985a60::t_b8cf609d36845b 1-75
+"backlog/tasks/task-57 - Bootstrap-the-multi-agent-coordination-layer-worktrees-frozen-leases-risk-tiered-merge-gates-t.md"
+  s_77d3b692985a60::t_4c98c6133629ff 1-16,352,354-356,358,360,362,364,366,368,370-372
+"backlog/tasks/task-58 - Consolidate-the-governance-docs-PRD-as-the-constitution-spec-as-the-derived-statutes-conventions.md"
+  s_77d3b692985a60::t_0aad22aae80dcc 1-52
+"backlog/tasks/task-59 - Switch-the-hook-runner-to-prek-and-retire-the-pipx-pre-commit.md"
+  s_77d3b692985a60::t_116cbf8c37d1ac 1-55
+"backlog/tasks/task-60 - Input-to-the-normative-topic-spec-lift-the-settled-herdr-decisions-from-dotfiles-docs-TOPIC-RECIPE.md"
+  s_77d3b692985a60::t_f0295035a00c49 1-42
+"backlog/tasks/task-61 - Write-the-normative-spec-for-topics-a-spec.md-for-the-topic-unit.-More-urgent-than-the-design-wo.md"
+  s_77d3b692985a60::t_b0170ed3e7438b 1-54
+"backlog/tasks/task-62 - Design-the-cadence-by-which-topics-pull-in-and-refresh-official-upstream-references-so-topics-track.md"
+  s_77d3b692985a60::t_cdfd08d1caa27a 1-57
+"backlog/tasks/task-63 - Spec-the-zsh-tooling-standard-author-interview-first-then-a-review-best-practices-pass-then-coun.md"
+  s_77d3b692985a60::t_8224765144cef6 1-52
+"backlog/tasks/task-64 - Extract-the-incoming-changes-review-into-a-reusable-agent-capability-with-a-specification.md"
+  s_77d3b692985a60::t_15e9f6fed76e02 1-55
+"backlog/tasks/task-65 - Inventory-the-second-machine-s-divergent-trees-for-the-layout-migration.md"
+  s_77d3b692985a60::t_4926052aba5ad7 1-45
+"backlog/tasks/task-66 - Handle-machine-specific-directory-exceptions-and-their-state-backup-in-the-layout-standard.md"
+  s_77d3b692985a60::t_677a472dc581eb 1-43
+"backlog/tasks/task-67 - Research-when-LSP-servers-earn-their-keep-with-opencode-a-deeper-answer-than-the-docs-best-practi.md"
+  s_77d3b692985a60::t_9a2ce2fa9261f3 1-52
+"backlog/tasks/task-68 - Configure-opencode-LSP-profiles-for-Python-and-Bash-projects-ty-or-pyrefly-alongside-ruff-and-the.md"
+  s_77d3b692985a60::t_21231f22ddabd0 1-72
+"backlog/tasks/task-69 - Create-the-first-llocallabs.ai-repository-the-collection-that-will-consolidate-the-author-s-AI-too.md"
+  s_77d3b692985a60::t_ec41ba6f9b26d2 1-54
+"backlog/tasks/task-70 - Stand-up-the-llocallabs-strategy-policy-agent.md"
+  s_77d3b692985a60::t_813c78d519be44 1-46
+"backlog/tasks/task-71 - Build-the-llocallabs-R-D-factory-an-exploratory-pipeline-from-scratchpad-experiments-to-durable-r.md"
+  s_77d3b692985a60::t_0efaa74ea6179f 1-63
+"backlog/tasks/task-72 - Research-metamorphic-testing-for-this-repo-generally-and-against-our-actual-suites-and-decide-wh.md"
+  s_77d3b692985a60::t_31cd06bf6fd3ac 1-47
+"backlog/tasks/task-73 - Close-out-the-12-environmental-suite-failures-the-pii-half-is-now-diagnosed.md"
+  s_77d3b692985a60::t_8284a2175ed482 1-53
+"backlog/tasks/task-74 - Give-topics-an-integrations-phase-and-make-apps-opencode-own-its-OpenRouter-wiring-as-the-first-c.md"
+  s_77d3b692985a60::t_792c8c9cb29aba 1-69
+"backlog/tasks/task-75 - Prove-topic-idempotency-with-a-second-run-check-and-make---check-work-again-first.md"
+  s_77d3b692985a60::t_85b47ada3e1c34 1-56
+"backlog/tasks/task-76 - Adopt-molecule-for-topic-testing-with-the-vagrant-driver-where-macOS-is-required.md"
+  s_77d3b692985a60::t_24b3aa0558ba7a 1-86
+"backlog/tasks/task-77 - Sweep-the-remaining-hardcoded-home-bdavis-paths-out-of-dot-zshrc.tmpl.md"
+  s_77d3b692985a60::t_d9c3e05885891f 1-50
+"backlog/tasks/task-78 - Give-every-topic-a-TDD-style-test-suite-and-make-editing-a-topic-require-its-tests.md"
+  s_77d3b692985a60::t_d0a1b6547c30b0 1-69
+"backlog/tasks/task-79 - Build-a-dotfiles-triage-agent-and-the-skill-set-it-loads-so-a-failing-chezmoi-apply-ansible.md"
+  s_77d3b692985a60::t_edc9bcce2691ff 1-49
+"backlog/tasks/task-80 - Extend-dotfiles-triage-from-naming-a-cause-to-proposing-the-fix-as-a-guarded-PR.md"
+  s_77d3b692985a60::t_ffae4b5d8c8750 1-60
+"backlog/tasks/task-81 - Install-tools-skill-trust-from-a-topic-instead-of-by-hand.md"
+  s_77d3b692985a60::t_7ddff6a0ab316b 1-47
+"backlog/tasks/task-82 - Render-support-escalation-s-SKILL.md-or-retire-it.md"
+  s_77d3b692985a60::t_ce72d08265f502 1-43
+"backlog/tasks/task-83 - Make-the-commit-proportionality-escape-graduated-instead-of-binary.md"
+  s_77d3b692985a60::t_3068d8b61ea25a 1-62
+"backlog/tasks/task-84 - Define-an-agentic-context-engineer-role-and-add-it-to-the-ai-library.md"
+  s_77d3b692985a60::t_f23101e5c2aeca 1-47
+"backlog/tasks/task-85 - 4-Fill-.local-state-ai-policy-company.yaml-s-22-TODO-fields.md"
+  s_77d3b692985a60::t_54df456093f6aa 1-39
+"backlog/tasks/task-86 - Work-out-why-fabric-on-PATH-is-1.4.459-then-retire-that-install.md"
+  s_77d3b692985a60::t_316124af39c705 1-46
+"backlog/tasks/task-87 - Drop-the-npm-sentry-skillet-pin-in-apps-mise-files-config.toml-to-latest.md"
+  s_77d3b692985a60::t_7776e1414cb964 1-62
+"backlog/tasks/task-88 - Install-ty-and-typecheck-the-Python.md"
+  s_77d3b692985a60::t_7b7fae8d732a17 1-43
+"backlog/tasks/task-89 - Wire-ruff-into-.pre-commit-config.yaml.md"
+  s_77d3b692985a60::t_e470678464117d 1-41
+"backlog/tasks/task-90 - Integrate-xdoctest-and-make-illustrative-examples-a-tested-part-of-the.md"
+  s_77d3b692985a60::t_a8d366bb9c3a3b 1-47
+"backlog/tasks/task-91 - Make-test-conftests-skip-rather-than-error-on-a-missing-optional-dependency.md"
+  s_77d3b692985a60::t_90dd1bc3007acd 1-42
+"backlog/tasks/task-92 - Check-AGENTS.md-and-CONTRIBUTING.md-for-places-the-agent-function.md"
+  s_77d3b692985a60::t_e39f12de247225 1-45
+"backlog/tasks/task-93 - Sweep-committed-machine-adjacent-strings-per-the-audit-in.md"
+  s_77d3b692985a60::t_6b2c314c99f54f 1-47
+"backlog/tasks/task-94 - Decide-when-scriv-collect-runs.md"
+  s_77d3b692985a60::t_d1517cd888ae1c 1-39
+"backlog/tasks/task-95 - Machine-shaped-gate-outputs-and-a-skip-census-instead-of-coverage.md"
+  s_77d3b692985a60::t_a143e04a4c466c 1-52
+"backlog/tasks/task-96 - Derive-minimal-permission-rules-from-tool-manuals-for-all-three-agent-surfaces.md"
+  s_77d3b692985a60::t_2f9ab5872c414f 1-49
+"backlog/tasks/task-97 - Define-outcome-the-unit-a-bucket-a-task-and-a-PR-each-carry.md"
+  s_77d3b692985a60::t_e5c6aecadeaa27 1-102
+"backlog/tasks/task-98 - uv-work-machine-capture-flag-this-Mac-and-capture-the-private-index.md"
+  s_77d3b692985a60::t_03136031f2c742 1-56
+"backlog/tasks/task-99 - Observation-2026-10-03-run-role.sh-is-cwd-dependent.md"
+  s_77d3b692985a60::t_119b269ec933e3 1-47
+changelog.d/20261026_220000_bengineerdavis_backlog_migration.md
+  s_77d3b692985a60::t_273c0de7b9a2e7 1-17
+docs/BACKLOG-CUTOVER.md
+  s_77d3b692985a60::t_119b4680d7c5d6 1-72
+docs/LAYOUT.md
+  s_77d3b692985a60::t_04f0d80a783967 140
+docs/PROCESS.md
+  s_77d3b692985a60::t_9f7e8765efa5d0 29,39-45,47-51,54-56,58-60,66-74,136-138,209
+docs/REFERENCES.md
+  s_77d3b692985a60::t_63aef68566e455 33
+docs/WORKTREES.md
+  s_77d3b692985a60::t_d7b88eb00bd86a 3-14,91,127,137
+dotfiles/apps/backlog/CHANGELOG.md
+  s_77d3b692985a60::t_5ac12834b64766 1-20
+dotfiles/apps/backlog/README.md
+  s_77d3b692985a60::t_0d23cbb67884ce 1-29
+dotfiles/apps/backlog/defaults/main.yaml
+  s_77d3b692985a60::t_ee51de2b1bbf1c 1-24
+dotfiles/apps/backlog/files/zsh/empty_executable_alias.zsh
+  s_77d3b692985a60::t_0c783177646144 1-4
+dotfiles/apps/backlog/files/zsh/empty_executable_completion.zsh
+  s_77d3b692985a60::t_d17ff3da605d64 1-4
+dotfiles/apps/backlog/files/zsh/empty_executable_config.zsh
+  s_77d3b692985a60::t_6ab81fa73b7244 1-4
+dotfiles/apps/backlog/files/zsh/empty_executable_env.zsh
+  s_77d3b692985a60::t_22a2a4dfcfbe8d 1-4
+dotfiles/apps/backlog/files/zsh/empty_executable_fpath.zsh
+  s_77d3b692985a60::t_cac4a73b0104c6 1-4
+dotfiles/apps/backlog/files/zsh/empty_executable_init.zsh
+  s_77d3b692985a60::t_c1185b331ad0de 1-4
+dotfiles/apps/backlog/files/zsh/empty_executable_path.zsh
+  s_77d3b692985a60::t_f18b8d11782eff 1-4
+dotfiles/apps/backlog/files/zsh/empty_executable_prompt.zsh
+  s_77d3b692985a60::t_84f8e55022f8d4 1-4
+dotfiles/apps/backlog/files/zsh/executable_install.zsh
+  s_77d3b692985a60::t_33949afce4386d 1
+dotfiles/apps/backlog/playbook.yaml
+  s_77d3b692985a60::t_cc5c20800af5f0 1-18
+dotfiles/apps/backlog/tasks/bootstrap.yaml
+  s_77d3b692985a60::t_1563e70077c09c 1-28
+dotfiles/apps/backlog/tasks/install.yaml
+  s_77d3b692985a60::t_c09eba94a4554c 1-110
+dotfiles/apps/backlog/tasks/main.yaml
+  s_77d3b692985a60::t_bf62b2aa8f723a 1-33
+dotfiles/apps/backlog/tasks/prerequisites.yaml
+  s_77d3b692985a60::t_86ccd5e551418c 1-20
+dotfiles/apps/backlog/tasks/remove.yaml
+  s_77d3b692985a60::t_d91a3b2aeeff43 1-47
+dotfiles/apps/backlog/tasks/upgrade.yaml
+  s_77d3b692985a60::t_0f90938e5dd294 1-30
+dotfiles/apps/backlog/templates/backlog-daemon.plist.j2
+  s_77d3b692985a60::t_70b6bc955d522a 1-28
+dotfiles/apps/backlog/templates/backlog-daemon.service.j2
+  s_77d3b692985a60::t_2a483a907145f1 1-16
+dotfiles/apps/backlog/topic.yml
+  s_77d3b692985a60::t_07a7d09a1ea028 1-12
+dotfiles/apps/backlog/vars/main.yaml
+  s_77d3b692985a60::t_6c48884f1f57d2 1
+dotfiles/apps/mise/files/config.toml
+  s_77d3b692985a60::t_97b94b6bbe47f4 88-91
+pyproject.toml
+  s_77d3b692985a60::t_6d44011ffea023 96
+scripts/migrate_tasks_to_backlog.py
+  s_77d3b692985a60::t_1cc5f5eb8eeae8 1-179
+spec.md
+  s_77d3b692985a60::t_e4a8e317d0ddc1 202-205,298,581
+tests/backlog/test_queue_integrity.py
+  s_77d3b692985a60::t_7fbccd759f1a1e 1-81
+tests/chezmoi/test_governance_not_deployed.py
+  s_77d3b692985a60::t_f7617453da8a74 36-41
+tests/topics/test_opencode_config_layers.py
+  s_77d3b692985a60::t_024a7d379ebfca 393-397,413-414
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ad7fba1889b9ab35cd79b70e05fcc5581fbcb4e5",
+  "prompts": {},
+  "sessions": {
+    "s_77d3b692985a60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8740494fffeKeLAPc4yoUweyC",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
