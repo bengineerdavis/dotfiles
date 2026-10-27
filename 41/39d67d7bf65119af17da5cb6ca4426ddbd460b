@@ -1,0 +1,19 @@
+dotfiles/apps/mise/files/config.toml
+  s_77d3b692985a60::t_7b26bb62d3f8f9 69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4139d67d7bf65119af17da5cb6ca4426ddbd460b",
+  "prompts": {},
+  "sessions": {
+    "s_77d3b692985a60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8740494fffeKeLAPc4yoUweyC",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
