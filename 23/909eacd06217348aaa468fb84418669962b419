@@ -1,0 +1,19 @@
+dot_config/opencode/opencode.jsonc.tmpl
+  s_77d3b692985a60::t_f13b8f31c96bfd 111-116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "23909eacd06217348aaa468fb84418669962b419",
+  "prompts": {},
+  "sessions": {
+    "s_77d3b692985a60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8740494fffeKeLAPc4yoUweyC",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
