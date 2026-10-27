@@ -77,6 +77,11 @@
     { "action": "shell", "resource": "find *-delete*", "effect": "deny" },
     { "action": "shell", "resource": "find *-exec*", "effect": "deny" },
     { "action": "shell", "resource": "find *-execdir*", "effect": "deny" },
+    // Root authority is never a default. mise and Ansible must run as the
+    // invoking user: root gets a second tool tree under /root and leaves locks
+    // in the temp dir. The apt steps elevate per task instead.
+    { "action": "shell", "resource": "sudo *", "effect": "deny" },
+    { "action": "shell", "resource": "command sudo *", "effect": "deny" },
     // Reads are free EXCEPT .env files, which ask (author ruling 2,
     // 2026-10-06: v2's built-in .env protection is kept, not v1 parity).
     // The three rules below mirror v2's base policy verbatim
@@ -108,6 +113,12 @@
     { "action": "external_directory", "resource": "*", "effect": "deny" },
     { "action": "external_directory", "resource": "$HOME/.local/share/chezmoi/*", "effect": "allow" },
     { "action": "external_directory", "resource": "$HOME/code/*", "effect": "allow" },
+    // Handoff documents and scratch files live under the agent temp root,
+    // which sits outside the active Location. The private path is the narrow
+    // boundary; `/tmp` is deliberately not allowed. The /tmp access this once
+    // needed came from running mise under sudo, which the shell and Ansible
+    // guards refuse rather than accommodating.
+    { "action": "external_directory", "resource": "$HOME/.cache/tmp/*", "effect": "allow" },
     // The external-skill trees opencode scans (~/.agents/skills and its
     // ~/.claude mirror) — one intent: agent-installed skills are readable.
     // The runtime also auto-allows each skill directory registered at

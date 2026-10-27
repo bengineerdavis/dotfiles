@@ -27,6 +27,14 @@ opencode:
         roborev:
           type: local
           command: ["roborev", "mcp", "serve"]
+        # The task queue's MCP surface (docs/BACKLOG-MIGRATION.md § MCP wiring).
+        # Registered ahead of the cutover so the surface exists on the day
+        # `backlog/` does. Verified 2026-10-26: the server starts and answers
+        # initialize with no project; its task tools have nothing to act on
+        # until the queue lands.
+        backlog-py:
+          type: local
+          command: ["backlog-py-mcp"]
     model: openrouter/z-ai/glm-5.3-flash
     # Author ruling 3, 2026-10-06 (opencode v2 migration): the trivial-call
     # roles stay local on the current-generation qwen3.5 tag. Pending its

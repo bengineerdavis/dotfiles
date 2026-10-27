@@ -131,16 +131,58 @@ class Decision:
         return self.verdict is Verdict.PERMITTED
 
 
-def source_matches(pattern: str, source: str) -> bool:
-    """`owner/repo` matches that repo; a bare `owner` matches the whole org."""
+def source_matches(pattern: str, source: str | None) -> bool:
+    """`owner/repo` matches that repo; a bare `owner` matches the whole org.
+
+    A None source matches nothing — undeclared directories are judged on their
+    own licence alone, never on patterns meant for publishers. (This guard
+    used to be missing: undeclared-with-licence crashed the whole audit on
+    None.strip() whenever any source pattern was configured. Found by roborev
+    review job 10, 2026-10-22.)
+    """
+    if not source:
+        return False
     pattern, source = pattern.strip().lower(), source.strip().lower()
     if "/" in pattern:
         return pattern == source
     return source.split("/", 1)[0] == pattern
 
 
+# Keys the machine-local store may add to: lists of decisions. `licences`,
+# `foreign_buckets` and `installed` are deliberately absent — the store
+# decides names, it does not loosen licence policy, bucket handling, or the
+# manager's inventory.
+_LAYERED_LISTS = (
+    "deny_sources",
+    "deny_skills",
+    "approved_sources",
+    "vendored",
+    "include_hidden",
+)
+
+
+def layer_configs(base: dict, overlay: dict) -> dict:
+    """Merge a machine-local store UNDER the repo-composed rules.
+
+    Decision lists union (base first); `exclude` unions per source. Everything
+    else comes from `base` alone, so the overlay can tighten (a store denial
+    outranks a repo approval, because deny is checked first) but never loosen
+    (a store approval cannot overturn a repo ban, and the store cannot touch
+    licence policy at all).
+    """
+    merged = dict(base)
+    for key in _LAYERED_LISTS:
+        merged[key] = [*(base.get(key) or []), *(overlay.get(key) or [])]
+    exclude = {k: list(v) for k, v in (base.get("exclude") or {}).items()}
+    for source, names in (overlay.get("exclude") or {}).items():
+        exclude[source] = [*exclude.get(source, []), *names]
+    if exclude:
+        merged["exclude"] = exclude
+    return merged
+
+
 def decide(
-    source: str,
+    source: str | None,
     skill: str | None,
     config: dict,
     spdx: str | None = None,
@@ -152,6 +194,9 @@ def decide(
     source carrying an impeccable MIT licence is still denied, because the
     licence was never what the ban was about.
     """
+    # What messages call the thing being judged: its source when it has one,
+    # its directory name when it does not (an undeclared directory).
+    subject = source if source is not None else skill
     for pattern in config.get("deny_sources") or []:
         if source_matches(pattern, source):
             return Decision(
@@ -160,6 +205,14 @@ def decide(
                 f'"{source}" matches the banned source "{pattern}". A ban '
                 "outranks approval and licence both; nothing from here installs.",
             )
+
+    if skill and skill in (config.get("deny_skills") or []):
+        return Decision(
+            Verdict.DENIED,
+            "deny_skills",
+            f'"{skill}" is denied by name. A named denial outranks approval '
+            "and licence both; retract it with `skill-trust trust remove`.",
+        )
 
     excludes = config.get("exclude") or {}
     if skill:
@@ -185,19 +238,19 @@ def decide(
         return Decision(
             Verdict.PERMITTED,
             "licence",
-            f'"{source}" is not named, but its licence {spdx} is permissive.',
+            f'"{subject}" is not named, but its licence {spdx} is permissive.',
         )
     if tier is Tier.COPYLEFT:
         if (config.get("licences") or {}).get("allow_copyleft"):
             return Decision(
                 Verdict.PERMITTED,
                 "licence",
-                f'"{source}" is {spdx}; copyleft is allowed by config.',
+                f'"{subject}" is {spdx}; copyleft is allowed by config.',
             )
         return Decision(
             Verdict.DENIED,
             "licence",
-            f'"{source}" is {spdx}. Copyleft is open, but vendoring into a '
+            f'"{subject}" is {spdx}. Copyleft is open, but vendoring into a '
             "shared library is redistribution and carries obligations, so it "
             "needs licences.allow_copyleft or an explicit approval.",
         )
@@ -205,21 +258,21 @@ def decide(
         return Decision(
             Verdict.DENIED,
             "licence",
-            f'"{source}" is {spdx} — source-available, not open source, '
+            f'"{subject}" is {spdx} — source-available, not open source, '
             "however much it reads like it.",
         )
     if tier is Tier.PROPRIETARY:
         return Decision(
             Verdict.DENIED,
             "licence",
-            f'"{source}" declares itself {spdx}. It is not unlicensed by '
+            f'"{subject}" declares itself {spdx}. It is not unlicensed by '
             "oversight — it is someone else's, deliberately. Nothing here can "
             "approve it; the owner can.",
         )
     return Decision(
         Verdict.DENIED,
         "default",
-        f'"{source}" is not approved and has no licence this tool recognises '
+        f'"{subject}" is not approved and has no licence this tool recognises '
         f"({spdx or 'none found'}). Absent is not permissive: unlicensed means "
         "all rights reserved. Approve the source explicitly if you have another "
         "basis for trusting it.",

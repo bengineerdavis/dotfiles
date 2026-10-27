@@ -51,3 +51,4 @@ guarantee that.
 | File | Guards against |
 |---|---|
 | `dotagents-skills-migration.yaml` | An agent's `skills/` is still a real directory whose entry names collide with `~/.agents/skills`, so dotagents aborts mid-relocation. |
+| `no-root-authority.yaml` | A topic that installs into the user's home runs with root authority (or the whole play was started with sudo), producing a second tool tree under `/root` and stale locks. |

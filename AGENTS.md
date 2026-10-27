@@ -761,6 +761,9 @@ root holds only the five documents that govern the project:
   flat `.worktrees/<sid>` names, underscores never slashes in branches, one
   writer per worktree, ephemeral merge scratch, deletion only after
   `merge-base --is-ancestor`.
+- **`docs/BACKLOG-UPSTREAM-CONFIG.md`** — a draft, not a rule: the evidence
+  that neither Backlog.md nor backlog-md-py can point docs or decisions outside
+  the backlog folder, and the two upstream PRs that would change it.
 - **`docs/BACKLOG-MIGRATION.md`** — the 2026-10-22 decision record for
   migrating the task queue to backlog-md-py: the rulings, the mapping from
   `TASKS.md`, the MCP wiring plan, and the cutover procedure. The migration
@@ -1001,3 +1004,21 @@ Prefer evidence over assertion, and say plainly what was and was not checked.
 - A model call that times out may just be a cold model load. Loading an 18 GB model
   can exceed a 120 s timeout, and the warmup timing out cascades into every
   subsequent run failing, which looks like a model problem and is not.
+
+## Agent skills
+
+### Issue tracker
+
+`backlog/` via `backlog-py` / `backlog-py-mcp`; the interim queue is `TASKS.md`
+until the cutover in `docs/BACKLOG-MIGRATION.md`. See
+`docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical roles, label strings unchanged. See
+`docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `docs/GLOSSARY.md`; ADRs in `backlog/decisions/` via
+`backlog-py decision create`. See `docs/agents/domain.md`.

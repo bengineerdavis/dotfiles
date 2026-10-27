@@ -88,3 +88,31 @@ edit_dotfiles () {
 
     main
 }
+
+# Refuse to run a tool that owns a user-scoped tree under root. Root gets a
+# second install tree under /root and stale locks in the temp dir; the Debian
+# package steps elevate per task instead. Everything else passes through to the
+# real sudo, and `command sudo ...` still bypasses this on purpose.
+sudo() {
+    local word="" expect_arg=0 arg
+    for arg in "$@"; do
+        if [ "${expect_arg}" -eq 1 ]; then
+            expect_arg=0
+            continue
+        fi
+        case "${arg}" in
+            --) ;;
+            -u|-g|-p|-C|-h|-r|-t|-T|-U|-D|-R) expect_arg=1 ;;
+            -*) ;;
+            *) word="${arg}"; break ;;
+        esac
+    done
+    case "${word##*/}" in
+        mise|ansible|ansible-playbook|ansible-galaxy|ansible-doc|ansible-vault)
+            printf "sudo: refusing to run '%s' as root.\n" "${word}" >&2
+            printf "      It installs under \$HOME; run it as your user.\n" >&2
+            return 1
+            ;;
+    esac
+    command sudo "$@"
+}

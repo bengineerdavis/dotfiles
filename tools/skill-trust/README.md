@@ -1,12 +1,19 @@
 # `skill-trust`
 
 Decides whether an agent skill may be installed on this machine — by source ban,
-source approval, or licence.
+source approval, or licence. A first detection asks instead of failing:
+`resolve` prompts once per undecided finding and remembers each answer in a
+machine-local store the audit then honours.
 
 ```sh
 uv run --project tools/skill-trust skill-trust --config trust.yaml check owner/repo
 uv run --project tools/skill-trust skill-trust --config trust.yaml audit --skills-dir ~/.agents/skills
+uv run --project tools/skill-trust skill-trust resolve        # interactive, in a terminal
+uv run --project tools/skill-trust skill-trust trust list     # every recorded decision
 ```
+
+With no `--config`, commands read `~/.config/skill-trust/rules.yaml` when the
+Ansible guard has written it — judging exactly as the guard would.
 
 Exit codes match `bin/policy`, because this answers the same shape of question
 and a caller should not have to learn two vocabularies:
@@ -49,10 +56,59 @@ Highest first, failing closed at the bottom:
    reaches the rules below.
 2. **`deny_sources`** — a ban is a judgement about a publisher and outranks the
    paperwork. A denied source with an impeccable MIT licence is still denied.
-3. **`exclude`** — a named skill vetoed from an otherwise approved source.
-4. **`approved_sources`** — explicit allow; no licence lookup needed.
-5. **`licence`** — permissive admits an unnamed source.
-6. **deny.**
+3. **`deny_skills`** — a skill denied by name, whatever its source. This is how
+   an interactive rejection persists: it keeps failing until the directory is
+   removed.
+4. **`exclude`** — a named skill vetoed from an otherwise approved source.
+5. **`approved_sources`** — explicit allow; no licence lookup needed.
+6. **`licence`** — permissive admits an unnamed source.
+7. **deny.**
+
+## The machine-local store
+
+`~/.config/skill-trust/trust.yaml` holds decisions made interactively —
+approvals, denials, vendored exceptions. It is never versioned: per-machine
+decisions stay on the machine. Every entry carries a `why` and a `decided`
+date, because a decision without a reason is a forgettable one.
+
+The store layers **under** the `--config` rules. Decision lists union, with
+deny always checked first — so a store denial tightens a repo approval, but a
+store approval can never overturn a repo ban, and the store cannot touch
+licence policy at all. An absent store reads as empty; a malformed one errors
+with the file, kind and entry named. Edit it by hand, or with
+`skill-trust trust add|list|remove`.
+
+`resolve` is the interactive front: it audits, asks once per *undecided*
+finding (vendor / deny / approve source / leave), saves each answer the
+moment it is given — an interrupted run keeps what was answered — then
+re-judges so you see the report the next guard run will produce. Recorded
+denials are reported, never re-asked. Without a terminal it refuses and
+points at `trust add`.
+
+To offer source-level choices it needs the manager's inventory, which it
+fetches itself by default (`--inventory-cmd`, mirroring the guard's
+`guard_dotagents_list_cmd`; `--no-inventory` opts out). If the fetch fails
+it warns loudly and degrades to the undeclared choice set rather than
+quietly mislabelling declared skills. You can also supply an inventory as a
+file with `--declared-json FILE` — never as `-`, because resolve's stdin is
+the prompt channel.
+
+## Hidden directories
+
+A dot-prefixed directory in the skills store is not a skill load path for any
+loader that could be checked, so the audit skips it — this is what keeps a
+trash directory like `.trash` from failing runs. Verified 2026-10-21:
+
+| Loader | Hidden dirs skipped? | Evidence |
+|---|---|---|
+| dotagents (the manager) | yes, mechanically | `SKILL_NAME_RE` requires an alphanumeric first character; its sync names hidden dirs (including `.trash/`) as non-skills |
+| opencode | yes | `skill-scan.ts` filters `entry.name.startsWith(".")` and ignores `**/.*` globs |
+| codex | yes, host loader | `host.rs` prunes hidden directories (`HiddenDirectoryPolicy::Skip`); the executor-environment path includes them by design |
+| claude-code, cursor, copilot | unverified | closed or minified builds |
+
+A skip nobody can see is a place to hide something, so every skipped
+directory is named in a `SKIPPED` line on every run, and `include_hidden`
+(config or store) puts a named directory back under judgement.
 
 ## Licences
 
@@ -74,15 +130,29 @@ an approved or banned source never touches the network.
 
 ```yaml
 deny_sources: [some-org, other/repo]      # bare owner bans the whole org
+deny_skills: [unwanted-skill]             # deny a skill directory by name
+                                          # (a hidden dir needs include_hidden
+                                          # too — the skip is checked first)
 approved_sources: [bengineerdavis/ai-prompt-library, getsentry/skillet]
 exclude:
   getsentry/skillet: [openspec-archive-change]
 vendored: [no-ai-slop]                    # allowed to exist undeclared
+include_hidden: [.gitmodules]             # audit this dot-dir after all
 foreign_buckets: true                     # recognise a foreign bucket as external
 licences:
   allow_copyleft: false
 installed:                                # what declares what, for `audit`
   - {name: commit-hygiene, source: bengineerdavis/ai-prompt-library}
+```
+
+The store uses the same keys, with one difference: entries are mappings
+carrying `why` and `decided` (bare strings are accepted on read):
+
+```yaml
+approved_sources:
+  - source: owner/repo
+    why: MIT, reviewed the repository
+    decided: 2026-10-21
 ```
 
 ## Dependencies
