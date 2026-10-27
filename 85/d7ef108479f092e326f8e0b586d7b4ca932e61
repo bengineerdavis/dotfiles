@@ -1,0 +1,19 @@
+.chezmoidata/opencode.yaml
+  s_e782e2a56bddfd::t_237cbc80a1ae26 28-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "85d7ef108479f092e326f8e0b586d7b4ca932e61",
+  "prompts": {},
+  "sessions": {
+    "s_e782e2a56bddfd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f012126fdffePEfisYIYnHjGHg",
+        "model": "~deepseek/deepseek-pro-latest"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
