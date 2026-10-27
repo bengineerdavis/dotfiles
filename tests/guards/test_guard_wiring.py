@@ -124,6 +124,40 @@ def test_the_approved_sources_guard_is_the_last_task():
     assert guard_at > report_at, "the approved-sources guard runs before the report"
 
 
+def test_no_root_guard_is_wired_only_to_intended_topics():
+    """The guard is shared, so the caller list is the control.
+
+    Exactly one topic here runs tools that own a user-scoped tree. A new caller
+    must be added to this list on purpose, and removing the mise import must
+    fail rather than silently leaving mise unguarded.
+    """
+    callers = set()
+    for path in _task_files():
+        if "no-root-authority.yaml" not in _code(path):
+            continue
+        rel = path.relative_to(DOTFILES)
+        callers.add(f"apps/{rel.parts[1]}" if rel.parts[0] == "apps" else str(rel))
+
+    assert callers == {"apps/mise"}, (
+        "no-root-authority.yaml is imported by an unintended topic, or the "
+        f"intended caller stopped importing it: {sorted(callers)}. Update this "
+        "list only when the new caller really owns user-scoped tools."
+    )
+
+
+def test_no_root_guard_survives_tag_filtering():
+    """`always` is the point: a tag-filtered run must not skip the check that
+    stops it running as root.
+    """
+    text = _code(APPS / "mise" / "tasks" / "main.yaml")
+    at = text.find("no-root-authority.yaml")
+    assert at != -1, "apps/mise no longer imports the no-root guard"
+    assert "tags: [always]" in text[at : at + 200], (
+        "the no-root-authority import lost its `always` tag, so --tags install "
+        "and --tags upgrade skip it"
+    )
+
+
 # --- the original bug cannot come back ----------------------------------------
 
 
