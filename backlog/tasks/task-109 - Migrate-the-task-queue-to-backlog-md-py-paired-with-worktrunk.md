@@ -1,11 +1,12 @@
 ---
 id: TASK-109
 title: Migrate the task queue to backlog-md-py, paired with worktrunk
-status: To Do
+status: Done
 created_date: 2026-10-27 02:56
 labels:
 - now
 priority: high
+updated_date: 2026-10-27 19:43
 ---
 
 ## Description
@@ -40,7 +41,7 @@ priority: high
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-
+Cutover complete 2026-10-27 (PR #73 decision, PR #78 migration, two conflict-resolution passes with the cutover winning per author ruling). 177 items imported; TASK-229 salvaged and later deduped to task-1; TASK-230/231/232/233/234 queued since. TASKS.md and TASKS-RESOLVED.md deleted; archive/tasks-md tag pins the old world. apps/backlog owns install + daemon service; MCP registered for opencode; worktrunk installed. docs/PROCESS.md, AGENTS.md, spec.md, WORKTREES.md rewritten; tests/backlog replaces tests/tasks_doc.
 <!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
