@@ -67,6 +67,14 @@ not redirect Ollama, which setup does not declare. Review that set on each
 upgrade: `tests/loreai/test_opencode_setup_parity.py` runs the real command in
 an isolated HOME and fails when its complete output drifts from the fragment.
 
+Registration is not the whole story (measured 2026-10-27): the shared server's
+auto-install can wedge for hours, and the loader rejects pre-v2 plugin exports.
+`tasks/agents/opencode.yaml` verifies the plugin is actually installed and
+loading, not just registered, and raises broken states to the operator.
+A wedged install fails the run with the fix commands; an upstream loader
+rejection raises red without blocking the run. Removing the topic directory
+removes the key on the next `chezmoi apply`.
+
 Ansible installs `@loreai/opencode` with `opencode plugin add` when the
 package is absent; it does not rely on OpenCode's auto-install. Removing the
 topic removes the package with `opencode plugin remove`; its config fragment

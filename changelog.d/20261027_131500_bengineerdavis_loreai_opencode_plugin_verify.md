@@ -11,3 +11,9 @@
   list` and the server log, and names the fix per state: manual
   `plugin add` plus `opencode service restart`, or an upstream BYK/loreai
   release for the load rejection.
+- loreai: registered-but-broken opencode plugin states now raise instead of
+  whispering in a debug line — a wedged auto-install fails the run (the fix
+  is two local commands), and a loader rejection of a pre-v2 plugin export
+  raises red without blocking the playbook (`ignore_errors`; recap
+  ignored=1). Verified live under `--check`: the loader rejection surfaces
+  as FAILED!/ignored=1 while the rest of the topic stays green.
