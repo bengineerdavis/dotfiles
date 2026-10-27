@@ -1,0 +1,19 @@
+"backlog/tasks/task-241 - Record-that-opencode-v2-requires-mcp.servers.-name-not-bare-mcp.-name.md"
+  s_e782e2a56bddfd::t_0c76110f29e36f 1-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4eb88a5417e3c49db5a96955aa55e9c52790c0c7",
+  "prompts": {},
+  "sessions": {
+    "s_e782e2a56bddfd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f012126fdffePEfisYIYnHjGHg",
+        "model": "~deepseek/deepseek-pro-latest"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
