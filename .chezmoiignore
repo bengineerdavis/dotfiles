@@ -53,6 +53,7 @@ docs/WORKTREES.md
 # documentation is for the git checkout, not the home directory.
 docs/BACKLOG-MIGRATION.md
 docs/BACKLOG-UPSTREAM-CONFIG.md
+docs/BACKLOG-CUTOVER.md
 docs/agents/
 docs/agents/**
 scripts/
