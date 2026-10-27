@@ -1,0 +1,23 @@
+changelog.d/20261027_132000_bengineerdavis_mise-backlog-entry.md
+  s_77d3b692985a60::t_c0643fa716c448 1-6
+docs/REFERENCES.md
+  s_77d3b692985a60::t_a31db78d3e4536 21
+dotfiles/apps/mise/files/config.toml
+  s_77d3b692985a60::t_1cfbc574f308a4 208-211
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "47350ebba2a0695a7bd9c3b37888c460547bc497",
+  "prompts": {},
+  "sessions": {
+    "s_77d3b692985a60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8740494fffeKeLAPc4yoUweyC",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
