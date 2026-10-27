@@ -1,0 +1,23 @@
+dotfiles/apps/loreai/README.md
+  s_2dbee0ba7e4dcf::t_65cc01249361ab 65-70
+dotfiles/apps/loreai/tasks/agents/opencode.yaml
+  s_2dbee0ba7e4dcf::t_655948ebae6d99 8,10-25,37-68,72,79-98
+changelog.d/20261027_131500_bengineerdavis_loreai_opencode_plugin_verify.md
+  s_2dbee0ba7e4dcf::t_c89449c8f3dbb8 1-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7ea75b7819ee477a21a45ceea4b7a7845aae7369",
+  "prompts": {},
+  "sessions": {
+    "s_2dbee0ba7e4dcf": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e812a47eaffeDFhdilvVNiffVP",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
