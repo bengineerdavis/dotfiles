@@ -1,0 +1,37 @@
+---
+id: TASK-185
+title: A4
+status: To Do
+created_date: 2026-10-27 02:58
+labels:
+- planned
+- group:refactor-a-the-topical-cli-provisioning-config-state-bootstrapping
+---
+
+## Description
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+A4. Add dependency add/remove for non-extension topics, following the same
+  comment-preserving edit approach. Done when adding a package to a topic never
+  requires hand-editing YAML.
+<!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+<!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
+
+<!-- SECTION:IMPLEMENTATION_NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+
+<!-- SECTION:FINAL_SUMMARY:END -->
+
+## Definition of Done
+<!-- DOD:BEGIN -->
+<!-- DOD:END -->
