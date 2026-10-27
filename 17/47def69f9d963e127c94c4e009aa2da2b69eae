@@ -1,0 +1,19 @@
+changelog.d/20261027_115000_bengineerdavis_main-cleanup.md
+  s_77d3b692985a60::t_c2104c36156afb 1-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1747def69f9d963e127c94c4e009aa2da2b69eae",
+  "prompts": {},
+  "sessions": {
+    "s_77d3b692985a60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8740494fffeKeLAPc4yoUweyC",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
