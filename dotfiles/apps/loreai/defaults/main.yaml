@@ -40,6 +40,20 @@ loreai_install_dir: "{{ ansible_env.HOME }}/.local/bin"
 loreai_config_dir: "{{ ansible_env.HOME }}/.config/loreai"
 loreai_env_file: "{{ loreai_config_dir }}/env.zsh"
 
+# ── Gateway service (TASK-243) ───────────────────────────────────────────────
+# The persistent agent setups point at 127.0.0.1:3207, so the topic owns a
+# per-user unit that keeps the gateway alive (TOPIC-RECIPES.md § service
+# ownership). The binary path is the topic's own stable install path — not a
+# version-pinned release path — and the unit sources the per-machine env
+# file for the worker model and keys. Logs are topic-owned state (removed
+# with the topic); the memory database stays preserved, as below.
+loreai_gateway_label: "ai.withlore.gateway"
+loreai_logs_dir: "{{ ansible_env.HOME }}/.local/state/lore"
+loreai_plist_path: >-
+  {{ ansible_env.HOME }}/Library/LaunchAgents/{{ loreai_gateway_label }}.plist
+loreai_unit_path: >-
+  {{ ansible_env.HOME }}/.config/systemd/user/lore-gateway.service
+
 # Defaults for the prompts. Telemetry ON matches the author ruling of
 # 2026-10-21 (production builds send privacy-filtered operational telemetry
 # to Sentry; https://withlore.ai/docs/install/#operational-telemetry).

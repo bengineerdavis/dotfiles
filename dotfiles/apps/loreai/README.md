@@ -65,10 +65,30 @@ auto-installs the plugin on first run, and the plugin disables compaction
 and routes sessions through the gateway itself. Removing the topic
 directory removes the key on the next `chezmoi apply`.
 
-Note for the persistent setups (claude-code, codex, …): the agent's
-provider now points at the gateway, so the gateway must be running —
-`lore start`, or keep launching via `lore run` (which manages the gateway
-per-invocation and needs no setup at all).
+## Gateway service
+
+The persistent setups point every configured agent at `127.0.0.1:3207`, so
+the topic owns a per-user service that keeps the gateway alive
+(`tasks/service.yaml`, TASK-243): a launchd agent
+(`ai.withlore.gateway`) on macOS, a systemd **user** unit
+(`lore-gateway.service`) on Debian — Lore's own recommendation ("run the
+gateway under a system service manager"). Both run `lore start` in the
+foreground so the service manager owns the lifecycle, and both source
+`~/.config/loreai/env.zsh` for the worker model and keys. On Debian the
+unit only runs while you have a session; the install reports
+`loginctl enable-linger` for headless use rather than changing login
+behaviour. The health check reads the running gateway's own port file, so
+a healthy gateway on a non-default port is not a failure. One caveat: the
+unit does not pin a port, and `lore start` will adopt an already-running
+hand-started gateway rather than replacing it — if you run a gateway on a
+non-default port yourself, the service leaves it alone (verified
+2026-10-27: the hand-started instance survived the first bootstrap; the
+service owned the gateway from the first restart onward).
+
+Per-launch `lore run` still works and needs no service: it reuses the
+running gateway or starts one per invocation.
+
+## Independence and prerequisites
 
 ## Independence and prerequisites
 

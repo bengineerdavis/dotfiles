@@ -7,6 +7,17 @@ another repository arrives with its history and its edge cases intact. See
 Section names come from **antsibull-changelog** — the Ansible community's
 changelog tool. Entries are dated, not versioned.
 
+## 2026-10-27
+
+### minor_changes
+
+- Gateway service (TASK-243): a per-user launchd agent (Darwin) and systemd
+  user unit (Debian) keep the gateway alive, so the persistent agent setups
+  survive reboots. Units run `lore start` in the foreground and source the
+  per-machine env file; the health check reads the gateway's own port file.
+  remove.yaml stops the service, removes units and logs, and stops any
+  hand-launched `lore start --bg` gateway.
+
 ## 2026-10-21
 
 ### release_summary

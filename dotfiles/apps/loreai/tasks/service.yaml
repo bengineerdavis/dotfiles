@@ -1,0 +1,104 @@
+# apps/loreai/tasks/service.yaml
+#
+# The gateway's per-user service unit (TASK-243). Without it, the persistent
+# setups (lore setup claude-code / codex, written into agent configs) point
+# at 127.0.0.1:3207 with nothing guaranteed to listen there — routing broke
+# silently on this machine 2026-10-23..27. Lore's docs: "run the gateway
+# under a system service manager (systemd, launchd, etc.)".
+#
+# Pattern: apps/backlog's daemon service (the TOPIC-RECIPES.md
+# service-ownership recipe) with one correction — the health check reads the
+# running gateway's own port file instead of assuming this invocation's
+# default: `lore start` against an already-running gateway is a no-op that
+# reports the EXISTING instance, so a doctor pinned to :3207 would fail
+# against a healthy gateway on another port.
+
+- name: "loreai: install the gateway service unit (Darwin)"
+  ansible.builtin.template:
+    src: lore-gateway.plist.j2
+    dest: "{{ loreai_plist_path }}"
+    mode: "0644"
+  register: loreai_unit_file
+  when: ansible_facts['os_family'] == 'Darwin'
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: install the gateway service unit (Debian)"
+  ansible.builtin.template:
+    src: lore-gateway.service.j2
+    dest: "{{ loreai_unit_path }}"
+    mode: "0644"
+  register: loreai_unit_file
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: create the gateway log directory"
+  ansible.builtin.file:
+    path: "{{ loreai_logs_dir }}"
+    state: directory
+    mode: "0755"
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: (re)bootstrap the gateway (Darwin)"
+  # bootout-then-bootstrap from the service recipe: a bootout of a missing
+  # service errors, so it is tolerated; bootstrap then enable converge both.
+  ansible.builtin.shell:
+    cmd: >-
+      launchctl bootout gui/$(id -u)/{{ loreai_gateway_label }} 2>/dev/null;
+      launchctl bootstrap gui/$(id -u) {{ loreai_plist_path }}
+      && launchctl enable gui/$(id -u)/{{ loreai_gateway_label }}
+  when: ansible_facts['os_family'] == 'Darwin'
+  register: loreai_service_load
+  changed_when: "'already' not in (loreai_service_load.stderr | default(''))"
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: (re)start the gateway (Debian)"
+  ansible.builtin.systemd:
+    name: lore-gateway
+    enabled: true
+    state: restarted
+    scope: user
+  register: loreai_service_load
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: note the Debian session-only caveat"
+  # A systemd user unit only runs while the user has a session. Report the
+  # fix; never change login behaviour silently (AGENTS.md).
+  ansible.builtin.debug:
+    msg: >-
+      lore-gateway is a systemd USER unit: it runs only while a session
+      exists. For an always-on gateway on a headless box, run
+      `loginctl enable-linger {{ ansible_facts['env']['USER'] }}` yourself —
+      the topic deliberately does not change login behaviour.
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: health check the running gateway"
+  # Reads the gateway's own port file (lore start --bg and the foreground
+  # service both write it) rather than assuming this invocation's port —
+  # a running gateway on a non-default port is healthy, not a failure.
+  ansible.builtin.shell:
+    cmd: |
+      for i in 1 2 3 4 5; do
+        port=$(cat {{ ansible_env.HOME }}/.local/share/lore/gateway.port 2>/dev/null)
+        if [ -n "$port" ] && {{ loreai_install_dir }}/lore doctor 2>&1 | grep -q "gateway reachable: responding on port $port"; then
+          exit 0
+        fi
+        sleep 2
+      done
+      exit 1
+  register: loreai_gateway_health
+  changed_when: false
+  failed_when: loreai_gateway_health.rc != 0
+  check_mode: false
+  when: not ansible_check_mode
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: note the running gateway"
+  ansible.builtin.debug:
+    msg: >-
+      Gateway running under the per-user service; dashboard at
+      http://127.0.0.1:$(cat {{ ansible_env.HOME }}/.local/share/lore/gateway.port)/ui
+      — `lore doctor` verifies routing end to end.
+  when: not ansible_check_mode
+  tags: [loreai, install, upgrade]

@@ -249,6 +249,16 @@
   when: not ansible_check_mode
   tags: [loreai, install, upgrade]
 
+# ── The gateway service, before agents point at it ──────────────────────────
+# The persistent setups below write 127.0.0.1:3207 into agent configs; the
+# service is what guarantees something listens there (TASK-243). Imported
+# after prompts.yaml (the unit sources the per-machine env file it writes)
+# and after the binary smoke check.
+
+- name: "Import the gateway service"
+  ansible.builtin.import_tasks: service.yaml
+  tags: [loreai, install, upgrade]
+
 # ── Per-agent extensions, behind detection ──────────────────────────────────
 
 - name: "Import agent integrations"

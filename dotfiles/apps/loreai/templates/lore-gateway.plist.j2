@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Managed by apps/loreai (TASK-243).
+     Per-user launchd agent for the Lore.AI gateway: the persistent setup
+     (lore setup claude-code / codex / …) points every agent at
+     127.0.0.1:3207, so something must keep the gateway alive across
+     reboots and logouts — Lore's own docs say "run the gateway under a
+     system service manager". Runs `lore start` in the foreground (no
+     --bg) so launchd owns the lifecycle; the per-machine answers
+     (telemetry, LORE_WORKER_MODEL, the OpenRouter key) come from
+     ~/.config/loreai/env.zsh, written by tasks/prompts.yaml. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>{{ loreai_gateway_label }}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-c</string>
+    <string>source {{ loreai_env_file }} &amp;&amp; exec {{ loreai_install_dir }}/lore start</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>{{ loreai_logs_dir }}/gateway.log</string>
+  <key>StandardErrorPath</key><string>{{ loreai_logs_dir }}/gateway.log</string>
+</dict>
+</plist>
