@@ -1,0 +1,19 @@
+.chezmoiignore
+  s_77d3b692985a60::t_a1b0aff1f945fc 56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8c1914da4290a1e6f15a362fdc197e406b4ff298",
+  "prompts": {},
+  "sessions": {
+    "s_77d3b692985a60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8740494fffeKeLAPc4yoUweyC",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
