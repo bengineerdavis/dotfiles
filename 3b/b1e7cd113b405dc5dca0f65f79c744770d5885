@@ -1,0 +1,25 @@
+changelog.d/20261027_131000_bengineerdavis_apply-ask.md
+  s_77d3b692985a60::t_c8f39985dc7a78 1-8
+AGENTS.md
+  s_77d3b692985a60::t_25b69546f93782 405-420
+docs/PERMISSIONS.md
+  s_77d3b692985a60::t_bcfbd1b1dc18ee 51-53,140-141,183-185
+opencode.jsonc
+  s_77d3b692985a60::t_ec48c272507b67 153-155,241,421-422
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3bb1e7cd113b405dc5dca0f65f79c744770d5885",
+  "prompts": {},
+  "sessions": {
+    "s_77d3b692985a60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8740494fffeKeLAPc4yoUweyC",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
