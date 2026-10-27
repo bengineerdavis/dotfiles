@@ -85,6 +85,10 @@ node = "lts"
 python = "3.14"
 "pipx:pre-commit" = "latest"
 "pipx:git-filter-repo" = "latest"
+# worktrunk — git-worktree CLI for parallel agent work, paired with the
+# backlog-md-py queue migration (docs/BACKLOG-MIGRATION.md). Plain fleet
+# entry: no owning topic, no first-party capture (unlike gita below).
+worktrunk = "latest"
 # gita — owned by apps/gita through mise's first-party commands
 # (`mise use -g pipx:gita` on install, `mise unuse --global pipx:gita` on
 # remove), the herdr pattern. This line is the capture those commands write

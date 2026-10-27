@@ -26,7 +26,7 @@ work nobody asked for. Three files carry the requirements between them:
   state — settles most questions about where something belongs.
 - **`AGENTS.md`** — the rules that bind: branches, claims, gates, trust, and
   the expertise that is not obvious from reading the code.
-- **`TASKS.md`** — what is in flight, who has it, and what is blocked.
+- **the backlog queue** (`backlog/`) — what is in flight, who has it, and what is blocked.
 
 `spec.md` sits across all four steps: it is what must stay true whichever step
 you are in, and it is what Check checks against.
@@ -36,39 +36,42 @@ you are in, and it is what Check checks against.
 Agents work a task queue as a pool of workers. The division of intelligence
 is deliberate: **the queue is smart, the workers are naive.**
 
-The queue carries the intelligence. Each task line is written so a worker can
-pick it up cold — scope, done-condition, owner, worktree, what it hands to
-the next (§ Decomposing work into items). Around the lines, the queue holds
-the coordination state: § Claimed (who holds what), the census (a disposition
-for every open branch), the runbook (canonical fixes for a structural shift —
-see `dotfiles/docs/research/coordinating-parallel-work-across-refactors.md`),
-and the worker budget (`AGENTS.md` § Everything is branched — how many
-execution sessions may run on a machine).
+The queue carries the intelligence. Each task file is written so a worker can
+pick it up cold — scope, done-condition (the Definition of Done field), owner
+(assignee), what it hands to the next (§ Decomposing work into items). Around
+the tasks, the queue holds the coordination state: orchestration leases (who
+holds what — `backlog-py orchestration queue`), and the worker budget
+(`AGENTS.md` § Everything is branched — how many execution sessions may run
+on a machine).
 
-The worker's contract is small. Read the line, claim it, do the work, prove
-the done-condition, report, release the claim. Two duties frame it:
+The worker's contract is small. Read the task, claim it
+(`backlog-py orchestration claim TASK-N --actor <you> --expected-version <v>`),
+do the work, prove the done-condition, report
+(`orchestration record-run` — the run history lives in the task file),
+release the lease. Two duties frame it:
 
 - **Write the task before you start.** Any work done by an agent or subagent
-  gets a line in `TASKS.md` first, saying what it is doing and what done
-  means. Work split across several agents is several tasks, one per unit of
-  work. See `spec.md` § Work — agent work is defined and assigned before it
+  gets a backlog task first, saying what it is doing and what done means.
+  Work split across several agents is several tasks, one per unit of work.
+  See `spec.md` § Work — agent work is defined and assigned before it
   starts.
-- **Update `TASKS.md` before you finish.** Sessions keep their own in-memory
-  task lists, which fragment as soon as two are running; that file is the
-  shared one. It also lists which files another session is actively touching.
+- **Update the task before you finish.** Sessions keep their own in-memory
+  task lists, which fragment as soon as two are running; the queue is the
+  shared one. Status, notes, and the final summary go in the task file.
 
 A worker that needs to understand the whole architecture to execute its line
 is a sign the line was cut wrong — cut smaller until one naive worker can
 hold it whole (§ Decomposing work into items, the context-unit rule).
 
-**Where the queue lives.** `TASKS.md`, today: one file, lines as tasks. The
-direction is to break tasks into per-task files, modeled on Backlog.md — the
-markdown-native task tool under evaluation in the components research
-(`TASKS.md` § Now, "Evaluate interchangeable components for agent work") —
-one file per task carrying what a line carries today plus its attachments
-(observations, handoffs), with the queue file becoming an index over them.
-Queued as direction, not built: `TASKS.md` stays the single source of truth
-until that refactor lands.
+**Where the queue lives.** `backlog/` — per-task Markdown files managed by
+backlog-md-py (the migration decision is `docs/BACKLOG-MIGRATION.md`). One
+file per task: title, status, description, acceptance criteria, definition of
+done, assignees, labels, dependencies, run history. The files are the source
+of truth and commit with the code; `backlog-py board` is the index over them.
+Task creation lands as its own commit, immediately — a task still sitting
+uncommitted when context runs out is a task nobody ever had — and under the
+2026-10-23 ruling those commits go straight to main as coordination overhead
+(AGENTS.md § Everything is branched carries the carve-out).
 
 ### Three roles
 
@@ -130,9 +133,9 @@ handoff merges in this repo keep proving that prediction.
 ## Decomposing work into items
 
 Turning a roadmap item into work an agent can be handed is the step with the
-least written down, and it is where planning actually happens. `TASKS.md`
-already says what a task line must contain; this says how to arrive at the
-lines. The rules below are the ones A1–A7 and B1–B8 were cut by — recorded
+least written down, and it is where planning actually happens. The task file
+already says what a task must contain; this says how to arrive at the
+tasks. The rules below are the ones A1–A7 and B1–B8 were cut by — recorded
 after the fact, because they were applied on instinct the first time and that
 does not survive a new session. One of them was learned by being broken: B4
 had to be re-cut, and the rule about outcomes is what came out of it.
@@ -203,7 +206,7 @@ line". This is its own item because it has its own done-condition and because
 skipping it is invisible until the rewrite is already finished.
 
 **The plan is a hypothesis.** Items merge and split as the work teaches you
-something. When that happens, change `TASKS.md` and say why in the commit —
+something. When that happens, change the task and say why in the commit —
 a plan quietly diverging from the work is how the queue stops describing
 reality. Anything that turns out to be bigger than expected and unscheduled
 goes to `ROADMAP.md` rather than growing the item.

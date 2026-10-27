@@ -1,0 +1,16 @@
+{# apps/backlog/templates/backlog-daemon.service.j2 — systemd USER unit for
+   the backlog-md-py singleton daemon (Debian). Same ownership as the
+   launchd agent, no root — it only fires while the user has a session, so
+   install.yaml reports `loginctl enable-linger` rather than changing login
+   behaviour (AGENTS.md § Cross-platform). #}
+[Unit]
+Description=backlog-md-py singleton daemon (queue mutation serialization)
+After=default.target
+
+[Service]
+ExecStart={{ backlog_bin }} daemon run --foreground --host {{ backlog_daemon_host }} --port {{ backlog_daemon_port }}
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

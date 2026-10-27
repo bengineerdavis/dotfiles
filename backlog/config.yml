@@ -8,7 +8,7 @@ dateFormat: yyyy-mm-dd
 includeDatetimeInDates: true
 defaultPort: 6420
 autoOpenBrowser: true
-remoteOperations: true
+remoteOperations: false
 autoCommit: false
 bypassGitHooks: false
 checkActiveBranches: true

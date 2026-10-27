@@ -1,9 +1,17 @@
 # WORKTREES.md
 
-The naming contract and lifecycle for agent worktrees in this repository. The
-design rationale lives in `TASKS.md` § Now #1 and its sub-items; this file is
-the stable reference an agent checks before creating, merging, or deleting a
-worktree.
+The naming contract and lifecycle for agent worktrees in this repository.
+This file is the stable reference an agent checks before creating, merging, or
+deleting a worktree.
+
+**worktrunk** (mise entry, 2026-10-23) is the CLI for the mechanics:
+`wt switch -c <sid>` creates and enters, `wt list` shows status, `wt merge`
+and `wt remove` handle the end of a branch. Its path template is configured
+to the Layout below; the contract itself — flat names, underscores, one
+writer, the merge-base proof before deletion, one PR per work item — is
+house policy, and worktrunk does not carry it. Opt-in features that
+generate content (LLM commit messages, LLM list summaries) stay OFF:
+commit messages follow CONTRIBUTING.md, full stop.
 
 ## Layout
 
@@ -80,7 +88,7 @@ agent, or automation:
    branch is already checked out elsewhere — the authoring session may still
    hold it — fall back to the sub-branch form: `.worktrees/<sid>_sub_<slug>`,
    branching off the PR branch.
-2. **Claim.** A line in `TASKS.md` § Claimed names the PR and the worktree,
+2. **Claim.** An orchestration lease names the task and the worktree,
    so a live authoring session sees it before it pushes.
 3. **Work and push.** Feedback applied on the PR branch — or on a sub-branch
    merged back into it — updates the PR on push. Merge gates apply to what
@@ -116,7 +124,7 @@ single commit.
    deep freely.
 3. **Build.** Give each bucket its own branch and worktree, named for its
    outcome, and copy commits in with `git cherry-pick -x` so each records its
-   original SHA. Revise `TASKS.md` so each bucket has a line.
+   original SHA. Revise the task so each bucket has its own task file.
 4. **Check each alone.** Every commit passes its focused tests, so
    `git bisect` works across the bucket. The tip passes the full suite.
 5. **Check them together.** Merge every open bucket with `git merge-tree`,
@@ -126,7 +134,7 @@ single commit.
    combined tree against that branch merged into `main`: only intended
    differences may remain.
    Expect one kind of conflict: task lines that two buckets appended to the
-   same section end of `TASKS.md`. Keep both lines; the bucket that merges
+   the queue. Keep both tasks; the bucket that merges
    second resolves it.
 6. **Publish.** Pull requests go into `main` and nowhere else. Feature
    branches may take commits and merges from each other freely, with no PR.

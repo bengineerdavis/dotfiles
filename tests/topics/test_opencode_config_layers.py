@@ -390,9 +390,11 @@ def test_external_directory_deny_first_allows_last_literal_home():
     anywhere else — the exact bug that sat in this file until 2026-09-14.
     The sentinel render makes such a leftover visible.
 
-    The allows are the chezmoi source, ~/code (2026-09-12), and the two
-    external-skill trees (2026-10-16): agent-installed skills are readable
-    even when the runtime's own per-skill auto-allow has not fired.
+    The allows are the chezmoi source, ~/code (2026-09-12), the agent temp
+    roots (2026-10-27, commit 23909ea: the runtime's scratch and tool-output
+    directories sit outside the project), and the two external-skill trees
+    (2026-10-16): agent-installed skills are readable even when the runtime's
+    own per-skill auto-allow has not fired.
     """
     cfg = render_with_home_sentinel("L37V3P6GQ3", "darwin")
     perms = _permissions(cfg)
@@ -408,8 +410,8 @@ def test_external_directory_deny_first_allows_last_literal_home():
             "residue inside the permissions array"
         )
     ext = _rules(cfg, "external_directory")
-    assert len(ext) == 5, (
-        f"expected exactly the external_directory set (deny + four allows), "
+    assert len(ext) == 6, (
+        f"expected exactly the external_directory set (deny + five allows), "
         f"got {len(ext)}: {ext!r}"
     )
     first = (ext[0].get("resource"), ext[0].get("effect"))
