@@ -150,6 +150,9 @@
       "chmod *": "allow",
 
       // --- outward-facing or irreversible: ask. The prompt is the point ---
+      // Applying touches the one deployed tree. Still main-only, and only after
+      // `chezmoi status`/`diff` (AGENTS.md § Applying is main-only).
+      "chezmoi apply *": "ask",
       "git commit *": "ask",
       "git push *": "ask",
       "git rebase *": "ask",
@@ -235,9 +238,7 @@
       "git log *--ext-diff*": "ask",
       "git log *--textconv*": "ask",
 
-      // --- deny: never, matching docs/PERMISSIONS.md § deny. chezmoi apply is
-      // main-only (AGENTS.md § Applying is main-only) — denied, not asked ---
-      "chezmoi apply *": "deny",
+      // --- deny: never, matching docs/PERMISSIONS.md § deny ---
       "chezmoi init *": "deny",
       "chezmoi re-add *": "deny",
       "chezmoi purge *": "deny",
@@ -417,8 +418,9 @@
           "git log *--ext-diff*": "ask",
           "git log *--textconv*": "ask",
 
+          // Applying still asks even here: one deployed tree.
+          "chezmoi apply *": "ask",
           // --- deny tier, unchanged ---
-          "chezmoi apply *": "deny",
           "chezmoi init *": "deny",
           "chezmoi re-add *": "deny",
           "chezmoi purge *": "deny",

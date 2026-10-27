@@ -36,10 +36,6 @@ it is tracked separately in `TASKS.md`. Do not conflate the two.
 **deny** — never, and a rule here should be justifiable as unrecoverable or as
 contradicting a written convention.
 
-- `chezmoi apply` in any form. `AGENTS.md` § Applying is main-only says agents
-  never apply; there is one deployed tree and it cannot be branched. This rule
-  existed as an **allow** until today, which is why the convention and the
-  configuration disagreed, and the configuration is what actually decides.
 - Force-push (`git push --force`, `-f`, `--force-with-lease`). `spec.md` § Change
   records requires a backup branch and `git notes` first, and a rewrite does not
   un-publish. `--force-with-lease=<ref>` needs its own rule; see below.
@@ -52,8 +48,9 @@ point: it is the moment a human sees what is about to happen.
 Publishing (`git push`, `gh`), machine mutation (`brew`/`pip`/`npm` installs,
 `launchctl`, `./run-role.sh`), destruction (`rm`, `git reset --hard`), network
 egress (`curl`, `wget`), secret access (`op`), history rewriting
-(`git filter-repo`/`filter-branch`), and large or destructive model operations
-(`ollama pull`/`rm`).
+(`git filter-repo`/`filter-branch`), large or destructive model operations
+(`ollama pull`/`rm`), and `chezmoi apply` — from `main` only, after
+`chezmoi status` and `chezmoi diff`, with the prompt as the author's approval.
 
 **allow** — read-only inspection, and changes that git can undo.
 
@@ -140,8 +137,8 @@ that both look like "the dotfiles project":
 - `~/dotfiles` — the chezmoi **deploy target**. Not a git repository. It is a
   separate Claude project scope with its own `.claude/settings.local.json`,
   holding 80 allow rules that are in no repository and that no review has seen.
-  One of them is `Bash(chezmoi apply *)` — so the rule denied here is permitted
-  there.
+  One of them is `Bash(chezmoi apply *)` — an unreviewed allow, strictly wider
+  than the `ask` the source now applies.
 
 Running an agent in `~/dotfiles` therefore gets none of this and all of that.
 Work happens in `~/.local/share/chezmoi`; `~/dotfiles` is output.
@@ -183,8 +180,9 @@ the project rewrite.
 
 The default agent is conservative: git read ops, the test/lint toolchain,
 interpreters and read-only shell utilities are `allow`; commit/push, network
-egress, installs and history rewriting are `ask`; `chezmoi apply`, force-push
-and credential paths are `deny`.
+egress, installs and history rewriting are `ask`; `chezmoi apply` is `ask`
+so an agent can help converge a reviewed tree; force-push and credential paths
+are `deny`.
 
 `autonomous` (Tab to switch) is the opt-in widening: a complete, self-contained
 map that additionally allows commit/push, `gh`, `curl`/`wget`, package installs

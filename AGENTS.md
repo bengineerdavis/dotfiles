@@ -451,15 +451,23 @@ treat an empty § Claimed as "no claims I can see", not "no claims exist".
 
 ### Applying is main-only
 
-**Agents never run `chezmoi apply`.** Read-only `chezmoi status` and `chezmoi
-diff` are expected and encouraged — an agent that never checks drift is how
-twenty days of uncaptured work accumulated in `aliases.zsh`.
+**An agent runs `chezmoi apply` only from `main`, after showing `chezmoi
+status` and `chezmoi diff`, and only when the author approves the prompt.** The
+permission is `ask`; the prompt is the approval step, not a formality. Read-only
+`chezmoi status` and `chezmoi diff` are expected and encouraged — an agent that
+never checks drift is how twenty days of uncaptured work accumulated in
+`aliases.zsh`.
 
-The reason is structural: there is one deployed tree and it cannot be branched.
-`~/dotfiles` is a single set of files no matter how many branches hold versions
-of them, so two agents applying from two branches overwrite each other. Applying
-happens from main, by the author or by a session holding the apply claim in
-an orchestration lease.
+The reason for the ordering is structural: there is one deployed tree and it
+cannot be branched. `~/dotfiles` is a single set of files no matter how many
+branches hold versions of them, so two agents applying from two branches
+overwrite each other. Applying happens from main only, by the author or by a
+session holding the apply claim in an orchestration lease. When a session holds
+the claim, other sessions stay off it.
+
+A target that changed since chezmoi last wrote it is a judgement call, not a
+prompt to answer hastily: inspect `chezmoi diff <target>` and either fold the
+local edit into the source or discard it deliberately.
 
 ### Merge gates
 
