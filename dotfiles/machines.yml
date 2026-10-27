@@ -10,16 +10,42 @@
 #
 # Bundle-group membership (hostname → groups) lands here with the topic
 # bundles work; only `repos` is settled today.
+#
+# 2026-10-22: membership refreshed after pulling in the catalogue repos
+# (config/repos.yaml re-pointed to the type dirs; missing own repos cloned).
+# Non-repo dirs (aihero course) and the worktree trial
+# (try/worktrunk-isolation-trial, local remote into work/) stay out of the
+# membership until they earn a place.
 machines:
   L37V3P6GQ3:  # this Mac
     repos:
       personal:
         - ai-prompt-library
-        - impromptu
+        - ai-prompt-library-escalation-writing
+        - bad-python-app
+        - bt-import
         - bengineerdavis.github.io
+        - impromptu
+        - jirassic
+        - job-hunt
+        - llocallabs
+        - magic_touch
+        - pcshopper
+        - prompt-spec
+        - questionable
+        - rootiminary
+        - sawmill
+        - topical
       templates:
         - Best-README-Template
-      try: []
+        - agentic-project-template
+        - copier-cat
+        - copier-mise-sandbox
+        - copier-template-copier-template
+        - dotfile-topic-copier
+      try:
+        - xerror
       captures: []
-      forks: []
+      forks:
+        - promptlint
       archive: []
