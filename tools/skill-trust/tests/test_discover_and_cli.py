@@ -206,6 +206,68 @@ def test_audit_on_an_empty_directory_is_unknown_not_success(tmp_path):
     )
 
 
+def test_a_hidden_directory_is_skipped_and_the_skip_is_reported(
+    tmp_path, skill, capsys
+):
+    """Dot-dirs are not load paths, so `.trash` is not a finding — but a skip
+    nobody can see is a place to hide something, so it is named every run.
+    """
+    skill(".trash")
+    skill("accounted-for", licence_text=MIT_TEXT)
+    cfg = _config(tmp_path, "approved_sources: []\n")
+    code = main(["--offline", "--config", cfg, "audit", "--skills-dir", str(tmp_path)])
+    assert code == PERMITTED
+    out = capsys.readouterr().out
+    assert "SKIPPED [hidden] .trash" in out
+    assert "1 hidden skipped: .trash" in out
+
+
+def test_the_hidden_skip_does_not_mask_a_real_finding(tmp_path, skill, capsys):
+    skill(".trash")
+    skill("mystery")
+    cfg = _config(tmp_path, "approved_sources: []\n")
+    code = main(["--offline", "--config", cfg, "audit", "--skills-dir", str(tmp_path)])
+    assert code == DENIED
+    out = capsys.readouterr().out
+    assert "mystery" in out
+    assert "SKIPPED [hidden] .trash" in out
+
+
+def test_include_hidden_puts_the_directory_back_under_judgement(
+    tmp_path, skill, capsys
+):
+    """The skip relents when named — the mechanism's both directions. With no
+    licence the named directory is denied like any other undeclared one.
+    """
+    skill(".trash")
+    cfg = _config(tmp_path, "include_hidden: [.trash]\n")
+    code = main(["--offline", "--config", cfg, "audit", "--skills-dir", str(tmp_path)])
+    assert code == DENIED
+    out = capsys.readouterr().out
+    assert "SKIPPED" not in out
+    assert '".trash" is installed but nothing declares it' in out
+
+
+def test_a_store_with_only_hidden_directories_is_unknown(tmp_path, skill):
+    """Skips are not examinations: a store whose every directory was skipped
+    reports UNKNOWN, not a clean pass over nothing.
+    """
+    skill(".trash")
+    assert (
+        main(
+            [
+                "--offline",
+                "--config",
+                _config(tmp_path, "{}\n"),
+                "audit",
+                "--skills-dir",
+                str(tmp_path),
+            ]
+        )
+        == UNKNOWN
+    )
+
+
 def test_audit_on_a_missing_directory_is_an_error(tmp_path):
     assert (
         main(

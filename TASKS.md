@@ -87,6 +87,7 @@ delete the line and say so in your commit.
   `dotfiles/apps/mise/files/config.toml`, `.chezmoidata/opencode.yaml`,
   `changelog.d/`, `backlog/`
 
+
 ## Where things stand — 2026-09-23 (the session handoff)
 
 A handoff snapshot. Delete and rewrite it rather than appending; a log of
@@ -3585,6 +3586,15 @@ author rather than the machine.
   file's content is either confirmed absorbed by the topic's `tasks/`
   lifecycle files (and the file deleted) or the missing pieces are moved
   into the lifecycle files first. [unclaimed]
+
+- **Review mid-play `pause` prompting for the skill-trust approved-sources
+  guard.** Deferred from the 2026-10-21 ask-first design, which chose the
+  update.sh pre-flight: revisit whether the guard should also ask in-play via
+  ansible's `pause` once the pre-flight has run in anger. That needs a
+  `--json` findings mode from skill-trust and a non-interactive detection
+  rule, and it trades the guard file's own note — decisions belong in the
+  tested program, not in YAML — against asking at the exact moment of
+  detection. [unclaimed]
 
 ## History was rewritten on 2026-08-21 — reset before you resume
 

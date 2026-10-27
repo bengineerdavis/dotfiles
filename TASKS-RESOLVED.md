@@ -859,3 +859,21 @@ apply (author-run; completed by the author 2026-10-15).
   suite 1089 passed / 6 skipped on the post-PR-67 trunk. Merged to main
   via 6a9d64b. Ranked follow-on plan (P1a..P5) lives in the council doc;
   queued items land on author approval.
+
+## 2026-10-26
+
+- **skill-trust: ask-first resolution for unexpected skills.** Resolved as
+  PR #71 (`agent/skill_trust_resolve`, 25 commits): first detection asks
+  instead of failing — the machine-local store at
+  `~/.config/skill-trust/trust.yaml` layered under the guard-composed rules
+  with deny winning across layers; `resolve`/`trust` for interactive and
+  non-interactive decisions; hidden directories skipped with every skip
+  reported and `include_hidden` to re-audit; `deny_skills` for persistent
+  rejections; the guard writes `rules.yaml` at a stable path and its
+  failure message names the resolver; update.sh pre-flights without
+  blocking. Evidence: 111 skill-trust tests with mutation trailers; roborev
+  job 10 (fail) fully fixed, job 16 pass with its three low findings also
+  closed; live guard exercise both directions; pty-verified interactive
+  pre-flight; loader verification table in `tools/skill-trust/README.md`.
+  Follow-on queued in the backlog: TASK-1 (resolve --revisit) plus the
+  § Planned mid-play `pause` review.
