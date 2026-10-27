@@ -10,19 +10,21 @@ policy layer, or anything that reports a measured number.
 
 ## Start here
 
-**Read `spec.md` and `TASKS.md` before starting work.** They pair: `spec.md` says
-what must remain true, `TASKS.md` says what is in flight and who is touching
-which files. Read `PRD.md` too when the work is about scope — whether something
-belongs here at all.
+**Read `spec.md` and the backlog queue before starting work.** They pair:
+`spec.md` says what must remain true; the queue — per-task files under
+`backlog/`, browsed with `backlog-py board` or
+`backlog-py task list --plain` — says what is in flight and what each task's
+done-condition is. Read `PRD.md` too when the work is about scope — whether
+something belongs here at all.
 
-**When `TASKS.md` § Now is empty, the work is not finished** — read `ROADMAP.md`.
-Open is a queue whose lines move to `TASKS-RESOLVED.md` on completion — a
-stopgap until the process refactor lands — so it cannot hold anything
-long-horizon; an empty queue means "nothing scheduled", never "nothing to do".
-The roadmap says what to do next: take an item, interview the author about it,
-then update `PRD.md` with the requirements that settles and `TASKS.md` with the
-work items it produces. Any agent or model working here is expected to have read both — a
-change that satisfies the task and violates the spec is not done.
+**When nothing is claimable, the work is not finished** — read `ROADMAP.md`.
+`backlog-py orchestration eligible` lists tasks whose dependencies are met
+and whose leases are free; an empty eligible queue means "nothing scheduled",
+never "nothing to do". The roadmap says what to do next: take an item,
+interview the author about it, then update `PRD.md` with the requirements
+that settles and create backlog tasks for the work items it produces. Any
+agent or model working here is expected to have read both — a change that
+satisfies the task and violates the spec is not done.
 
 **Prime directive: do not work if something is unclear. Ask.** A guess and a
 decision look identical once they are written down, and the guess costs the whole
@@ -202,7 +204,7 @@ namespace per producer; never force-overwrite a notes ref.
     git commit -o <paths> -F -    # --only: commit exactly these, ignore the rest
     git show --stat HEAD          # verify before pushing
 
-**For a co-edited file** — `TASKS.md` is the likeliest — the sequence is
+**For a co-edited file** — a shared governance doc is the likeliest — the sequence is
 `git add -p`, then a **bare** `git commit` with nothing else staged, then
 `git show --stat HEAD` to verify. `git commit -o` and `git add -p` do not
 compose: `--only` commits the working-tree content of the named paths and
@@ -243,12 +245,51 @@ chezmoi -S "$PWD" add ~/bin/<script>     # -S is required, see below
   many branches hold versions of it, so `chezmoi apply` from either branch
   overwrites the other.
 
-**Claim hot files in `TASKS.md` § Claimed** before touching anything listed under
-Cross-session hazards, and delete the line when you stop.
+**Claim hot files with an orchestration lease** before touching anything listed
+under § Cross-session hazards below: `backlog-py orchestration claim TASK-N
+--actor <you> --expected-version <v>` on the covering task (or claim the task
+you are doing, which covers its own files). Leases expire on their own;
+`orchestration stale-leases` replaces the abandoned-claim check. The lease is
+the lock's record — the rule itself is unchanged: one session, one writer,
+per file.
 
 **Other global state to check before assuming it is yours:** `~/.binned/config.toml`
 (the judge pool and generation model), `~/bin` and `~/dotfiles` (deployed copies),
 and long-running background jobs holding the GPU.
+
+## Cross-session hazards
+
+Files with more than one session touching them recently. Check `git log -3 <file>`
+and `chezmoi status` before editing. Claim the covering task's lease (above)
+first.
+
+- `bin/executable_fetchurl` — actively developed; caused the only real merge
+  conflict so far.
+- `bin/executable_pii-redactor` — ported to Python, then extended with layered
+  redaction by another session. Suite is 63 tests; run it after any change.
+  Its conftest default mock is a *working* model, not `cat`: a pass-through mock
+  plus exit-status assertions is green exactly when the tool leaks, which is the
+  defect the layers exist to prevent. Ask for `mock_llm("cat")` explicitly.
+- `bin/executable_model-bench` — multi-case judge suite; the reference scorecards
+  in `CASES` must be re-derived if a case script changes.
+- `dotfiles/apps/mise/files/config.toml` — two sessions edited it within an hour
+  on 2026-09-11 (`b038cbe` removed two broken pipx tools, `907f3d0` pinned
+  skillet). It rebased cleanly because the edits were in different regions, but
+  it is a long flat list of tools that everything installs through, so the next
+  pair of edits may not be so lucky. `~/.config/mise/config.toml` is a symlink
+  to this file, so editing the source changes what mise reads immediately —
+  before any `chezmoi apply`.
+
+  2026-09-22: seen live again — during an unrelated commit, a mise run
+  auto-bumped `github:danielmiessler/fabric` 1.4.478 → 1.4.479 in the working
+  tree (reverted; the pin is deliberate, see the comment above the fabric
+  line) and the `npm:@openai/codex` install failed with Permission denied
+  (os error 13) on `/tmp/fslock/...`. Standing machine issue, not a one-off.
+- `pyproject.toml` / `uv.lock` — the root project's declaration pair. A
+  lockfile conflict is resolved by merging `pyproject.toml` and re-running
+  `uv lock`, never by editing the lock. Both are ignored by chezmoi (never
+  deploy); `.gitattributes` carries `uv.lock merge=binary`. Register any
+  dependency change here.
 
 ## Cross-repo changes
 
@@ -300,7 +341,8 @@ surprise waiting for the next session.
 ## Branches and integration
 
 **One branch per work item**, named `<group>-<item>` — `topic-cli-a2`,
-`ai-factor-out-b4`. Work items are the lettered entries in `TASKS.md`.
+`ai-factor-out-b4`. Work items are the queue's tasks; the branch name echoes
+the task (`backlog-TASK-42`, `topic-cli-a2`).
 
 Two exceptions, and both must be stated in the task itself:
 
@@ -319,8 +361,18 @@ Two exceptions, and both must be stated in the task itself:
 ### Everything is branched
 
 **No session commits to main directly. Work lands by merge, never by a direct
-write.** One session, one worktree, one branch — including for `TASKS.md` and
-the governance docs. Conflicts in shared files are resolved at merge.
+write.** One session, one worktree, one branch — including for the governance
+docs. Conflicts in shared files are resolved at merge.
+
+**One deliberate carve-out (author ruling 2026-10-23): `backlog/` writes go
+straight to main.** Queue mutations — task create/edit, orchestration
+claim/release — are coordination overhead, one commit per task, hooks running,
+the same class PROCESS.md gives coordination's merge-backs. Per-task files only
+collide when two sessions edit the *same* task, and that case is delegated to
+the tool's version check, which fails the second claim cleanly. Code, docs,
+and policy stay branched. A claim committed on one machine is visible on the
+other only after a pull — the old § Claimed gap with a new shape, documented
+rather than solved.
 
 **One session, one writer.** A session has one assigned agent with read and
 write; every other agent in it — subagents, spawned helpers — is read-only.
@@ -355,9 +407,9 @@ flight when these rules land finish under the structure they started with.
 **A subtask is the same rule, one level down.** One subtask, one subsession,
 one worktree — the worker is an execution session, and a subagent run inside
 it is a read-only helper (one session, one writer, above). The
-subtask's line in `TASKS.md` — scope, done-condition, owner, worktree name —
+subtask's task file — scope, done-condition, owner, worktree name —
 is its single source of truth; a handoff document is the escalation when the
-context exceeds a line, and the line points at it rather than restating it.
+context exceeds the file, and the task points at it rather than restating it.
 Sub-worktrees follow `docs/WORKTREES.md`: `<sid>_sub_<slug>`, branching off
 the parent branch, one writer each, merged back by the parent's owner.
 Mid-task adjustment — a bugfix, a re-cut — forks the same way, off the task
@@ -381,17 +433,14 @@ through the claims board; the budget caps only what one machine runs at
 once. Read-only research and review fan out freely — the budget is for
 writers.
 
-This reverses an earlier rule that sent `TASKS.md` straight to main. The reason
-that rule existed has not gone away, so carry it as a working constraint rather
-than losing it:
+The queue went straight to main for a while, then everything was branched to
+stop the collisions one shared file bought. The 2026-10-23 ruling settles the
+current shape: **`backlog/` writes go to main** (the carve-out above), and the
+constraint that survives either way is:
 
-- **`TASKS.md`** — edit your worktree's copy. Keep edits **append-only at the end
-  of a section**; never reflow or reorder. Two branches appending to different
-  section ends merge cleanly, two branches rewriting the same lines do not.
-- **Merge often.** A branch that sits for a week hides its task lines and its
-  claims from every other session for a week. The old main-side rule bought
-  visibility at the cost of collisions on main; this one buys the opposite, and
-  only short-lived branches keep the bill small.
+- **Merge often.** A branch that sits for a week hides its tasks and its
+  claims from every other session for a week. Short-lived branches keep the
+  bill small.
 - **Governance docs** (`spec.md`, `PRD.md`, `AGENTS.md`) — still their own
   commit, still the surface where unrelated branches collide. Branch them like
   everything else and merge them promptly.
@@ -410,7 +459,7 @@ The reason is structural: there is one deployed tree and it cannot be branched.
 `~/dotfiles` is a single set of files no matter how many branches hold versions
 of them, so two agents applying from two branches overwrite each other. Applying
 happens from main, by the author or by a session holding the apply claim in
-`TASKS.md` § Claimed.
+an orchestration lease.
 
 ### Merge gates
 
@@ -439,8 +488,8 @@ what changed, not who changed it or which class it was filed under.
 
 A full-suite pass only proves this change didn't break anything — it says
 nothing about whether the trunk was already broken. That is a separate,
-periodic job (nightly or on a cadence), not a per-merge one; see TASKS.md
-for the queued follow-on.
+periodic job (nightly or on a cadence), not a per-merge one; the follow-on
+lives in the backlog queue.
 
 Anything else: push the branch, open a PR, and report. Stakes and size decide,
 not preference. A new feature goes to PR; so does any change that takes more
@@ -682,14 +731,13 @@ Do **not** over-split. A commit that leaves the tree broken so the next one can 
 it is worse than a slightly coarse one: it breaks `git bisect`. Atomic means
 self-contained, not small.
 
-**Writing a task is itself a commit.** Every task you queue in `TASKS.md` lands as
-its own commit, immediately, separate from whatever work is in flight — two tasks
-are two commits, and revising a queued task is a further commit rather than a
-rewrite of the one that added it. Where creating a single task honestly takes more
-than one commit, branch instead of interleaving it with in-flight work on main. The
-point is that a task survives the session that thought of it: a queued line still
-sitting in the working tree when context runs out is a task nobody ever had.
-`TASKS.md` § Conventions carries the same rule for readers who never open this file.
+**Creating a task is itself a commit.** Every task you create lands as its own
+commit of its task file, immediately, separate from whatever work is in flight —
+two tasks are two commits, and revising a task is a further commit rather than a
+rewrite of the one that added it. The point is that a task survives the session
+that thought of it: a task still sitting uncommitted when context runs out is a
+task nobody ever had. Under the carve-out, queue commits go straight to main;
+anything bigger than a task goes on a branch as before.
 
 Durable *why* belongs in a code comment next to the decision, where it survives
 rebases and is read by people who never open git log. The commit body carries only
@@ -1009,9 +1057,10 @@ Prefer evidence over assertion, and say plainly what was and was not checked.
 
 ### Issue tracker
 
-`backlog/` via `backlog-py` / `backlog-py-mcp`; the interim queue is `TASKS.md`
-until the cutover in `docs/BACKLOG-MIGRATION.md`. See
-`docs/agents/issue-tracker.md`.
+`backlog/` via `backlog-py` / `backlog-py-mcp`. The 2026-10-27 cutover is a
+breaking change for any branch carrying `TASKS.md` — the conversion procedure
+and per-branch disposition live in `docs/BACKLOG-CUTOVER.md`; the decision
+record is `docs/BACKLOG-MIGRATION.md`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

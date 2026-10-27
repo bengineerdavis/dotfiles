@@ -137,7 +137,7 @@ any phase reverses by moving back.
    `~/code` trees are structurally identical for the shared types.
 6. **Switch the citations.** Queue and docs stop carrying absolute paths and
    cite the standard; the drift guard is added under `roles/guards/`. Done
-   when `tests/tasks_doc` and the guard both pass and a planted drifted repo
+   when `tests/backlog` and the guard both pass and a planted drifted repo
    is reported, not moved.
 
 ## What this is not

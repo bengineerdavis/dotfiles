@@ -22,16 +22,16 @@ opencode:
     # roborev's agent-hook installer wrote this block into the deployed file
     # on 2026-10-22; adopted into the source the same day so `chezmoi apply`
     # stops clobbering it. If the installer ever changes the block, re-adopt.
+    # backlog-py: the queue's MCP server (docs/BACKLOG-MIGRATION.md) — the
+    # SDK-free stdio entry point, which forwards to the apps/backlog daemon
+    # when one is running.
     mcp:
       servers:
         roborev:
           type: local
           command: ["roborev", "mcp", "serve"]
         # The task queue's MCP surface (docs/BACKLOG-MIGRATION.md § MCP wiring).
-        # Registered ahead of the cutover so the surface exists on the day
-        # `backlog/` does. Verified 2026-10-26: the server starts and answers
-        # initialize with no project; its task tools have nothing to act on
-        # until the queue lands.
+        # Verified 2026-10-26: the server starts and answers initialize.
         backlog-py:
           type: local
           command: ["backlog-py-mcp"]
