@@ -30,6 +30,10 @@ CLAUDE.md
 TASKS.md
 # Stopgap archive for resolved work — repo tooling, same treatment as TASKS.md.
 TASKS-RESOLVED.md
+# The task queue is repo state. Deploying it would put a second copy of the
+# queue at ~/backlog, outside the repository it belongs to.
+backlog/
+backlog/**
 spec.md
 PRD.md
 ROADMAP.md
@@ -45,6 +49,13 @@ docs/LAYOUT.md
 docs/LANGUAGES.md
 docs/GLOSSARY.md
 docs/WORKTREES.md
+# Added after the per-file list above was written. Same rule: repository
+# documentation is for the git checkout, not the home directory.
+docs/BACKLOG-MIGRATION.md
+docs/BACKLOG-UPSTREAM-CONFIG.md
+docs/BACKLOG-CUTOVER.md
+docs/agents/
+docs/agents/**
 scripts/
 scripts/**
 tools/
