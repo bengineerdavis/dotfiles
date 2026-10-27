@@ -12,6 +12,7 @@ like a working probe until run. The probe falls back to uvx, which resolves
 the pinned package from the uv cache or the network.
 """
 
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -73,7 +74,7 @@ def test_board_renders_every_task_once():
     ids = [
         line.split()[0]
         for line in result.stdout.splitlines()
-        if line.startswith("TASK-")
+        if re.match(r"^(TASK|DOT)-", line)
     ]
     assert ids, "task list printed nothing — no evidence"
     assert len(ids) == len(set(ids)), (

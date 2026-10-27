@@ -14,4 +14,4 @@ bypassGitHooks: false
 checkActiveBranches: true
 activeBranchDays: 30
 prefixes:
-  task: task
+  task: DOT
