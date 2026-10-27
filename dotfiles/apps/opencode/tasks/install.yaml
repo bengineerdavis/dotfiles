@@ -1,5 +1,5 @@
 # apps/opencode/tasks/install.yaml
-# Binary install and skill sync.
+# Binary install. The skill sync is owned by apps/dotagents.
 #
 # Config files (opencode.jsonc) are NOT here — chezmoi owns them. See
 # dot_config/opencode/opencode.jsonc in the chezmoi source tree.
@@ -57,9 +57,9 @@
   # reports "Already trusted tap", which is what changed_when reads.
   #
   # Trusting a tap lets brew execute its Ruby. That is the same judgement the
-  # skill sources below get, and it is recorded the same way: this tap is
-  # upstream opencode's own (anomalyco/opencode ships it via GoReleaser), so
-  # trusting it is trusting the vendor whose binary we are installing anyway.
+  # skill sources get in apps/dotagents: this tap is upstream opencode's own
+  # (anomalyco/opencode ships it via GoReleaser), so trusting it is trusting
+  # the vendor whose binary we are installing anyway.
   ansible.builtin.command:
     cmd: "brew trust --tap {{ opencode_tap }}"
   register: opencode_trust_tap
@@ -100,160 +100,3 @@
   community.general.homebrew:
     name: "{{ opencode_tap }}/opencode-v2"
     state: present
-
-# ── The skill set, via dotagents ────────────────────────────────────────────
-# dotagents installs user-global into ~/.agents/skills, which opencode (and
-# claude, cursor, codex...) auto-load. Re-adding an identical declaration
-# refreshes the installation, so this is idempotent — and the same tasks carry
-# the `upgrade` tag, since a manifest bump is what "upgrading skills" means
-# here. There is no other upgrade path for skills: they are not brew packages.
-#
-# Runs npx from the mise shims so node resolves without relying on the
-# caller's interactive shell config.
-
-- name: "Guard against an agent skills directory dotagents cannot migrate"
-  ansible.builtin.import_role:
-    name: "roles/guards"
-    tasks_from: dotagents-skills-migration.yaml
-  vars:
-    guard_caller: "apps/opencode"
-    guard_allow_skill_dir_conflicts: "{{ opencode_allow_skill_dir_conflicts }}"
-  tags: [opencode_skills, upgrade]
-
-- name: "Declare the approved sources to dotagents"
-  # dotagents enforces this itself: validateTrustedSource throws on any source
-  # outside the table, at both `add` and `install`. Done via the CLI rather than
-  # templating agents.toml, because that file is dotagents' to write. Adding an
-  # entry that is already present is a no-op, which is what keeps this idempotent.
-  # @sentry/dotagents@3.1.0 is MIT and public on npm — passes the skill-trust
-  # litmus test (verified against the npm registry 2026-09-22).
-  ansible.builtin.command:
-    cmd: >-
-      npx -y @sentry/dotagents@latest --user
-      trust add {{ item.source }}
-  environment:
-    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
-  loop: "{{ opencode_skill_sources }}"
-  loop_control:
-    label: "{{ item.source }}"
-  register: opencode_trust_add
-  failed_when: false
-  changed_when: "'Added' in opencode_trust_add.stdout"
-  tags: [opencode_skills, upgrade]
-
-- name: "Fail with every source dotagents would not trust"
-  # `trust add` exits non-zero for an entry that is already present, so a bare
-  # rc check makes the second run of an idempotent task fail. Re-declaring an
-  # existing trust entry is the desired end state, not an error.
-  vars:
-    opencode_trust_failures: >-
-      {{ opencode_trust_add.results | rejectattr('rc', 'eq', 0)
-         | rejectattr('stderr', 'search', 'already in') | list }}
-  ansible.builtin.fail:
-    msg: >-
-      dotagents rejected
-      {{ opencode_trust_failures | map(attribute='item.source') | join(', ') }}.
-      What it actually said:
-      {{ opencode_trust_failures | map(attribute='stderr') | map('trim') | select | join(' | ')
-         | default('nothing on stderr; re-run the failing `npx` command by hand', true) }}
-  when: opencode_trust_failures | length > 0
-  tags: [opencode_skills, upgrade]
-
-- name: "Sync every skill from each approved source"
-  # `--all` declares the source as a wildcard dependency rather than naming
-  # skills, so adding a skill upstream needs no edit here. Re-adding an identical
-  # declaration refreshes the installation, which is why this doubles as upgrade.
-  ansible.builtin.command:
-    cmd: >-
-      npx -y @sentry/dotagents@latest --user
-      add {{ item.source }} --all
-  environment:
-    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
-  loop: "{{ opencode_skill_sources }}"
-  loop_control:
-    label: "{{ item.source }}"
-  register: opencode_skill_add
-  # dotagents reports its errors on stderr and leaves stdout empty, so failing
-  # here would discard the only diagnosis. See the reporting task below.
-  failed_when: false
-  changed_when: >-
-    'Added skills' in opencode_skill_add.stdout
-    or 'Added skill' in opencode_skill_add.stdout
-  tags: [opencode_skills, upgrade]
-
-- name: "Fail with every source dotagents could not sync"
-  ansible.builtin.fail:
-    msg: >-
-      dotagents could not sync
-      {{ opencode_skill_add.results | rejectattr('rc', 'eq', 0)
-         | map(attribute='item.source') | join(', ') }}.
-      What it actually said:
-      {{ opencode_skill_add.results | rejectattr('rc', 'eq', 0)
-         | map(attribute='stderr') | map('trim') | select | join(' | ')
-         | default('nothing on stderr; re-run the failing `npx` command by hand', true) }}
-  when: opencode_skill_add.results | rejectattr('rc', 'eq', 0) | list | length > 0
-  tags: [opencode_skills, upgrade]
-
-- name: "Veto each excluded skill from its approved source"
-  # `remove <name>` on a wildcard-covered skill adds it to that wildcard's
-  # exclude list and deletes the directory, so the veto survives the next sync
-  # rather than being re-installed and re-removed forever. -y answers the
-  # confirmation prompt, which has no terminal under Ansible.
-  ansible.builtin.command:
-    cmd: >-
-      npx -y @sentry/dotagents@latest --user
-      remove {{ item.1 }} -y
-  environment:
-    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
-  loop: "{{ opencode_skill_sources | subelements('exclude', skip_missing=True) }}"
-  loop_control:
-    label: "{{ item.1 }} ← {{ item.0.source }}"
-  register: opencode_skill_veto
-  failed_when: false
-  changed_when: "'exclude list' in opencode_skill_veto.stdout"
-  tags: [opencode_skills, upgrade]
-
-- name: "Fail with every skill dotagents could not veto"
-  # An already-excluded skill is not installed, so `remove` reports it missing.
-  # That is the desired end state on every run after the first, not an error.
-  vars:
-    opencode_veto_failures: >-
-      {{ opencode_skill_veto.results | default([]) | rejectattr('rc', 'eq', 0)
-         | rejectattr('stderr', 'search', 'not found|No skill|not declared') | list }}
-  ansible.builtin.fail:
-    msg: >-
-      dotagents could not veto
-      {{ opencode_veto_failures | map(attribute='item.1') | join(', ') }}.
-      What it actually said:
-      {{ opencode_veto_failures | map(attribute='stderr') | map('trim') | select | join(' | ')
-         | default('nothing on stderr; re-run the failing `npx` command by hand', true) }}
-  when: opencode_veto_failures | length > 0
-  tags: [opencode_skills, upgrade]
-
-- name: "Report skill sync results"
-  ansible.builtin.debug:
-    msg: >-
-      Approved sources {{ opencode_skill_sources | map(attribute='source') | join(', ') }}
-      are trusted and declared as wildcards in ~/.agents/agents.toml;
-      `dotagents list` reports which skills that resolved to.
-  tags: [opencode_skills, upgrade]
-
-- name: "Guard that every installed skill came from an approved source"
-  # After the sync, not before: the question is what is on the machine now, and
-  # an undeclared directory is only visible once the declared ones are in place.
-  # It is also the LAST task in this file, so every other topic converges before
-  # the gate can fail — one undeclared skill must not block the rest of the
-  # install from completing.
-  ansible.builtin.import_role:
-    name: "roles/guards"
-    tasks_from: dotagents-approved-sources.yaml
-  vars:
-    guard_caller: "apps/opencode"
-    guard_approved_sources: "{{ opencode_skill_sources | map(attribute='source') | list }}"
-    guard_vendored_skills: "{{ opencode_skill_vendored | map(attribute='name') | list }}"
-    guard_skill_excludes: >-
-      {{ dict(opencode_skill_sources | map(attribute='source')
-              | zip(opencode_skill_sources | map(attribute='exclude', default=[]))) }}
-    guard_allow_unapproved_skills: "{{ opencode_allow_unapproved_skills }}"
-    guard_foreign_buckets: "{{ opencode_skill_foreign }}"
-  tags: [opencode_skills, upgrade]

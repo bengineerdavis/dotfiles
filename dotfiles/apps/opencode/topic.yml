@@ -16,9 +16,9 @@ topic_provides: []
 # linuxbrew (as documented in the README — a fresh Debian box needs linuxbrew
 # before this topic can run).
 #
-# node runs `npx @sentry/dotagents`, which installs the skill set. Provided by
-# apps/mise (config.toml -> node = "lts") on both OSes.
-topic_requires: [homebrew, node]
+# node is deliberately NOT required: the skill sync that used `npx dotagents`
+# moved to apps/dotagents, and this topic no longer runs node at all.
+topic_requires: [homebrew]
 
 topic_os: [Darwin, Debian]
 

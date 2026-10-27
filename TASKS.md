@@ -1757,6 +1757,31 @@ nothing is.
   `TASKS-RESOLVED.md` are deleted, and `backlog/` is the one queue.**
   [agent: this session] (branch
   `agent/backlog_migration`, worktree `.worktrees/backlog-migration`).
+- **Build a dotagents topic and move the global skill declaration into it.**
+  [agent: this session, branch `dotagents-topic`, worktree
+  `.worktrees/dotagents-topic`] From the `## Planned` item below. New
+  `apps/dotagents` owns `dotagents_agents`, `dotagents_sources`,
+  `dotagents_vendored`, the trust allow-list, the sync and both guards;
+  `apps/opencode` loses its skill manifest and keeps the binary and config.
+  The topic calls the mise-pinned binary, not `npx @latest`, so one version
+  exists on the machine. Add `mattpocock/skills` (MIT, verified 2026-10-26) as
+  an approved source; it installs as a plugin, which wires opencode only — the
+  per-client marketplace wiring is queued separately rather than claimed here.
+  Done when `run-role.sh dotagents` installs and re-runs idempotently, the
+  provenance guard is green, `apps/opencode` carries no skill declaration, and
+  `tests/guards/test_guard_wiring.py` points at the new topic.
+
+- **Wire each agent runtime to the dotagents-published plugin marketplace.**
+  [unclaimed] `dotagents` publishes client marketplaces under `~/.agents/`
+  (`.claude-plugin/marketplace.json`, `.cursor-plugin/`, `.github/plugin/`)
+  but does not configure the clients to consume them, so a plugin source's
+  skills reach opencode only. Measured 2026-10-26: `~/.config/opencode/skills`
+  has the plugin's 38 links; `~/.claude/skills`, `~/.cursor/skills`,
+  `~/.codex/skills` have none. Add the per-client wiring to
+  `apps/claude-code`, `apps/cursor` and `apps/visual-studio-code`, and decide
+  where codex and copilot belong (neither has a topic today). Done when a
+  plugin source's skills are visible in each installed runtime and the
+  limitation is removed from `apps/dotagents/CHANGELOG.md`.
 
 - **Give `pipx:agentsview` an owner, or drop it.** It was added to the global
   mise config as a local trial and appears in no topic, so nothing owns its

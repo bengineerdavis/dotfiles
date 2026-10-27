@@ -1,0 +1,13 @@
+# apps/dotagents/tasks/upgrade.yaml
+# Topic-level upgrade tasks. Refresh state this topic owns.
+#
+# The sync in install.yaml carries `[dotagents_skills, upgrade]`, because
+# re-adding an identical declaration is what "upgrading skills" means here:
+# the manifest's pinned source set is the whole upgrade procedure. There is no
+# separate version number per skill — dotagents records the resolved commit in
+# agents.lock on every install.
+#
+# The binary itself is a mise tool, so `mise upgrade` refreshes it; this topic
+# never updates its own executable.
+#
+# Idempotent: safe to re-run. Do NOT put install or remove logic here.

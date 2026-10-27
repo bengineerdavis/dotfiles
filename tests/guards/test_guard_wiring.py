@@ -66,14 +66,14 @@ def test_the_guard_role_is_callable():
     assert (GUARDS / "README.md").is_file()
 
 
-def test_opencode_imports_the_guard_before_syncing_skills():
+def test_dotagents_imports_the_guard_before_syncing_skills():
     """Order is the whole point: guarding after the sync guards nothing."""
-    text = _code(APPS / "opencode" / "tasks" / "install.yaml")
+    text = _code(APPS / "dotagents" / "tasks" / "install.yaml")
 
     guard_at = text.find("dotagents-skills-migration.yaml")
     sync_at = text.find("add {{ item.source }}")
 
-    assert guard_at != -1, "apps/opencode no longer imports the migration guard"
+    assert guard_at != -1, "apps/dotagents no longer imports the migration guard"
     assert sync_at != -1, "the skill sync task moved; this test needs updating"
     assert guard_at < sync_at, "the guard is imported AFTER the sync it guards"
 
@@ -94,17 +94,17 @@ def test_guard_callers_use_a_static_import():
 
 
 def test_the_foreign_bucket_flag_is_plumbed_end_to_end():
-    """`opencode_skill_foreign` -> `guard_foreign_buckets` -> the trust rules,
+    """`dotagents_skill_foreign` -> `guard_foreign_buckets` -> the trust rules,
     and on by default. A break anywhere along that chain silently turns 'not
     mine to rule on' back into a denial that fails provisioning.
     """
-    topic_defaults = _code(APPS / "opencode" / "defaults" / "main.yaml")
-    install = _code(APPS / "opencode" / "tasks" / "install.yaml")
+    topic_defaults = _code(APPS / "dotagents" / "defaults" / "main.yaml")
+    install = _code(APPS / "dotagents" / "tasks" / "install.yaml")
     guard_defaults = _code(GUARD_DEFAULTS)
     guard_task = _code(GUARDS / "tasks" / "dotagents-approved-sources.yaml")
 
-    assert "opencode_skill_foreign: true" in topic_defaults
-    assert 'guard_foreign_buckets: "{{ opencode_skill_foreign }}"' in install
+    assert "dotagents_skill_foreign: true" in topic_defaults
+    assert 'guard_foreign_buckets: "{{ dotagents_skill_foreign }}"' in install
     assert "guard_foreign_buckets: true" in guard_defaults
     assert "'foreign_buckets': guard_foreign_buckets | bool" in guard_task
 
@@ -114,14 +114,42 @@ def test_the_approved_sources_guard_is_the_last_task():
     the direct fix for 'one undeclared skill blocks my whole install' — every
     other task converges before the gate can fail.
     """
-    text = _code(APPS / "opencode" / "tasks" / "install.yaml")
+    text = _code(APPS / "dotagents" / "tasks" / "install.yaml")
 
     report_at = text.find("Report skill sync results")
     guard_at = text.find("tasks_from: dotagents-approved-sources.yaml")
 
-    assert guard_at != -1, "apps/opencode no longer imports the approved-sources guard"
+    assert guard_at != -1, "apps/dotagents no longer imports the approved-sources guard"
     assert report_at != -1, "the report task moved; this test needs updating"
     assert guard_at > report_at, "the approved-sources guard runs before the report"
+
+
+def test_opencode_carries_no_skill_manifest():
+    """The skill set is user-global; it belongs to apps/dotagents, not to one
+    coding tool's topic. A second manifest would declare sources twice and
+    drift the moment either is edited.
+
+    Only declaration files are checked. The molecule scenario's README runs
+    `dotagents` to verify the sync on a test box, which is a consumer, not a
+    second manifest.
+    """
+    candidates = sorted((APPS / "opencode" / "defaults").glob("*.yaml")) + sorted(
+        (APPS / "opencode" / "tasks").glob("*.yaml")
+    )
+    offenders = []
+    for path in candidates:
+        text = _code(path)
+        if (
+            "opencode_skill_sources" in text
+            or "dotagents add" in text
+            or "dotagents --user add" in text
+        ):
+            offenders.append(path.relative_to(DOTFILES))
+
+    assert not offenders, (
+        "apps/opencode still declares or syncs skills; those belong to "
+        "apps/dotagents:\n  " + "\n  ".join(str(p) for p in offenders)
+    )
 
 
 def test_no_root_guard_is_wired_only_to_intended_topics():
