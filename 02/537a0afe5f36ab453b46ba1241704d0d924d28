@@ -1,0 +1,20 @@
+"backlog/decisions/decision-1 - Provisioning-answers-shared-answers-machine-answers-in-machines.yml.md"
+  s_64c37cc93e90b2::t_a0d96e876fb516 1-9,17,21,28,31,64
+  s_64c37cc93e90b2::t_8ed036f4f6c63a 10-16,18-20,22-27,29-30,32-63,65-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "02537a0afe5f36ab453b46ba1241704d0d924d28",
+  "prompts": {},
+  "sessions": {
+    "s_64c37cc93e90b2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e810fe670ffeuSppN8tjc9c1Zf",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
