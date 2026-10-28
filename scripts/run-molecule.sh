@@ -94,6 +94,29 @@ VAGRANT_MODULES="$(uv run --frozen --project "$REPO_ROOT" --group test-vm python
 export ANSIBLE_LIBRARY="$VAGRANT_MODULES"
 
 export MOLECULE_PROJECT_DIRECTORY="$DOTFILES"
+# Select the provider through the scenario's public config seam. macOS uses
+# vagrant-qemu: vagrant-libvirt 0.12.2 requires Linux's `ip` and fails before
+# creating a VM (measured 2026-10-28). Linux keeps the established libvirt/KVM
+# path. The scenario reads these values through Molecule interpolation.
+if [[ -z "${MOLECULE_VM_PROVIDER:-}" ]]; then
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    export MOLECULE_VM_PROVIDER=qemu
+  else
+    export MOLECULE_VM_PROVIDER=libvirt
+  fi
+fi
+if [[ "$(uname -m)" == "arm64" || "$(uname -m)" == "aarch64" ]]; then
+  export MOLECULE_VM_ARCH="${MOLECULE_VM_ARCH:-aarch64}"
+else
+  export MOLECULE_VM_ARCH="${MOLECULE_VM_ARCH:-x86_64}"
+fi
+if [[ -z "${MOLECULE_VM_BOX:-}" ]]; then
+  if [[ "$MOLECULE_VM_PROVIDER" == "qemu" ]]; then
+    export MOLECULE_VM_BOX=cloud-image/debian-12
+  else
+    export MOLECULE_VM_BOX=debian/bookworm64
+  fi
+fi
 # Pin the state dir into the scenario: molecule 26.9.0 otherwise keys the
 # ephemeral directory on the project dir's basename (molecule.<checksum>.
 # <scenario> under ~/.ansible/tmp), so bare-molecule runs from another cwd
