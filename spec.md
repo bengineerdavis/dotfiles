@@ -328,6 +328,14 @@ is a different question from what changed since a reader last looked.
 - **THEN** it is written for the reader instead, in their terms. A changelog
   that reads like `git log --oneline` has been generated rather than written
 
+#### Scenario: A PR merges
+
+- **WHEN** a PR with changelog fragments merges into `main`
+- **THEN** the default-branch workflow collects exactly the fragments in that PR
+  into a dated, PR-numbered `CHANGELOG.md` entry and commits only that entry and
+  those fragment deletions. Collection creates no semantic version, tag, or
+  GitHub Release
+
 ### Behavior: Change records — one commit is one reviewable decision
 
 A commit SHALL contain one reviewable decision. The test is not file count; it

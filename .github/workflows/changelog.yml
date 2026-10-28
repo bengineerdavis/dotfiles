@@ -1,0 +1,80 @@
+name: Collect the changelog after a PR merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+# A failed collection must not race another merge's collection.
+concurrency:
+  group: changelog-main
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      # Check out the merged main commit, never the untrusted PR head. The
+      # workflow itself comes from the default branch, not from the PR.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: true
+
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: false
+
+      # Collect the repo's root/chezmoi-source changelog only. Per-topic
+      # changelogs are separate records; see dotfiles/docs/TOPICS.md.
+      - name: Collect only this PR's fragments
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+          mkdir "$work/fragments"
+
+          # The PR files API describes the reviewed PR diff. It does not
+          # confuse fragments that arrived on main through another merge.
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" \
+            --jq '.[] | select(.status == "added" or .status == "modified" or .status == "renamed") | .filename' \
+            > "$work/all-pr-files"
+          grep -E '^changelog[.]d/[^/]+[.]md$' "$work/all-pr-files" \
+            > "$work/fragments-to-collect" || true
+
+          if [[ ! -s "$work/fragments-to-collect" ]]; then
+            echo "PR #${PR_NUMBER} has no changelog fragments; nothing to collect."
+            exit 0
+          fi
+
+          while IFS= read -r fragment; do
+            test -f "$fragment"
+            mv -- "$fragment" "$work/fragments/"
+          done < "$work/fragments-to-collect"
+
+          cp changelog.d/scriv.ini "$work/scriv.ini"
+          printf '\nfragment_directory = %s\n' "$work/fragments" >> "$work/scriv.ini"
+          uv run --no-project --with scriv==1.8.0 scriv collect \
+            --config "$work/scriv.ini" \
+            --title "PR #${PR_NUMBER} — $(date -u +%F)"
+
+          # Only the changelog and the selected fragment deletions may change.
+          git diff --exit-code -- . ':(exclude)CHANGELOG.md' ':(exclude)changelog.d/*.md'
+          git diff --check
+          git add -- CHANGELOG.md
+          while IFS= read -r fragment; do
+            git rm -- "$fragment"
+          done < "$work/fragments-to-collect"
+
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -m "changelog: collect PR #${PR_NUMBER}"
+          git show --stat --oneline HEAD
+          git push origin HEAD:main

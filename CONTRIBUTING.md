@@ -18,8 +18,8 @@ mid-task**, and pull request mechanics. It is deliberately readable by someone
 with no agent running and no context from a session.
 
 It lives at the repository root, which is both vendor-neutral and one of the
-three locations GitHub discovers. `.github/` keeps only the pull request
-template, which has no neutral equivalent.
+three locations GitHub discovers. `.github/` also holds the pull request template
+and the workflow that collects changelog fragments after a merge.
 
 ## The manual path always works
 
@@ -63,8 +63,10 @@ uv run --with scriv scriv create      # opens a fragment in changelog.d/
 
 Uncomment the category that fits, write the entry **in the reader's terms**, and
 commit the fragment with the work. Fragments are separate files, so two branches
-never conflict over them. On release, `scriv collect` folds them into
-`CHANGELOG.md` and deletes them.
+never conflict over them. When a PR merges, its default-branch workflow runs
+`scriv collect` for the fragments in that PR. The collector commits the new
+`CHANGELOG.md` entry to `main` and deletes those fragments. Entries have a dated
+`PR #N` heading; no semantic version, tag, or GitHub Release is needed.
 
 Not every change earns an entry. If it alters nothing a reader would notice,
 the commit is the whole record. An entry that only repeats its commit subject
@@ -72,6 +74,12 @@ has been generated rather than written.
 
 Config lives in `changelog.d/scriv.ini` — **not** the repository root, which is
 where scriv does not look.
+
+The collector pushes only to `main`, after merge, and never checks out the PR
+head. Branch protection must permit those automated commits; change that setting
+deliberately if it later blocks the collector. If collection fails, merge nothing
+else until you rerun it manually, so a later PR cannot consume the wrong
+fragments.
 
 ### Commit granularity
 

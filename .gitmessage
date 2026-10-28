@@ -2,8 +2,9 @@
 
 # ── Subject: <scope>: what changed, imperative, ~60 chars ────────────────────
 # 71% of this repo uses a "<scope>: " prefix. Not Conventional Commits — that
-# was considered and rejected (only 12% of history, and its payoff is automated
-# changelog and semver, neither of which this project wants).
+# was considered and rejected (only 12% of history). Scriv now collects the
+# handwritten changelog after each PR merge, but does not infer it from commits
+# or introduce semantic versioning.
 #
 # ── Body: why, not what. The diff shows what. ────────────────────────────────
 # Size the message to the change:
