@@ -1,0 +1,27 @@
+changelog.d/20261027_170000_bengineerdavis_mise-link-owner.md
+  s_77d3b692985a60::t_61b1b86cbb06c5 1-10
+.chezmoiignore
+  s_77d3b692985a60::t_8b2fff8a969876 57-61
+dotfiles/apps/mise/files/config.toml
+  s_77d3b692985a60::t_fa37d10b386659 1-9
+dotfiles/docs/TOPIC-RECIPES.md
+  s_77d3b692985a60::t_ab4a80de884d08 103-105
+tests/chezmoi/test_governance_not_deployed.py
+  s_77d3b692985a60::t_193da7fb1f5555 142-160
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b86a1efb4e9465bd0f453bd562730443dda01d1d",
+  "prompts": {},
+  "sessions": {
+    "s_77d3b692985a60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8740494fffeKeLAPc4yoUweyC",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
