@@ -13,6 +13,7 @@ orchestration:
   lease_owner: opencode-chezmoi-tier
   lease_expires_at: '2026-10-28T20:08:43.643170Z'
   version: 1
+updated_date: 2026-10-28 18:19
 ---
 
 ## Description
@@ -31,7 +32,7 @@ The full suite on 2026-10-28 fails tests/permissions/test_opencode_tiers.py twic
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
+Consolidated with existing DOT-252. PR #96 changes only the stale OpenCode test expectation and two docs passages to match the author-approved main-only ask/approval policy in changelog.d/20261027_131000_bengineerdavis_apply-ask.md. It leaves working permission rules unchanged. Focused checks: 48 OpenCode-tier tests passed; 39 policy tests passed, 5 skipped. Needs human review before closure.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
