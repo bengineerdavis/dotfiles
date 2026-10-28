@@ -20,6 +20,12 @@ invisible to chezmoi (probed 2026-09-22: a dot-prefixed source dir appears in
 neither `chezmoi managed` nor `chezmoi status`), so they never deploy.
 `.worktrees/` is in the tracked `.gitignore`.
 
+**The main checkout stays on `main`.** A task branch is never checked out
+there: the main checkout is the collector every session shares, and its
+branch is shared state — switching it moves governance files under every
+other session's feet and turns branch hygiene into a stash dance (observed
+2026-10-27, PR #87). Task branches get their own worktree from the start.
+
 Naming is **flat, never grouped**:
 
 ```
