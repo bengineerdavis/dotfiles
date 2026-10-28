@@ -6,7 +6,7 @@ created_date: 2026-10-27 02:59
 labels:
 - planned
 - group:refactor-b-factor-the-ai-llm-tooling-out-of-this-repo
-updated_date: 2026-10-27 22:22
+updated_date: 2026-10-28 17:06
 ---
 
 ## Description
@@ -63,7 +63,7 @@ Factor a copier template for the chezmoi-Ansible topic format. **Its own
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
+2026-10-28 maintainer: use this existing task to extract deterministic topic creation from models into code. Reconcile with DOT-105 (A9, generator delivered in topical; migration/agent pass still open), DOT-183 (`topical new`), and DOT-213 (benchmark the templating tool before implementation). Treat the existing topical manager-aware skeleton/generator as the source to extract, not a second hand-built template. Include the established topic contract: lifecycle router and teardown, topic.yml/topic_requires, managers.yaml manager-specific blocks, chezmoi source files, tests and Molecule scenarios, docs and changelog. Preserve the separation of deterministic generation from an optional agent pass; a valid generated topic must not require a model. Include the fail-closed throwaway-agent-session testing pattern from the Lore integration as a reusable test concern, without embedding a specific tool or provider. Do not implement in this dotfiles session: extraction belongs in the topical/template repositories after maintainer review.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
