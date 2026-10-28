@@ -1,12 +1,12 @@
 ---
 id: DOT-94
 title: Decide when `scriv collect` runs
-status: To Do
+status: Done
 created_date: 2026-10-27 02:56
 labels:
 - now
 priority: high
-updated_date: 2026-10-28 18:42
+updated_date: 2026-10-28 20:08
 orchestration:
   status_key: inprogress
   lease_owner: opencode
@@ -32,6 +32,7 @@ Decide when `scriv collect` runs. The changelog exists and fragments
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
 Author ruling 2026-10-28: every merged PR is the changelog collection point for now; this does not introduce semantic versions, tags, or GitHub Releases. Use the existing scope: imperative statement commit convention, not Conventional Commits. Dedicated branch/worktree changelog-merge. Use a merged-PR GitHub Actions collector with least-privilege contents:write, pinned actions, PR-scoped dated headings, serialized runs, and only fragments introduced by that PR. Bootstrap the historical fragment backlog separately in the same PR. Human review required for the new main-write automation; rebase other active PR branches after it merges.
+Completed 2026-10-28 by PR #97 (merge 04630eb). Root/chezmoi-source changelog collector merged; 35 historical fragments collected separately; per-topic changelogs remain independent. Live workflow run 40759134598 succeeded and correctly no-opped because PR #97 introduced no new fragments. Local selected-fragment rehearsal preserved unrelated fragments and existing entries; empty scriv collection exits 2 and is guarded by the workflow. 73 focused tests, actionlint and skillet validation passed. No version tags or GitHub Releases created.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
