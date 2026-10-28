@@ -87,7 +87,7 @@ BOTH = [
     ),
     ("git push --force-with-lease origin main", "deny", "spec.md § Change records"),
     ("git push --force origin main", "deny", "spec.md § Change records"),
-    ("chezmoi apply ~/dotfiles", "deny", "AGENTS.md § Applying is main-only"),
+    ("chezmoi apply ~/dotfiles", "ask", "main-only; the prompt is approval"),
 ]
 
 # (command, required tier in the TOP-LEVEL block, why). The autonomous agent
