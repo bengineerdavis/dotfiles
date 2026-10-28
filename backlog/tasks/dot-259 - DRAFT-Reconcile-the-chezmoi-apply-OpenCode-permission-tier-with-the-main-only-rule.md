@@ -8,6 +8,11 @@ labels:
 - permissions
 - policy
 priority: high
+orchestration:
+  status_key: inprogress
+  lease_owner: opencode-chezmoi-tier
+  lease_expires_at: '2026-10-28T20:08:43.643170Z'
+  version: 1
 ---
 
 ## Description
@@ -38,3 +43,22 @@ The full suite on 2026-10-28 fails tests/permissions/test_opencode_tiers.py twic
 ## Definition of Done
 <!-- DOD:BEGIN -->
 <!-- DOD:END -->
+
+## Run History
+<!-- SECTION:RUN_HISTORY:BEGIN -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-181819c5278a491483fd3c7d7003b60f
+type: claim_task
+actor: opencode-chezmoi-tier
+timestamp: '2026-10-28T18:08:43.643234Z'
+result: succeeded
+task_id: DOT-259
+from_status: todo
+to_status: inprogress
+metadata:
+  lease_ttl_seconds: '7200'
+```
+Separate policy reconciliation branch .worktrees/chezmoi-apply-tier.
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- SECTION:RUN_HISTORY:END -->
