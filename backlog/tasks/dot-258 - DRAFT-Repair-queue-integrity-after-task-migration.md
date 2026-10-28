@@ -7,6 +7,11 @@ labels:
 - backlog
 - process
 priority: high
+orchestration:
+  status_key: inprogress
+  lease_owner: opencode-queue-integrity
+  lease_expires_at: '2026-10-28T20:08:43.251244Z'
+  version: 1
 ---
 
 ## Description
@@ -37,3 +42,22 @@ The full test suite on 2026-10-28 fails tests/backlog/test_queue_integrity.py::t
 ## Definition of Done
 <!-- DOD:BEGIN -->
 <!-- DOD:END -->
+
+## Run History
+<!-- SECTION:RUN_HISTORY:BEGIN -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-4c204e9e2490465e8888550b36730b51
+type: claim_task
+actor: opencode-queue-integrity
+timestamp: '2026-10-28T18:08:43.251320Z'
+result: succeeded
+task_id: DOT-258
+from_status: todo
+to_status: inprogress
+metadata:
+  lease_ttl_seconds: '7200'
+```
+Separate queue repair branch .worktrees/queue-integrity; preserve other sessions task edits.
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- SECTION:RUN_HISTORY:END -->
