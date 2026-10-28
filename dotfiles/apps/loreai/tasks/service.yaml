@@ -105,7 +105,8 @@
   when: >
     ansible_facts['os_family'] == 'Darwin'
     and (loreai_unit_file_darwin.changed or loreai_service_probe.rc != 0
-         or loreai_binary_cmp.rc | default(1) != 0)
+         or loreai_binary_cmp.rc | default(1) != 0
+         or loreai_env_upstream.changed | default(false))
   register: loreai_service_load
   changed_when: "'already' not in (loreai_service_load.stderr | default(''))"
   tags: [loreai, install, upgrade]
@@ -119,6 +120,7 @@
       {{ 'restarted'
          if loreai_unit_file_debian.changed
             or loreai_binary_cmp.rc | default(1) != 0
+            or loreai_env_upstream.changed | default(false)
          else 'started' }}
     scope: user
     daemon_reload: "{{ loreai_unit_file_debian.changed }}"

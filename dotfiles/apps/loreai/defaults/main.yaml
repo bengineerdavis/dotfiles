@@ -73,6 +73,11 @@ loreai_worker_model: ~
 # knob), so the pick must clear the hardest bar: curation, the judgment
 # task. IDs verified against the live OpenRouter catalog 2026-10-21.
 loreai_worker_model_openrouter_default: "openrouter/z-ai/glm-5.3-flash"
+# Temporary 2026-10-28 workaround for OpenCode's missing provider route:
+# send OpenAI-protocol sessions to OpenRouter, not api.openai.com. Override
+# with https://api.openai.com to restore genuine OpenAI sessions; remove when
+# the OpenCode integration supplies X-Lore-Provider itself.
+loreai_openai_upstream: "https://openrouter.ai/api"
 loreai_worker_model_local_default: "ollama/qwen3.6:35b-a3b-coding-nvfp4"
 loreai_local_upstream: "http://localhost:11434"
 
@@ -124,8 +129,9 @@ loreai_worker_model_local_candidates:
 # persistent routing config. Detection mirrors lore's own: a CLI on PATH;
 # codex also counts an existing ~/.codex/config.toml (Codex Desktop has no
 # CLI). opencode is NOT here — chezmoi owns opencode.jsonc on this fleet, so
-# its extension is the plugin fragment the chezmoi template includes
-# (files/opencode/lore-plugin.jsonc), verified by tasks/agents/opencode.yaml.
+# its extension is the config fragment the chezmoi template merges
+# (files/opencode/lore-plugin.jsonc) plus the package installed by
+# tasks/agents/opencode.yaml.
 loreai_setup_agents:
   - app: claude-code
     probe: claude

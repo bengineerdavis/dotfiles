@@ -44,10 +44,16 @@
         state: started
         scope: user
 
-    - name: Wait for the service to adopt the hand-launched gateway
+    - name: Wait for the service to replace the hand-launched gateway
+      # Doctor succeeds against the old gateway too. Wait for the actual
+      # replacement: a different pid and the hand-launched process gone.
       ansible.builtin.shell: |
-        for i in 1 2 3 4 5 6 7 8 9 10; do
-          {{ lore_bin }} doctor 2>&1 | grep -q 'gateway reachable: responding' && exit 0
+        for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
+          current=$(cat {{ gateway_pid_file }} 2>/dev/null || true)
+          if [ -n "$current" ] && [ "$current" != "{{ hand_gateway_pid.stdout | trim }}" ] \
+            && ! kill -0 {{ hand_gateway_pid.stdout | trim }} 2>/dev/null; then
+            exit 0
+          fi
           sleep 1
         done
         exit 1

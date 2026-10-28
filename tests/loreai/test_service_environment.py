@@ -47,6 +47,11 @@ def test_env_file_resolves_openrouter_key_in_service_shells(tmp_path, shell):
     assert result.returncode == 0, result.stderr
 
 
+def test_env_file_routes_openai_protocol_to_openrouter():
+    expected = 'export LORE_UPSTREAM_OPENAI="https://openrouter.ai/api"'
+    assert expected in render_env_file()
+
+
 def test_service_path_uses_stable_mise_shims():
     defaults = yaml.safe_load((TOPIC / "defaults" / "main.yaml").read_text())
     rendered = JINJA.from_string(defaults["loreai_service_path"]).render(

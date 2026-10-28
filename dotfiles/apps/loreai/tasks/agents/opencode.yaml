@@ -4,14 +4,29 @@
 # (dot_config/opencode/), and when both opencode.json and .jsonc exist the
 # .jsonc wins (measured 2026-09-12, recorded in that file's header) — setup's
 # writes would be shadowed or reverted. The integration is instead the
-# plugin fragment the chezmoi template includes from this topic
-# (files/opencode/lore-plugin.jsonc): opencode auto-installs a listed plugin
-# on first run, and the plugin itself disables compaction and routes every
-# session through the gateway, auto-starting one in-process.
+# fragment the chezmoi template merges from this topic
+# (files/opencode/lore-plugin.jsonc): the same three settings setup writes
+# (plugin, gateway baseURL, compaction.auto=false), translated to this
+# config's shape, deep-merged ahead of the model overrides.
 #
-# This file only VERIFIES the wiring landed, and names the fix when it has
-# not. It warns rather than fails: render order (chezmoi apply vs this run)
-# is not this topic's to enforce.
+# The package itself is installed here, through opencode's own channel.
+# Measured 2026-10-27 (opencode 2.x): the shared server's in-process
+# auto-install of a listed plugin can wedge for hours (NpmInstallFailedError
+# then LockTimeoutError) while `opencode plugin add` converges immediately.
+# Probing first keeps the run idempotent; `plugin add` also registers the
+# package in opencode.json, which is harmless — the jsonc still wins.
+
+- name: "loreai: probe for the installed opencode plugin package"
+  ansible.builtin.command: npm ls -g @loreai/opencode --depth=0
+  register: loreai_opencode_package_probe
+  changed_when: false
+  failed_when: false
+  check_mode: false  # read-only probe; keeps --check honest
+
+- name: "loreai: install the opencode plugin package"
+  ansible.builtin.command: opencode plugin add @loreai/opencode
+  register: loreai_opencode_package_install
+  when: loreai_opencode_package_probe.rc != 0 and not ansible_check_mode
 
 - name: "loreai: check the deployed opencode config for the lore plugin"
   ansible.builtin.command: >-
@@ -27,9 +42,9 @@
   ansible.builtin.debug:
     msg: >-
       {% if loreai_opencode_plugin_check.rc == 0 %}
-      opencode: @loreai/opencode is registered in the deployed config —
-      the plugin auto-installs on first run and routes sessions through
-      the gateway.
+      opencode: @loreai/opencode is installed and registered in the deployed
+      config — plugin, gateway baseURL, and compaction.auto=false are
+      deep-merged ahead of the model overrides.
       {% else %}
       opencode is installed, but @loreai/opencode is NOT in the deployed
       ~/.config/opencode/opencode.jsonc yet. The chezmoi template includes

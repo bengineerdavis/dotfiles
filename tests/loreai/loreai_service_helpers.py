@@ -30,6 +30,7 @@ def render_env_file() -> str:
         loreai_inference_final="openrouter",
         loreai_local_upstream="http://localhost:11434",
         loreai_worker_model_final="openrouter/z-ai/glm-5.3-flash",
+        loreai_openai_upstream="https://openrouter.ai/api",
         loreai_worker_model_candidates=[],
         loreai_worker_model_local_candidates=[],
     )

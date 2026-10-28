@@ -13,7 +13,8 @@
 #   the lore binary                → deleted below
 #   ~/.config/loreai/env.zsh       → deleted below (the per-machine answers)
 #   files/zsh/path.zsh PATH entry  → self-guarding; nothing to do
-#   opencode plugin key            → disappears with the topic directory;
+#   opencode plugin package        → `opencode plugin remove` below
+#   opencode plugin config         → disappears with the topic directory;
 #                                    the chezmoi include is stat-guarded —
 #                                    delete the topic, `chezmoi apply`
 # What it deliberately preserves: the memory database and Lore's own
@@ -81,6 +82,14 @@
   loop_control:
     label: "{{ item.item.app }}"
 
+- name: "loreai: remove the opencode plugin package"
+  # OpenCode owns both the package and its registration. Its legacy
+  # opencode.json is lower precedence than the chezmoi-owned jsonc.
+  ansible.builtin.command: opencode plugin remove @loreai/opencode
+  register: loreai_opencode_plugin_remove
+  changed_when: false
+  failed_when: false
+
 - name: "loreai: remove the lore binary"
   ansible.builtin.file:
     path: "{{ loreai_install_dir }}/lore"
@@ -98,8 +107,8 @@
   ansible.builtin.debug:
     msg: >-
       Removed: the lore binary, {{ loreai_config_dir }}, ~/.cache/lore, the
-      gateway service unit and its logs, and each agent's setup config.
-      PRESERVED for manual review (the memory
+      gateway service unit and its logs, each agent's setup config, and the
+      opencode plugin package. PRESERVED for manual review (the memory
       database is the point of the tool): {{ loreai_preserved_dirs | join(', ') }} —
       delete by hand to purge. opencode: the plugin key lives in the
       chezmoi-included fragment; it disappears from the deployed config on

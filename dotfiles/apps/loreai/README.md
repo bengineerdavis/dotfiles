@@ -54,16 +54,23 @@ on PATH; codex also counts an existing `~/.codex/config.toml`):
 | codex | `lore setup codex` | `~/.codex/config.toml` |
 | pi | `lore setup pi` | `~/.pi/agent/models.json` |
 | hermes | `lore setup hermes` | `~/.hermes/.env` |
-| opencode | **chezmoi plugin fragment** | `~/.config/opencode/opencode.jsonc` |
+| opencode | **chezmoi fragment + `opencode plugin add`** | `~/.config/opencode/opencode.jsonc` + plugin package |
 
 opencode is the exception because chezmoi owns its config here — and when
 both `opencode.json` and `.jsonc` exist the `.jsonc` wins, so
 `lore setup opencode`'s writes would be shadowed. The template
-(`dot_config/opencode/opencode.jsonc.tmpl`) includes this topic's
-`files/opencode/lore-plugin.jsonc` behind a stat guard; opencode
-auto-installs the plugin on first run, and the plugin disables compaction
-and routes sessions through the gateway itself. Removing the topic
-directory removes the key on the next `chezmoi apply`.
+(`dot_config/opencode/opencode.jsonc.tmpl`) deep-merges this topic's
+`files/opencode/lore-plugin.jsonc` behind a stat guard, ahead of the model
+overrides. It captures setup's plugin, gateway baseURL, and disabled
+auto-compaction. The fragment mirrors setup's complete provider set; it does
+not redirect Ollama, which setup does not declare. Review that set on each
+upgrade: `tests/loreai/test_opencode_setup_parity.py` runs the real command in
+an isolated HOME and fails when its complete output drifts from the fragment.
+
+Ansible installs `@loreai/opencode` with `opencode plugin add` when the
+package is absent; it does not rely on OpenCode's auto-install. Removing the
+topic removes the package with `opencode plugin remove`; its config fragment
+disappears on the next `chezmoi apply` after the topic directory is removed.
 
 ## Gateway service
 
@@ -98,6 +105,32 @@ default and deliberately disables gateway access authentication in local
 mode. Its `LORE_GATEWAY_AUTH_TOKEN` is for remote/hosted clients, not this
 loopback deployment; revisit authentication before binding beyond
 loopback. `LORE_ALLOW_REMOTE_MANAGEMENT` stays off.
+
+## Throwaway agent-session tests
+
+`tests/loreai/test_opencode_e2e.py` is an opt-in real-model test (`llm_judge`).
+It proves a complete integration path: OpenCode calls the gateway, receives
+`OK`, and Lore records the session in the throwaway project.
+
+Isolation covers more than a temporary working directory:
+
+- Both subprocess `cwd` and `PWD` point at the throwaway project. OpenCode
+  otherwise discovers the caller's repository through the inherited `PWD`.
+- XDG config, data, cache, and state paths belong to the test, and parent
+  OpenCode/Lore session variables are removed.
+- A dedicated gateway listens on a free port with `LORE_DB_PATH` in the temp
+  directory. The test stops only that process group afterward.
+- No destructive command targets the live Lore database. Temp directory
+  removal cleans the test records, and the test checks the live project list
+  for the absence of the throwaway project.
+- Curation and project-file export are disabled for this minimal test, so it
+  does not spend worker tokens or write `.lore.md`/`AGENTS.md`.
+
+Process isolation is enough for this config/recording check. Use a VM for
+service-manager, reboot, privilege, filesystem, or cross-OS behavior; the
+fleet-matrix design is DOT-255. Reusable fail-closed session-test rules are
+DOT-256. Extract a shared helper only when another agent topic needs the same
+interface.
 
 ## Independence and prerequisites
 

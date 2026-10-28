@@ -27,6 +27,8 @@ export LORE_WORKER_UPSTREAM="{{ loreai_local_upstream }}"
 # Exported whenever set, for any inference choice: LORE_WORKER_MODEL is the
 # top-priority override independent of where workers run.
 export LORE_WORKER_MODEL="{{ loreai_worker_model_final }}"
+# Temporary OpenCode workaround: route OpenAI-protocol sessions to OpenRouter.
+export LORE_UPSTREAM_OPENAI="{{ loreai_openai_upstream }}"
 {% endif -%}
 {% if loreai_inference_final == 'openrouter' or loreai_worker_model_final is match('^openrouter/') -%}
 # Key resolution: an existing environment wins; a secrets manager is the

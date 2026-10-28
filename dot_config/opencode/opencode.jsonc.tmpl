@@ -12,14 +12,16 @@
   // upgrade path, so `auto` stays off.
   "update": "notify",
 
-  // The Lore.AI plugin key lives in the loreai topic
+  // The Lore.AI integration lives in the loreai topic
   // (dotfiles/apps/loreai/files/opencode/lore-plugin.jsonc) and is included
-  // here behind a stat guard: removing the topic removes the key from the
-  // deployed config without breaking `chezmoi apply`. Keep `plugin` out of
+  // here behind a stat guard: removing the topic removes its config from the
+  // deployed file without breaking `chezmoi apply`. It captures `lore setup
+  // opencode` for this fleet's compatible config shape. Keep `plugin` out of
   // .chezmoidata/opencode.yaml — two `plugin` keys would collide.
   {{- $lore_plugin := "dotfiles/apps/loreai/files/opencode/lore-plugin.jsonc" }}
+  {{- $lore_config := dict }}
   {{- if stat (joinPath .chezmoi.sourceDir $lore_plugin) }}
-  {{ includeTemplate $lore_plugin . | trim }},
+  {{- $lore_config = fromJson (includeTemplate $lore_plugin .) }}
   {{- end }}
 
   // Models, providers and agents come from .chezmoidata/opencode.yaml:
@@ -28,7 +30,7 @@
   // summaries, compaction) stays local so trivial calls never leave the box.
   // The `deep` agent opens on Opus 5 at max reasoning effort.
 {{- $oc := .opencode }}
-{{- $cfg := deepCopy $oc.common }}
+{{- $cfg := mergeOverwrite $lore_config (deepCopy $oc.common) }}
 {{- $cfg = mergeOverwrite $cfg (deepCopy (get $oc.os .chezmoi.os | default dict)) }}
 {{- $cfg = mergeOverwrite $cfg (deepCopy (get $oc.hosts .chezmoi.hostname | default dict)) }}
 {{- range $key := keys $cfg | sortAlpha }}
