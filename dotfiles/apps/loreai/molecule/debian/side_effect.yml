@@ -62,10 +62,17 @@
       register: adopted_gateway_pid
       changed_when: false
 
-    - name: Assert adoption did not start a second gateway
+    - name: Check whether the hand-launched process survived adoption
+      ansible.builtin.shell: kill -0 {{ hand_gateway_pid.stdout | trim }}
+      register: old_gateway_process
+      changed_when: false
+      failed_when: false
+
+    - name: Assert the hosted hand gateway was replaced, not duplicated
       ansible.builtin.assert:
         that:
-          - adopted_gateway_pid.stdout | trim == hand_gateway_pid.stdout | trim
+          - adopted_gateway_pid.stdout | trim != hand_gateway_pid.stdout | trim
+          - old_gateway_process.rc != 0
 
     - name: Simulate the binary-change condition during an upgrade
       ansible.builtin.include_role:
@@ -114,18 +121,24 @@
         state: restarted
         scope: user
 
-    - name: Observe the off-contract health failure without aborting the play
-      block:
-        - name: Apply the health check against the off-contract port
-          ansible.builtin.include_role:
-            name: apps/loreai
-            tasks_from: service
-          register: nondefault_service
-      rescue:
-        - name: Assert the non-default port fails the agent-facing health check
-          ansible.builtin.assert:
-            that:
-              - nondefault_service.failed
+    - name: Run the off-contract health check directly
+      # A plain task registers its own rc; include_role cannot register a
+      # child task's failure (roborev review #39).
+      ansible.builtin.shell: |
+        port=$(cat {{ gateway_port_file }} 2>/dev/null)
+        if [ "$port" = "3207" ] && {{ lore_bin }} doctor 2>&1 | grep -q "gateway reachable: responding on port 3207"; then
+          exit 0
+        fi
+        echo "Lore gateway is not serving the agent-facing port 3207 (port file: ${port:-missing})" >&2
+        exit 1
+      register: nondefault_health
+      changed_when: false
+      failed_when: false
+
+    - name: Assert the non-default port fails the agent-facing health check
+      ansible.builtin.assert:
+        that:
+          - nondefault_health.rc != 0
 
     - name: Restore the agent-facing port in the env file
       ansible.builtin.lineinfile:

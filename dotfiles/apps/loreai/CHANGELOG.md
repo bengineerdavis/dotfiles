@@ -16,7 +16,8 @@ changelog tool. Entries are dated, not versioned.
   survive reboots. Units run `lore start --local` in the foreground and source
   the per-machine env file; local mode enables per-project `.lore.md` writes,
   and the health check requires the agent-facing port 3207. The service
-  supervises adopted gateways and restarts on binary upgrades.
+  replaces adopted hosted gateways with local service-owned instances and
+  restarts on binary upgrades.
   remove.yaml stops the service, removes units and logs, and stops any
   hand-launched `lore start --bg` gateway.
 

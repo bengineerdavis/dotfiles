@@ -7,10 +7,11 @@
 # under a system service manager (systemd, launchd, etc.)".
 #
 # Pattern: apps/backlog's daemon service (TOPIC-RECIPES.md service
-# ownership), with two Lore-specific corrections: the unit keeps supervising
-# after `lore start` adopts an existing gateway and exits, and the health
-# check requires the agent-facing port 3207 rather than accepting any port
-# the gateway happened to bind (roborev review #37).
+# ownership), with two Lore-specific corrections: after `lore start`
+# adopts an existing gateway and exits, the unit replaces it with a
+# service-owned local-mode instance and supervises that process; the health
+# check requires agent-facing port 3207 rather than accepting any port the
+# gateway happened to bind (roborev reviews #37 and #39).
 
 - name: "loreai: create the launchd agent directory (Darwin)"
   ansible.builtin.file:
@@ -143,7 +144,7 @@
   # not be blessed by reading its own port file (roborev review #37).
   ansible.builtin.shell:
     cmd: |
-      for i in 1 2 3 4 5; do
+      for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
         port=$(cat {{ ansible_env.HOME }}/.local/share/lore/gateway.port 2>/dev/null)
         if [ "$port" = "3207" ] && {{ loreai_install_dir }}/lore doctor 2>&1 | grep -q "gateway reachable: responding on port 3207"; then
           exit 0

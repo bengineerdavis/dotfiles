@@ -16,7 +16,7 @@
   <array>
     <string>/bin/bash</string>
     <string>-c</string>
-    <string>source {{ loreai_env_file }} &amp;&amp; export LORE_WORKER_API_KEY="${LORE_WORKER_API_KEY:-$OPENROUTER_API_KEY}" &amp;&amp; {{ loreai_install_dir }}/lore start --local; rc=$?; if [ $rc -ne 0 ]; then exit $rc; fi; while sleep 10; do port=$(cat {{ ansible_env.HOME }}/.local/share/lore/gateway.port 2>/dev/null); if [ -z "$port" ] || ! {{ loreai_install_dir }}/lore doctor 2>&amp;1 | grep -q "gateway reachable: responding on port $port"; then exit 1; fi; done</string>
+    <string>source {{ loreai_env_file }} &amp;&amp; export LORE_WORKER_API_KEY="${LORE_WORKER_API_KEY:-$OPENROUTER_API_KEY}" &amp;&amp; {{ loreai_install_dir }}/lore start --local; rc=$?; if [ $rc -ne 0 ]; then exit $rc; fi; {{ loreai_install_dir }}/lore stop >/dev/null 2>&amp;1 || true; {{ loreai_install_dir }}/lore start --local; rc=$?; if [ $rc -ne 0 ]; then exit $rc; fi; while sleep 10; do port=$(cat {{ ansible_env.HOME }}/.local/share/lore/gateway.port 2>/dev/null); if [ -z "$port" ] || ! {{ loreai_install_dir }}/lore doctor 2>&amp;1 | grep -q "gateway reachable: responding on port $port"; then exit 1; fi; done</string>
   </array>
   <key>EnvironmentVariables</key>
   <dict>

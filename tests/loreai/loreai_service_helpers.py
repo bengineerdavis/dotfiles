@@ -80,11 +80,14 @@ def run_service_command(tmp_path, manager):
     lore = tmp_path / "lore"
     lore.write_text(
         "#!/bin/sh\n"
+        'printf \'%s\\n\' "$*" >> "$LORE_TEST_CALL_LOG"\n'
         'case "$1" in\n'
         "  start)\n"
         '    [ "$2" = --local ] '
         '&& [ "$OPENROUTER_API_KEY" = dummy-openrouter-key ] '
         '&& [ "$LORE_WORKER_API_KEY" = dummy-openrouter-key ] || exit 90\n'
+        "    exit 0 ;;\n"
+        "  stop)\n"
         "    exit 0 ;;\n"
         "  doctor)\n"
         "    count=0\n"
@@ -104,6 +107,9 @@ def run_service_command(tmp_path, manager):
     sleep.write_text("#!/bin/sh\nexit 0\n")
     sleep.chmod(0o755)
     command, path = service_command(tmp_path, manager)
+    port_file = tmp_path / ".local" / "share" / "lore" / "gateway.port"
+    port_file.parent.mkdir(parents=True)
+    port_file.write_text("3207\n")
 
     return subprocess.run(
         command,
@@ -111,6 +117,7 @@ def run_service_command(tmp_path, manager):
             "HOME": str(tmp_path),
             "PATH": path,
             "LORE_TEST_DOCTOR_COUNT": str(tmp_path / "doctor-count"),
+            "LORE_TEST_CALL_LOG": str(tmp_path / "call-log"),
         },
         capture_output=True,
         text=True,
