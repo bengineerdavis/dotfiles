@@ -87,3 +87,109 @@
     label: "{{ item.item.path }}"
   when: not item.stat.exists
   changed_when: false
+# ── work: reconcile the work tree into one machine-local group ────────────────
+#
+# Work repos never enter the committed catalogue (spec.md § Data: employer
+# strings stay machine-local), so their registration is discovery-driven
+# instead. Every install reconciles gita against the disk under the work
+# root: registrations whose repos left the machine are pruned, repos that
+# appeared are registered by the recursive walk, and every work-tree
+# registration is swept into the single group. No repo name is ever committed
+# — gita's own CSVs, written by first-party commands, are the only state.
+#
+# The walk (gita add -r) globs `**/` which does not match dot-directories, so
+# vendored trees inside .venv/node_modules are never registered. Worktree and
+# submodule style `.git` files ARE registered — same as the catalogue path
+# above registers personal worktrees. `gita rm` also removes from groups, so
+# pruned ghosts leave the group with the registration.
+
+- name: "Install: probe whether a work tree exists on this machine"
+  ansible.builtin.stat:
+    path: "{{ gita_work_root }}"
+  register: gita_work_root_probe
+  changed_when: false
+
+- name: "Install: report the skipped work reconciliation on personal machines"
+  ansible.builtin.debug:
+    msg: >-
+      No work tree at {{ gita_work_root }} — work reconciliation is skipped;
+      the group and its registrations exist only where a work tree does.
+  when: not gita_work_root_probe.stat.exists
+  changed_when: false
+
+- name: "Install: read gita's registrations (freeze is the first-party read)"
+  ansible.builtin.command:
+    cmd: gita freeze
+  register: gita_freeze
+  when: gita_work_root_probe.stat.exists
+  changed_when: false
+
+- name: "Install: collect the work-tree registrations (name and path per repo)"
+  ansible.builtin.set_fact:
+    gita_work_registrations: >-
+      {%- set out = [] -%}
+      {%- for line in gita_freeze.stdout_lines -%}
+      {%-   set fields = line.split(',') -%}
+      {%-   if fields | length >= 3 and fields[2].startswith(gita_work_root ~ '/') -%}
+      {%-     set _ = out.append({'name': fields[1], 'path': fields[2]}) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ out }}
+  when: gita_work_root_probe.stat.exists
+
+- name: "Install: check which work registrations still point at a repo"
+  ansible.builtin.stat:
+    path: "{{ item.path }}/.git"
+  loop: "{{ gita_work_registrations | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: gita_work_ghost_stats
+  when: gita_work_registrations | default([]) | length > 0
+  changed_when: false
+
+- name: "Install: prune registrations whose repos left the machine (gita rm)"
+  ansible.builtin.command:
+    cmd: gita rm {{ item.item.name }}
+  loop: "{{ gita_work_ghost_stats.results | default([]) | selectattr('stat.exists', 'defined') | selectattr('stat.exists', 'equalto', false) | list }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  # Pruning is gita's own state converging on disk truth, never a run-abort.
+  changed_when: false
+  failed_when: false
+
+- name: "Install: register repos that appeared under the work root (recursive walk, new finds land in the group)"
+  ansible.builtin.command:
+    cmd: gita add -r -g {{ gita_work_group }} {{ gita_work_root }}
+  when: gita_work_root_probe.stat.exists
+  # Re-adds of known repos warn harmlessly; discovery is gita's own state.
+  changed_when: false
+  failed_when: false
+
+- name: "Install: re-read registrations after the walk (names include the newly added)"
+  ansible.builtin.command:
+    cmd: gita freeze
+  register: gita_freeze_after
+  when: gita_work_root_probe.stat.exists
+  changed_when: false
+
+- name: "Install: collect the final work-tree names"
+  ansible.builtin.set_fact:
+    gita_work_names: >-
+      {%- set out = [] -%}
+      {%- for line in gita_freeze_after.stdout_lines -%}
+      {%-   set fields = line.split(',') -%}
+      {%-   if fields | length >= 3 and fields[2].startswith(gita_work_root ~ '/') -%}
+      {%-     set _ = out.append(fields[1]) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ out }}
+  when: gita_work_root_probe.stat.exists
+
+- name: "Install: sweep every work-tree registration into the single work group"
+  ansible.builtin.command:
+    cmd: gita group add -n {{ gita_work_group }} {{ gita_work_names | join(' ') }}
+  when: gita_work_root_probe.stat.exists and gita_work_names | default([]) | length > 0
+  # group add is a set-union: already-grouped members are a no-op, and the
+  # pre-registered repos the walk skips still land in the group here.
+  changed_when: false
+  failed_when: false

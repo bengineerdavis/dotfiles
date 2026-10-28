@@ -65,7 +65,7 @@ ansible-playbook apps/gita/playbook.yaml --tags remove -e gita_remove_registrati
 by hand, so it is gated; the mise entry removal is ungated (it undoes exactly
 what install claimed). The two `mise` shell-outs are the stopgap form — a
 declarative mise module/role (call mise like apt/homebrew) is queued in
-`TASKS.md` and replaces them.
+`DOT-225` and replaces them.
 
 ## Known limits
 
@@ -75,3 +75,22 @@ declarative mise module/role (call mise like apt/homebrew) is queued in
 - **Stay out of `gita`'s file.** `repos.csv`/`groups.csv` are gita's own
   state; the topic writes them via gita's first-party `add`, never by editing
   the CSV directly.
+## The work tree: reconciled recursively, never catalogued
+
+Work repos are absent from `config/repos.yaml` on purpose (spec.md § Data:
+employer-identifying strings never enter the committed repo). Their
+registration is discovery-driven instead — every `--tags install` reconciles
+gita against the disk under `gita_work_root` (`~/code/work`):
+
+1. **Prune** registrations whose repo left the machine (`gita rm` — also
+   removes them from the group).
+2. **Register** what appeared: a recursive `gita add -r` walk; new finds land
+   straight in the group. The walk globs `**/` which never matches
+   dot-directories, so vendored trees (`.venv`, `node_modules`) are never
+   registered.
+3. **Sweep**: every work-tree registration into the single `gita_work_group`
+   (`work` — generic name; the group name is committed, repo names never are).
+
+`gita fetch` / `gita pull` then cover the whole tree through the group.
+`--tags remove` drops the group (the registrations themselves leave only
+behind the `gita_remove_registration` gate, same as personal repos).
