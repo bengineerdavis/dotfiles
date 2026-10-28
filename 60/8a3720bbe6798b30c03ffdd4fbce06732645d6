@@ -1,0 +1,14 @@
+"backlog/tasks/task-242 - Wire-provisioning-answers-into-machines.yml-loreai-pilot.md"
+  h_3789f648fd203c 1-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "608a3720bbe6798b30c03ffdd4fbce06732645d6",
+  "prompts": {},
+  "humans": {
+    "h_3789f648fd203c": {
+      "author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
