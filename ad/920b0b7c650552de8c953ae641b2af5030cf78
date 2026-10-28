@@ -1,0 +1,14 @@
+"backlog/completed/task-108 - Add-loreai-topic-Lore.AI-agent-memory-gateway.md"
+  h_3789f648fd203c 4,9,43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ad920b0b7c650552de8c953ae641b2af5030cf78",
+  "prompts": {},
+  "humans": {
+    "h_3789f648fd203c": {
+      "author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
