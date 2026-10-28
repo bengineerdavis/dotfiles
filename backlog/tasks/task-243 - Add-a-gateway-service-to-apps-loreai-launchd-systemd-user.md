@@ -1,12 +1,12 @@
 ---
 id: TASK-243
 title: Add a gateway service to apps/loreai (launchd + systemd user)
-status: To Do
+status: Done
 created_date: 2026-10-27 22:13
 labels:
 - loreai
 priority: high
-updated_date: 2026-10-27 22:13
+updated_date: 2026-10-28 20:18
 orchestration:
   status_key: inprogress
   version: 3
@@ -27,7 +27,7 @@ Root-cause followup from the .lore.md investigation (2026-10-27): the topic pers
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
+Merged 2026-10-28 by PR #88 (192fb98). Full merged-base suite: 1162 passed, 6 skipped, 8 deselected. macOS service/config apply was verified earlier; Debian Molecule evidence remains outstanding under the author's temporary exception recorded in DOT-254. The upstream OpenCode V1 plugin incompatibility remains in DOT-244 and BYK/loreai#2021.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
@@ -108,5 +108,19 @@ metadata:
   state_update: '{"status_key":"inprogress"}'
 ```
 PR #88 pushed at fc4eb57. Added isolated real OpenCode/Lore E2E, full setup parity, service-test refactor, and OpenCode package/config capture. Focused: 38 passed; isolated E2E passed; apply idempotent; doctor 6/6. Full suite: 1159 passed, 3 unrelated failures (DOT-258/DOT-259). Recovery import after the agent's unscoped Lore clear remains running; exact restoration is not claimed.
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-d9494ff6882c48f09b513b261eab2432
+type: record_run
+actor: opencode
+timestamp: '2026-10-28T20:18:48.249524Z'
+result: merged
+idempotency_key: loreai-gateway-service-merge-192fb98
+task_id: TASK-243
+verification:
+- 'uv run --frozen pytest tests tools -q: 1162 passed, 6 skipped, 8 deselected'
+```
+PR #88 merged as 192fb98. Gateway service and chezmoi-owned OpenCode capture are on main.
 <!-- RUN_HISTORY_ENTRY:END -->
 <!-- SECTION:RUN_HISTORY:END -->
