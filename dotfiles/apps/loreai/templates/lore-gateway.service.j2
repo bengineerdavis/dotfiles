@@ -10,7 +10,8 @@ Description=Lore.AI persistent-memory gateway (apps/loreai)
 After=default.target
 
 [Service]
-ExecStart=/bin/sh -c '. {{ loreai_env_file }} && exec {{ loreai_install_dir }}/lore start'
+Environment="PATH={{ loreai_service_path }}"
+ExecStart=/bin/bash -c '. {{ loreai_env_file }} && export LORE_WORKER_API_KEY="$${LORE_WORKER_API_KEY:-$$OPENROUTER_API_KEY}" && exec {{ loreai_install_dir }}/lore start --local'
 Restart=always
 RestartSec=3
 

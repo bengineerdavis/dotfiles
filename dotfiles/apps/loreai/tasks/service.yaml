@@ -13,12 +13,28 @@
 # reports the EXISTING instance, so a doctor pinned to :3207 would fail
 # against a healthy gateway on another port.
 
+- name: "loreai: create the launchd agent directory (Darwin)"
+  ansible.builtin.file:
+    path: "{{ loreai_plist_path | dirname }}"
+    state: directory
+    mode: "0755"
+  when: ansible_facts['os_family'] == 'Darwin'
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: create the systemd user unit directory (Debian)"
+  ansible.builtin.file:
+    path: "{{ loreai_unit_path | dirname }}"
+    state: directory
+    mode: "0755"
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [loreai, install, upgrade]
+
 - name: "loreai: install the gateway service unit (Darwin)"
   ansible.builtin.template:
     src: lore-gateway.plist.j2
     dest: "{{ loreai_plist_path }}"
     mode: "0644"
-  register: loreai_unit_file
+  register: loreai_unit_file_darwin
   when: ansible_facts['os_family'] == 'Darwin'
   tags: [loreai, install, upgrade]
 
@@ -27,7 +43,7 @@
     src: lore-gateway.service.j2
     dest: "{{ loreai_unit_path }}"
     mode: "0644"
-  register: loreai_unit_file
+  register: loreai_unit_file_debian
   when: ansible_facts['os_family'] == 'Debian'
   tags: [loreai, install, upgrade]
 
@@ -35,30 +51,70 @@
   ansible.builtin.file:
     path: "{{ loreai_logs_dir }}"
     state: directory
-    mode: "0755"
+    mode: "0700"
   tags: [loreai, install, upgrade]
 
-- name: "loreai: (re)bootstrap the gateway (Darwin)"
-  # bootout-then-bootstrap from the service recipe: a bootout of a missing
-  # service errors, so it is tolerated; bootstrap then enable converge both.
-  ansible.builtin.shell:
-    cmd: >-
-      launchctl bootout gui/$(id -u)/{{ loreai_gateway_label }} 2>/dev/null;
-      launchctl bootstrap gui/$(id -u) {{ loreai_plist_path }}
-      && launchctl enable gui/$(id -u)/{{ loreai_gateway_label }}
+- name: "loreai: protect the launchd gateway log"
+  # Pre-create/chmod so launchd's redirection cannot leave session metadata
+  # world-readable on a multi-user machine. Preserved timestamps keep this
+  # idempotent; the 0700 directory also gates the file.
+  ansible.builtin.file:
+    path: "{{ loreai_logs_dir }}/gateway.log"
+    state: touch
+    mode: "0600"
+    access_time: preserve
+    modification_time: preserve
   when: ansible_facts['os_family'] == 'Darwin'
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: probe whether the launchd agent is loaded (Darwin)"
+  # Shell form: the command module would pass $(id -u) as a literal operand.
+  ansible.builtin.shell:
+    cmd: launchctl print gui/$(id -u)/{{ loreai_gateway_label }}
+  register: loreai_service_probe
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: ansible_facts['os_family'] == 'Darwin'
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: (re)bootstrap the gateway when needed (Darwin)"
+  # Run only for a new/changed unit or an installed-but-unloaded agent.
+  # Bootout of a missing service is tolerated. Wait for deregistration before
+  # bootstrap: launchd otherwise races itself and returns Bootstrap failed 5.
+  ansible.builtin.shell:
+    cmd: |
+      launchctl bootout gui/$(id -u)/{{ loreai_gateway_label }} 2>/dev/null || true
+      for i in 1 2 3 4 5 6 7 8 9 10; do
+        launchctl print gui/$(id -u)/{{ loreai_gateway_label }} >/dev/null 2>&1 || break
+        sleep 1
+      done
+      launchctl bootstrap gui/$(id -u) {{ loreai_plist_path }} \
+        && launchctl enable gui/$(id -u)/{{ loreai_gateway_label }}
+  when: >
+    ansible_facts['os_family'] == 'Darwin'
+    and (loreai_unit_file_darwin.changed or loreai_service_probe.rc != 0)
   register: loreai_service_load
   changed_when: "'already' not in (loreai_service_load.stderr | default(''))"
   tags: [loreai, install, upgrade]
 
-- name: "loreai: (re)start the gateway (Debian)"
+- name: "loreai: enable and start the gateway (Debian)"
   ansible.builtin.systemd:
     name: lore-gateway
     enabled: true
-    state: restarted
+    state: started
     scope: user
+    daemon_reload: "{{ loreai_unit_file_debian.changed }}"
   register: loreai_service_load
   when: ansible_facts['os_family'] == 'Debian'
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: restart the gateway after a unit change (Debian)"
+  ansible.builtin.systemd:
+    name: lore-gateway
+    state: restarted
+    scope: user
+  when: ansible_facts['os_family'] == 'Debian' and loreai_unit_file_debian.changed
   tags: [loreai, install, upgrade]
 
 - name: "loreai: note the Debian session-only caveat"
@@ -98,7 +154,9 @@
   ansible.builtin.debug:
     msg: >-
       Gateway running under the per-user service; dashboard at
-      http://127.0.0.1:$(cat {{ ansible_env.HOME }}/.local/share/lore/gateway.port)/ui
-      — `lore doctor` verifies routing end to end.
+      http://127.0.0.1:{{
+        lookup('ansible.builtin.file',
+               ansible_env.HOME ~ '/.local/share/lore/gateway.port') | trim
+      }}/ui — `lore doctor` verifies routing end to end.
   when: not ansible_check_mode
   tags: [loreai, install, upgrade]

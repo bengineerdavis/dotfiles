@@ -48,6 +48,12 @@ loreai_env_file: "{{ loreai_config_dir }}/env.zsh"
 # file for the worker model and keys. Logs are topic-owned state (removed
 # with the topic); the memory database stays preserved, as below.
 loreai_gateway_label: "ai.withlore.gateway"
+# Service managers start with a sparse PATH that cannot find `llm` or `op`.
+# Stable per-user mise shims resolve both without baking in a versioned
+# install path or a machine-specific Homebrew prefix. Verified 2026-10-27:
+# this exact minimal PATH resolves the OpenRouter key and runs `op`.
+loreai_service_path: >-
+  {{ ansible_env.HOME }}/.local/bin:{{ ansible_env.HOME }}/.local/share/mise/shims:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 loreai_logs_dir: "{{ ansible_env.HOME }}/.local/state/lore"
 loreai_plist_path: >-
   {{ ansible_env.HOME }}/Library/LaunchAgents/{{ loreai_gateway_label }}.plist

@@ -13,8 +13,9 @@ changelog tool. Entries are dated, not versioned.
 
 - Gateway service (TASK-243): a per-user launchd agent (Darwin) and systemd
   user unit (Debian) keep the gateway alive, so the persistent agent setups
-  survive reboots. Units run `lore start` in the foreground and source the
-  per-machine env file; the health check reads the gateway's own port file.
+  survive reboots. Units run `lore start --local` in the foreground and source
+  the per-machine env file; local mode enables per-project `.lore.md` writes,
+  and the health check reads the gateway's own port file.
   remove.yaml stops the service, removes units and logs, and stops any
   hand-launched `lore start --bg` gateway.
 

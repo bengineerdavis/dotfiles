@@ -32,9 +32,16 @@ export LORE_WORKER_MODEL="{{ loreai_worker_model_final }}"
 # Key resolution: an existing environment wins; a secrets manager is the
 # intended home (1Password CLI is installed — fill in the item path and
 # uncomment); `llm keys` is the fallback, NOT the source of truth.
-if [[ -z "$OPENROUTER_API_KEY" ]]; then
+if [ -z "${OPENROUTER_API_KEY:-}" ]; then
   # export OPENROUTER_API_KEY="$(op read 'op://<vault>/<item>/credential' 2>/dev/null)"
   export OPENROUTER_API_KEY="$(llm keys get openrouter 2>/dev/null)"
+fi
+# Sessions may authenticate to Anthropic/OpenAI while workers use OpenRouter.
+# Give workers their own credential: the gateway otherwise looks in the
+# session's provider-scoped credential store and can run OpenRouter with no
+# auth even when OPENROUTER_API_KEY is present (observed 2026-10-27).
+if [ -z "${LORE_WORKER_API_KEY:-}" ]; then
+  export LORE_WORKER_API_KEY="$OPENROUTER_API_KEY"
 fi
 {% endif -%}
 # ── Reviewed alternates (OpenRouter catalog IDs + prices, 2026-10-21) ───────

@@ -14,10 +14,14 @@
   <key>Label</key><string>{{ loreai_gateway_label }}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/bin/zsh</string>
+    <string>/bin/bash</string>
     <string>-c</string>
-    <string>source {{ loreai_env_file }} &amp;&amp; exec {{ loreai_install_dir }}/lore start</string>
+    <string>source {{ loreai_env_file }} &amp;&amp; export LORE_WORKER_API_KEY="${LORE_WORKER_API_KEY:-$OPENROUTER_API_KEY}" &amp;&amp; exec {{ loreai_install_dir }}/lore start --local</string>
   </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>{{ loreai_service_path }}</string>
+  </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
   <key>StandardOutPath</key><string>{{ loreai_logs_dir }}/gateway.log</string>

@@ -1,0 +1,150 @@
+---
+# Exercise the running service, then tear the topic down before testinfra's
+# final-state checks. All assertions use external state: pid files, doctor,
+# systemctl, a real reboot, and the preserved database.
+- name: Exercise the Lore gateway lifecycle and remove the topic
+  hosts: all
+  gather_facts: true
+  become: false
+  vars:
+    lore_bin: "{{ ansible_facts.env.HOME }}/.local/bin/lore"
+    gateway_pid_file: "{{ ansible_facts.env.HOME }}/.local/share/lore/gateway.pid"
+    gateway_port_file: "{{ ansible_facts.env.HOME }}/.local/share/lore/gateway.port"
+  tasks:
+    - name: Assert the fresh install is active and enabled
+      ansible.builtin.command: systemctl --user {{ item }} lore-gateway
+      loop: [is-active, is-enabled]
+      changed_when: false
+
+    - name: Assert the fresh gateway answers doctor
+      ansible.builtin.command: "{{ lore_bin }} doctor"
+      register: fresh_doctor
+      changed_when: false
+      failed_when: >-
+        fresh_doctor.stdout is not search('gateway reachable: responding on port 3207')
+
+    - name: Stop the service before starting a gateway by hand
+      ansible.builtin.systemd:
+        name: lore-gateway
+        state: stopped
+        scope: user
+
+    - name: Start a hand-launched background gateway
+      ansible.builtin.command: "{{ lore_bin }} start --bg"
+      changed_when: false
+
+    - name: Read the hand-launched gateway pid
+      ansible.builtin.command: cat {{ gateway_pid_file }}
+      register: hand_gateway_pid
+      changed_when: false
+
+    - name: Start the service against the existing gateway
+      ansible.builtin.systemd:
+        name: lore-gateway
+        state: started
+        scope: user
+
+    - name: Wait for the service to adopt the hand-launched gateway
+      ansible.builtin.shell: |
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+          {{ lore_bin }} doctor 2>&1 | grep -q 'gateway reachable: responding' && exit 0
+          sleep 1
+        done
+        exit 1
+      changed_when: false
+
+    - name: Read the adopted gateway pid
+      ansible.builtin.command: cat {{ gateway_pid_file }}
+      register: adopted_gateway_pid
+      changed_when: false
+
+    - name: Assert adoption did not start a second gateway
+      ansible.builtin.assert:
+        that:
+          - adopted_gateway_pid.stdout | trim == hand_gateway_pid.stdout | trim
+
+    - name: Stop the hand-launched gateway so the service must respawn it
+      ansible.builtin.command: "{{ lore_bin }} stop"
+      changed_when: false
+
+    - name: Wait for a new service-owned gateway pid
+      ansible.builtin.shell: |
+        for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
+          pid=$(cat {{ gateway_pid_file }} 2>/dev/null || true)
+          if [ -n "$pid" ] && [ "$pid" != "{{ hand_gateway_pid.stdout | trim }}" ] \
+            && {{ lore_bin }} doctor 2>&1 | grep -q 'gateway reachable: responding'; then
+            exit 0
+          fi
+          sleep 1
+        done
+        exit 1
+      changed_when: false
+
+    - name: Move the gateway to a non-default port
+      ansible.builtin.lineinfile:
+        path: "{{ ansible_facts.env.HOME }}/.config/loreai/env.zsh"
+        regexp: '^export LORE_LISTEN_PORT='
+        line: export LORE_LISTEN_PORT=5673
+
+    - name: Restart the service to apply the non-default port
+      ansible.builtin.systemd:
+        name: lore-gateway
+        state: restarted
+        scope: user
+
+    - name: Reapply the service and its port-file health check
+      ansible.builtin.include_role:
+        name: apps/loreai
+        tasks_from: service
+
+    - name: Assert the health check accepted port 5673
+      ansible.builtin.command: "{{ lore_bin }} doctor"
+      register: nondefault_doctor
+      changed_when: false
+      failed_when: >-
+        nondefault_doctor.stdout is not search('gateway reachable: responding on port 5673')
+
+    - name: Reboot the VM to prove re-login persistence
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+      become: true
+
+    - name: Wait for the enabled service after reboot
+      ansible.builtin.shell: |
+        for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
+          {{ lore_bin }} doctor 2>&1 | grep -q 'gateway reachable: responding on port 5673' && exit 0
+          sleep 2
+        done
+        exit 1
+      changed_when: false
+
+    - name: Read the post-converge linger state
+      ansible.builtin.command:
+        cmd: loginctl show-user {{ ansible_facts.user_id }} --property=Linger
+      register: loreai_test_linger_after
+      changed_when: false
+
+    - name: Assert the topic did not change linger
+      ansible.builtin.assert:
+        that:
+          - loreai_test_linger_after.stdout | trim == lookup('ansible.builtin.file', '/tmp/loreai-molecule-linger-before') | trim
+
+    - name: Stop the service to create one final hand-launched gateway
+      ansible.builtin.systemd:
+        name: lore-gateway
+        state: stopped
+        scope: user
+
+    - name: Start the hand-launched gateway that teardown must kill
+      ansible.builtin.command: "{{ lore_bin }} start --bg"
+      changed_when: false
+
+    - name: Remove the topic, including the service and hand-launched gateway
+      ansible.builtin.include_role:
+        name: apps/loreai
+        tasks_from: remove
+
+    - name: Prove remove also tolerates an absent unit and binary
+      ansible.builtin.include_role:
+        name: apps/loreai
+        tasks_from: remove

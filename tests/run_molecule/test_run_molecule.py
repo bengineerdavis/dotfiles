@@ -173,6 +173,31 @@ def test_ephemeral_directory_is_pinned_into_the_scenario(scenario_repo):
     assert value == str(expected), value
 
 
+def make_named_scenario(scenario_repo: pathlib.Path, name: str) -> pathlib.Path:
+    scenario = scenario_repo / "dotfiles" / "apps" / "faketopic" / "molecule" / name
+    scenario.mkdir(parents=True)
+    (scenario / "molecule.yml").touch()
+    return scenario
+
+
+def test_named_scenario_is_passed_to_molecule(scenario_repo, monkeypatch):
+    make_named_scenario(scenario_repo, "debian")
+    monkeypatch.setenv("MOLECULE_SCENARIO", "debian")
+    result = run_wrapper(scenario_repo, "faketopic")
+    assert result.returncode == 0, result.stderr
+    (argv,) = molecule_invocations(scenario_repo)
+    assert argv[-2:] == ["-s", "debian"]
+
+
+def test_named_scenario_pins_its_own_state_dir(scenario_repo, monkeypatch):
+    scenario = make_named_scenario(scenario_repo, "debian")
+    monkeypatch.setenv("MOLECULE_SCENARIO", "debian")
+    result = run_wrapper(scenario_repo, "faketopic")
+    assert result.returncode == 0, result.stderr
+    (record,) = molecule_records(scenario_repo)
+    assert record["env-ed"] == [str(scenario / ".molecule")]
+
+
 def test_extra_args_pass_through_to_molecule(scenario_repo: pathlib.Path):
     result = run_wrapper(scenario_repo, "faketopic", "test", "--destroy=never")
     assert result.returncode == 0, result.stderr

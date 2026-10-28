@@ -77,7 +77,10 @@ foreground so the service manager owns the lifecycle, and both source
 `~/.config/loreai/env.zsh` for the worker model and keys. On Debian the
 unit only runs while you have a session; the install reports
 `loginctl enable-linger` for headless use rather than changing login
-behaviour. The health check reads the running gateway's own port file, so
+behaviour. Both units pass `--local`: this gateway shares its filesystem
+with the agents, and local mode is what enables per-project `.lore.md`
+reads/writes (plain `lore start` defaults to hosted mode and disables
+them). The health check reads the running gateway's own port file, so
 a healthy gateway on a non-default port is not a failure. One caveat: the
 unit does not pin a port, and `lore start` will adopt an already-running
 hand-started gateway rather than replacing it — if you run a gateway on a
@@ -86,9 +89,14 @@ non-default port yourself, the service leaves it alone (verified
 service owned the gateway from the first restart onward).
 
 Per-launch `lore run` still works and needs no service: it reuses the
-running gateway or starts one per invocation.
+running gateway or starts one per invocation. Service logs are restricted
+to the owning user (`0700` directory, `0600` launchd log).
 
-## Independence and prerequisites
+The gateway is a trusted-local-user service: Lore binds `127.0.0.1` by
+default and deliberately disables gateway access authentication in local
+mode. Its `LORE_GATEWAY_AUTH_TOKEN` is for remote/hosted clients, not this
+loopback deployment; revisit authentication before binding beyond
+loopback. `LORE_ALLOW_REMOTE_MANAGEMENT` stays off.
 
 ## Independence and prerequisites
 
