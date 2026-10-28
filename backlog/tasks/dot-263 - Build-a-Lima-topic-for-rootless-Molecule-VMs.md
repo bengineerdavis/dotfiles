@@ -8,6 +8,12 @@ labels:
 - molecule
 - chore
 priority: high
+orchestration:
+  status_key: inprogress
+  lease_owner: opencode
+  lease_expires_at: '2026-10-29T00:58:48.670897Z'
+  version: 1
+updated_date: 2026-10-28 23:58
 ---
 
 ## Description
@@ -39,6 +45,7 @@ Requirements:
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
 Requested by the author 2026-10-28 as a chore after the Lima rootless handoff. Existing adapter: github.com/filatof/molecule-lima, MIT, latest source inspected 2025-11-16. Evaluate it before implementation. Related DOT-254, DOT-255, DOT-261, DOT-262.
+2026-10-28 adapter evaluation: molecule-lima 0.0.3 loads under the locked Molecule environment, but its create playbook hardcodes networks: [{lima: shared}], writable /tmp/lima and read-only host-home mounts, and lookup(env, USER) for the SSH user. Lima 2.2.1 rejects shared networking without /opt/socket_vmnet, which violates rootless operation and host isolation. It writes per-instance inventory rather than the Molecule instance_config API and does not expose options to disable the shared network. Do not patch the installed package or adopt it as-is. Use Molecule core delegated create/destroy playbooks for the first vertical slice per the maintainer handoff, keeping the adapter upstream issue separate. Rootless Lima 2.2.1 + QEMU/HVF direct probe passed; molecule-lima create failed before boot on socket_vmnet. Destroy the stopped molecule-lima-probe instance after recording the result.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
@@ -50,3 +57,21 @@ Requested by the author 2026-10-28 as a chore after the Lima rootless handoff. E
 ## Definition of Done
 <!-- DOD:BEGIN -->
 <!-- DOD:END -->
+
+## Run History
+<!-- SECTION:RUN_HISTORY:BEGIN -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-e50d0b419134440f98184bd42dc8362a
+type: claim_task
+actor: opencode
+timestamp: '2026-10-28T23:58:48.670997Z'
+result: succeeded
+task_id: DOT-263
+from_status: todo
+to_status: inprogress
+metadata:
+  lease_ttl_seconds: '3600'
+```
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- SECTION:RUN_HISTORY:END -->
