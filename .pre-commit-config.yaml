@@ -74,3 +74,17 @@ repos:
         entry: python3 scripts/check_commit_proportionality.py
         stages: [commit-msg]
         pass_filenames: true
+
+  # 4. Queue integrity: backlog/ must stay machine-readable. The loader
+  #    shadows a duplicate id silently (core/repository.py), so a stale
+  #    session resurrecting an old task file name makes a real task
+  #    invisible with no error anywhere (observed twice 2026-10-27/28 —
+  #    DOT-246). These tests fail the commit instead.
+  - repo: local
+    hooks:
+      - id: queue-integrity
+        name: Queue integrity — backlog/ stays machine-readable
+        language: system
+        entry: uv run --frozen pytest tests/backlog -q
+        files: ^backlog/
+        pass_filenames: false # the tests inspect the tree themselves
