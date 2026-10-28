@@ -58,6 +58,11 @@ release the lease. Two duties frame it:
 - **Update the task before you finish.** Sessions keep their own in-memory
   task lists, which fragment as soon as two are running; the queue is the
   shared one. Status, notes, and the final summary go in the task file.
+- **Sync before your first queue write.** A session whose tree is behind
+  `main` writes task files that no longer exist under their old names, and
+  the loader shadows the duplicate silently. Pull before the first
+  `backlog-py` write of a session; the `queue-integrity` commit hook
+  catches what slips through.
 
 A worker that needs to understand the whole architecture to execute its line
 is a sign the line was cut wrong — cut smaller until one naive worker can
