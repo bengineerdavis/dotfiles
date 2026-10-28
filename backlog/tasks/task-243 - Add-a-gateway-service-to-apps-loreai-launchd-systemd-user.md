@@ -95,4 +95,18 @@ metadata:
 ```
 Apply only the captured OpenCode JSONC config from main, per maintainer instruction.
 <!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-4b115c031c374a3b807b33f31f3672ba
+type: record_run
+actor: opencode
+timestamp: '2026-10-28T17:54:52.386000Z'
+result: pr-updated
+task_id: TASK-243
+to_status: inprogress
+metadata:
+  state_update: '{"status_key":"inprogress"}'
+```
+PR #88 pushed at fc4eb57. Added isolated real OpenCode/Lore E2E, full setup parity, service-test refactor, and OpenCode package/config capture. Focused: 38 passed; isolated E2E passed; apply idempotent; doctor 6/6. Full suite: 1159 passed, 3 unrelated failures (DOT-258/DOT-259). Recovery import after the agent's unscoped Lore clear remains running; exact restoration is not claimed.
+<!-- RUN_HISTORY_ENTRY:END -->
 <!-- SECTION:RUN_HISTORY:END -->
