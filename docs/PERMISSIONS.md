@@ -187,9 +187,10 @@ are `deny`.
 `autonomous` (Tab to switch) is the opt-in widening: a complete, self-contained
 map that additionally allows commit/push, `gh`, `curl`/`wget`, package installs
 and model pulls, plus `webfetch`/`websearch`. Its deny tier is identical to the
-default's — applying, force-push and credentials stay blocked no matter which
-agent is running. The agent block is written as a full map so it is correct
-whether opencode replaces or merges it over the base.
+default's — force-push and credentials stay blocked no matter which agent is
+running. `chezmoi apply` stays `ask`: the author must approve applying the
+reviewed tree from main. The agent block is written as a full map so it is
+correct whether opencode replaces or merges it over the base.
 
 opencode also ships a built-in dial: `opencode --auto` (or the TUI
 "auto-approve permissions" toggle) approves every `ask` that is not explicitly

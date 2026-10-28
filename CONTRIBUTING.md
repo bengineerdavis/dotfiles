@@ -153,9 +153,9 @@ deciding on several commits at once, who was not in your session.
 4. Finish by hand, or revert: `git reset --hard origin/<branch>` discards local
    work, `git revert <sha>` undoes a published commit safely.
 
-Nothing an agent does here is unrecoverable by design. `chezmoi apply` is denied
-to agents for exactly this reason — it is the one action that reaches outside
-git.
+`chezmoi apply` reaches outside git, so it requires the author's approval.
+Run it only from main after showing `chezmoi status` and `chezmoi diff`; see
+`AGENTS.md` § Applying is main-only.
 
 ### Shell scripts and their tests
 
