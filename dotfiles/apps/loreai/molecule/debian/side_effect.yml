@@ -67,7 +67,25 @@
         that:
           - adopted_gateway_pid.stdout | trim == hand_gateway_pid.stdout | trim
 
-    - name: Stop the hand-launched gateway so the service must respawn it
+    - name: Simulate the binary-change condition during an upgrade
+      ansible.builtin.include_role:
+        name: apps/loreai
+        tasks_from: service
+      vars:
+        loreai_binary_cmp:
+          rc: 1
+
+    - name: Read the post-upgrade gateway pid
+      ansible.builtin.command: cat {{ gateway_pid_file }}
+      register: upgraded_gateway_pid
+      changed_when: false
+
+    - name: Assert the upgrade stopped the adopted old process
+      ansible.builtin.assert:
+        that:
+          - upgraded_gateway_pid.stdout | trim != adopted_gateway_pid.stdout | trim
+
+    - name: Stop the service-owned gateway so the service must respawn it
       ansible.builtin.command: "{{ lore_bin }} stop"
       changed_when: false
 
@@ -75,7 +93,7 @@
       ansible.builtin.shell: |
         for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
           pid=$(cat {{ gateway_pid_file }} 2>/dev/null || true)
-          if [ -n "$pid" ] && [ "$pid" != "{{ hand_gateway_pid.stdout | trim }}" ] \
+          if [ -n "$pid" ] && [ "$pid" != "{{ upgraded_gateway_pid.stdout | trim }}" ] \
             && {{ lore_bin }} doctor 2>&1 | grep -q 'gateway reachable: responding'; then
             exit 0
           fi
@@ -96,17 +114,18 @@
         state: restarted
         scope: user
 
-    - name: Apply the health check against the off-contract port
-      ansible.builtin.include_role:
-        name: apps/loreai
-        tasks_from: service
-      register: nondefault_service
-      ignore_errors: true
-
-    - name: Assert the non-default port fails the agent-facing health check
-      ansible.builtin.assert:
-        that:
-          - nondefault_service.failed
+    - name: Observe the off-contract health failure without aborting the play
+      block:
+        - name: Apply the health check against the off-contract port
+          ansible.builtin.include_role:
+            name: apps/loreai
+            tasks_from: service
+          register: nondefault_service
+      rescue:
+        - name: Assert the non-default port fails the agent-facing health check
+          ansible.builtin.assert:
+            that:
+              - nondefault_service.failed
 
     - name: Restore the agent-facing port in the env file
       ansible.builtin.lineinfile:

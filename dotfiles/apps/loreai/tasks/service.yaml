@@ -66,6 +66,17 @@
   when: ansible_facts['os_family'] == 'Darwin'
   tags: [loreai, install, upgrade]
 
+- name: "loreai: stop the old gateway before a binary upgrade"
+  # A service-manager restart alone cannot kill an adopted gateway: it lives
+  # outside the unit's cgroup/job. Stop the recorded process first so the
+  # following start cannot re-adopt the old binary (roborev review #38).
+  ansible.builtin.command: "{{ loreai_install_dir }}/lore stop"
+  register: loreai_upgrade_stop
+  changed_when: false
+  failed_when: false
+  when: loreai_binary_cmp.rc | default(1) != 0 and not ansible_check_mode
+  tags: [loreai, install, upgrade]
+
 - name: "loreai: probe whether the launchd agent is loaded (Darwin)"
   # Shell form: the command module would pass $(id -u) as a literal operand.
   ansible.builtin.shell:
@@ -152,9 +163,6 @@
   ansible.builtin.debug:
     msg: >-
       Gateway running under the per-user service; dashboard at
-      http://127.0.0.1:{{
-        lookup('ansible.builtin.file',
-               ansible_env.HOME ~ '/.local/share/lore/gateway.port') | trim
-      }}/ui — `lore doctor` verifies routing end to end.
+      http://127.0.0.1:3207/ui — `lore doctor` verifies routing end to end.
   when: not ansible_check_mode
   tags: [loreai, install, upgrade]

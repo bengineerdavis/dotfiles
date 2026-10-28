@@ -16,8 +16,9 @@ the install a second time.
 
 `side_effect.yml` then exercises the service's external behavior: active and
 enabled after a fresh apply; adoption of a hand-started gateway without a
-pid change while the service stays active; respawn with a new pid after
-`lore stop`; a loud health-check failure on non-default port 5673 followed by
+pid change while the service stays active; a simulated binary upgrade that
+stops the adopted process; respawn with a new pid after `lore stop`; a loud
+health-check failure on non-default port 5673 followed by
 recovery to 3207; doctor green after a real VM reboot; linger
 unchanged; and teardown while a hand-launched gateway is running. It calls
 remove a second time to prove that a missing unit and binary are tolerated.
