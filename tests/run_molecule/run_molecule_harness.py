@@ -46,6 +46,9 @@ done
   printf 'env-acp=%s\n' "${ANSIBLE_COLLECTIONS_PATH-}"
   printf 'env-al=%s\n' "${ANSIBLE_LIBRARY-}"
   printf 'env-ed=%s\n' "${MOLECULE_EPHEMERAL_DIRECTORY-}"
+  printf 'env-provider=%s\n' "${MOLECULE_VM_PROVIDER-}"
+  printf 'env-arch=%s\n' "${MOLECULE_VM_ARCH-}"
+  printf 'env-box=%s\n' "${MOLECULE_VM_BOX-}"
   printf '===END===\n'
 } >> "$UV_LOG"
 exit 0
@@ -84,16 +87,33 @@ def make_scenario_repo(tmp_path: pathlib.Path) -> pathlib.Path:
     uv = fake_bin / "uv"
     uv.write_text(FAKE_UV)
     uv.chmod(0o755)
+    uname = fake_bin / "uname"
+    uname.write_text(
+        "#!/bin/sh\n"
+        'case "$1" in\n'
+        '  -s) printf "%s\\n" "${UNAME_S:-$(/usr/bin/uname -s)}" ;;\n'
+        '  -m) printf "%s\\n" "${UNAME_M:-$(/usr/bin/uname -m)}" ;;\n'
+        '  *) exec /usr/bin/uname "$@" ;;\n'
+        "esac\n"
+    )
+    uname.chmod(0o755)
 
     (repo / "uv.log").touch()
     return repo
 
 
 def run_wrapper(
-    scenario_repo: pathlib.Path, *args: str, cwd: pathlib.Path | None = None
+    scenario_repo: pathlib.Path,
+    *args: str,
+    cwd: pathlib.Path | None = None,
+    env_overrides: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Run the copied wrapper with the fake uv first on PATH."""
     env = dict(os.environ)
+    for name in ("MOLECULE_VM_PROVIDER", "MOLECULE_VM_ARCH", "MOLECULE_VM_BOX"):
+        env.pop(name, None)
+    if env_overrides:
+        env.update(env_overrides)
     env["PATH"] = f"{scenario_repo.parent / 'fake-bin'}:{env['PATH']}"
     env["UV_LOG"] = str(scenario_repo / "uv.log")
     return subprocess.run(

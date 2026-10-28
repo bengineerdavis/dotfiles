@@ -198,6 +198,59 @@ def test_named_scenario_pins_its_own_state_dir(scenario_repo, monkeypatch):
     assert record["env-ed"] == [str(scenario / ".molecule")]
 
 
+def test_vm_provider_defaults_follow_the_host(scenario_repo):
+    result = run_wrapper(
+        scenario_repo,
+        "faketopic",
+        env_overrides={"UNAME_S": "Linux", "UNAME_M": "x86_64"},
+    )
+    assert result.returncode == 0, result.stderr
+    (record,) = molecule_records(scenario_repo)
+    assert record["env-provider"] == ["libvirt"]
+    assert record["env-arch"] == ["x86_64"]
+    assert record["env-box"] == ["debian/bookworm64"]
+
+
+def test_vm_provider_defaults_to_qemu_on_apple_silicon(scenario_repo):
+    result = run_wrapper(
+        scenario_repo,
+        "faketopic",
+        env_overrides={"UNAME_S": "Darwin", "UNAME_M": "arm64"},
+    )
+    assert result.returncode == 0, result.stderr
+    (record,) = molecule_records(scenario_repo)
+    assert record["env-provider"] == ["qemu"]
+    assert record["env-arch"] == ["aarch64"]
+    assert record["env-box"] == ["cloud-image/debian-12"]
+
+
+def test_vm_box_override_is_not_replaced(scenario_repo):
+    result = run_wrapper(
+        scenario_repo,
+        "faketopic",
+        env_overrides={"MOLECULE_VM_BOX": "example/custom-arm64"},
+    )
+    assert result.returncode == 0, result.stderr
+    (record,) = molecule_records(scenario_repo)
+    assert record["env-box"] == ["example/custom-arm64"]
+
+
+def test_explicit_qemu_selection_sets_its_default_box(scenario_repo):
+    result = run_wrapper(
+        scenario_repo,
+        "faketopic",
+        env_overrides={
+            "MOLECULE_VM_PROVIDER": "qemu",
+            "MOLECULE_VM_ARCH": "aarch64",
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    (record,) = molecule_records(scenario_repo)
+    assert record["env-provider"] == ["qemu"]
+    assert record["env-arch"] == ["aarch64"]
+    assert record["env-box"] == ["cloud-image/debian-12"]
+
+
 def test_extra_args_pass_through_to_molecule(scenario_repo: pathlib.Path):
     result = run_wrapper(scenario_repo, "faketopic", "test", "--destroy=never")
     assert result.returncode == 0, result.stderr
