@@ -2,7 +2,7 @@
 id: DOT-246
 title: Sessions with stale trees resurrect old task files — pull-before-write for
   the queue
-status: In Progress
+status: Done
 created_date: 2026-10-27 22:24
 labels:
 - queue-integrity
@@ -10,7 +10,7 @@ ordinal: 0
 orchestration:
   status_key: todo
   version: 2
-updated_date: 2026-10-28 02:55
+updated_date: 2026-10-28 03:18
 ---
 
 ## Description
@@ -27,6 +27,7 @@ Observed 2026-10-27 during the DOT- prefix migration: task files that had been r
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
 2026-10-28: repo-local half landed as PR #93 — tests/backlog now runs as a prek hook on backlog/ commits (mutation-proven: a copied task-235 resurrection fails the doctor check), plus the PROCESS.md sync-before-first-write duty. The tool-side pull-before-write guard is routed to backlog-md-py upstream — an author decision, not a repo-local build.
+2026-10-28: merged as PR #93. Live proof followed within the hour — the next queue commit ran the hook on a backlog/-only diff instead of skipping. Upstream pull-before-write guard remains an open author decision (recorded in the PR).
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary

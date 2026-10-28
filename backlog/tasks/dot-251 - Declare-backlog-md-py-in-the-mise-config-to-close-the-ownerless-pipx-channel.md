@@ -1,7 +1,7 @@
 ---
 id: DOT-251
 title: Declare backlog-md-py in the mise config to close the ownerless pipx channel
-status: In Progress
+status: Done
 created_date: 2026-10-28 02:54
 labels:
 - tool-ownership
@@ -9,7 +9,7 @@ ordinal: 1
 orchestration:
   status_key: todo
   version: 2
-updated_date: 2026-10-28 02:55
+updated_date: 2026-10-28 03:18
 ---
 
 ## Description
@@ -26,6 +26,7 @@ backlog-py runs on this machine from ~/.local/share/mise/installs/pipx-backlog-m
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
 2026-10-28: landed as PR #94 (pipx-section entry + provenance comment). TOML parse verified, single key asserted. COLLISION flagged in the PR: a leaseless uncommitted duplicate declaration sits in the main checkout's working tree — discard it at merge time or the file breaks. Apply after merge is author-tier.
+2026-10-28: merged as PR #94. Verified live: ~/.config/mise/config.toml symlinks to the source, so mise read the entry immediately — 'mise ls' shows pipx:backlog-md-py 2.2.0 adopted from the existing install, no reinstall. The leaseless duplicate edit was stashed (retrievable) and main pulled clean; exactly one declaration remains.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
