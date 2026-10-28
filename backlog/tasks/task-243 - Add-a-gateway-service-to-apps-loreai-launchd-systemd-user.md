@@ -9,9 +9,9 @@ priority: high
 updated_date: 2026-10-27 22:13
 orchestration:
   status_key: inprogress
-  lease_owner: opencode-loreai-service
-  lease_expires_at: '2026-10-27T23:18:44.677470Z'
-  version: 1
+  version: 3
+  lease_owner: opencode
+  lease_expires_at: '2026-10-28T18:21:44.960513Z'
 ---
 
 ## Description
@@ -66,5 +66,33 @@ result: pr-opened
 task_id: TASK-243
 ```
 Gateway service implemented and verified on macOS. PR #88 open for review (service-lifecycle path, per merge gates). launchd agent ai.withlore.gateway live: doctor 5/5 PASS, adoption of hand-started gateway confirmed, respawn after lore stop confirmed, second apply idempotent. Debian unit renders verified, not applied there. remove.yaml teardown updated (service stop, units, logs, bg gateway).
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-418b888324074b5eb86655f00aec4581
+type: release_task
+actor: opencode-loreai-service
+timestamp: '2026-10-28T16:21:44.582160Z'
+result: succeeded
+task_id: TASK-243
+from_status: inprogress
+to_status: todo
+```
+Release stale claim after checking active claims; reclaim for the maintainer-requested OpenCode config deployment.
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-286770b4630942689528f129cb4f9878
+type: claim_task
+actor: opencode
+timestamp: '2026-10-28T16:21:44.960579Z'
+result: succeeded
+task_id: TASK-243
+from_status: todo
+to_status: inprogress
+metadata:
+  lease_ttl_seconds: '7200'
+```
+Apply only the captured OpenCode JSONC config from main, per maintainer instruction.
 <!-- RUN_HISTORY_ENTRY:END -->
 <!-- SECTION:RUN_HISTORY:END -->
