@@ -7,6 +7,7 @@ labels:
 - testing
 - mise
 priority: high
+updated_date: 2026-10-28 20:06
 ---
 
 ## Description
@@ -42,7 +43,7 @@ Agreed with the maintainer 2026-10-27: Vagrant belongs in the project's declared
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
+2026-10-28 author ruling while prioritizing PR #88: use a Debian host for the required Lore Debian Molecule scenario if one is available. No delegated Debian host exists in the current machine configuration, and the current Mac has no Vagrant/libvirt, so the author permits a temporary merge exception for PR #88 rather than claiming VM verification. This task still must provision the declared Vagrant/provider prerequisites and execute MOLECULE_SCENARIO=debian scripts/run-molecule.sh loreai test. The exception is specific to #88 and does not relax the standing Molecule requirement for other topics.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
