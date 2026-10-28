@@ -158,6 +158,16 @@
     mode: "0600"
   when: not loreai_env_stat.stat.exists
 
+- name: "loreai: converge the temporary OpenAI-protocol upstream"
+  # Unlike the first-install template, this also updates existing answer files.
+  # Remove when the OpenCode integration supplies X-Lore-Provider itself.
+  ansible.builtin.lineinfile:
+    path: "{{ loreai_env_file }}"
+    regexp: '^export LORE_UPSTREAM_OPENAI='
+    line: export LORE_UPSTREAM_OPENAI="{{ loreai_openai_upstream }}"
+  register: loreai_env_upstream
+  tags: [loreai, install, upgrade]
+
 - name: "loreai: report the saved answers"
   ansible.builtin.debug:
     msg: >-

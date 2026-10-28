@@ -1,9 +1,175 @@
-// Lore.AI gateway integration — owned by the loreai topic
-  // (dotfiles/apps/loreai/files/opencode/lore-plugin.jsonc), included by
-  // dot_config/opencode/opencode.jsonc.tmpl behind a stat guard so removing
-  // the topic removes this key without breaking `chezmoi apply`. The plugin
-  // auto-installs on first run, disables OpenCode's auto-compaction itself,
-  // and routes every session through the Lore gateway (auto-starting one
-  // in-process). Do NOT add a `plugin` key to .chezmoidata/opencode.yaml —
-  // a second `plugin` key would collide with this one.
-  "plugin": ["@loreai/opencode"]
+{
+  "provider": {
+    "amazon-bedrock": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "anthropic": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "azure": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "google": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "google-vertex": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "google-vertex-anthropic": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "openai": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "openai-compatible": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "openrouter": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "xai": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "mistral": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "groq": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "deepinfra": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "cerebras": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "cohere": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "gateway": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "togetherai": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "perplexity": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "vercel": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "alibaba": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "opencode": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "azure-cognitive-services": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "github-copilot": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "sap-ai-core": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "gitlab": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "cloudflare-workers-ai": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "cloudflare-ai-gateway": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "snowflake-cortex": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "llmgateway": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "nvidia": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "kilo": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "zenmux": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    },
+    "venice": {
+      "options": {
+        "baseURL": "http://127.0.0.1:3207/v1"
+      }
+    }
+  },
+  "compaction": {
+    "auto": false
+  },
+  "plugin": [
+    "@loreai/opencode"
+  ]
+}

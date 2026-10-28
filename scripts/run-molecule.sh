@@ -4,9 +4,10 @@
 #
 # Usage:
 #   scripts/run-molecule.sh <topic> [verb] [extra molecule args...]
+#   MOLECULE_SCENARIO=debian scripts/run-molecule.sh <topic> [verb]
 #
 # Verbs: create | prepare | converge | idempotence | verify | login |
-#        destroy | test (default)
+#        destroy | test (default). Scenario: default, or MOLECULE_SCENARIO.
 #
 # Build-ladder justification (AGENTS.md § What agents do): molecule is the
 # tool; this is an interface to it — verb dispatch, one chdir, three env
@@ -45,9 +46,10 @@ if [[ -z "$TOPIC" ]]; then
   exit 2
 fi
 
+SCENARIO="${MOLECULE_SCENARIO:-default}"
 SCENARIO_PARENT="$DOTFILES/apps/$TOPIC"
-if [[ ! -f "$SCENARIO_PARENT/molecule/default/molecule.yml" ]]; then
-  err "no scenario at dotfiles/apps/$TOPIC/molecule/default/. Scenarios live inside the topic per docs/TOPICS.md; create molecule/default/ there first."
+if [[ ! -f "$SCENARIO_PARENT/molecule/$SCENARIO/molecule.yml" ]]; then
+  err "no scenario at dotfiles/apps/$TOPIC/molecule/$SCENARIO/. Scenarios live inside the topic per docs/TOPICS.md; create molecule/$SCENARIO/ there first, or select another with MOLECULE_SCENARIO."
   exit 2
 fi
 
@@ -99,7 +101,7 @@ export MOLECULE_PROJECT_DIRECTORY="$DOTFILES"
 # scenarios would share one state dir. Env takes precedence over both
 # (verified against molecule 26.9.0's scenario.ephemeral_directory); the
 # vagrant driver's safe_files keep the box env intact across prunes.
-export MOLECULE_EPHEMERAL_DIRECTORY="$SCENARIO_PARENT/molecule/default/.molecule"
+export MOLECULE_EPHEMERAL_DIRECTORY="$SCENARIO_PARENT/molecule/$SCENARIO/.molecule"
 export ANSIBLE_COLLECTIONS_PATH="$HOME/.ansible/collections"
 
 cd "$SCENARIO_PARENT"
@@ -107,4 +109,4 @@ cd "$SCENARIO_PARENT"
 # --driver-name on create/prepare/destroy/test but rejects it on
 # converge/idempotence/verify/login (measured 2026-10-11), and an override
 # the config already names is not worth per-verb dispatch.
-exec uv run --frozen --project "$REPO_ROOT" --group test-vm molecule "$VERB" -s default "$@"
+exec uv run --frozen --project "$REPO_ROOT" --group test-vm molecule "$VERB" -s "$SCENARIO" "$@"

@@ -1,0 +1,19 @@
+{# apps/loreai/templates/lore-gateway.service.j2 — systemd USER unit for the
+   Lore.AI gateway (Debian), the same ownership as the launchd agent, no
+   root (TASK-243). It only fires while the user has a session, so
+   install.yaml reports `loginctl enable-linger` rather than changing login
+   behaviour (AGENTS.md § Cross-platform). The per-machine env file carries
+   the worker model and the OpenRouter key; it is mode 0600, so no
+   EnvironmentFile secrets land in the unit itself. #}
+[Unit]
+Description=Lore.AI persistent-memory gateway (apps/loreai)
+After=default.target
+
+[Service]
+Environment="PATH={{ loreai_service_path }}"
+ExecStart=/bin/bash -c '. {{ loreai_env_file }} && export LORE_WORKER_API_KEY="$${LORE_WORKER_API_KEY:-$$OPENROUTER_API_KEY}" && {{ loreai_install_dir }}/lore start --local; rc=$$?; if [ $$rc -ne 0 ]; then exit $$rc; fi; {{ loreai_install_dir }}/lore stop >/dev/null 2>&1 || true; {{ loreai_install_dir }}/lore start --local; rc=$$?; if [ $$rc -ne 0 ]; then exit $$rc; fi; while sleep 10; do port=$$(cat {{ ansible_env.HOME }}/.local/share/lore/gateway.port 2>/dev/null); if [ -z "$$port" ] || ! {{ loreai_install_dir }}/lore doctor 2>&1 | grep -q "gateway reachable: responding on port $$port"; then exit 1; fi; done'
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,11 @@
+---
+# Run the real role on a fresh box with non-interactive first-install answers.
+- name: Converge apps/loreai
+  hosts: all
+  gather_facts: true
+  become: false
+  vars:
+    loreai_telemetry: 0
+    loreai_inference: none
+  roles:
+    - role: apps/loreai

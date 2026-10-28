@@ -122,7 +122,7 @@ markers = [
 # [tool.pytest] pythonpath; pyrefly needs it named here so the pre-commit
 # hook's environment - which differs from a login shell - resolves the same
 # modules the same way).
-search-path = ["tests/restart_stale", "tests/ollama_gpu_confirm", "tests/run_molecule", "tools/skill-trust"]
+search-path = ["tests/restart_stale", "tests/ollama_gpu_confirm", "tests/run_molecule", "tests/loreai", "tools/skill-trust"]
 project-includes = [
     "**/*.py*",
     "**/*.ipynb",
@@ -131,4 +131,4 @@ project-includes = [
 # test-vm group — unresolvable in any default environment, so project-state
 # checking must skip them or every commit fails on machines without the
 # group. Their verification runs inside the VM, not under pyrefly.
-project-excludes = ["dotfiles/apps/opencode/molecule"]
+project-excludes = ["dotfiles/apps/opencode/molecule", "dotfiles/apps/loreai/molecule"]

@@ -40,6 +40,26 @@ loreai_install_dir: "{{ ansible_env.HOME }}/.local/bin"
 loreai_config_dir: "{{ ansible_env.HOME }}/.config/loreai"
 loreai_env_file: "{{ loreai_config_dir }}/env.zsh"
 
+# ── Gateway service (TASK-243) ───────────────────────────────────────────────
+# The persistent agent setups point at 127.0.0.1:3207, so the topic owns a
+# per-user unit that keeps the gateway alive (TOPIC-RECIPES.md § service
+# ownership). The binary path is the topic's own stable install path — not a
+# version-pinned release path — and the unit sources the per-machine env
+# file for the worker model and keys. Logs are topic-owned state (removed
+# with the topic); the memory database stays preserved, as below.
+loreai_gateway_label: "ai.withlore.gateway"
+# Service managers start with a sparse PATH that cannot find `llm` or `op`.
+# Stable per-user mise shims resolve both without baking in a versioned
+# install path or a machine-specific Homebrew prefix. Verified 2026-10-27:
+# this exact minimal PATH resolves the OpenRouter key and runs `op`.
+loreai_service_path: >-
+  {{ ansible_env.HOME }}/.local/bin:{{ ansible_env.HOME }}/.local/share/mise/shims:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+loreai_logs_dir: "{{ ansible_env.HOME }}/.local/state/lore"
+loreai_plist_path: >-
+  {{ ansible_env.HOME }}/Library/LaunchAgents/{{ loreai_gateway_label }}.plist
+loreai_unit_path: >-
+  {{ ansible_env.HOME }}/.config/systemd/user/lore-gateway.service
+
 # Defaults for the prompts. Telemetry ON matches the author ruling of
 # 2026-10-21 (production builds send privacy-filtered operational telemetry
 # to Sentry; https://withlore.ai/docs/install/#operational-telemetry).
@@ -53,6 +73,11 @@ loreai_worker_model: ~
 # knob), so the pick must clear the hardest bar: curation, the judgment
 # task. IDs verified against the live OpenRouter catalog 2026-10-21.
 loreai_worker_model_openrouter_default: "openrouter/z-ai/glm-5.3-flash"
+# Temporary 2026-10-28 workaround for OpenCode's missing provider route:
+# send OpenAI-protocol sessions to OpenRouter, not api.openai.com. Override
+# with https://api.openai.com to restore genuine OpenAI sessions; remove when
+# the OpenCode integration supplies X-Lore-Provider itself.
+loreai_openai_upstream: "https://openrouter.ai/api"
 loreai_worker_model_local_default: "ollama/qwen3.6:35b-a3b-coding-nvfp4"
 loreai_local_upstream: "http://localhost:11434"
 
@@ -104,8 +129,9 @@ loreai_worker_model_local_candidates:
 # persistent routing config. Detection mirrors lore's own: a CLI on PATH;
 # codex also counts an existing ~/.codex/config.toml (Codex Desktop has no
 # CLI). opencode is NOT here — chezmoi owns opencode.jsonc on this fleet, so
-# its extension is the plugin fragment the chezmoi template includes
-# (files/opencode/lore-plugin.jsonc), verified by tasks/agents/opencode.yaml.
+# its extension is the config fragment the chezmoi template merges
+# (files/opencode/lore-plugin.jsonc) plus the package installed by
+# tasks/agents/opencode.yaml.
 loreai_setup_agents:
   - app: claude-code
     probe: claude

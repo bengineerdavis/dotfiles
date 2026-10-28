@@ -202,6 +202,33 @@ def test_renders_deep_agent_on_both_oses(hostname, os_name):
     assert cfg["model"] == "openrouter/z-ai/glm-5.3-flash"
 
 
+def test_loreai_setup_merges_with_model_overrides():
+    cfg = render("L37V3P6GQ3", "darwin")
+    assert "@loreai/opencode" in cfg["plugin"]
+    assert cfg["compaction"]["auto"] is False
+    fragment = json.loads(
+        (
+            PAYLOAD_ROOT
+            / "dotfiles"
+            / "apps"
+            / "loreai"
+            / "files"
+            / "opencode"
+            / "lore-plugin.jsonc"
+        ).read_text()
+    )
+    assert set(cfg["provider"]) == set(fragment["provider"]), (
+        "model overlays must not discard the other captured providers"
+    )
+    for name, provider in fragment["provider"].items():
+        if name != "openrouter":
+            assert cfg["provider"][name] == provider
+    openrouter = cfg["provider"]["openrouter"]
+    assert openrouter["options"]["baseURL"] == "http://127.0.0.1:3207/v1"
+    variants = openrouter["models"]["anthropic/claude-opus-5"]["variants"]
+    assert variants["max"] == {"reasoning": {"effort": "max"}}
+
+
 def test_os_then_host_layers_override_common():
     overlay = {
         "opencode": {
