@@ -85,6 +85,10 @@ node = "lts"
 python = "3.14"
 "pipx:pre-commit" = "latest"
 "pipx:git-filter-repo" = "latest"
+# backlog-md-py — the task-queue CLI for backlog/ (docs/BACKLOG-MIGRATION.md).
+# The 2026-10-27 cutover installed it straight into pipx outside any topic
+# (DOT-251); this entry adopts that install.
+"pipx:backlog-md-py" = "latest"
 # worktrunk — git-worktree CLI for parallel agent work, paired with the
 # backlog-md-py queue migration (docs/BACKLOG-MIGRATION.md). Plain fleet
 # entry: no owning topic, no first-party capture (unlike gita below).
