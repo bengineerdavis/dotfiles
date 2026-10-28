@@ -29,7 +29,7 @@ nothing changed — a stale date is the signal, not the version number.
 | [no-ai-slop](https://github.com/petergyang/no-ai-slop) | vendored MIT @ 2026-09-02 | `~/.claude/skills/no-ai-slop/` | 2026-09-11 |
 | [shellcheck-py](https://github.com/shellcheck-py/shellcheck-py) | `v0.10.0.1` in `.pre-commit-config.yaml` | pre-commit hook | 2026-09-11 |
 | [prek](https://github.com/j178/prek) | 0.5.0 | hook runner; writes `.git/hooks/` | 2026-09-11 |
-| [scriv](https://scriv.readthedocs.io/) | run via `uv run --with scriv` | `changelog.d/` fragments → `CHANGELOG.md` | 2026-09-11 |
+| [scriv](https://scriv.readthedocs.io/) | **1.8.0** pinned in the merge workflow; run locally via `uv run --with scriv` | `changelog.d/` fragments → `CHANGELOG.md` after each merged PR; no semantic versions or GitHub Releases | 2026-10-28 |
 | [backlog-md-py](https://github.com/rmusser01/backlog-md-py) 2.2.0 | pipx via mise (`pipx:backlog-md-py`) | the task queue: `backlog/` at repo root, `backlog-py --cwd .` — Python compatibility clone of Backlog.md | 2026-10-23 |
 | [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) | **1.1.0** | category names in `changelog.d/scriv.ini` | 2026-09-11 |
 | [RFC 2606](https://www.rfc-editor.org/rfc/rfc2606) — reserved example names | Best Current Practice | synthetic PII fixtures use `example.com`/`.org` | 2026-09-11 |
@@ -101,7 +101,7 @@ Recorded so the decision is not re-litigated. Each was measured, not assumed.
 
 | Standard | Why not |
 |---|---|
-| [Conventional Commits](https://www.conventionalcommits.org/) | 12% of history uses it; 71% uses a plain `<scope>: ` prefix. Its payoff is automated changelog generation and semver; this repo writes changelog entries by hand with scriv and does not release. |
+| [Conventional Commits](https://www.conventionalcommits.org/) | 12% of history uses it; 71% uses a plain `<scope>: ` prefix. Scriv aggregates handwritten fragments after each merged PR; it does not infer changelog content or semantic versions from commit types. |
 | [Semantic Versioning](https://semver.org/) | Nothing here is released or consumed as a version. |
 | [Contributor Covenant](https://www.contributor-covenant.org/) | `PRD.md` § Non-goals: not expecting contributors. |
 | cursor's `unslop` | Its "avoid em dashes entirely" conflicts with measured house style (12 per 1000 words in documents predating any agent). `no-ai-slop` reaches the same goal with a calibrated rule. |

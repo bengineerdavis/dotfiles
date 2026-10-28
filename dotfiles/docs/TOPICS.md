@@ -370,7 +370,14 @@ reasoning as co-locating a topic's tests: what travels with the directory is wha
 survives the move.
 
 The root `CHANGELOG.md` is unaffected — it answers "what changed in this repo",
-which is a different question from "what has this topic done to me".
+which is a different question from "what has this topic done to me". It is also
+the changelog at the chezmoi source root, but is repo-only rather than deployed;
+`tests/chezmoi/test_governance_not_deployed.py` enforces that.
+
+The merge workflow collects repository fragments only into that root file
+(`CONTRIBUTING.md` § Writing a changelog entry). It never rewrites or collects
+per-topic changelogs. A topic keeps its own history and format so both travel
+with the topic if it moves to another repository.
 
 ### Categories
 

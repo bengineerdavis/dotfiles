@@ -374,6 +374,13 @@ and policy stay branched. A claim committed on one machine is visible on the
 other only after a pull — the old § Claimed gap with a new shape, documented
 rather than solved.
 
+**The changelog collector is a separate, narrower exception (author ruling
+2026-10-28).** After a PR merges, its default-branch workflow may push one
+`changelog: collect PR #N` commit to `main`. It writes only `CHANGELOG.md` and
+removes the fragments introduced by that PR. It never changes work code, creates
+a version tag, or publishes a GitHub Release. This permission belongs to the
+serialized automation, not to an interactive agent.
+
 **One session, one writer.** A session has one assigned agent with read and
 write; every other agent in it — subagents, spawned helpers — is read-only.
 That single write right is what the isolation guarantee rests on: one task,
