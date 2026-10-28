@@ -8,6 +8,7 @@ labels:
 - agents
 - design
 priority: high
+updated_date: 2026-10-28 17:43
 ---
 
 ## Description
@@ -42,7 +43,7 @@ Decide where process-level isolation is enough and when a Molecule/VM is warrant
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
+2026-10-28 measured refinement: prefer an isolated Lore gateway and LORE_DB_PATH under the throwaway directory over destructive cleanup in the live database. tests/loreai/test_opencode_e2e.py now starts a test-owned gateway on a free port, strips inherited OPENCODE*/LORE_* state, matches PWD to cwd, isolates XDG paths, disables curation and project-file exports, and stops its own process group. It asserts the exact OK model response, polls the isolated CLI for a completed session, and verifies the temp project never appears in the live project list. It does not call data clear or data delete. Real-run evidence: green after PWD and upstream fixes; removing the PWD assignment failed as intended. This covers the first Lore adapter and part of the process-isolation design; it does not complete cross-agent reuse, injected-cleanup-failure coverage, or the VM matrix. During review, a missing --project argument accidentally cleared the main Lore project. A pre-import database and public-data backup was written under the opencode temp directory; a supported `lore import --project /Users/ben.davis/.local/share/chezmoi` recovery is running. Do not claim exact restoration until it completes and the recovered data is compared. This task should make isolated state the default and reserve destructive commands for explicitly identified test-owned resources.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
