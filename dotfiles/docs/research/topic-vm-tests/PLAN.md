@@ -98,9 +98,13 @@ evidence in the § Planned correction (pytest-molecule archived 2023;
 pytest-ansible EOL December 2026 with a published migration table). Nothing
 here changes that.
 
-## Decision 2 — provider: libvirt; box: debian/bookworm64
+## Decision 2 — provider: libvirt on Linux; QEMU on macOS
 
-**libvirt (KVM) is the provider.** Three independent reasons:
+Host setup and teardown are documented in `dotfiles/docs/MOLECULE-HOSTS.md`.
+The historical Linux-only decision follows for context; the wrapper now selects
+QEMU on macOS and preserves libvirt/KVM on Linux.
+
+**libvirt (KVM) is the Linux provider.** Three independent reasons:
 
 1. **VirtualBox cannot start VMs on this box today** — the vboxdrv module is
    not loaded for the running kernel (verified 2026-10-11). Fixing it needs
@@ -138,10 +142,11 @@ compilation), so disk is dominated by the linuxbrew checkout and node — 15 GB
 leaves slack. RAM 4 GB because brew's Ruby and npm both run inside the box
 while nothing else does.
 
-macOS is out of scope for VM testing and the plan says so plainly: no macOS
-Vagrant boxes exist (recorded in the § Now line, 2026-10-06). The Darwin leg
-of the molecule done-condition needs a different mechanism and stays open in
-the § Planned item.
+macOS guests are out of scope for this VM harness: no macOS Vagrant boxes
+exist (recorded in the § Now line, 2026-10-06). That is distinct from running
+a Debian guest on a macOS host, which the wrapper now supports through QEMU.
+The macOS-guest leg of the done-condition needs a different mechanism and
+stays open in the § Planned item.
 
 ## Decision 3 — scenario layout
 
@@ -528,8 +533,9 @@ what settled them; the remainder stay open.
 - **The author's interactive login flow** — `molecule login` needs a tty;
   agent runs do not have one. Closes the first time the author steps through
   create → login → inspect → destroy.
-- **The Darwin leg** — no macOS Vagrant boxes exist; a different mechanism
-  is needed and stays open in the § Planned item.
+- **The macOS-guest leg** — no macOS Vagrant boxes exist; a different
+  mechanism is needed and stays open in the § Planned item. Debian guests on
+  macOS are covered separately by the QEMU adapter.
 - **The first-create box download time** — the 1.2 GiB image was already
   cached for the confirmation run; forcing a re-download buys one number at
   the cost of 1.2 GiB egress, so it stays unmeasured. Closes the next time a

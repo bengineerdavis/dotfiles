@@ -1,0 +1,51 @@
+# Host prerequisites for Molecule's real VM scenarios.
+# These are host packages, not per-project tools or application dependencies.
+# Preview with `mise bootstrap packages apply --dry-run`; do not run mise with
+# sudo. Package-manager elevation is limited to the package that requires it.
+
+[bootstrap.packages]
+"brew:qemu" = { os = "macos" }
+"brew-cask:vagrant" = { os = "macos" }
+"apt:qemu-system" = { os = "linux" }
+"apt:libvirt-daemon-system" = { os = "linux" }
+"apt:libvirt-clients" = { os = "linux" }
+"apt:libvirt-dev" = { os = "linux" }
+"apt:vagrant" = { os = "linux" }
+"apt:vagrant-libvirt" = { os = "linux" }
+
+[doctor.checks.molecule-vagrant]
+description = "Vagrant is on PATH and reports its version"
+run = "vagrant --version"
+hint = "Run mise trust ./mise.toml && mise bootstrap packages apply --dry-run, then apply it as your user."
+os = ["linux", "macos"]
+timeout = "10s"
+
+[doctor.checks.molecule-qemu]
+description = "The host's QEMU system emulator is on PATH"
+run = "bash -c 'case $(uname -m) in arm64|aarch64) qemu-system-aarch64 --version ;; *) qemu-system-x86_64 --version ;; esac'"
+hint = "Install the QEMU host package from mise.toml."
+os = ["linux", "macos"]
+timeout = "10s"
+
+[doctor.checks.molecule-vagrant-provider]
+description = "The host's Vagrant provider plugin is installed"
+run = "bash -c 'case $(uname -s) in Darwin) vagrant plugin list | grep -E \"vagrant-qemu \\([0-9]\" ;; *) vagrant plugin list | grep -E \"vagrant-libvirt \\([0-9]\" ;; esac'"
+hint = "macOS: vagrant plugin install vagrant-qemu. Linux: use the distro vagrant-libvirt package or vagrant plugin install vagrant-libvirt."
+os = ["linux", "macos"]
+timeout = "10s"
+
+[doctor.checks.molecule-libvirt]
+description = "The Linux libvirt connection and KVM capability work"
+run = "virsh -c qemu:///system uri && test -e /dev/kvm"
+hint = "Start libvirtd, add the invoking user to the libvirt group, then start a fresh login session. Install a KVM-capable host or enable nested KVM."
+os = ["linux"]
+timeout = "10s"
+
+[tasks."bootstrap:molecule"]
+description = "Show the remaining user-run Vagrant and Linux libvirt setup"
+run = '''
+printf '%s\n' \
+  'macOS: vagrant plugin install vagrant-qemu' \
+  'Linux: add the invoking user to libvirt and start libvirtd through the host policy.' \
+  'Then run: MOLECULE_SCENARIO=debian scripts/run-molecule.sh loreai test'
+'''
