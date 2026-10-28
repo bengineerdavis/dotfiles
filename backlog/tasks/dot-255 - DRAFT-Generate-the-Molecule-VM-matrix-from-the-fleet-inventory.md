@@ -8,6 +8,7 @@ labels:
 - molecule
 - design
 priority: medium
+updated_date: 2026-10-28 20:44
 ---
 
 ## Description
@@ -42,7 +43,7 @@ This is a draft for design review, not authorization to implement. The PRD/roadm
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
+2026-10-28 maintainer requirement: normalize Molecule tests so either fleet machine can validate both supported guest platforms locally, catching cross-OS breakage before PRs. Research correction: libvirt DOES support a local QEMU server on macOS (official libvirt docs), including hvf acceleration via Hypervisor.framework since libvirt 8.1; earlier blanket 'libvirt is Linux-only' guidance was wrong. Vagrant/libvirt is therefore a candidate common adapter for Linux guests on both hosts, not yet a proven one. Must verify Debian ARM64 box selection, HVF domain creation, Vagrant management networking/SSH, synced repo, teardown, and host-side effects before adopting. A green container run must not count as VM/service proof. Separate host hypervisor adapters from the shared per-topic Ansible scenario interface; do not build a universal Vagrant abstraction that hides unsupported guest/provider pairs. macOS guests on a Linux host remain an explicit open capability, not implied by libvirt's macOS-host support. Proposed verification seams for maintainer confirmation: (1) Molecule create/destroy + provider VM state: proves actual VM lifecycle, catches silent container substitution; (2) shared topic converge/idempotence: proves same role behavior on each guest; (3) externally observable service/health and real chezmoi/OpenCode behavior: catches config and service lifecycle breakage; (4) matrix host/guest/arch/provider result report: proves requested platform coverage and fails closed on unsupported pairs. DOT-254 must expand from 'Vagrant/libvirt installed on Linux' to a measured provider capability matrix, or be superseded by a reconciled task; do not let its current Linux-only acceptance criteria imply full fleet coverage.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
