@@ -1,3 +1,12 @@
+# ── Ownership ────────────────────────────────────────────────────────────────
+# The topics own this file's contents; chezmoi owns only the symlink at
+# ~/.config/mise/config.toml (dot_config/mise/symlink_config.toml.tmpl, which
+# resolves through .chezmoi.sourceDir). `mise use -g` writes here through that
+# link, and `git status` on this file IS the capture. The contents are in
+# .chezmoiignore so apply never deploys a copy to ~/dotfiles. Machines that
+# already have that copy remove it once by hand:
+#   rm ~/dotfiles/apps/mise/files/config.toml
+
 [settings]
 experimental = true
 pipx.uvx = true

@@ -139,3 +139,22 @@ def test_project_files_are_not_deployed(managed, path):
     """
     assert (REPO / path).exists(), f"{path} is missing from the repo"
     assert path not in managed, f"{path} would be written to $HOME"
+
+
+def test_mise_config_contents_are_topic_owned(managed):
+    """The topics' capture target must not also be deployed payload.
+
+    `mise use -g` writes through ~/.config/mise/config.toml, a symlink to this
+    file. If apply also deploys a copy to ~/dotfiles, the same bytes have two
+    homes and the copy drifts from the capture.
+    """
+    path = "dotfiles/apps/mise/files/config.toml"
+    assert (PAYLOAD_ROOT / path).is_file(), f"{path} is missing"
+    assert path not in managed, (
+        f"{path} is managed again; ~/dotfiles would hold a second copy"
+    )
+
+    link = (PAYLOAD_ROOT / "dot_config/mise/symlink_config.toml.tmpl").read_text()
+    assert ".chezmoi.sourceDir" in link, (
+        "the mise symlink no longer resolves through .chezmoi.sourceDir"
+    )

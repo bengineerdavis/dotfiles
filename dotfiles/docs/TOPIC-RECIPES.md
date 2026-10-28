@@ -100,7 +100,9 @@ file, so those commands **write into the git tree**. The install run leaves the
 repo dirty by design; the entry change is committed as the capture. This is the
 exception to "topics never write other topics' files" — it works because mise
 itself owns the file format and the topic claims the entry as its own state,
-probe-first. See the mise hazard line in TASKS.md § Cross-session hazards.
+probe-first. **Chezmoi owns the symlink; the topic owns the contents.** The
+file is in `.chezmoiignore`, so apply never deploys a copy to `~/dotfiles`, and
+the `mise use -g` change is captured by a git commit rather than an apply.
 
 **Never self-update a manager-installed tool.** Some tools ship their own
 updater (`herdr update`) which is valid only for direct installs; brew, mise

@@ -54,6 +54,11 @@ docs/WORKTREES.md
 docs/BACKLOG-MIGRATION.md
 docs/BACKLOG-UPSTREAM-CONFIG.md
 docs/BACKLOG-CUTOVER.md
+# The mise config contents are the topics' capture target (mise use -g writes
+# through ~/.config/mise/config.toml, a symlink to this file). Chezmoi owns the
+# symlink, not the contents; deploying a copy to ~/dotfiles gives the same bytes
+# two homes. A remove_config.toml entry removes the stale copy.
+dotfiles/apps/mise/files/config.toml
 docs/agents/
 docs/agents/**
 scripts/

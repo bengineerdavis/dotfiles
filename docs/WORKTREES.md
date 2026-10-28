@@ -164,6 +164,12 @@ chezmoi -S "$PWD" add ~/bin/<script>
 ```
 
 The deployed tree cannot be branched — `~/bin/<script>` is one file no matter
-how many branches hold versions of it — so agents never run `chezmoi apply`
-from a worktree (or at all; applying is main-only, by the author or a session
-holding the apply claim).
+how many branches hold versions of it — so an agent never runs `chezmoi apply`
+from a worktree. Applying is main-only, by the author or a session holding the
+apply claim, and only with the author's approval at the prompt.
+
+Read-only `chezmoi status` and `chezmoi managed` are safe with `-S`. Do not run
+`chezmoi diff` from a worktree either: it compares the worktree source against
+the live targets, so every file that legitimately differs — the mise config
+symlink among them — reappears on each run, and a configured `diff.command`
+opens it in a GUI (meld on this machine). Inspect the branch with `git diff`.
