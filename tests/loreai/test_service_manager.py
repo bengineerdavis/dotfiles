@@ -1,21 +1,18 @@
-"""The systemd service-manager seam for the Lore gateway."""
+"""The launchd/systemd command seams for the Lore gateway."""
 
+import pytest
 import yaml
 
 from loreai_service_helpers import TOPIC, render, run_service_command
 
 
-def test_systemd_command_replaces_adopted_gateway_with_local_mode(tmp_path):
-    result = run_service_command(tmp_path, "systemd")
+@pytest.mark.parametrize("manager", ["launchd", "systemd"])
+def test_service_replaces_and_supervises_an_adopted_gateway(tmp_path, manager):
+    result = run_service_command(tmp_path, manager)
     calls = (tmp_path / "call-log").read_text().splitlines()
     assert calls[:3] == ["start --local", "stop", "start --local"]
-    assert result.returncode == 1
-
-
-def test_systemd_command_supervises_until_gateway_disappears(tmp_path):
-    result = run_service_command(tmp_path, "systemd")
-    assert result.returncode == 1, result.stderr
     assert (tmp_path / "doctor-count").read_text().strip() == "3"
+    assert result.returncode == 1
 
 
 def test_systemd_unit_escapes_shell_parameter_expansion():
