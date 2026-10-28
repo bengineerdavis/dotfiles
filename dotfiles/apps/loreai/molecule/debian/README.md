@@ -9,10 +9,27 @@ MOLECULE_SCENARIO=debian scripts/run-molecule.sh loreai login
 MOLECULE_SCENARIO=debian scripts/run-molecule.sh loreai destroy
 ```
 
-The scenario uses `debian/bookworm64` under Vagrant/libvirt. `converge.yml`
-runs the real role with `loreai_telemetry=0` and `loreai_inference=none`, so
-no LLM credential or agent CLI is needed. Molecule's idempotence action runs
-the install a second time.
+The wrapper selects Vagrant's **QEMU** provider and `cloud-image/debian-12` on
+macOS. On Linux it keeps **libvirt** and `debian/bookworm64`. The provider and
+box can be overridden with `MOLECULE_VM_PROVIDER` and `MOLECULE_VM_BOX`; the
+converge, idempotence, verification, and teardown playbooks stay the same.
+
+Verified on macOS 2026-10-28: `MOLECULE_SCENARIO=debian
+scripts/run-molecule.sh loreai test` completed in a real Debian 12 ARM64 VM
+through `vagrant-qemu` 0.7.0, including converge, idempotence, gateway lifecycle,
+reboot, teardown, four verifier tests, and VM destruction. The linger baseline
+lives in the disposable user's home, not `/tmp`, because the scenario verifies
+it after reboot.
+
+The Vagrant macOS installer still requires a privileged installation under
+`/opt/vagrant`. Extracting its DMG into another directory is not sufficient:
+bundled helpers retain `/opt/vagrant` paths. DOT-254 owns the supported package
+bootstrap; do not treat that relocation as a rootless install. QEMU and the VM
+lifecycle themselves need no root, libvirt daemon, or host network service.
+
+`converge.yml` runs the real role with `loreai_telemetry=0` and
+`loreai_inference=none`, so no LLM credential or agent CLI is needed. Molecule's
+idempotence action runs the install a second time.
 
 `side_effect.yml` then exercises the service's external behavior: active and
 enabled after a fresh apply; replacement of the hosted hand-started gateway

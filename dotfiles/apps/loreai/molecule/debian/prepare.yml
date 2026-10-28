@@ -25,7 +25,9 @@
       changed_when: false
 
     - name: Save the linger baseline for the post-converge comparison
+      # /tmp is not guaranteed to survive reboot; the test must retain its own
+      # baseline under the disposable user's home for the post-reboot check.
       ansible.builtin.copy:
         content: "{{ loreai_test_linger_before.stdout }}\n"
-        dest: /tmp/loreai-molecule-linger-before
-        mode: "0644"
+        dest: "{{ ansible_facts.user_dir }}/.loreai-molecule-linger-before"
+        mode: "0600"

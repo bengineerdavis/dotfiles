@@ -6,10 +6,10 @@ dependency:
 driver:
   name: vagrant
   provider:
-    name: libvirt
+    name: "${MOLECULE_VM_PROVIDER:-libvirt}"
 platforms:
   - name: loreai-bookworm
-    box: debian/bookworm64
+    box: "${MOLECULE_VM_BOX:-debian/bookworm64}"
     memory: 4096
     cpus: 2
     instance_raw_config_args:

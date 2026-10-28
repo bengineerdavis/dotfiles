@@ -192,7 +192,7 @@
 
     - name: Read the linger baseline on the target VM
       ansible.builtin.slurp:
-        src: /tmp/loreai-molecule-linger-before
+        src: "{{ ansible_facts.user_dir }}/.loreai-molecule-linger-before"
       register: loreai_test_linger_before_slurp
 
     - name: Assert the topic did not change linger
