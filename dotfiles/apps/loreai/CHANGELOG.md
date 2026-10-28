@@ -15,7 +15,8 @@ changelog tool. Entries are dated, not versioned.
   user unit (Debian) keep the gateway alive, so the persistent agent setups
   survive reboots. Units run `lore start --local` in the foreground and source
   the per-machine env file; local mode enables per-project `.lore.md` writes,
-  and the health check reads the gateway's own port file.
+  and the health check requires the agent-facing port 3207. The service
+  supervises adopted gateways and restarts on binary upgrades.
   remove.yaml stops the service, removes units and logs, and stops any
   hand-launched `lore start --bg` gateway.
 

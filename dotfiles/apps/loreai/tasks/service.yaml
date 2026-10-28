@@ -6,12 +6,11 @@
 # silently on this machine 2026-10-23..27. Lore's docs: "run the gateway
 # under a system service manager (systemd, launchd, etc.)".
 #
-# Pattern: apps/backlog's daemon service (the TOPIC-RECIPES.md
-# service-ownership recipe) with one correction — the health check reads the
-# running gateway's own port file instead of assuming this invocation's
-# default: `lore start` against an already-running gateway is a no-op that
-# reports the EXISTING instance, so a doctor pinned to :3207 would fail
-# against a healthy gateway on another port.
+# Pattern: apps/backlog's daemon service (TOPIC-RECIPES.md service
+# ownership), with two Lore-specific corrections: the unit keeps supervising
+# after `lore start` adopts an existing gateway and exits, and the health
+# check requires the agent-facing port 3207 rather than accepting any port
+# the gateway happened to bind (roborev review #37).
 
 - name: "loreai: create the launchd agent directory (Darwin)"
   ansible.builtin.file:
@@ -93,28 +92,26 @@
         && launchctl enable gui/$(id -u)/{{ loreai_gateway_label }}
   when: >
     ansible_facts['os_family'] == 'Darwin'
-    and (loreai_unit_file_darwin.changed or loreai_service_probe.rc != 0)
+    and (loreai_unit_file_darwin.changed or loreai_service_probe.rc != 0
+         or loreai_binary_cmp.rc | default(1) != 0)
   register: loreai_service_load
   changed_when: "'already' not in (loreai_service_load.stderr | default(''))"
   tags: [loreai, install, upgrade]
 
-- name: "loreai: enable and start the gateway (Debian)"
+- name: "loreai: converge the gateway service (Debian)"
+  # One start on a fresh install; restart only for a new binary or unit.
   ansible.builtin.systemd:
     name: lore-gateway
     enabled: true
-    state: started
+    state: >-
+      {{ 'restarted'
+         if loreai_unit_file_debian.changed
+            or loreai_binary_cmp.rc | default(1) != 0
+         else 'started' }}
     scope: user
     daemon_reload: "{{ loreai_unit_file_debian.changed }}"
   register: loreai_service_load
   when: ansible_facts['os_family'] == 'Debian'
-  tags: [loreai, install, upgrade]
-
-- name: "loreai: restart the gateway after a unit change (Debian)"
-  ansible.builtin.systemd:
-    name: lore-gateway
-    state: restarted
-    scope: user
-  when: ansible_facts['os_family'] == 'Debian' and loreai_unit_file_debian.changed
   tags: [loreai, install, upgrade]
 
 - name: "loreai: note the Debian session-only caveat"
@@ -129,19 +126,20 @@
   when: ansible_facts['os_family'] == 'Debian'
   tags: [loreai, install, upgrade]
 
-- name: "loreai: health check the running gateway"
-  # Reads the gateway's own port file (lore start --bg and the foreground
-  # service both write it) rather than assuming this invocation's port —
-  # a running gateway on a non-default port is healthy, not a failure.
+- name: "loreai: health check the agent-facing gateway"
+  # The persistent claude-code/codex configs hardcode 127.0.0.1:3207. A
+  # healthy gateway on any other port is off-contract and must fail loudly,
+  # not be blessed by reading its own port file (roborev review #37).
   ansible.builtin.shell:
     cmd: |
       for i in 1 2 3 4 5; do
         port=$(cat {{ ansible_env.HOME }}/.local/share/lore/gateway.port 2>/dev/null)
-        if [ -n "$port" ] && {{ loreai_install_dir }}/lore doctor 2>&1 | grep -q "gateway reachable: responding on port $port"; then
+        if [ "$port" = "3207" ] && {{ loreai_install_dir }}/lore doctor 2>&1 | grep -q "gateway reachable: responding on port 3207"; then
           exit 0
         fi
         sleep 2
       done
+      echo "Lore gateway is not serving the agent-facing port 3207 (port file: ${port:-missing}); persistent agent configs require it." >&2
       exit 1
   register: loreai_gateway_health
   changed_when: false

@@ -5,9 +5,9 @@ import yaml
 from loreai_service_helpers import TOPIC, render, run_service_command
 
 
-def test_systemd_command_gives_gateway_worker_credentials(tmp_path):
+def test_systemd_command_supplies_credentials_and_supervises_adoption(tmp_path):
     result = run_service_command(tmp_path, "systemd")
-    assert result.returncode == 0, result.stderr
+    assert result.returncode == 1, result.stderr
 
 
 def test_systemd_unit_escapes_shell_parameter_expansion():
@@ -16,6 +16,7 @@ def test_systemd_unit_escapes_shell_parameter_expansion():
         loreai_env_file="/home/test/.config/loreai/env.zsh",
         loreai_install_dir="/home/test/.local/bin",
         loreai_service_path="/usr/bin:/bin",
+        ansible_env={"HOME": "/home/test"},
     )
     assert "$$OPENROUTER_API_KEY" in document
 

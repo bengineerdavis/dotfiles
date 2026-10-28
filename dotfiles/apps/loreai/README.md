@@ -80,13 +80,13 @@ unit only runs while you have a session; the install reports
 behaviour. Both units pass `--local`: this gateway shares its filesystem
 with the agents, and local mode is what enables per-project `.lore.md`
 reads/writes (plain `lore start` defaults to hosted mode and disables
-them). The health check reads the running gateway's own port file, so
-a healthy gateway on a non-default port is not a failure. One caveat: the
-unit does not pin a port, and `lore start` will adopt an already-running
-hand-started gateway rather than replacing it — if you run a gateway on a
-non-default port yourself, the service leaves it alone (verified
-2026-10-27: the hand-started instance survived the first bootstrap; the
-service owned the gateway from the first restart onward).
+them). The health check requires port 3207 because the persistent agent
+configs point there explicitly; a healthy gateway on another port fails
+loudly rather than leaving agents routed nowhere. The unit supervises an
+adopted hand-started gateway instead of restart-looping when `lore start`
+exits, and restarts on binary upgrades as well as unit changes. If you run
+a gateway on a non-default port yourself, the apply reports the port
+mismatch rather than killing it.
 
 Per-launch `lore run` still works and needs no service: it reuses the
 running gateway or starts one per invocation. Service logs are restricted

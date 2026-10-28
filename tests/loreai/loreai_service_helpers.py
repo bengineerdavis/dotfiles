@@ -40,6 +40,7 @@ def service_command(tmp_path, manager: str) -> tuple[list[str], str]:
     env_file = tmp_path / "env.zsh"
     env_file.write_text('export OPENROUTER_API_KEY="$(llm keys get openrouter)"\n')
     variables = {
+        "ansible_env": {"HOME": str(tmp_path)},
         "loreai_env_file": str(env_file),
         "loreai_install_dir": str(tmp_path),
         "loreai_service_path": f"{tmp_path / 'bin'}:{os.defpath}",
@@ -79,16 +80,38 @@ def run_service_command(tmp_path, manager):
     lore = tmp_path / "lore"
     lore.write_text(
         "#!/bin/sh\n"
-        '[ "$1" = start ] && [ "$2" = --local ] '
+        'case "$1" in\n'
+        "  start)\n"
+        '    [ "$2" = --local ] '
         '&& [ "$OPENROUTER_API_KEY" = dummy-openrouter-key ] '
-        '&& [ "$LORE_WORKER_API_KEY" = dummy-openrouter-key ]\n'
+        '&& [ "$LORE_WORKER_API_KEY" = dummy-openrouter-key ] || exit 90\n'
+        "    exit 0 ;;\n"
+        "  doctor)\n"
+        "    count=0\n"
+        '    [ ! -f "$LORE_TEST_DOCTOR_COUNT" ] || '
+        'count=$(cat "$LORE_TEST_DOCTOR_COUNT")\n'
+        "    count=$((count + 1))\n"
+        '    printf \'%s\\n\' "$count" > "$LORE_TEST_DOCTOR_COUNT"\n'
+        '    if [ "$count" -le 2 ]; then\n'
+        "      printf '[lore] [PASS] gateway reachable: responding on port 3207\\n'\n"
+        "      exit 0\n"
+        "    fi\n"
+        "    exit 1 ;;\n"
+        "esac\n"
     )
     lore.chmod(0o755)
+    sleep = bin_dir / "sleep"
+    sleep.write_text("#!/bin/sh\nexit 0\n")
+    sleep.chmod(0o755)
     command, path = service_command(tmp_path, manager)
 
     return subprocess.run(
         command,
-        env={"HOME": str(tmp_path), "PATH": path},
+        env={
+            "HOME": str(tmp_path),
+            "PATH": path,
+            "LORE_TEST_DOCTOR_COUNT": str(tmp_path / "doctor-count"),
+        },
         capture_output=True,
         text=True,
         check=False,
