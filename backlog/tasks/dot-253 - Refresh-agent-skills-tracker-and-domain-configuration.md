@@ -1,11 +1,12 @@
 ---
 id: DOT-253
 title: Refresh agent-skills tracker and domain configuration
-status: To Do
+status: In Progress
 created_date: 2026-10-28 05:03
 labels:
 - documentation
 priority: medium
+updated_date: 2026-10-28 05:06
 ---
 
 ## Description
@@ -38,7 +39,7 @@ Agreed with the maintainer 2026-10-27: refresh the existing setup rather than sc
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
+PR #95 opened 2026-10-27 for the two-doc refresh; tests/docs 13 passed and skillet Valid.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
