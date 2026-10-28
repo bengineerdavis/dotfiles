@@ -38,3 +38,11 @@
       them. Registration was {{ 'cleared' if gita_remove_registration | bool
          else 'kept (gita_remove_registration is false)' }}; the mise
       pipx:gita entry was removed.
+- name: "Remove: drop the work group (undoes the grouping install sweeps in)"
+  ansible.builtin.command:
+    cmd: gita group rm {{ gita_work_group }}
+  # Absent group on a personal machine is the already-removed case, not a
+  # failure. The registrations themselves leave only behind the
+  # gita_remove_registration gate above.
+  failed_when: false
+  changed_when: true
