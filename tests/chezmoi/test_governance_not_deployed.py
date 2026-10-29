@@ -39,8 +39,8 @@ from payload_seam import PAYLOAD_ROOT
 # deploy — it is covered by the dot-prefix rule like .worktrees/, asserted
 # in tests/backlog.
 GOVERNANCE = ["AGENTS.md", "PRD.md", "ROADMAP.md", "spec.md"]
-# Not a whole directory any more: docs/ mixes repository conventions (which must
-# not deploy) with dotfiles documentation (which must). Named files only.
+# All documentation is repository-only. This list checks representative
+# convention files; test_documentation_does_not_deploy covers the whole tree.
 GOVERNANCE_FILES_IN_DOCS = [
     "docs/PERMISSIONS.md",
     "docs/PYTHON.md",
@@ -106,9 +106,7 @@ def test_governance_dir_contents_are_not_deployed(managed, d):
 
 @pytest.mark.parametrize("path", GOVERNANCE_FILES_IN_DOCS)
 def test_convention_in_docs_is_not_deployed(managed, path):
-    """docs/ is a deployed tree, so moving conventions into it put them one
-    .chezmoiignore line away from landing in $HOME.
-    """
+    """Repository documentation must not deploy into the home directory."""
     assert (REPO / path).exists(), f"{path} is missing from the repo"
     assert path not in managed, f"{path} would be written to $HOME"
 

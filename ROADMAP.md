@@ -303,7 +303,7 @@ rule-outs for far less, so it went first.
 
 **Docs excluded from provisioned files — decided 2026-10-03.** The author
 ruled that documentation is for the git repository only. The two docs copies
-merge into the root `docs/` tree — the maintained `docs/` content
+merge into the root `docs/` tree — the maintained `dotfiles/docs/` content
 wins where the copies differ — and `chezmoi managed` stops listing any docs
 path, so the merge-gate ambiguity between "docs-only" and "deployed-tree"
 diffs disappears by construction. Queued in `TASKS.md` § Planned;
