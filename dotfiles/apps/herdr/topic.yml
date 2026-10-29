@@ -1,9 +1,0 @@
-topic_name: herdr
-# herdr is the agent-runtime server; the binary is a GitHub-release CLI, so it
-# installs through mise (TOPIC-RECIPES.md install-mechanism chooser) with this
-# topic owning the entry via first-party commands (`mise use -g herdr` /
-# `mise unuse --global herdr`). See apps/herdr/README.md for the design record.
-topic_provides: [herdr]
-topic_requires: [mise]
-topic_os: [Darwin, Debian]
-topic_tier: app

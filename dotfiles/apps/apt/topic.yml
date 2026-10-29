@@ -1,5 +1,0 @@
-topic_name: apt
-topic_provides: [apt]
-topic_requires: []
-topic_os: [Debian]
-topic_tier: pkg-manager

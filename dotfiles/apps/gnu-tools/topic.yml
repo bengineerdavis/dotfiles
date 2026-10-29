@@ -1,5 +1,0 @@
-topic_name: gnu-tools
-topic_provides: []
-topic_requires: [homebrew]
-topic_os: [Darwin]
-topic_tier: app

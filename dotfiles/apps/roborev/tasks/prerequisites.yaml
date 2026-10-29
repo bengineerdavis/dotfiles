@@ -1,6 +1,0 @@
-# apps/roborev/tasks/prerequisites.yaml
-#
-# Empty — app-tier topic. topic_requires is empty (see topic.yml for why
-# homebrew is deliberately absent) and the .deb route needs nothing beyond
-# the apt module and network access. Dependencies are expressed via
-# topic_requires in topic.yml and resolved by the parent playbook.

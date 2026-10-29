@@ -1,5 +1,0 @@
-# apps/topical/defaults/main.yaml
-# The install spec. A git URL until releases are cut and the PyPI name
-# question is settled — the bare name `topical` is taken on PyPI by a
-# dormant Kafka library (checked 2026-10-21).
-topical_install_spec: "git+https://github.com/bengineerdavis/topical"

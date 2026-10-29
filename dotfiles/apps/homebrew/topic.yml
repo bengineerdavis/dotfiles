@@ -1,5 +1,0 @@
-topic_name: homebrew
-topic_provides: [homebrew]
-topic_requires: []
-topic_os: [Darwin]
-topic_tier: pkg-manager

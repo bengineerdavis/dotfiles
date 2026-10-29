@@ -1,7 +1,0 @@
-# apps/uv/tasks/bootstrap.yaml
-#
-# No-op by design. The FIRST uv install on a machine belongs to
-# dotfiles/bootstrap/bootstrap.sh, which runs before mise and Ansible
-# (ordering: uv → mise → mise sync → ansible). Re-running the astral
-# installer here would race the bootstrap's pinned-version path (UV_VERSION),
-# so this phase stays empty and `--tags install` takes over afterwards.

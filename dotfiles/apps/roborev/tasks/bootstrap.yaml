@@ -1,5 +1,0 @@
-# apps/roborev/tasks/bootstrap.yaml
-#
-# Empty — app-tier topic. Homebrew is bootstrapped by apps/homebrew and apt
-# by apps/apt before any app topic runs; this topic needs neither at
-# bootstrap time. See the template's notes on who fills this file in.

@@ -1,7 +1,0 @@
-# apps/topical/topic.yml — topic metadata read by the parent playbook.
-# See docs/TOPICS.md.
-topic_name: topical
-topic_provides: []
-topic_requires: [uv]
-topic_os: [Darwin, Debian]
-topic_tier: app
