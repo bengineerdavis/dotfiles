@@ -1,7 +1,0 @@
-# Lima's user-space VM runtime. See docs/TOPICS.md.
-topic_name: lima
-topic_provides: [limactl]
-# Lima uses QEMU on every host; the existing package topics own that dependency.
-topic_requires: [qemu]
-topic_os: [Darwin, Debian]
-topic_tier: app
