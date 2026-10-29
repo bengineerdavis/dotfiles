@@ -7,9 +7,16 @@
 # so a probe for `homebrew` never resolves even when Homebrew is installed.
 # Likewise, the Bitwarden and 1Password CLIs are `bw` and `op` respectively,
 # not `bitwarden` or `1password`.
-# Every other token (node, apt, docker, mise, python…) is a real binary name
-# and is probed as itself.
+# Unlisted tokens (node, apt, docker, mise, python…) are real binary names
+# and are probed as themselves. QEMU differs by architecture; probe the two
+# supported native executable names without requiring gathered host facts.
 dependency_probe_binary:
   homebrew: brew
   bitwarden: bw
   1password: op
+  # QEMU is the tool name; its executable depends on the target architecture.
+  # This selects the host binary; a guest architecture is a separate concern.
+  qemu: >-
+    {{ 'qemu-system-aarch64'
+       if lookup('ansible.builtin.pipe', 'command -v qemu-system-aarch64', errors='ignore') | trim
+       else 'qemu-system-x86_64' }}
