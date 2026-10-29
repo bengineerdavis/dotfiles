@@ -7,6 +7,11 @@ labels:
 - planned
 - group:refactor-b-factor-the-ai-llm-tooling-out-of-this-repo
 updated_date: 2026-10-29 03:21
+orchestration:
+  status_key: inprogress
+  lease_owner: opencode-payload-migration
+  lease_expires_at: '2026-10-29T04:21:34.591464Z'
+  version: 1
 ---
 
 ## Description
@@ -47,3 +52,21 @@ updated_date: 2026-10-29 03:21
 ## Definition of Done
 <!-- DOD:BEGIN -->
 <!-- DOD:END -->
+
+## Run History
+<!-- SECTION:RUN_HISTORY:BEGIN -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-3af8f8f5308a40cc83619202aad4202b
+type: claim_task
+actor: opencode-payload-migration
+timestamp: '2026-10-29T03:21:34.591533Z'
+result: succeeded
+task_id: DOT-220
+from_status: todo
+to_status: inprogress
+metadata:
+  lease_ttl_seconds: '3600'
+```
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- SECTION:RUN_HISTORY:END -->
