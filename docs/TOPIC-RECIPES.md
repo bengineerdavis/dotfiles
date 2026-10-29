@@ -4,7 +4,7 @@ These are the settled decisions from building a topic, generalized so the next
 one does not re-derive them. Explanations, not authority: `docs/TOPICS.md`
 and root `spec.md` carry the binding rules, and this file links to them instead of
 restating. Settled 2026-09-18/19, instance: the `herdr` topic
-(`dotfiles/apps/herdr/README.md` records that instance and links back here).
+(`home/dotfiles/apps/herdr/README.md` records that instance and links back here).
 
 This file is queued as input to the normative topic spec (TASKS.md § Now): the
 spec session lifts what belongs in spec terms and records any reasoned rejection.
@@ -110,8 +110,8 @@ shell out to the self-updater; note it in the README so nobody "fixes" it later.
 ## Recipe: the shared-catalogue pattern
 
 When several topics need the same list of things — extensions, integrations,
-agents — the list is a **catalogue**: `dotfiles/config/<domain>.yaml`, plain
-data the playbook and topics read. Precedent: `dotfiles/config/editors.yaml`.
+agents — the list is a **catalogue**: `home/dotfiles/config/<domain>.yaml`, plain
+data the playbook and topics read. Precedent: `home/dotfiles/config/editors.yaml`.
 
 The threshold for earning a new catalogue file (all four must hold):
 
@@ -218,6 +218,6 @@ judge half lives in `docs/JUDGE-SELECTION.md`.
 ## See also
 
 - `docs/TOPICS.md` — topic structure, schema, lifecycle (source of truth)
-- `dotfiles/apps/herdr/README.md` — the instance this file generalizes
+- `home/dotfiles/apps/herdr/README.md` — the instance this file generalizes
 - `docs/JUDGE-SELECTION.md` — the measured judge methodology
 - `TASKS.md` § Now — the normative topic spec session consumes this file

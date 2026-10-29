@@ -16,9 +16,11 @@ import pathlib
 import shutil
 import subprocess
 
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
 import pytest
 
-FUNCTIONS = pathlib.Path(__file__).resolve().parents[2] / "dot_functions"
+FUNCTIONS = PAYLOAD_ROOT / "dot_functions"
 
 pytestmark = pytest.mark.skipif(
     shutil.which("zsh") is None, reason="zsh is not installed"

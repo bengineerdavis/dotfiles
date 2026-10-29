@@ -18,10 +18,11 @@ import shutil
 import subprocess
 import tempfile
 
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
 import pytest
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-SCRIPT = REPO / "dotfiles" / "apps" / "apt" / "files" / "apt_keyring.py"
+SCRIPT = PAYLOAD_ROOT / "dotfiles" / "apps" / "apt" / "files" / "apt_keyring.py"
 
 pytestmark = pytest.mark.skipif(shutil.which("gpg") is None, reason="needs gpg")
 

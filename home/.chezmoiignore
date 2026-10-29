@@ -1,0 +1,27 @@
+# Ignore payload artifacts related to Ansible tasks.
+dotfiles/apps/starship/preset_choice.yml
+crontab
+crontab/**
+
+# Repository-only tooling lives outside home/ and needs no ignore rules.
+
+{{ if ne .chezmoi.os "darwin" }}
+.zprofile
+{{ end }}
+
+bin/archive.bk
+bin/READMD.archive.md
+
+# Tool virtualenvs. Each tools/<name>/ grows one the first time anyone runs
+# `uv run --project`, and without this a later apply copies an entire
+# virtualenv into the deployed tree.
+**/.venv
+
+# Python bytecode artifacts (mirror .gitignore — never deploy these).
+**/__pycache__
+**/*.pyc
+**/*.pyo
+
+{{ if ne .chezmoi.os "linux" }}
+.config/user-tmpfiles.d/tmp.conf
+{{ end }}

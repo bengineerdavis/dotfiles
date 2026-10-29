@@ -19,10 +19,11 @@ import pathlib
 import shutil
 import subprocess
 
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
 import pytest
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-ROLE = REPO / "dotfiles" / "apps" / "apt"
+ROLE = PAYLOAD_ROOT / "dotfiles" / "apps" / "apt"
 
 pytestmark = pytest.mark.skipif(
     shutil.which("ansible-playbook") is None, reason="ansible-playbook not on PATH"

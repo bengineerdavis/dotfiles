@@ -34,7 +34,7 @@ line-length = 88
 # Vendored application bundle, not repo Python.
 extend-exclude = [
     # Vendored application bundles - not repo Python.
-    "dotfiles/apps/zim",
+    "home/dotfiles/apps/zim",
     ".bats",
 ]
 
@@ -63,7 +63,7 @@ max-doc-length = 72
 "tests/**" = ["E402"]
 # PR #31 (restart-stale style) owns these six files' cleanup; remove this
 # grandfather when it merges.
-"dotfiles/roles/restart-stale/**" = ["E", "W", "D", "W505"]
+"home/dotfiles/roles/restart-stale/**" = ["E", "W", "D", "W505"]
 "tests/restart_stale/**" = ["E", "W", "D", "W505"]
 # Trace fixtures are verbatim third-party output - the long lines ARE the
 # data, and an end-of-line noqa would become part of the traced content.
@@ -131,4 +131,4 @@ project-includes = [
 # test-vm group — unresolvable in any default environment, so project-state
 # checking must skip them or every commit fails on machines without the
 # group. Their verification runs inside the VM, not under pyrefly.
-project-excludes = ["dotfiles/apps/opencode/molecule", "dotfiles/apps/loreai/molecule"]
+project-excludes = ["home/dotfiles/apps/opencode/molecule", "home/dotfiles/apps/loreai/molecule"]

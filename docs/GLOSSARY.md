@@ -115,7 +115,7 @@ provenance, behaviour. Lives in `tools/skill-trust/`.
 
 ## topic
 
-The unit of machine configuration: a directory under `dotfiles/` carrying a
+The unit of machine configuration: a directory under `home/dotfiles/apps/` carrying a
 `topic.yml`, Ansible tasks, and chezmoi-managed files, with one concern per
 layer. Doc of record: `docs/TOPICS.md`.
 

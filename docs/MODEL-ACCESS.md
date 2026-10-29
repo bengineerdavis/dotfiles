@@ -109,7 +109,7 @@ local tools to agent runtimes, when that need arrives:
   `mcp` command (managed keys, ownership sidecars — client-owned config is
   never rewritten),   consumed by opencode/claude. The `opencode.json`-vs-`opencode.jsonc`
   precedence finding (measured 2026-09-12, recorded in
-  `dotfiles/apps/opencode/README.md`) applies: jsonc is authoritative.
+  `home/dotfiles/apps/opencode/README.md`) applies: jsonc is authoritative.
 - **What we deliberately do not do:** no MCP server authoring in this repo.
   Tool logic is AI tooling; the PRD's architecture rule sends it to the
   factored-out home with everything else. Provisioning may install and trigger

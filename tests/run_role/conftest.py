@@ -3,8 +3,10 @@ import subprocess
 
 import pytest
 
-REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
-SCRIPT = REPO_ROOT / "dotfiles" / "executable_run-role.sh"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+SCRIPT = PAYLOAD_ROOT / "dotfiles" / "executable_run-role.sh"
 
 
 @pytest.fixture

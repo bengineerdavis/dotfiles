@@ -9,12 +9,12 @@ projects is explicit rather than by memory. Python detail lives in
 
 | Directory | Languages |
 |---|---|
-| `bin/` (chezmoi source; deploys to `~/bin`) | bash; Python, both stdlib and PEP 723 (`#!/usr/bin/env -S uv run --script`) |
+| `home/bin/` (chezmoi source; deploys to `~/bin`) | bash; Python, both stdlib and PEP 723 (`#!/usr/bin/env -S uv run --script`) |
 | `scripts/` | bash (`run-bats.sh`), Python (`check_commit_proportionality.py`), zsh (`chezmoi_symlink_config.zsh`) |
 | `tools/skill-trust/` | Python (uv tool project) |
 | `tests/` | Python (pytest) and bash (bats) |
-| `dotfiles/apps/*/tasks/`, `dotfiles/playbook.yaml` | YAML + Jinja2 (Ansible) |
-| `dot_config/` | zsh, and chezmoi `*.tmpl` templates (Go template syntax) |
+| `home/dotfiles/apps/*/tasks/`, `home/dotfiles/playbook.yaml` | YAML + Jinja2 (Ansible) |
+| `home/dot_config/` | zsh, and chezmoi `*.tmpl` templates (Go template syntax) |
 
 The bash-versus-Python choice is `AGENTS.md` § Languages; the Python toolchain
 is `docs/PYTHON.md`.

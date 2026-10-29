@@ -4,7 +4,7 @@ How agent permissions are set in this repository, and — more importantly — w
 they do not protect against.
 
 Two agent surfaces are configured here, and the rules for both are versioned:
-**opencode** — the global template `dot_config/opencode/opencode.jsonc.tmpl`
+**opencode** — the global template `home/dot_config/opencode/opencode.jsonc.tmpl`
 and the project file `opencode.jsonc` — and **Claude Code**
 (`.claude/settings.json`). Claude Code's file is JSON and cannot carry
 comments; opencode's are JSONC and carry the reasoning inline. This file is
@@ -160,7 +160,7 @@ review ever saw as a whole.
 
 opencode's rules live in two files, both versioned here:
 
-- `dot_config/opencode/opencode.jsonc.tmpl` — the **global** config, deployed by
+- `home/dot_config/opencode/opencode.jsonc.tmpl` — the **global** config, deployed by
   chezmoi to `~/.config/opencode/opencode.jsonc`. Baseline: reads free, git
   allowed, everything else asks, and `external_directory` is deny-first /
   allow-last so only the chezmoi source, `~/code`, and the agent-skill trees

@@ -75,7 +75,9 @@ def make_scenario_repo(tmp_path: pathlib.Path) -> pathlib.Path:
     (repo / "scripts").mkdir(parents=True)
     shutil.copy2(SCRIPT, repo / "scripts" / "run-molecule.sh")
 
-    scenario = repo / "dotfiles" / "apps" / "faketopic" / "molecule" / "default"
+    scenario = (
+        repo / "home" / "dotfiles" / "apps" / "faketopic" / "molecule" / "default"
+    )
     scenario.mkdir(parents=True)
     (scenario / "molecule.yml").touch()
 

@@ -95,9 +95,14 @@ VERDICTS = {
 def buckets_for(path: str, managed: frozenset[str]) -> tuple[str, ...]:
     """Buckets a changed path falls into; a path may carry several."""
     out = []
-    if path in managed:
+    # .chezmoiroot=home changes repository paths, not the managed source paths
+    # returned by chezmoi. Repo-native paths outside home/ stay unchanged.
+    source_path = path.removeprefix("home/")
+    if source_path in managed:
         out.append("deployed")
-    if path in POLICY_EXACT or any(fnmatch.fnmatch(path, g) for g in POLICY_GLOBS):
+    if source_path in POLICY_EXACT or any(
+        fnmatch.fnmatch(source_path, g) for g in POLICY_GLOBS
+    ):
         out.append("policy")
     if any(fnmatch.fnmatch(path, g) for g in DOCS_GLOBS):
         out.append("docs")

@@ -13,7 +13,7 @@ Start-here section before doing anything else.
 
 1. `git pull` on `main`. The queue is `backlog/tasks/`.
 2. Install the tool: apply `apps/backlog`
-   (`ansible-playbook dotfiles/apps/backlog/playbook.yaml`). It installs
+   (`ansible-playbook home/dotfiles/apps/backlog/playbook.yaml`). It installs
    `pipx:backlog-md-py` through mise and the singleton daemon's service
    unit. Until that lands, `uvx --from backlog-md-py backlog-py` works.
 3. Smoke the daemon: `backlog-py daemon ensure && backlog-py daemon status

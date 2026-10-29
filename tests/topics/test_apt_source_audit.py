@@ -11,10 +11,11 @@ import io
 import json
 import pathlib
 
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
 import pytest
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-SCRIPT = REPO / "dotfiles" / "apps" / "apt" / "files" / "apt_source_audit.py"
+SCRIPT = PAYLOAD_ROOT / "dotfiles" / "apps" / "apt" / "files" / "apt_source_audit.py"
 
 APT_OUTPUT = """\
 Get:1 https://cli.github.com/packages stable InRelease [3,917 B]

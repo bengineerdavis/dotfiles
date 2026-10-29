@@ -418,7 +418,7 @@ The canonical topic skeleton ships with the topical repo (checked out at
 `TOPICAL_TEMPLATE` overrides the lookup), and `topical new` is the way to
 scaffold from it. The generator copies the skeleton, substitutes the topic
 name through it, and emits only the package manager blocks the topic
-declares — the catalog it reads is `dotfiles/managers.yaml` here.
+declares — the catalog it reads is `home/dotfiles/managers.yaml` here.
 `migrate-to-roles.sh` uses the same skeleton as the reference for its
 conformance checks.
 
@@ -470,7 +470,7 @@ uv run --script ~/code/personal/topical/topical new my-topic --os Darwin --manag
 This scaffolds `apps/my-topic/` from `template_dir/`, fills `topic.yml`
 from the flags, and emits only the install/remove blocks the declared
 managers need (`--manager` repeats; the catalog is
-`dotfiles/managers.yaml`). It refuses to overwrite an existing topic. What
+`home/dotfiles/managers.yaml`). It refuses to overwrite an existing topic. What
 remains to edit by hand depends on the manager: nothing for a plain brew
 or apt package; the commented outlines for `apt_repository` and
 `release_artifact`.
