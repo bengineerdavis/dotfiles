@@ -22,6 +22,7 @@ The author ruled (2026-10-29):
 2. **Symlinks are tested by default.** All managed symlinks are verified in that gate, especially when a file's location changes — the exact failure class that broke mise.
 3. **One config file per tool.** Competing config files are never acceptable policy, even when the tool documents precedence. During migrations, duplicates and leftovers are explicitly cleaned up. For OpenCode, the default is `opencode.json` (LoreAI's `lore setup opencode` expects it) unless V2 requires JSONC. Follow the documented approach or what the code does; if a tool misbehaves, open PRs from forked codebases against the respective tools and raise it upstream.
 4. **Incidents become post-mortems in backlog.** Capture incidents like these as decisions (this ADR) with linked remediation tasks, so the failure classes stay visible after the session ends.
+5. **Symlinked config converts to copy deployment** (author ruling, 2026-10-29, during this post-mortem): the global mise config is deployed via chezmoi's `symlink_` attribute, which makes `git pull` the deployment itself — the live config changes the instant the source file updates, with no render/verify/swap step any gate can stand in front of. Convert symlink-deployed files to regular chezmoi-managed files so deployment happens only at `chezmoi apply`, where the post-apply gate can verify. The live-edit convenience (documented in AGENTS.md as a cross-session hazard) is consciously traded away.
 
 ## Consequences
 
