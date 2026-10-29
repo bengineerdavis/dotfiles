@@ -12,6 +12,11 @@ labels:
 - molecule
 - chore
 priority: high
+orchestration:
+  status_key: inprogress
+  lease_owner: opencode-loreai-lima
+  lease_expires_at: '2026-10-29T03:23:16.951382Z'
+  version: 1
 ---
 
 ## Description
@@ -52,3 +57,21 @@ Use Molecule native path references, not a new Python driver. Start with a minim
 <!-- DOD:BEGIN -->
 - [ ] #1 Both Lima and LoreAI scenarios use one referenced lifecycle adapter and pass their intended real-VM verification; topic-owned preservation is checked; only scenario state is removed; tests are seen failing before passing; branch is ready for human review with host and Linux-host Lima coverage limitations stated.
 <!-- DOD:END -->
+
+## Run History
+<!-- SECTION:RUN_HISTORY:BEGIN -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-f790ceba0cd440db813309d0538b2bb5
+type: claim_task
+actor: opencode-loreai-lima
+timestamp: '2026-10-29T02:23:16.951449Z'
+result: succeeded
+task_id: DOT-265
+from_status: todo
+to_status: inprogress
+metadata:
+  lease_ttl_seconds: '3600'
+```
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- SECTION:RUN_HISTORY:END -->
