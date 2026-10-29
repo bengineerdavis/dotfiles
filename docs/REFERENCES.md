@@ -29,6 +29,7 @@ nothing changed — a stale date is the signal, not the version number.
 | [no-ai-slop](https://github.com/petergyang/no-ai-slop) | vendored MIT @ 2026-09-02 | `~/.claude/skills/no-ai-slop/` | 2026-09-11 |
 | [shellcheck-py](https://github.com/shellcheck-py/shellcheck-py) | `v0.10.0.1` in `.pre-commit-config.yaml` | pre-commit hook | 2026-09-11 |
 | [prek](https://github.com/j178/prek) | 0.5.0 | hook runner; writes `.git/hooks/` | 2026-09-11 |
+| [Lychee](https://github.com/lycheeverse/lychee) | **0.24.2** through `aqua:lycheeverse/lychee` | local documentation links in pre-commit; reviewed external checks via `scripts/check-docs-links.py` | 2026-10-29 |
 | [scriv](https://scriv.readthedocs.io/) | **1.8.0** pinned in the merge workflow; run locally via `uv run --with scriv` | `changelog.d/` fragments → `CHANGELOG.md` after each merged PR; no semantic versions or GitHub Releases | 2026-10-28 |
 | [backlog-md-py](https://github.com/rmusser01/backlog-md-py) 2.2.0 | pipx via mise (`pipx:backlog-md-py`) | the task queue: `backlog/` at repo root, `backlog-py --cwd .` — Python compatibility clone of Backlog.md | 2026-10-23 |
 | [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) | **1.1.0** | category names in `changelog.d/scriv.ini` | 2026-09-11 |

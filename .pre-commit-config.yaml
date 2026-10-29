@@ -62,6 +62,24 @@ repos:
         pass_filenames: false # runner pulls staged files itself via git
         stages: [pre-commit, pre-push]
 
+  # 2b. Local documentation links. The runner selects tracked Markdown
+  #     explicitly; Lychee's URL `exclude` does not exclude input documents.
+  - repo: local
+    hooks:
+      - id: docs-links-local
+        name: Documentation links — changed files (offline)
+        language: system
+        entry: python3 scripts/check-docs-links.py --changed
+        files: \.(md|mdx)$
+        types: [file]
+        stages: [pre-commit]
+      - id: docs-links-full
+        name: Documentation links — full corpus (offline)
+        language: system
+        entry: python3 scripts/check-docs-links.py
+        pass_filenames: false
+        stages: [pre-push]
+
   # 3. Message length must be proportional to the change it describes.
   #    Thresholds come from the commit-hygiene skill, not from this repo's
   #    history — see scripts/check_commit_proportionality.py for why that

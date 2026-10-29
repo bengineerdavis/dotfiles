@@ -29,6 +29,9 @@ age = "latest"
 fd = "latest"
 fzf = "latest"
 
+# Documentation link checker; owned by the repository's pre-commit hooks.
+"aqua:lycheeverse/lychee" = "0.24.2"
+
 # go tooling
 go = "latest"
 

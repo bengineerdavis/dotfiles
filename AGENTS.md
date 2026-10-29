@@ -823,6 +823,9 @@ root holds only the five documents that govern the project:
 - **`docs/GLOSSARY.md`** — project terminology only, not a CS dictionary.
   General terms get glossed inline on first use; a doc using a glossary term
   links to its definition on first use (`spec.md` § Writing).
+- **`docs/LINK-CHECKING.md`** — the proposed Lychee cadence and security boundary,
+  pending approval: offline changed-file checks at commit, full local checks
+  before push, and human-reviewed external checks before merge.
 - **`docs/WORKTREES.md`** — the agent-worktree naming contract and lifecycle:
   flat `.worktrees/<sid>` names, underscores never slashes in branches, one
   writer per worktree, ephemeral merge scratch, deletion only after

@@ -1,0 +1,14 @@
+# Local checks are offline. The runner selects files explicitly because
+# Lychee's `exclude` filters URLs, not input documents.
+offline = true
+include_fragments = "anchor-only"
+include_mail = false
+include_verbatim = false
+insecure = false
+require_https = true
+exclude_private = true
+exclude_loopback = true
+exclude_link_local = true
+exclude = ["(?i)^https?://localhost(?::[0-9]+)?(?:/|$)"]
+timeout = 20
+max_concurrency = 8
