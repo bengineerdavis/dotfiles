@@ -99,4 +99,25 @@ metadata:
   lease_ttl_seconds: '3600'
 ```
 <!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-1b0205fc13364cf98f3d108807d998e3
+type: record_run
+actor: opencode-payload-migration
+timestamp: '2026-10-29T04:45:23.429273Z'
+result: succeeded
+task_id: DOT-222
+files:
+- home
+- scripts/check_merge_gates.py
+- tests/chezmoi/test_payload_root.py
+verification:
+- 'uv run --frozen --with pytest-xdist pytest tests tools -q -n auto --dist worksteal:
+  1166 passed, 6 skipped'
+- 'isolated chezmoi apply to scratch destination: passed; repository-only tests/docs/backlog
+  absent'
+- 'changed-file Ruff, Pyrefly, skillet, 29 findline BATS tests: passed'
+```
+Payload moved under home via .chezmoiroot on agent/payload-home at e09b955. Full tree: 844 renames, no old payload paths, 1052 managed targets. Pushed for review after docs prerequisite PR #100. No real-home apply.
+<!-- RUN_HISTORY_ENTRY:END -->
 <!-- SECTION:RUN_HISTORY:END -->
