@@ -49,7 +49,7 @@ def test_json_filter_relents_on_malformed_input():
     spec.loader.exec_module(module)
     parse = module.FilterModule().filters()["json_or_empty"]
     assert parse('{"data": [{"state": {"status": "active"}}]}')["data"]
-    for malformed in ("{not-json", "", "<html></html>", None):
+    for malformed in ("{not-json", "", "<html></html>", None, "[]", "null"):
         assert parse(malformed) == {}
 
 
@@ -120,6 +120,8 @@ def _run_state(tmp_path: Path, state: str) -> subprocess.CompletedProcess:
             bin_dir / "opencode",
             "#!/bin/sh\nprintf '{not-json\\n'\n",
         )
+    if state == "api-shape":
+        _write_executable(bin_dir / "opencode", "#!/bin/sh\nprintf '[]\\n'\n")
     if state == "install-error":
         (log / "opencode.log").write_text(
             "target=@loreai/opencode NpmInstallFailedError\n"
@@ -165,7 +167,8 @@ def _run_state(tmp_path: Path, state: str) -> subprocess.CompletedProcess:
 
 @pytest.mark.skipif(ANSIBLE is None, reason="ansible-playbook not installed")
 @pytest.mark.parametrize(
-    "state", ["active", "failed", "unknown", "api-error", "api-malformed"]
+    "state",
+    ["active", "failed", "unknown", "api-error", "api-malformed", "api-shape"],
 )
 def test_task_distinguishes_loaded_rejected_and_unknown_states(tmp_path, state):
     result = _run_state(tmp_path, state)
@@ -179,7 +182,7 @@ def test_task_distinguishes_loaded_rejected_and_unknown_states(tmp_path, state):
         assert "ignored=1" in output
     if state == "failed":
         assert "upstream BYK/loreai release" in output
-    if state in ["unknown", "api-malformed"]:
+    if state in ["unknown", "api-malformed", "api-shape"]:
         assert "load state could not be determined" in output
     if state == "api-error":
         assert "server unavailable" in output

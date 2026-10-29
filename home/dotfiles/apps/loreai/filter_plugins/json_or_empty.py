@@ -1,14 +1,16 @@
-"""Return OpenCode's plugin list, or an empty list for invalid input."""
+"""Return OpenCode's plugin response as a dictionary."""
 
 import json
 
 
 def json_or_empty(value):
-    """Return an empty response when the CLI output is not JSON."""
+    """Return {} unless the CLI returns a JSON object."""
     try:
-        return json.loads(value)
-    except json.JSONDecodeError, TypeError:
+        parsed = json.loads(value)
+    # The pipx Ansible controller may predate PEP 758.
+    except (json.JSONDecodeError, TypeError):  # fmt: skip
         return {}
+    return parsed if isinstance(parsed, dict) else {}
 
 
 class FilterModule:
