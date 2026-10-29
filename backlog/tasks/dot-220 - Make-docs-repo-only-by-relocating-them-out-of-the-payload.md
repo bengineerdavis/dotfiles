@@ -69,4 +69,21 @@ metadata:
   lease_ttl_seconds: '3600'
 ```
 <!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-4c2abac5a3c34d3689f200a8a513ca52
+type: record_run
+actor: opencode-payload-migration
+timestamp: '2026-10-29T03:36:20.098244Z'
+result: succeeded
+task_id: DOT-220
+files:
+- docs/README.md
+- AGENTS.md
+verification:
+- 'uv run --frozen --with pytest-xdist pytest tests tools -q -n auto --dist worksteal:
+  1163 passed, 6 skipped'
+```
+Consolidated maintained documentation into root docs, updated live references, repository-only deployment contract; 1163 tests passed, skillet valid, commit 28c9d16 on agent/docs-relocate pushed.
+<!-- RUN_HISTORY_ENTRY:END -->
 <!-- SECTION:RUN_HISTORY:END -->
