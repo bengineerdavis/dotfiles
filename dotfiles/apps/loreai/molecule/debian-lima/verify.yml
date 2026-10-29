@@ -1,0 +1,44 @@
+---
+# Verify externally observable behavior before side_effect removes the topic.
+- name: Verify LoreAI in the Debian guest
+  hosts: all
+  gather_facts: true
+  become: false
+  tasks:
+    - name: Assert a real Debian QEMU guest
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.distribution == "Debian"
+          - ansible_facts.distribution_major_version == "12"
+          - ansible_facts.service_mgr == "systemd"
+
+    - name: Check the owned user service is running
+      ansible.builtin.command:
+        argv: [systemctl, --user, is-active, lore-gateway]
+      changed_when: false
+
+    - name: Check the owned user service is enabled
+      ansible.builtin.command:
+        argv: [systemctl, --user, is-enabled, lore-gateway]
+      changed_when: false
+
+    - name: Read the local gateway UI without using an LLM
+      ansible.builtin.uri:
+        url: http://127.0.0.1:3207/ui
+        method: GET
+        return_content: true
+        status_code: 200
+        timeout: 10
+      register: loreai_gateway_ui
+
+    - name: Assert the local HTTP response contains the Lore dashboard
+      ansible.builtin.assert:
+        that:
+          - "'Lore' in loreai_gateway_ui.content"
+          - loreai_gateway_ui.cookies == {}
+
+    - name: Plant data that topic removal must preserve
+      ansible.builtin.copy:
+        content: "LoreAI scenario data must survive topic removal.\n"
+        dest: "{{ ansible_env.HOME }}/.local/share/lore/molecule-test-preserved"
+        mode: "0600"

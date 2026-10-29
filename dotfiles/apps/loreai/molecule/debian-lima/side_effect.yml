@@ -1,0 +1,37 @@
+---
+- name: Remove LoreAI twice without deleting memory data
+  hosts: all
+  gather_facts: true
+  become: false
+  tasks:
+    - name: Remove the topic
+      ansible.builtin.include_role:
+        name: apps/loreai
+        tasks_from: remove
+
+    - name: Prove removal is idempotent
+      ansible.builtin.include_role:
+        name: apps/loreai
+        tasks_from: remove
+
+    - name: Check the explicitly planted memory sentinel
+      ansible.builtin.stat:
+        path: "{{ ansible_env.HOME }}/.local/share/lore/molecule-test-preserved"
+      register: loreai_preserved_sentinel
+
+    - name: Assert memory data survived both removals
+      ansible.builtin.assert:
+        that:
+          - loreai_preserved_sentinel.stat.exists
+          - loreai_preserved_sentinel.stat.size > 0
+
+    - name: Check that the gateway service is no longer running
+      ansible.builtin.command:
+        argv: [systemctl, --user, is-active, lore-gateway]
+      register: loreai_removed_service
+      changed_when: false
+      failed_when: false
+
+    - name: Assert removal stopped the gateway
+      ansible.builtin.assert:
+        that: loreai_removed_service.rc != 0
