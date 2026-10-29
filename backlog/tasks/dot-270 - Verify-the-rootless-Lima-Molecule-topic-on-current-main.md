@@ -9,6 +9,11 @@ labels:
 - testing
 - molecule
 priority: high
+orchestration:
+  status_key: inprogress
+  lease_owner: opencode-lima-rebase
+  lease_expires_at: '2026-10-29T19:32:57.731491Z'
+  version: 1
 ---
 
 ## Description
@@ -41,3 +46,22 @@ Rebase PR #99 onto current main. Verify the rootless Lima topic and delegated De
 <!-- DOD:BEGIN -->
 - [ ] #1 The updated PR is ready for human review with focused and full-suite verification recorded.
 <!-- DOD:END -->
+
+## Run History
+<!-- SECTION:RUN_HISTORY:BEGIN -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-3c005e50afc94de2924068336132a727
+type: claim_task
+actor: opencode-lima-rebase
+timestamp: '2026-10-29T18:32:57.731556Z'
+result: succeeded
+task_id: DOT-270
+from_status: todo
+to_status: inprogress
+metadata:
+  lease_ttl_seconds: '3600'
+```
+Rebase and verify PR #99 on the current payload layout
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- SECTION:RUN_HISTORY:END -->
