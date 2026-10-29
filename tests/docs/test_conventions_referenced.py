@@ -65,11 +65,16 @@ def test_convention_is_referenced_from_agents_md(path):
     )
 
 
+def payload_root() -> pathlib.Path:
+    """Resolve the chezmoi payload independently of pytest's import aliases."""
+    return REPO / (REPO / ".chezmoiroot").read_text().strip()
+
+
 def test_payload_readme_local_links_resolve():
     """Relative links resolve from the README, not the repository root."""
     import re
 
-    readme = REPO / "dotfiles" / "README.md"
+    readme = payload_root() / "dotfiles" / "README.md"
     targets = re.findall(r"\[[^]]+\]\(([^)]+)\)", readme.read_text())
     local_targets = [
         target.partition("#")[0]

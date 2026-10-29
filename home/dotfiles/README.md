@@ -21,7 +21,7 @@ Everything under `apps/` is a topic — a self-contained unit for one tool or
 concern. Each topic is a full Ansible role that can be run standalone or
 loaded by the parent playbook.
 
-→ **[Full architecture doc](docs/ARCHITECTURE.md)**
+→ **[Full architecture doc](../../docs/ARCHITECTURE.md)**
 
 ---
 
@@ -35,7 +35,7 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply git@github.com:bengineerdav
 ansible-playbook playbook.yaml --tags provision
 ```
 
-→ **[Usage guide](docs/USAGE.md)**
+→ **[Usage guide](../../docs/USAGE.md)**
 
 ---
 
@@ -46,7 +46,7 @@ ansible-playbook playbook.yaml --tags provision
 # then edit apps/my-app/tasks/install.yaml
 ```
 
-→ **[Contributing guide](CONTRIBUTING.md)**
+→ **[Contributing guide](../../CONTRIBUTING.md)**
 
 ---
 
@@ -173,6 +173,6 @@ original project is the right starting point.
 
 ## Docs
 
-- [Architecture](docs/ARCHITECTURE.md) — stack overview, topic structure, tag hierarchy
-- [Usage](docs/USAGE.md) — commands for provisioning, adding topics, day-to-day use
-- [Contributing](CONTRIBUTING.md) — rules, patterns, and what goes where
+- [Architecture](../../docs/ARCHITECTURE.md) — stack overview, topic structure, tag hierarchy
+- [Usage](../../docs/USAGE.md) — commands for provisioning, adding topics, day-to-day use
+- [Contributing](../../CONTRIBUTING.md) — rules, patterns, and what goes where
