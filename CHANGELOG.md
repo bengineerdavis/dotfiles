@@ -18,6 +18,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 <!-- scriv-insert-here -->
 
+## PR #103 — 2026-10-29
+
+changed
+
+- Moved the chezmoi payload, including Ansible and Molecule state, under
+  `home/` via `.chezmoiroot`. Repository tooling and project documentation
+  stay outside the payload. Existing deployed target paths are unchanged;
+  run `chezmoi apply` from main after review.
+
 ## Backlog through 2026-10-28
 
 **Added**
