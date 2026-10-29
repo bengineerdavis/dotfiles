@@ -45,7 +45,7 @@
 # reveals something. Treat the output as a draft for review, never as cleared.
 #
 # THIS OUTPUT IS STILL DERIVED
-# dotfiles/docs/GOALS.md is explicit that transformation does not change
+# docs/GOALS.md is explicit that transformation does not change
 # provenance: a reduced trace was still produced by reading employer material,
 # so it is a derived artifact. This tool therefore reports what the policy layers
 # say and asks for review; it never declares anything safe to send. If a company

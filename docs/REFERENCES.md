@@ -16,7 +16,7 @@ nothing changed — a stale date is the signal, not the version number.
 | Standard | Version followed | Where it binds | Verified |
 |---|---|---|---|
 | [AGENTS.md](https://agents.md/) | unversioned convention; stewarded by the Agentic AI Foundation (Linux Foundation) since 2026 | `AGENTS.md` at root | 2026-09-12 |
-| [Agent Skills specification](https://agentskills.io) | current spec; format only — no distribution | every `SKILL.md`; see `dotfiles/docs/AGENT-ARTIFACTS.md` | 2026-09-12 |
+| [Agent Skills specification](https://agentskills.io) | current spec; format only — no distribution | every `SKILL.md`; see `docs/AGENT-ARTIFACTS.md` | 2026-09-12 |
 | [dotagents](https://github.com/getsentry/dotagents) (@sentry/dotagents) | 3.1.0 installed; MIT | skill distribution; `agents.toml` + `agents.lock` under `~/.agents/` | 2026-09-12 |
 | [Inline script metadata](https://packaging.python.org/en/latest/specifications/inline-script-metadata/) (PyPA) | living spec; post-Jan-2024 form | 22 Python scripts in `bin/` and topic `files/` | 2026-09-23 |
 | [PEP 723](https://peps.python.org/pep-0723/) | approval record only — **not** the current spec | historical; cite PyPA instead | 2026-09-11 |
@@ -33,7 +33,7 @@ nothing changed — a stale date is the signal, not the version number.
 | [backlog-md-py](https://github.com/rmusser01/backlog-md-py) 2.2.0 | pipx via mise (`pipx:backlog-md-py`) | the task queue: `backlog/` at repo root, `backlog-py --cwd .` — Python compatibility clone of Backlog.md | 2026-10-23 |
 | [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) | **1.1.0** | category names in `changelog.d/scriv.ini` | 2026-09-11 |
 | [RFC 2606](https://www.rfc-editor.org/rfc/rfc2606) — reserved example names | Best Current Practice | synthetic PII fixtures use `example.com`/`.org` | 2026-09-11 |
-| [Trunk Based Development](https://trunkbaseddevelopment.com/) (Hammant) | living site | short-lived branches, merge often — already practice; codified by the ground-shift protocol (`dotfiles/docs/research/coordinating-parallel-work-across-refactors.md`) | 2026-10-04 |
+| [Trunk Based Development](https://trunkbaseddevelopment.com/) (Hammant) | living site | short-lived branches, merge often — already practice; codified by the ground-shift protocol (`docs/research/coordinating-parallel-work-across-refactors.md`) | 2026-10-04 |
 | [Branch by Abstraction](https://martinfowler.com/bliki/BranchByAbstraction.html) (Fowler) | living article | the layout seam (`PAYLOAD_ROOT`) consumers go through during structural shifts | 2026-10-04 |
 
 ### Why PyPA and not the PEP
@@ -57,7 +57,7 @@ approval record, the register points at the living home.
 - **MCP** ([modelcontextprotocol.io](https://modelcontextprotocol.io)) —
   specification 2026-07-28 verified 2026-09-12. Adopted as the tool-execution
   *boundary* (target state, nothing stood up) — see
-  `dotfiles/docs/MODEL-ACCESS.md`. Track SEP-1024 (client security for local
+  `docs/MODEL-ACCESS.md`. Track SEP-1024 (client security for local
   installs) and the Skills Over MCP working group.
 - **LiteLLM** ([github.com/BerriAI/litellm](https://github.com/BerriAI/litellm))
   — verified 2026-09-12. Deferred with a named trigger: revisit when model
@@ -106,7 +106,7 @@ Recorded so the decision is not re-litigated. Each was measured, not assumed.
 | [Contributor Covenant](https://www.contributor-covenant.org/) | `PRD.md` § Non-goals: not expecting contributors. |
 | cursor's `unslop` | Its "avoid em dashes entirely" conflicts with measured house style (12 per 1000 words in documents predating any agent). `no-ai-slop` reaches the same goal with a calibrated rule. |
 | commitlint / gitlint / commitizen | They enforce format; format is already 71% consistent. The measured defect was length, which none of them check. |
-| [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) | A managed third-party control plane replaces the on-device egress policy decision and routes every model call through Vercel. Verified 2026-09-12 — see `dotfiles/docs/MODEL-ACCESS.md`. |
+| [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) | A managed third-party control plane replaces the on-device egress policy decision and routes every model call through Vercel. Verified 2026-09-12 — see `docs/MODEL-ACCESS.md`. |
 | Native vendor SDKs (Anthropic/OpenAI) as the model layer | The lock-in the anti-lock-in work exists to prevent. Hosted models arrive via OpenRouter through `llm`, local models through `llm-ollama`, behind one interface. |
 
 ## Undecided

@@ -102,5 +102,5 @@ current.
   the queued eval item in `TASKS.md`; until it runs, the gate is policy, not
   practice.
 - **Aider collision carried over:** aider reads a root `TOPICS.md`; this repo
-  has `dotfiles/docs/TOPICS.md`. Rename or namespace before any aider adapter
+  has `docs/TOPICS.md`. Rename or namespace before any aider adapter
   exists. Aider is not installed on this machine.

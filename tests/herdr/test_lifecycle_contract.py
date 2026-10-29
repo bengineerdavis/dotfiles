@@ -1,8 +1,8 @@
 """Lifecycle-contract tests for the herdr topic (dimension 1 of the swarm).
 
 Deduced contract, from written artifacts only: dotfiles/apps/herdr/README.md
-(the design record), dotfiles/docs/TOPICS.md (topic format source of truth),
-dotfiles/docs/TOPIC-RECIPES.md (generalized recipes), root spec.md (§ Layering,
+(the design record), docs/TOPICS.md (topic format source of truth),
+docs/TOPIC-RECIPES.md (generalized recipes), root spec.md (§ Layering,
 § Verification), TASKS.md § Now herdr lines, the apps/ollama topic as
 structural precedent, and herdr upstream docs (install + integrations).
 
@@ -662,7 +662,7 @@ def test_no_orphan_teardown_state_in_remove():
     # mutation: add a remove.yaml teardown for state install.yaml never
     # creates (e.g. deleting a config file the topic does not own) — the
     # reverse direction of the CRUD invariant, added after judge round 1
-    # (dotfiles/docs/JUDGE-SELECTION.md) flagged the check as one-way.
+    # (docs/JUDGE-SELECTION.md) flagged the check as one-way.
     install_text = hl_text("tasks/install.yaml")
     remove_tasks = hl_tasks(hl_load_yaml("tasks/remove.yaml"))
     removed_paths = []

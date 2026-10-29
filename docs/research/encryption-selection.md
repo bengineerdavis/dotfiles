@@ -1,6 +1,6 @@
 # Research assignment: choosing local encryption for a single-practitioner toolchain
 
-Run with: `ask-research start dotfiles/docs/research/encryption-selection.md --session enc`
+Run with: `ask-research start docs/research/encryption-selection.md --session enc`
 
 ## Who you are
 

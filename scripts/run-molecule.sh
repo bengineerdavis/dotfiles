@@ -18,7 +18,7 @@
 # automatically. The scripts/run-bats.sh precedent. Sized ~55 logic lines,
 # far under the bash 80-100 line rule.
 #
-# Contract (dotfiles/docs/research/topic-vm-tests/PLAN.md § Decision 4):
+# Contract (docs/research/topic-vm-tests/PLAN.md § Decision 4):
 # - runs from any cwd; molecule's scenario discovery is cwd-relative, so this
 #   chdirs to the scenario's parent (dotfiles/apps/<topic>) itself;
 # - exports MOLECULE_PROJECT_DIRECTORY=dotfiles/ so the role and its guards

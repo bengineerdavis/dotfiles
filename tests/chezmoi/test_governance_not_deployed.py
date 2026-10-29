@@ -113,14 +113,9 @@ def test_convention_in_docs_is_not_deployed(managed, path):
     assert path not in managed, f"{path} would be written to $HOME"
 
 
-def test_dotfiles_documentation_still_deploys(managed):
-    """The relenting direction for the same directory: ignoring docs/ wholesale
-    would have been the easy fix and would have stopped shipping the docs that
-    are meant to ship.
-    """
-    assert "docs/ARCHITECTURE.md" in managed, (
-        "docs/ARCHITECTURE.md stopped deploying — the ignore rules are too broad"
-    )
+def test_documentation_does_not_deploy(managed):
+    """Documentation is repository-only; no docs path reaches the home tree."""
+    assert not any(path.startswith("docs/") for path in managed)
 
 
 def test_a_real_dotfile_is_still_deployed(managed):

@@ -1,14 +1,14 @@
 # tasks/install.yaml — install herdr through mise, wire agent integrations
 # from the shared catalogue, own the server service, capture the zsh
 # completion. See dotfiles/apps/herdr/README.md and
-# dotfiles/docs/TOPIC-RECIPES.md (skip-vs-raise, tool-entry ownership).
+# docs/TOPIC-RECIPES.md (skip-vs-raise, tool-entry ownership).
 #
 # Ordering is load-bearing: the mise entry probe precedes `mise use` (so the
 # command is a no-op once converged); the presence check and integration loop
 # follow the entry (integrations need the binary it installs).
 #
 # Shell/cmd fallbacks in this file are author-ratified 2026-09-19
-# (module-vs-shell ladder, dotfiles/docs/TOPIC-RECIPES.md): third-party/
+# (module-vs-shell ladder, docs/TOPIC-RECIPES.md): third-party/
 # first-party CLI invocations (mise, herdr) and probe floors (grep -q
 # content check, `command -v` PATH probe, `systemctl --user is-active`
 # health read) — no module exists for any of them; rc is always read
@@ -63,7 +63,7 @@
     msg: >-
       The shared catalogue {{ herdr_catalogue_path }} is missing. Fix: create
       it (dotfiles/config/agents.yaml, editors.yaml pattern — see
-      dotfiles/docs/TOPIC-RECIPES.md, shared-catalogue recipe).
+      docs/TOPIC-RECIPES.md, shared-catalogue recipe).
   when: not herdr_catalogue_stat.stat.exists
 
 - name: "Install: load the shared agents catalogue"

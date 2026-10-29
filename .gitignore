@@ -18,8 +18,9 @@ dotfiles/migration-backups/
 
 # Molecule's ephemeral per-run state — instance config, generated Vagrantfile,
 # vagrant boxes and inventory live inside each scenario's .molecule/ dir
-# (dotfiles/apps/<topic>/molecule/<scenario>/.molecule/). Generated per run,
-# never shared; see dotfiles/docs/research/topic-vm-tests/PLAN.md § Destroy
+# (apps/<topic>/molecule/<scenario>/.molecule/ under the payload).
+# Generated per run,
+# never shared; see docs/research/topic-vm-tests/PLAN.md § Destroy
 # safety.
 .molecule/
 # roborev snapshots

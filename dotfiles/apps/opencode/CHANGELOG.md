@@ -63,7 +63,7 @@ Section names come from antsibull-changelog; see `docs/TOPICS.md`
   `opencode@1.18.32` (aqua backend) sits beside it, equally unowned. This
   is the same failure shape as the roborev incident recorded in
   AGENTS.md § Cross-repo changes: an install made without declaring it,
-  outside the tool-entry-ownership recipe (dotfiles/docs/TOPIC-RECIPES.md),
+  outside the tool-entry-ownership recipe (docs/TOPIC-RECIPES.md),
   shadowing the topic's route.
   The leftovers live in `~/.local/share/mise/installs/http-opencode/` and
   `~/.local/share/mise/installs/opencode/`, plus the stale shim at
@@ -100,7 +100,7 @@ Section names come from antsibull-changelog; see `docs/TOPICS.md`
   rule dropped — not a v2 action; the trailing shell catch-all dropped —
   author ruling 1), and `autoupdate` becomes `update: notify`. v2 still
   parses the v1 map through its legacy layer, but the topic ships the
-  native form (dotfiles/docs/research/opencode-v2/PLAN.md).
+  native form (docs/research/opencode-v2/PLAN.md).
 - Re-auth is likely: v2 stores credentials in a sqlite `credential` table,
   and no import of v1's `auth.json` was found in the v2.0.24 source.
   Sessions migrate in place on the first v2 run; back up

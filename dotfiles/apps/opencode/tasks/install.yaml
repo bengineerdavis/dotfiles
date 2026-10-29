@@ -34,7 +34,7 @@
 # the tap explicitly keeps both OSes on the same source instead of leaving
 # Darwin on core and Debian on the tap.
 #
-# The v2 migration (dotfiles/docs/research/opencode-v2/PLAN.md, 2026-10-06):
+# The v2 migration (docs/research/opencode-v2/PLAN.md, 2026-10-06):
 # the install target is the tap's opencode-v2 formula, which declares
 # `conflicts_with "opencode"` — both install an opencode binary. The v1
 # formula is uninstalled and its trust residue cleaned in the same run,

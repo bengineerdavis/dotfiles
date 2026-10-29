@@ -37,10 +37,14 @@ network and are serialised. The path-intersection guard enforces the split.
 
 ## deployed tree / source tree
 
-The source tree is this checkout, the chezmoi source state. The deployed tree
-is what chezmoi manages on the machine — `~/bin`, `~/dotfiles`, `~/.config`.
+The deployed tree is what chezmoi manages on the machine — `~/bin`,
+`~/dotfiles`, `~/.config`. The payload is the repository's `home/` directory,
+which becomes the chezmoi source state. The wider checkout also contains
+repository-only tooling, tests and docs that must never deploy.
+
 They drift in both directions; `chezmoi status` is the check. A change
-reaching the deployed tree cannot be undone by `git revert`.
+reaching the deployed tree cannot be undone by `git revert`. Doc of record:
+`ROADMAP.md` § Move the deployed tree under `.chezmoiroot`.
 
 ## fan-out / wave
 
@@ -113,7 +117,7 @@ provenance, behaviour. Lives in `tools/skill-trust/`.
 
 The unit of machine configuration: a directory under `dotfiles/` carrying a
 `topic.yml`, Ansible tasks, and chezmoi-managed files, with one concern per
-layer. Doc of record: `dotfiles/docs/TOPICS.md`.
+layer. Doc of record: `docs/TOPICS.md`.
 
 ## worktree
 

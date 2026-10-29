@@ -1,7 +1,7 @@
 # Model access: the gateway and the tool boundary
 
 Decided 2026-09-12, from the author's anti-lock-in handoff brief. Companion to
-`dotfiles/docs/AGENT-ARTIFACTS.md`, which settled the context-and-skills layer
+`docs/AGENT-ARTIFACTS.md`, which settled the context-and-skills layer
 (the brief's third vector) the same day — that record is not repeated here.
 
 **The decision, first.**

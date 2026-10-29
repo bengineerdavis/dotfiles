@@ -30,7 +30,7 @@ jobs:
           enable-cache: false
 
       # Collect the repo's root/chezmoi-source changelog only. Per-topic
-      # changelogs are separate records; see dotfiles/docs/TOPICS.md.
+      # changelogs are separate records; see docs/TOPICS.md.
       - name: Collect only this PR's fragments
         env:
           GH_TOKEN: ${{ github.token }}

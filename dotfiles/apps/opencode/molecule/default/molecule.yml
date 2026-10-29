@@ -2,7 +2,7 @@
 # molecule.yml — apps/opencode v2-migration scenario, Debian leg.
 # Framing, how to run, and the design notes that travel with this directory:
 # README.md beside this file, and
-# dotfiles/docs/research/topic-vm-tests/PLAN.md (the approved plan).
+# docs/research/topic-vm-tests/PLAN.md (the approved plan).
 #
 # molecule interpolates this file with ${VAR} environment substitution, NOT
 # Jinja (verified against molecule 26.9.0's interpolation module — the plan's

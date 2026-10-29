@@ -53,7 +53,7 @@
 
 - 2026-09-19: **Support grade for `community.general.launchd`: A** — the
   four checks from the module-vs-shell ladder
-  (`dotfiles/docs/TOPIC-RECIPES.md`): maintainer named + two launchd
+  (`docs/TOPIC-RECIPES.md`): maintainer named + two launchd
   changelog entries in the current release (PRs #11049, #11774);
   integration target present; no removal/redirect in `meta/runtime.yml`;
   check_mode full and source-read verified. No new galaxy dependency — the
@@ -121,7 +121,7 @@
   `tests/herdr/` (test-first: the suite was red against this directory before
   any topic file existed, and the topic was implemented to green). Design
   record: `README.md` in this directory; generalized decisions:
-  `dotfiles/docs/TOPIC-RECIPES.md`.
+  `docs/TOPIC-RECIPES.md`.
 - 2026-09-19: Teardown order pinned as **integrations → service → entry**
   (README § Structure; `tests/herdr` pins it in two dimensions). The
   load-bearing invariant is service-stop-before-unit-file-removal; the entry

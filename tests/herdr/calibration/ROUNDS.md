@@ -1,6 +1,6 @@
 # Judge rounds — herdr test program (2026-09-19)
 
-The record of the measured judge loop (method: `dotfiles/docs/JUDGE-SELECTION.md`;
+The record of the measured judge loop (method: `docs/JUDGE-SELECTION.md`;
 pool locked from the calibration in this directory). Raw outputs are session
 artifacts under the tool-output dir; this file is the durable summary.
 

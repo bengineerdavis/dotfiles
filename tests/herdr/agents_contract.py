@@ -6,7 +6,7 @@ authored against tests/herdr/test_edge_stress.py (which imports it) and the
 written artifacts:
 
 - dotfiles/apps/herdr/README.md — the design record
-- dotfiles/docs/TOPIC-RECIPES.md — shared-catalogue + skip-vs-raise recipes
+- docs/TOPIC-RECIPES.md — shared-catalogue + skip-vs-raise recipes
 - spec.md § Verification — unknown never becomes a claim; relents both ways
 - https://herdr.dev/docs/cli-reference/ — exit statuses (server errors exit 1,
   usage errors exit 2; most commands print JSON)

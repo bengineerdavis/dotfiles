@@ -3,7 +3,7 @@
 The v2 formula (`anomalyco/tap/opencode-v2`) declares
 `conflicts_with "opencode"`, so brew refuses the install while any v1
 `opencode` formula is present. install.yaml therefore uninstalls v1 BEFORE
-installing v2, in the same run (dotfiles/docs/research/opencode-v2/PLAN.md
+installing v2, in the same run (docs/research/opencode-v2/PLAN.md
 § Brew mechanics). The decision-2 safe default also untrusts the v1 formula
 on install, converging the trust residue machines that ever installed v1
 carry — idempotent, harmless when absent.

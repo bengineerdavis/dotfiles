@@ -89,7 +89,7 @@ DEFAULT_FPS = 1
 # Marking a run work does not by itself suppress logging — it asks the policy
 # layers, and they answer. Today that answer is always "no", because
 # log_bodies_allowed is still TODO in the company layer and unset reads as
-# silent, which denies. See dotfiles/docs/GOALS.md and `policy explain`.
+# silent, which denies. See docs/GOALS.md and `policy explain`.
 #
 # Unmarked runs log as before. That is deliberate: making everything work-tagged
 # by default would silently stop logging the tooling corpus this repo uses to

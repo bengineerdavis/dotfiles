@@ -11,7 +11,7 @@
 # is committed after the run as the capture).
 
 # Shell/cmd fallbacks in this file are author-ratified 2026-09-19
-# (module-vs-shell ladder, dotfiles/docs/TOPIC-RECIPES.md): herdr CLI
+# (module-vs-shell ladder, docs/TOPIC-RECIPES.md): herdr CLI
 # invocations, the grep -q mise-config probe, and the mise unuse entry
 # removal — no module exists; rc is read directly, never through a pipe.
 #
@@ -130,7 +130,7 @@
 
 - name: "Remove: stat the systemd user unit (Debian)"
   # Author-ratified probe swap 2026-09-19 (module-vs-shell ladder,
-  # dotfiles/docs/TOPIC-RECIPES.md): a stat on the unit file replaces
+  # docs/TOPIC-RECIPES.md): a stat on the unit file replaces
   # `systemctl --user cat` — the file present is what tells the manager the
   # unit exists, and stat is the module-native read.
   ansible.builtin.stat:

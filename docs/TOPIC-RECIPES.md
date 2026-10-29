@@ -1,7 +1,7 @@
 # TOPIC-RECIPES — reusable decision tables for creating topics
 
 These are the settled decisions from building a topic, generalized so the next
-one does not re-derive them. Explanations, not authority: `dotfiles/docs/TOPICS.md`
+one does not re-derive them. Explanations, not authority: `docs/TOPICS.md`
 and root `spec.md` carry the binding rules, and this file links to them instead of
 restating. Settled 2026-09-18/19, instance: the `herdr` topic
 (`dotfiles/apps/herdr/README.md` records that instance and links back here).
@@ -185,7 +185,7 @@ changes with the thing it creates).
 ## Recipe: test-first topic program (swarm + measured judge)
 
 The process settled 2026-09-19, instance: herdr. Full methodology for the
-judge half lives in `dotfiles/docs/JUDGE-SELECTION.md`.
+judge half lives in `docs/JUDGE-SELECTION.md`.
 
 1. **Queue the task before building** — TASKS.md lines with done-conditions,
    committed immediately; claim any § Cross-session-hazards file.
@@ -217,7 +217,7 @@ judge half lives in `dotfiles/docs/JUDGE-SELECTION.md`.
 
 ## See also
 
-- `dotfiles/docs/TOPICS.md` — topic structure, schema, lifecycle (source of truth)
+- `docs/TOPICS.md` — topic structure, schema, lifecycle (source of truth)
 - `dotfiles/apps/herdr/README.md` — the instance this file generalizes
-- `dotfiles/docs/JUDGE-SELECTION.md` — the measured judge methodology
+- `docs/JUDGE-SELECTION.md` — the measured judge methodology
 - `TASKS.md` § Now — the normative topic spec session consumes this file

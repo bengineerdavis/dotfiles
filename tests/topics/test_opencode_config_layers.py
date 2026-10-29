@@ -7,7 +7,7 @@ rule) and a data merge would reorder them. These tests render the template
 with chezmoi under overridden host/os data, so they exercise the real merge,
 not a copy.
 
-The v2 migration (dotfiles/docs/research/opencode-v2/PLAN.md) retargets the
+The v2 migration (docs/research/opencode-v2/PLAN.md) retargets the
 config at opencode v2: the v1 `permission` map becomes a `permissions` array,
 `autoupdate` becomes `update`, `bash` rules are renamed `shell`, the trailing
 shell catch-all is dropped (author ruling 1), v2's `.env` read protection is
@@ -155,7 +155,7 @@ def _permissions(cfg: dict) -> list:
         "dot_config/opencode/opencode.jsonc.tmpl: expected the v2 "
         f"'permissions' array, got {type(perms).__name__} — the v1 "
         "'permission' map has not been migrated to the native v2 form "
-        "(dotfiles/docs/research/opencode-v2/PLAN.md)"
+        "(docs/research/opencode-v2/PLAN.md)"
     )
     assert perms, (
         "the permissions array is empty — every action would fall through "

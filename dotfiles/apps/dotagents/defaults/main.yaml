@@ -3,8 +3,8 @@
 # The machine's global agent-artifact declaration: which agent runtimes are
 # wired, which sources may put skills on this machine, and the per-run escape
 # hatches. The decision this implements is in
-# `dotfiles/docs/AGENT-ARTIFACTS.md`; the topic contract is in
-# `dotfiles/docs/TOPICS.md`.
+# `docs/AGENT-ARTIFACTS.md`; the topic contract is in
+# `docs/TOPICS.md`.
 #
 # dotagents owns the artifacts. This file owns the APPROVAL. Adding a source
 # accepts everything in it, now and in future, so each entry carries a `why`

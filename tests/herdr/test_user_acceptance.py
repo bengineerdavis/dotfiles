@@ -5,7 +5,7 @@ Dimension: what a user of this repo would check before trusting the topic.
 Deduced from the written artifacts only:
 
 - dotfiles/apps/herdr/README.md (the design record — THE contract)
-- dotfiles/docs/TOPIC-RECIPES.md (install-mechanism chooser, service
+- docs/TOPIC-RECIPES.md (install-mechanism chooser, service
   ownership, never self-update a manager-installed tool)
 - spec.md § Verification (render under both os_family values with
   StrictUndefined; a missing variable must raise, not render blank)

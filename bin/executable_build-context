@@ -68,5 +68,5 @@ OUTPUT_FILE=${2-"context.md"}
 
 # --work: the attachments this analyses are customer-supplied documents, so
 # every run is work-tagged. The policy layers decide what that means for
-# logging; see bin/policy and dotfiles/docs/GOALS.md.
+# logging; see bin/policy and docs/GOALS.md.
 llm-ctx --work -v -m "$MODEL" "$ATTACHMENTS" -- "$PROMPT" > "$OUTPUT_FILE"
