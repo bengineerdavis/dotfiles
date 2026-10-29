@@ -18,6 +18,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 <!-- scriv-insert-here -->
 
+## PR #104 — 2026-10-29
+
+### Added
+
+- Defined the Lychee link-checking cadence and the security boundary for external URL validation.
+
 ## PR #103 — 2026-10-29
 
 changed
