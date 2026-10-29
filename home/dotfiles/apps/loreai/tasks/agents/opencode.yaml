@@ -30,6 +30,18 @@
 # chezmoi apply itself stays out of this: it owns the file, this topic
 # owns the plugin's runtime state.
 
+- name: "loreai: probe for the installed opencode plugin package"
+  ansible.builtin.command: npm ls -g @loreai/opencode --depth=0
+  register: loreai_opencode_package_probe
+  changed_when: false
+  failed_when: false
+  check_mode: false  # read-only probe; keeps --check honest
+
+- name: "loreai: install the opencode plugin package"
+  ansible.builtin.command: opencode plugin add @loreai/opencode
+  register: loreai_opencode_package_install
+  when: loreai_opencode_package_probe.rc != 0 and not ansible_check_mode
+
 - name: "loreai: check the deployed opencode config for the lore plugin"
   ansible.builtin.command: >-
     grep -l "@loreai/opencode"
@@ -40,33 +52,45 @@
   check_mode: false  # read-only grep; without it --check fabricates rc=0
                      # and reports the plugin registered unread
 
-# `plugin list` rows come from the loaded module, not the config: a loaded
-# local plugin lists id and version (git-ai), while an installed-but-
-# unloadable npm plugin lists "- -" (measured 2026-10-27, @loreai/opencode
-# 0.40.0 on opencode 2.1.4). Empty id ⇒ not installed or rejected at load.
+# The structured API reports enabled server plugins and their current status.
+# A table row is not enough: its columns changed between CLI versions, while
+# the API explicitly distinguishes active from failed (opencode 2.1.2).
+# Match the configured package source, not a guessed module id.
 
-- name: "loreai: check the opencode plugin's install and load state"
-  ansible.builtin.command: opencode plugin list
-  register: loreai_opencode_plugin_list
+- name: "loreai: query the opencode plugin's runtime state"
+  ansible.builtin.command: opencode api get /api/plugin
+  register: loreai_opencode_plugin_api
   changed_when: false
   failed_when: false
   check_mode: false
 
-- name: "loreai: resolve the plugin row's load state"
+- name: "loreai: resolve the plugin's structured load state"
   vars:
-    loreai_plugin_row: >-
-      {{ loreai_opencode_plugin_list.stdout_lines
-         | select('search', '@loreai/opencode') | first | default('') }}
+    loreai_opencode_plugins: >-
+      {{ ((loreai_opencode_plugin_api.stdout
+           if loreai_opencode_plugin_api.rc == 0 else '{}')
+          | json_or_empty).get('data', []) }}
+    loreai_opencode_plugin_rows: >-
+      {{ loreai_opencode_plugins
+         | selectattr('source.target', 'defined')
+         | selectattr('source.target', 'equalto', '@loreai/opencode') | list }}
+    loreai_opencode_active_rows: >-
+      {{ loreai_opencode_plugin_rows
+         | selectattr('state.status', 'defined')
+         | selectattr('state.status', 'equalto', 'active') | list }}
   ansible.builtin.set_fact:
     loreai_opencode_plugin_loaded: >-
-      {{ (loreai_plugin_row.split() | length > 1)
-         and (loreai_plugin_row.split()[0] != '-') }}
+      {{ loreai_opencode_plugin_api.rc == 0
+         and loreai_opencode_active_rows | length > 0 }}
+    loreai_opencode_plugin_error: >-
+      {{ loreai_opencode_plugin_rows
+         | selectattr('state.status', 'defined')
+         | selectattr('state.status', 'equalto', 'failed')
+         | map(attribute='state.error', default='') | join(' ') }}
   check_mode: false
 
 # The loader re-attempts on every session, so the newest failure line
-# names the live cause — an old install-era line cannot masquerade as the
-# current state while the plugin is installed-but-rejected. `shell`, not
-# `command`: the tail needs a pipe.
+# names the live install cause. `shell`, not `command`: the tail needs a pipe.
 
 - name: "loreai: pull the plugin's last server-log failure line"
   ansible.builtin.shell:
@@ -79,16 +103,15 @@
   failed_when: false
   check_mode: false
 
-- name: "loreai: classify the plugin's failure cause from the server log"
+- name: "loreai: classify the plugin's failure cause"
   vars:
     loreai_log_line: "{{ loreai_opencode_plugin_log.stdout | default('') }}"
   ansible.builtin.set_fact:
     loreai_opencode_plugin_cause: >-
-      {{ 'loader' if 'PluginModule.LoadError' in loreai_log_line
+      {{ 'loader' if 'Plugin must export' in loreai_opencode_plugin_error
          else 'install' if ('LockTimeoutError' in loreai_log_line
                             or 'NpmInstallFailedError' in loreai_log_line
-                            or 'Package is not installed'
-                               in loreai_log_line)
+                            or 'Package is not installed' in loreai_log_line)
          else 'unknown' }}
   check_mode: false
 
@@ -98,11 +121,10 @@
 - name: "loreai: fail the run when the registered plugin never installed"
   ansible.builtin.fail:
     msg: >-
-      @loreai/opencode is registered in the deployed config but the shared
-      server never completed its auto-install — sessions run without the
-      gateway. Fix now, then re-run: `opencode plugin add @loreai/opencode`
-      (a fresh process installs fine while the server is wedged), then
-      `opencode service restart`. Server-log evidence:
+      @loreai/opencode is registered but not loading because package
+      installation or service startup failed — sessions run without the
+      gateway. Fix now, then re-run: `opencode plugin add @loreai/opencode`,
+      then `opencode service restart`. Server-log evidence:
       {{ loreai_opencode_plugin_log.stdout | default('(none)') }}
   when:
     - loreai_opencode_plugin_check.rc == 0
@@ -111,16 +133,27 @@
 
 # Upstream-shaped: nothing on this machine fixes it, so raise red without
 # blocking the rest of the playbook — the recap's ignored=1 is the record.
+# Unknown means exactly that: an unavailable or unrecognized API response is
+# not evidence that the plugin loaded, nor that a loader rejection occurred.
 
-- name: "loreai: raise the plugin's loader rejection (upstream fix)"
+- name: "loreai: raise the plugin's rejected or unknown runtime state"
   ansible.builtin.fail:
     msg: >-
+      {% if loreai_opencode_plugin_cause == 'loader' %}
       @loreai/opencode is registered and installed but opencode's loader
       rejected it — the v2 loader requires a default export with an id and
       a setup/effect function, and pre-v2 releases (0.40.0) export a bare
-      function. Fix is an upstream BYK/loreai release; nothing local to
-      do. Server-log evidence:
-      {{ loreai_opencode_plugin_log.stdout | default('(none)') }}
+      function. Fix is an upstream BYK/loreai release; nothing local to do.
+      API evidence: {{ loreai_opencode_plugin_error }}.
+      {% else %}
+      @loreai/opencode is registered, but its load state could not be
+      determined. `opencode api get /api/plugin` did not return an active
+      package row. Do not treat registration as loading; inspect the API
+      and server log, then fix the package or its upstream compatibility.
+      API error: {{ loreai_opencode_plugin_api.stderr | default('(none)') }}.
+      Server-log evidence:
+      {{ loreai_opencode_plugin_log.stdout | default('(none)') }}.
+      {% endif %}
   when:
     - loreai_opencode_plugin_check.rc == 0
     - not loreai_opencode_plugin_loaded

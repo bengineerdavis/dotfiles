@@ -7,10 +7,12 @@
   then lock-timeout collisions, in the opencode server log), and once
   installed via `opencode plugin add` the loader still rejected 0.40.0's
   pre-v2 function-shaped default export — so a config grep reported a
-  working gateway that was not there. The task now reads `opencode plugin
-  list` and the server log, and names the fix per state: manual
-  `plugin add` plus `opencode service restart`, or an upstream BYK/loreai
-  release for the load rejection.
+  working gateway that was not there. The task now reads the structured
+  `opencode api get /api/plugin` response and the server log, and names the
+  fix per state: manual `plugin add` plus `opencode service restart`, or an
+  upstream BYK/loreai release for the load rejection. An active package row
+  proves loading; a failed row reports the loader's error. Malformed or
+  unavailable API responses cannot be mistaken for a loaded plugin.
 - loreai: registered-but-broken opencode plugin states now raise instead of
   whispering in a debug line — a wedged auto-install fails the run (the fix
   is two local commands), and a loader rejection of a pre-v2 plugin export

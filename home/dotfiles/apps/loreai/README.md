@@ -71,9 +71,12 @@ Registration is not the whole story (measured 2026-10-27): the shared server's
 auto-install can wedge for hours, and the loader rejects pre-v2 plugin exports.
 `tasks/agents/opencode.yaml` verifies the plugin is actually installed and
 loading, not just registered, and raises broken states to the operator.
-A wedged install fails the run with the fix commands; an upstream loader
-rejection raises red without blocking the run. Removing the topic directory
-removes the key on the next `chezmoi apply`.
+It reads the structured `/api/plugin` response: an active package row proves
+the loader accepted the module; a failed row names its rejection. Unknown,
+malformed, or unavailable responses never count as loading. A wedged install
+fails the run with the fix commands; an upstream loader rejection raises red
+without blocking the run. Removing the topic directory removes the key on
+the next `chezmoi apply`.
 
 Ansible installs `@loreai/opencode` with `opencode plugin add` when the
 package is absent; it does not rely on OpenCode's auto-install. Removing the
