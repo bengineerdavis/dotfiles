@@ -1,7 +1,7 @@
 ---
 id: DOT-263
 title: Build a Lima topic for rootless Molecule VMs
-status: To Do
+status: Done
 created_date: 2026-10-28 23:56
 labels:
 - testing
@@ -13,7 +13,7 @@ orchestration:
   lease_owner: opencode
   lease_expires_at: '2026-10-29T00:58:48.670897Z'
   version: 1
-updated_date: 2026-10-29 01:54
+updated_date: 2026-10-29 01:55
 ---
 
 ## Description
@@ -84,5 +84,18 @@ to_status: inprogress
 metadata:
   lease_ttl_seconds: '3600'
 ```
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-ee6c61321c574cb887904fae5385b3a8
+type: record_run
+actor: opencode
+timestamp: '2026-10-29T01:55:40.525785Z'
+result: succeeded
+task_id: DOT-263
+verification:
+- MOLECULE_SCENARIO=debian scripts/run-molecule.sh lima test
+```
+Rootless Lima 2.2.1 + QEMU 11.1.2 (HVF) full Molecule lifecycle green twice on macOS. Real Debian 12.15 aarch64 guest, systemd user manager running, user-mode networking, no mounts, no sudo. 10 static contract tests green (seen failing first). Full suite 1170 passed, 2 pre-existing opencode failures unrelated to this purely-additive change. Linux apply documented as open.
 <!-- RUN_HISTORY_ENTRY:END -->
 <!-- SECTION:RUN_HISTORY:END -->
