@@ -21,6 +21,7 @@ instead, so the root holds only the five documents that govern the project.
 | `ARCHITECTURE.md` | the chezmoi/Ansible/zsh architecture |
 | `USAGE.md` | provisioning and topic-operation commands |
 | `WORKTREES.md` | the agent-worktree naming contract and lifecycle: `.worktrees/<sid>`, one writer per worktree, ephemeral merge scratch |
+| `LINK-CHECKING.md` | Lychee's offline commit checks and reviewed external-link validation |
 
 ## Adding one
 
@@ -80,7 +81,8 @@ uses it instead of inside chezmoi's source state. Topics and agents reference
 
 The root `.lore.md` is machine-managed memory, not authored documentation.
 Leave its contents to Lore: no Markdown formatter, prose check, or link checker
-may rewrite it. Future documentation tools must exclude it by default.
+may rewrite it. Future documentation tools must exclude it by default, including
+not reading it to extract links.
 
 ## Why a directory
 
