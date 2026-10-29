@@ -1,0 +1,2 @@
+---
+# No bootstrap: Lima is a user-space application, not a package manager.

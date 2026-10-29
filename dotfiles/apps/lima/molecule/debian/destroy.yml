@@ -1,0 +1,26 @@
+---
+- name: Destroy rootless Lima guests
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  no_log: "{{ molecule_no_log }}"
+  vars:
+    lima_home: "/tmp/lima-{{ molecule_ephemeral_directory | hash('sha1') }}"
+    lima_install_prefix: "{{ molecule_ephemeral_directory }}/home/.local"
+    lima_command: "{{ lima_install_prefix }}/bin/limactl"
+    lima_environment:
+      LIMA_HOME: "{{ lima_home }}"
+      PATH: "{{ lima_install_prefix }}/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+  tasks:
+    - name: Delete only this scenario's named VMs
+      ansible.builtin.command:
+        argv: ["{{ lima_command }}", "delete", "--force", "{{ item.name }}"]
+      environment: "{{ lima_environment }}"
+      loop: "{{ molecule_yml.platforms }}"
+      failed_when: false
+      changed_when: true
+
+    - name: Remove this scenario's temporary Lima home
+      ansible.builtin.file:
+        path: "{{ lima_home }}"
+        state: absent

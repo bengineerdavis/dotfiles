@@ -1,0 +1,34 @@
+vmType: qemu
+os: Linux
+arch: {{ platform_guest_arch }}
+images:
+  - location: {{ platform_image }}
+    arch: {{ platform_guest_arch }}
+    digest: {{ platform_image_digest }}
+cpus: 2
+memory: 4GiB
+disk: 10GiB
+mounts: []
+networks: []
+containerd:
+  system: false
+  user: false
+ssh:
+  loadDotSSHPubKeys: false
+  forwardAgent: false
+nestedVirtualization: false
+user:
+  name: molecule
+  uid: 1000
+  shell: /bin/bash
+video:
+  display: none
+propagateProxyEnv: false
+provision:
+  - mode: system
+    script: |
+      #!/bin/sh
+      set -eu
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update
+      apt-get install -y python3 ca-certificates

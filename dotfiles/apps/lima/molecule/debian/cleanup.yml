@@ -1,0 +1,11 @@
+---
+# Remove only this scenario's temporary home after destroy has deleted the VM.
+- name: Clean up the scenario's temporary home
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Remove the disposable home
+      ansible.builtin.file:
+        path: "{{ molecule_ephemeral_directory }}/home"
+        state: absent
