@@ -3,8 +3,8 @@
 Use Lychee to check documentation links. Keep local validation in the normal
 edit and commit loop. Review external network access before it happens.
 
-This document specifies the policy for a future implementation. It does not
-install Lychee or authorize a new automated network call.
+This document specifies the policy and its implementation. External network
+access remains subject to author review for each run.
 
 ## Cadence
 
@@ -75,11 +75,14 @@ external scan; report that restriction and resolve it before proceeding.
 After approval, run the full scan with:
 
 ```sh
-lychee --config lychee.toml --offline=false --no-progress .
+LYCHEE_EXTERNAL_APPROVED=1 python3 scripts/check-docs-links.py --external
 ```
 
-The implementation must use a fixed, reviewable command. It must not pass
-repository file contents, credentials, or environment variables to remote
+The environment variable records that the author approved this particular
+external run; it is not a persistent permission. Do not set it in a hook,
+`.env` file, or agent configuration. The script reads it for this invocation
+only. It passes local filenames to Lychee through standard input. It must not
+pass repository file contents, credentials, or environment variables to remote
 servers. Lychee sends requests to the extracted destinations; it does not
 upload the documents themselves. Redirects are followed only under the private
 network restrictions below.
@@ -117,16 +120,16 @@ result.
 
 ## Ownership and delivery
 
-Install Lychee with mise using the `aqua:lycheeverse/lychee` backend. Pin the
-version in the repository's mise configuration and record the tool and verified
-reference version in `docs/REFERENCES.md`. Do not introduce a separate Brew,
-Cargo, or unowned binary channel.
+Install Lychee with mise using the `aqua:lycheeverse/lychee` backend. The
+repository pins **0.24.2** in its mise configuration and records the verified
+reference in `docs/REFERENCES.md`. Do not introduce a separate Brew, Cargo, or
+unowned binary channel.
 
-The implementation follows this policy in a separate PR. It adds the offline
-pre-commit hook, the full local pre-push hook, the reviewed external-check
-command, configuration, and focused tests for input selection and failure
-handling. Prove the local check fails for a broken local link and that the
-external command cannot silently become an unattended hook.
+The implementation adds the offline pre-commit hook, the full local pre-push
+hook, the reviewed external-check command, configuration, and focused tests for
+input selection and failure handling. Prove the local check fails for a broken
+local link and that the external command cannot silently become an unattended
+hook.
 
 The documentation consolidation PR follows the tooling PR. It uses the new
 checks to fix existing links and consolidate topic guidance without combining
