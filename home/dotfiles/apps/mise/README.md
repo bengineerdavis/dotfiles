@@ -1,14 +1,14 @@
-# {{ app_name }} App Module
+# mise App Module
 
 _Template directory for dotfile or tool user/system tool config_
 
-Welcome to my {{ app_name }} app module in my local machine provisioning setup!
+Welcome to my mise app module in my local machine provisioning setup!
 
 ## Links
 
-- [project website]() 
-- [project git repository]() 
-- [homebrew package]() 
+- [project website](https://mise.jdx.dev/)
+- [project git repository](https://github.com/jdx/mise)
+- [homebrew package](https://formulae.brew.sh/formula/mise)
 
 
 

@@ -7,7 +7,7 @@ declarative, OS-aware set of models in sync.
 
 The model set is **declarative**. The single source of truth is the manifest at
 [`defaults/main.yaml`](defaults/main.yaml) (`ollama_models`), organized by model
-family. It is applied by the [`ollama-models`](files/ollama-models) CLI, which
+family. It is applied by the [`ollama-models`](files/executable_ollama-models) CLI, which
 the install/upgrade tasks shell out to and which is symlinked onto `PATH` as
 `~/bin/ollama-models`.
 
@@ -480,7 +480,7 @@ bootstrap is out of scope for this topic.
 
   Not urgent. Recorded so the growth is a decision rather than an accident.
   What such a move must preserve is specified in
-  [`spec.md`](../../../spec.md) — chiefly that egress keeps consulting the policy
+  [`spec.md`](../../../../spec.md) — chiefly that egress keeps consulting the policy
   resolver, that usage figures stay off the repo, and that every guard moved
   keeps the test proving it relents.
 - RedHat family support.

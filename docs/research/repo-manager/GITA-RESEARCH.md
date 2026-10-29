@@ -451,8 +451,8 @@ unknown discovery on auth/API/schema/truncation failures; and report-only timer
 behavior. A failure must leave prior freshness evidence intact rather than
 advance it. These are acceptance inputs for the later items, not tests run here.
 
-[recipes]: TOPIC-RECIPES.md#recipe-docs-and-galaxy-first--the-module-vs-shell-ladder
-[prd]: ../../PRD.md#architecture-provision-initialize-state
+[recipes]: ../../TOPIC-RECIPES.md#recipe-docs-and-galaxy-first--the-module-vs-shell-ladder
+[prd]: ../../../PRD.md#architecture-provision-initialize-state
 [gita-utils]: https://github.com/nosarthur/gita/blob/v0.16.8.2/gita/utils.py#L368-L411
 [gita-names]: https://github.com/nosarthur/gita/blob/v0.16.8.2/gita/utils.py#L273-L324
 [gita-main]: https://github.com/nosarthur/gita/blob/v0.16.8.2/gita/__main__.py#L423-L501
