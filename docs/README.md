@@ -78,6 +78,10 @@ The move from `dotfiles/docs/` keeps documentation beside the tooling that
 uses it instead of inside chezmoi's source state. Topics and agents reference
 `docs/TOPICS.md` for the topic contract.
 
+The root `.lore.md` is machine-managed memory, not authored documentation.
+Leave its contents to Lore: no Markdown formatter, prose check, or link checker
+may rewrite it. Future documentation tools must exclude it by default.
+
 ## Why a directory
 
 Three reasons, in order of how much they cost when ignored.

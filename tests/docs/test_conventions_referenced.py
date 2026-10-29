@@ -65,6 +65,24 @@ def test_convention_is_referenced_from_agents_md(path):
     )
 
 
+def test_payload_readme_local_links_resolve():
+    """Relative links resolve from the README, not the repository root."""
+    import re
+
+    readme = REPO / "dotfiles" / "README.md"
+    targets = re.findall(r"\[[^]]+\]\(([^)]+)\)", readme.read_text())
+    local_targets = [
+        target.partition("#")[0]
+        for target in targets
+        if not target.startswith(("#", "/")) and "://" not in target
+    ]
+    assert local_targets, "README has no local links — the check would be vacuous"
+    for target in local_targets:
+        assert (readme.parent / target).is_file(), (
+            f"Broken local link in {readme.relative_to(REPO)}: {target}"
+        )
+
+
 def test_agents_md_does_not_reference_a_missing_convention():
     """The other direction: a bullet pointing at a file that was renamed or
     deleted sends an agent to read something that is not there.
