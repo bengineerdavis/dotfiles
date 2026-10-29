@@ -1,0 +1,85 @@
+# opencode model and agent settings, rendered into
+# dot_config/opencode/opencode.jsonc.tmpl.
+#
+# Three layers, deep-merged in order; later layers win key by key:
+#   common        every machine
+#   os.<os>       chezmoi.os: darwin or linux
+#   hosts.<name>  chezmoi.hostname (short form; `chezmoi data` shows it)
+#
+# To copy a setting from one machine to another, move its block from
+# hosts.<name> to common (all machines) or to another host. To give one
+# machine different settings, add or edit its hosts entry.
+#
+# Merge caveat: an override cannot set a value to false, 0 or "" — the merge
+# treats those as empty and keeps the lower layer. Delete the key from the
+# lower layer instead.
+#
+# Permissions are NOT here: their rules are order-sensitive (last match
+# wins) and a data merge sorts keys, so they stay literal in the template.
+# Project configs are owned by each project's git, not by chezmoi.
+opencode:
+  common:
+    # roborev's agent-hook installer wrote this block into the deployed file
+    # on 2026-10-22; adopted into the source the same day so `chezmoi apply`
+    # stops clobbering it. If the installer ever changes the block, re-adopt.
+    # backlog-py: the queue's MCP server (docs/BACKLOG-MIGRATION.md) — the
+    # SDK-free stdio entry point, which forwards to the apps/backlog daemon
+    # when one is running.
+    # Shape: opencode v2 requires `mcp.servers.<name>`. A bare `mcp.<name>`
+    # is accepted but deprecated, so moving a server up a level looks like a
+    # fix and is a regression. See apps/roborev/CHANGELOG.md 2026-10-27.
+    mcp:
+      servers:
+        roborev:
+          type: local
+          command: ["roborev", "mcp", "serve"]
+        # The task queue's MCP surface (docs/BACKLOG-MIGRATION.md § MCP wiring).
+        # Verified 2026-10-26: the server starts and answers initialize.
+        backlog-py:
+          type: local
+          command: ["backlog-py-mcp"]
+    model: openrouter/z-ai/glm-5.3-flash
+    # Author ruling 3, 2026-10-06 (opencode v2 migration): the trivial-call
+    # roles stay local on the current-generation qwen3.5 tag. Pending its
+    # apps/ollama manifest declaration + the author-run `ollama pull`
+    # (TASKS.md § Now) — until that lands, the tag only resolves where it
+    # has been pulled by hand.
+    small_model: ollama/qwen3.5:9b
+    provider:
+      openrouter:
+        models:
+          anthropic/claude-opus-5:
+            options:
+              reasoning:
+                effort: high
+            variants:
+              max:
+                reasoning:
+                  effort: max
+              xhigh:
+                reasoning:
+                  effort: xhigh
+              medium:
+                reasoning:
+                  effort: medium
+    agent:
+      deep:
+        description: Long-horizon deep reasoning on Claude Opus 5
+        mode: primary
+        model: openrouter/anthropic/claude-opus-5
+        variant: max
+    # v2's trivial-call agents (author ruling 3, 2026-10-06): summaries and
+    # compaction join titles (which small_model maps to) on the same local
+    # tag, so none of them leave the box. The pending-manifest note on
+    # small_model above applies to this tag too. v1 spelled this block
+    # `agent`; v2's native key is `agents`.
+    agents:
+      summary:
+        model: ollama/qwen3.5:9b
+      compaction:
+        model: ollama/qwen3.5:9b
+  os:
+    darwin: {}
+    linux: {}
+  hosts:
+    L37V3P6GQ3: {}

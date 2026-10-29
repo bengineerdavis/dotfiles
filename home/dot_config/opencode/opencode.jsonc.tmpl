@@ -1,0 +1,133 @@
+{
+  // Deployed by chezmoi from dot_config/opencode/opencode.jsonc.
+  // Machine-local state (v2's sqlite credential store, the session database)
+  // lives beside it and is deliberately not managed. When both opencode.json
+  // and opencode.jsonc exist, this file wins (measured 2026-09-12).
+  "$schema": "https://opencode.ai/config.json",
+
+  // Never auto-publish session shares.
+  "share": "disabled",
+
+  // v2's native update key; v1 spelled it `autoupdate`. brew stays the
+  // upgrade path, so `auto` stays off.
+  "update": "notify",
+
+  // The Lore.AI integration lives in the loreai topic
+  // (dotfiles/apps/loreai/files/opencode/lore-plugin.jsonc) and is included
+  // here behind a stat guard: removing the topic removes its config from the
+  // deployed file without breaking `chezmoi apply`. It captures `lore setup
+  // opencode` for this fleet's compatible config shape. Keep `plugin` out of
+  // .chezmoidata/opencode.yaml — two `plugin` keys would collide.
+  {{- $lore_plugin := "dotfiles/apps/loreai/files/opencode/lore-plugin.jsonc" }}
+  {{- $lore_config := dict }}
+  {{- if stat (joinPath .chezmoi.sourceDir $lore_plugin) }}
+  {{- $lore_config = fromJson (includeTemplate $lore_plugin .) }}
+  {{- end }}
+
+  // Models, providers and agents come from .chezmoidata/opencode.yaml:
+  // common, then os.<os>, then hosts.<hostname>, deep-merged. Edit that file,
+  // not this block. The default runs hosted; the small model (titles,
+  // summaries, compaction) stays local so trivial calls never leave the box.
+  // The `deep` agent opens on Opus 5 at max reasoning effort.
+{{- $oc := .opencode }}
+{{- $cfg := mergeOverwrite $lore_config (deepCopy $oc.common) }}
+{{- $cfg = mergeOverwrite $cfg (deepCopy (get $oc.os .chezmoi.os | default dict)) }}
+{{- $cfg = mergeOverwrite $cfg (deepCopy (get $oc.hosts .chezmoi.hostname | default dict)) }}
+{{- range $key := keys $cfg | sortAlpha }}
+  {{ toJson $key }}: {{ get $cfg $key | toPrettyJson | trim | replace "\n" "\n  " }},
+{{- end }}
+
+  // The v2 permissions array: ordered rules, LAST match wins — the same
+  // semantics the v1 `permission` map relied on, one syntax later
+  // (/v2/docs/permissions). Catch-alls come FIRST so the specific rules
+  // after them win; destructive carve-outs come AFTER the broad allows
+  // they narrow. Rules stay literal here, not in .chezmoidata, for the
+  // same order-sensitivity reason as the model block above.
+  //
+  // v1's `list` rule is dropped: `list` is not a v2 action (v1's `bash`
+  // became `shell`, `task` became `subagent`). A rule that can never match
+  // is indistinguishable from a strict one. The trailing v1 shell
+  // catch-all was also dropped (author ruling 1, 2026-10-06): it was a
+  // leftover that shadowed every allow below it; the 2026-09-16 intent —
+  // the allow-list in force — is what this array ships.
+  "permissions": [
+    { "action": "shell", "resource": "*", "effect": "ask" },
+    // Read-only inspection and text transforms are free. Deliberately NOT
+    // allowed (docs/PERMISSIONS.md tiers): xargs (executes piped input that
+    // the external_directory scan cannot see) and gita's mutating
+    // subcommands (mass pull/push/checkout across every repo is the ask
+    // tier's job) — both fall through to the catch-all and ask.
+    { "action": "shell", "resource": "git *", "effect": "allow" },
+    // `mise *` reaches arbitrary execution through `mise exec`/`mise run`,
+    // so this is a wide allow. Kept because mise is the machine's tool
+    // front-end; the repo config keeps `mise install`/`mise run setup` at
+    // ask, and edit that pairing together if this widens further.
+    { "action": "shell", "resource": "mise *", "effect": "allow" },
+    { "action": "shell", "resource": "cat *", "effect": "allow" },
+    { "action": "shell", "resource": "head *", "effect": "allow" },
+    { "action": "shell", "resource": "wc *", "effect": "allow" },
+    { "action": "shell", "resource": "sort *", "effect": "allow" },
+    { "action": "shell", "resource": "comm *", "effect": "allow" },
+    { "action": "shell", "resource": "uniq *", "effect": "allow" },
+    { "action": "shell", "resource": "echo *", "effect": "allow" },
+    { "action": "shell", "resource": "printf *", "effect": "allow" },
+    { "action": "shell", "resource": "grep *", "effect": "allow" },
+    { "action": "shell", "resource": "gita ls*", "effect": "allow" },
+    { "action": "shell", "resource": "gita status*", "effect": "allow" },
+    { "action": "shell", "resource": "find *", "effect": "allow" },
+    // Carve-outs sit AFTER `find *` so last-match denies them.
+    { "action": "shell", "resource": "find *-delete*", "effect": "deny" },
+    { "action": "shell", "resource": "find *-exec*", "effect": "deny" },
+    { "action": "shell", "resource": "find *-execdir*", "effect": "deny" },
+    // Root authority is never a default. mise and Ansible must run as the
+    // invoking user: root gets a second tool tree under /root and leaves locks
+    // in the temp dir. The apt steps elevate per task instead.
+    { "action": "shell", "resource": "sudo *", "effect": "deny" },
+    { "action": "shell", "resource": "command sudo *", "effect": "deny" },
+    // Reads are free EXCEPT .env files, which ask (author ruling 2,
+    // 2026-10-06: v2's built-in .env protection is kept, not v1 parity).
+    // The three rules below mirror v2's base policy verbatim
+    // (packages/core/src/plugin/agent.ts at v2.0.24) and sit AFTER the
+    // allow because last-match wins — user rules are appended after the
+    // base policy, so without them the global allow would shadow v2's own
+    // .env asks. `*.env.example` stays readable, as upstream intends.
+    { "action": "read", "resource": "*", "effect": "allow" },
+    { "action": "read", "resource": "*.env", "effect": "ask" },
+    { "action": "read", "resource": "*.env.*", "effect": "ask" },
+    { "action": "read", "resource": "*.env.example", "effect": "allow" },
+    { "action": "glob", "resource": "*", "effect": "allow" },
+    { "action": "grep", "resource": "*", "effect": "allow" },
+    { "action": "edit", "resource": "*", "effect": "allow" },
+    { "action": "webfetch", "resource": "*", "effect": "ask" },
+    { "action": "websearch", "resource": "*", "effect": "ask" },
+    // external_directory: deny FIRST, allows LAST — broad-first,
+    // narrow-last. The original allows-then-deny order defeated ~/code/**
+    // and was caught live on 2026-09-12 when a write to ai-prompt-library
+    // was refused.
+    //
+    // The paths are literal $HOME globs, not chezmoi templates: v2 expands
+    // `$HOME`/`~/` itself (for external_directory, read and edit
+    // resources) when the config loads, and a rendered home-directory
+    // template would work on exactly one machine and silently never match
+    // anywhere else — literal paths had that exact bug here until
+    // 2026-09-14. v2's `/*` and v1's `/**` are equivalent: `*` spans `/`,
+    // so one star covers subdirectories.
+    { "action": "external_directory", "resource": "*", "effect": "deny" },
+    { "action": "external_directory", "resource": "$HOME/.local/share/chezmoi/*", "effect": "allow" },
+    { "action": "external_directory", "resource": "$HOME/code/*", "effect": "allow" },
+    // Handoff documents and scratch files live under the agent temp root,
+    // which sits outside the active Location. The private path is the narrow
+    // boundary; `/tmp` is deliberately not allowed. The /tmp access this once
+    // needed came from running mise under sudo, which the shell and Ansible
+    // guards refuse rather than accommodating.
+    { "action": "external_directory", "resource": "$HOME/.cache/tmp/*", "effect": "allow" },
+    // The external-skill trees opencode scans (~/.agents/skills and its
+    // ~/.claude mirror) — one intent: agent-installed skills are readable.
+    // The runtime also auto-allows each skill directory registered at
+    // session start (observed 2026-10-16); these static rules cover the
+    // cases that miss — a skill installed mid-session, or one filtered
+    // from registration by an invalid SKILL.md.
+    { "action": "external_directory", "resource": "$HOME/.agents/skills/*", "effect": "allow" },
+    { "action": "external_directory", "resource": "$HOME/.claude/skills/*", "effect": "allow" }
+  ]
+}

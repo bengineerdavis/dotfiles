@@ -1,0 +1,33 @@
+# apps/ghostty/tasks/remove.yaml
+# Explicit uninstall tasks. Never run as part of provision or install.
+# Only invoked via --tags remove.
+# Mirror the install.yaml structure — one block per package manager.
+
+# ── macOS (Homebrew Cask) ───────────────────────────────────────────────────
+- name: "Remove ghostty via Homebrew Cask (macOS)"
+  community.general.homebrew_cask:
+    name: ghostty
+    state: absent
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# ── macOS (Homebrew) ───────────────────────────────────────────────────────────
+# - name: "Remove ghostty via Homebrew (macOS)"
+#   community.general.homebrew:
+#     name: ghostty
+#     state: absent
+#   when: ansible_facts['os_family'] == 'Darwin'
+
+# ── Linux (apt) ──────────────────────────────────────────────────────────────────
+# - name: "Remove ghostty via apt (Linux)"
+#   ansible.builtin.apt:
+#     name: ghostty
+#     state: absent
+#   become: true
+#   when: ansible_facts['os_family'] == 'Debian'
+
+# ── Docker ─────────────────────────────────────────────────────────────────────
+# - name: "Remove ghostty Docker image"
+#   community.docker.docker_image:
+#     name: ghostty:latest
+#     state: absent
+#   when: install_method | default('') == 'docker'

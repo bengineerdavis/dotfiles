@@ -7,7 +7,7 @@
 bats_require_minimum_version 1.5.0
 
 REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
-SCRIPT="$REPO_ROOT/bin/executable_findline"
+SCRIPT="$REPO_ROOT/home/bin/executable_findline"
 
 load "$REPO_ROOT/.bats/bats-support/load"
 load "$REPO_ROOT/.bats/bats-assert/load"

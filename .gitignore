@@ -3,7 +3,7 @@ __pycache__/
 *.pyo
 .pytest_cache/
 .hypothesis/
-dotfiles/migration-backups/
+home/dotfiles/migration-backups/
 
 # Agent worktrees — in-tree, chezmoi-invisible; see docs/WORKTREES.md.
 .worktrees/

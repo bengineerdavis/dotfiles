@@ -17,10 +17,11 @@ import importlib.machinery
 import importlib.util
 import pathlib
 
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
 import pytest
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-TOPIC = REPO / "dotfiles" / "apps" / "ollama"
+TOPIC = PAYLOAD_ROOT / "dotfiles" / "apps" / "ollama"
 SCRIPT = TOPIC / "files" / "executable_ollama-models"
 MANIFEST = TOPIC / "defaults" / "main.yaml"
 

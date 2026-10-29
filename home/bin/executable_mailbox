@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+"""
+mailbox
+Python replacement for the original bash script. Analyzes a directory of
+email attachments and content, sending it to an LLM to generate a structured,
+chronological markdown summary of the entire correspondence chain.
+"""
+
+import argparse
+import glob
+import os
+import shutil
+import subprocess
+import sys
+import time
+from functools import wraps
+
+PROMPT = (
+    "Review the attachments you find and identify the items that are part of my\n"
+    "email correspondence, including attached binary and text documents.\n"
+    "Then, convert all select documents into a well-formatted markdown\n"
+    "document showing the chronological correspondence in the email chain.\n"
+    "While creating the markdown doc make it clear when each person is \n"
+    "replying and from which ticket or follow-up support ticket, and with \n"
+    "which attachments based on the ticket and person replying, which I've \n"
+    "also provided in slugified form for you."
+)
+
+MODEL = "gemma4:31b-mlx"
+
+
+def require(*deps: str) -> None:
+    """Abort unless every named dependency is on PATH.
+
+    Checks EVERY dependency this script shells out to, system tools and
+    hand-rolled ~/bin scripts alike — a standalone script cannot assume the
+    machine running it was ever provisioned. Being topic-managed is not a reason
+    to skip the check: it only means something *should* have installed it, which
+    is exactly the assumption that breaks on a fresh or half-applied box.
+    """
+    missing = [d for d in deps if shutil.which(d) is None]
+    if not missing:
+        return
+
+    prog = os.path.basename(sys.argv[0])
+    print(f"{prog}: missing dependencies: {', '.join(missing)}", file=sys.stderr)
+    print(
+        f"{prog}: ~/bin scripts come from `chezmoi apply ~/bin`; system tools "
+        "come from the ansible topics (`update.sh`).",
+        file=sys.stderr,
+    )
+    # 127 is the conventional "command not found" status.
+    raise SystemExit(127)
+
+
+def performance_logger(logfile_path):
+    """Return a decorator that logs runtime as the first metric to console and file."""
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            end = time.perf_counter()
+            runtime = end - start
+            # Print and log the runtime as the first metric
+            metric_line = f"runtime_seconds: {runtime:.6f}\n"
+            sys.stdout.write(metric_line)
+            try:
+                with open(logfile_path, "a", encoding="utf-8") as lf:
+                    lf.write(metric_line)
+            except Exception:
+                pass
+            return result
+
+        return wrapper
+
+    return decorator
+
+
+@performance_logger(os.path.join(os.getcwd(), "mailbox.log"))
+def main(attachments_pattern: str, output_file: str, logfile: str):
+    # Checked before any globbing or file writing so a half-deployed machine
+    # fails without leaving a truncated output_file behind.
+    require("llm-ctx")
+
+    # Expand glob (recursive) and filter to regular files
+    matches = glob.glob(attachments_pattern, recursive=True)
+    files = [p for p in matches if os.path.isfile(p)]
+
+    with open(logfile, "a", encoding="utf-8") as lf:
+        if not files:
+            msg = f"No files found for pattern: {attachments_pattern}\n\n"
+            print(msg, end="")
+            lf.write(msg)
+        else:
+            header = f"Adding the following attachments to the prompt ({len(files)} files):\n"
+            print(header, end="")
+            lf.write(header)
+            for f in files:
+                print(f)
+                lf.write(f + "\n")
+            print()
+            lf.write("\n")
+
+    # Build command
+    cmd = ["llm-ctx", "-v", "-m", MODEL]
+    if files:
+        cmd.extend(files)
+    else:
+        cmd.append(attachments_pattern)
+    cmd.extend(["--", PROMPT])
+
+    # Invoke llm-ctx and write stdout to the output file
+    try:
+        with open(output_file, "w", encoding="utf-8") as out:
+            subprocess.run(cmd, stdout=out, check=False)
+    except FileNotFoundError:
+        # require() above makes this near-unreachable; kept as a backstop for
+        # llm-ctx vanishing mid-run. Previously this printed and returned, so
+        # mailbox exited 0 and looked successful while writing an empty mail.md.
+        err = "llm-ctx not found in PATH."
+        print(err, file=sys.stderr)
+        with open(logfile, "a", encoding="utf-8") as lf:
+            lf.write(err + "\n")
+        raise SystemExit(127) from None
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Generate markdown summary from email attachments using llm-ctx.",
+        epilog=(
+            "Examples:\n"
+            "  mailbox                          # use ./attachments/** → mail.md\n"
+            "  mailbox ./emails/**              # custom glob → mail.md\n"
+            "  mailbox ./emails/** summary.md   # custom glob and output file"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "attachments",
+        nargs="?",
+        help="attachments path or glob (default: ./attachments/**)",
+    )
+    parser.add_argument(
+        "output", nargs="?", help="output markdown file (default: mail.md)"
+    )
+    args = parser.parse_args()
+
+    if args.attachments is None and args.output is None:
+        parser.print_help()
+        sys.exit(0)
+
+    LOGFILE = os.path.join(os.getcwd(), "mailbox.log")
+    main(args.attachments or "./attachments/**", args.output or "mail.md", LOGFILE)

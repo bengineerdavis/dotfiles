@@ -1,0 +1,51 @@
+# machines.yml — per-machine data: repo membership by layout type.
+#
+# Standard: docs/LAYOUT.md (settled 2026-09-15). Plain data, slurped by the
+# parent playbook the same way topic.yml files are; gita consumes `repos`.
+#
+# Work repos are NOT named here — spec.md § Data forbids committing
+# employer-identifying strings. They live in the machine-local overlay at
+# ~/.local/state/layout/machines.local.yaml (same schema, owner: the layout
+# standard; retention: until the machine is decommissioned).
+#
+# Bundle-group membership (hostname → groups) lands here with the topic
+# bundles work; only `repos` is settled today.
+#
+# 2026-10-22: membership refreshed after pulling in the catalogue repos
+# (config/repos.yaml re-pointed to the type dirs; missing own repos cloned).
+# Non-repo dirs (aihero course) and the worktree trial
+# (try/worktrunk-isolation-trial, local remote into work/) stay out of the
+# membership until they earn a place.
+machines:
+  L37V3P6GQ3:  # this Mac
+    repos:
+      personal:
+        - ai-prompt-library
+        - ai-prompt-library-escalation-writing
+        - bad-python-app
+        - bt-import
+        - bengineerdavis.github.io
+        - impromptu
+        - jirassic
+        - job-hunt
+        - llocallabs
+        - magic_touch
+        - pcshopper
+        - prompt-spec
+        - questionable
+        - rootiminary
+        - sawmill
+        - topical
+      templates:
+        - Best-README-Template
+        - agentic-project-template
+        - copier-cat
+        - copier-mise-sandbox
+        - copier-template-copier-template
+        - dotfile-topic-copier
+      try:
+        - xerror
+      captures: []
+      forks:
+        - promptlint
+      archive: []

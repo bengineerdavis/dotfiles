@@ -1,0 +1,5 @@
+topic_name: ori
+topic_provides: [ori]
+topic_requires: []                # standalone binary — no runtime deps (not even bun)
+topic_os: [Darwin, Debian]
+topic_tier: app

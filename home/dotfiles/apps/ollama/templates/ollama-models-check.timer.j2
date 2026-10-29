@@ -1,0 +1,13 @@
+# Managed by apps/ollama — weekly trigger for ollama-models-check.service.
+# Weekly rather than daily: probing every family costs minutes of network and
+# the answer rarely changes day to day.
+[Unit]
+Description=Weekly ollama model drift check
+
+[Timer]
+OnCalendar={{ ollama_model_check_oncalendar | default('weekly') }}
+Persistent=true
+RandomizedDelaySec=30m
+
+[Install]
+WantedBy=timers.target

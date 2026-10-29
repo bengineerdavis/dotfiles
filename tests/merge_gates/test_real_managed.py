@@ -22,6 +22,9 @@ import subprocess
 
 import pytest
 
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
 REPO = pathlib.Path(__file__).resolve().parents[2]
 MANAGED_CMD = ["chezmoi", "managed", "--path-style=source-relative"]
 
@@ -59,6 +62,15 @@ def test_deployed_membership_set_is_nonempty(managed):
     assert managed
 
 
+def test_home_git_paths_normalize_to_managed_paths(m):
+    """Repo paths change, not chezmoi-managed paths."""
+    buckets_for = m.buckets_for
+
+    managed = frozenset({"bin/executable_triage", "dot_zshrc.tmpl"})
+    assert buckets_for("home/bin/executable_triage", managed) == ("deployed",)
+    assert buckets_for("home/dot_zshrc.tmpl", managed) == ("deployed",)
+
+
 class TestPolicyExact:
     def test_every_entry_is_managed_or_repo_native(self, m, managed):
         unaccounted = sorted(
@@ -78,8 +90,8 @@ class TestPolicyExact:
 class TestPolicyGlobs:
     def test_globs_cover_every_managed_policy_layer_file(self, m, managed):
         layer = {
-            str(p.relative_to(REPO))
-            for p in (REPO / "dotfiles" / "policy").iterdir()
+            str(p.relative_to(PAYLOAD_ROOT))
+            for p in (PAYLOAD_ROOT / "dotfiles" / "policy").iterdir()
             if p.is_file()
         }
         covered = layer & managed

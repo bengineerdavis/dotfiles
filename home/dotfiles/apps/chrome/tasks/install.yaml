@@ -1,0 +1,230 @@
+# apps/chrome/tasks/install.yaml
+# Package installation tasks. Be explicit about which package manager is used.
+# Use when: conditions to guard each block by OS/arch.
+# Do NOT put upgrade logic here — upgrades are owned by system roles (homebrew, apt).
+# Do NOT put config/symlink tasks here — those are owned by chezmoi.
+#
+# Every piece of state created here has a matching teardown in remove.yaml,
+# per the CRUD ownership invariant in docs/TOPICS.md.
+
+# ── macOS: the browser itself ───────────────────────────────────────────────
+# Chrome is installed here by Google's own installer and kept current by
+# Keystone under MDM, which is also what carries the Chrome Browser Cloud
+# Management enrollment. Handing that bundle to Homebrew (`--adopt`) would put
+# two updaters on one app and risk the managed enrollment, so the cask runs
+# ONLY when Chrome is genuinely absent — i.e. a fresh machine.
+
+- name: "Check whether Google Chrome is already installed"
+  ansible.builtin.stat:
+    path: "/Applications/Google Chrome.app"
+  register: chrome_app_stat
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: "Install google-chrome via Homebrew Cask (fresh machine only)"
+  community.general.homebrew_cask:
+    name: google-chrome
+    state: present
+    install_options: "appdir={{ user_appdir }}"
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - not chrome_app_stat.stat.exists
+
+- name: "Note that an existing Chrome install was left to Keystone/MDM"
+  ansible.builtin.debug:
+    msg: >-
+      Chrome already present at /Applications/Google Chrome.app — left under its
+      existing installer (Google Keystone / MDM). Homebrew was not given the
+      bundle; adopting it would put two updaters on one app.
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - chrome_app_stat.stat.exists
+
+# ── source: store — seed from the Web Store (user-level, no policy, no sudo) ─
+
+- name: "Ensure the per-user External Extensions directory exists"
+  ansible.builtin.file:
+    path: "{{ chrome_external_extensions_dir }}"
+    state: directory
+    mode: "0755"
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - chrome_seed_extensions | bool
+
+- name: "Seed each store extension from the Chrome Web Store"
+  ansible.builtin.copy:
+    dest: "{{ chrome_external_extensions_dir }}/{{ item.id }}.json"
+    content: |
+      {
+        "external_update_url": "{{ chrome_web_store_update_url }}"
+      }
+    mode: "0644"
+  loop: "{{ chrome_extensions | selectattr('source', 'eq', 'store') | list }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.id }})"
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - chrome_seed_extensions | bool
+
+# Deleting a store entry should stop the seed reappearing. Chrome does not
+# uninstall an already-installed extension when its seed goes away, so this
+# prunes the file and the audit reports the leftover.
+- name: "Find seed JSONs in the External Extensions directory"
+  ansible.builtin.find:
+    paths: "{{ chrome_external_extensions_dir }}"
+    patterns: "*.json"
+    file_type: file
+  register: chrome_seed_files
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - chrome_prune_orphan_seeds | bool
+
+- name: "Prune seed JSONs no manifest entry claims"
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ chrome_seed_files.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - chrome_prune_orphan_seeds | bool
+    - (item.path | basename | splitext | first) not in
+      (chrome_extensions | selectattr('source', 'eq', 'store') | map(attribute='id') | list)
+
+# ── source: git — clone, build, then one manual load ────────────────────────
+# Chrome cannot be told to load an unpacked extension from the command line
+# (v137 removed --load-extension from branded builds) and macOS refuses
+# local-CRX external installs (since v44). What this topic owns is the source:
+# a fixed clone path per slug, updated in place so the load path — and
+# therefore the extension's ID — never changes.
+
+- name: "Ensure the canonical unpacked-extension root exists"
+  ansible.builtin.file:
+    path: "{{ chrome_unpacked_root }}"
+    state: directory
+    mode: "0755"
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: "Guard pinned refs against upstream tag moves"
+  ansible.builtin.import_tasks: git-refs-guard.yaml
+
+- name: "Clone or update each git extension at its pinned ref"
+  ansible.builtin.git:
+    repo: "{{ item.repo }}"
+    dest: "{{ chrome_unpacked_root }}/{{ item.slug }}"
+    version: "{{ item.ref }}"
+    # The clone is a working tree the human may poke at. Refusing to discard
+    # local modifications turns "ansible ate my debugging" into a clear failure.
+    # Only the explicit chrome_allow_moved_refs opt-in flips this — see the
+    # guard imported above and defaults/main.yaml.
+    force: "{{ chrome_allow_moved_refs | bool }}"
+    update: true
+  loop: "{{ chrome_extensions | selectattr('source', 'eq', 'git') | list }}"
+  loop_control:
+    label: "{{ item.name }} @ {{ item.ref }}"
+  register: chrome_git_clones
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# Build only when the checkout actually moved, or when the loadable subdir is
+# missing. A rebuild on every run would be several seconds of npm for nothing.
+- name: "Check whether each git extension's loadable directory exists"
+  ansible.builtin.stat:
+    path: "{{ chrome_unpacked_root }}/{{ item.slug }}/{{ item.load_subdir | default('.') }}/manifest.json"
+  register: chrome_git_built
+  loop: "{{ chrome_extensions | selectattr('source', 'eq', 'git') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: "Build each git extension that changed or has no build output"
+  ansible.builtin.shell:
+    cmd: "{{ item.0.build }}"
+    chdir: "{{ chrome_unpacked_root }}/{{ item.0.slug }}"
+  environment:
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
+  loop: >-
+    {{ (chrome_extensions | selectattr('source', 'eq', 'git') | list)
+       | zip(chrome_git_clones.results | default([]), chrome_git_built.results | default([]))
+       | list }}
+  loop_control:
+    label: "{{ item.0.name }}"
+  register: chrome_git_builds
+  changed_when: true
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - chrome_build_git_extensions | bool
+    - item.0.build is defined
+    - (item.1.changed | default(false)) or not (item.2.stat.exists | default(false))
+
+# ── End-of-run reminder for the one step that cannot be automated ───────────
+# Loading an unpacked extension is a manual click on macOS and always will be
+# (see README.md). Rather than print that mid-run where it scrolls away, detect
+# whether it is actually still needed and hand it to a handler, which Ansible
+# flushes at the very end of the play — after every other topic has run.
+
+- name: "Check whether each git extension is already loaded in a Chrome profile"
+  ansible.builtin.shell:
+    cmd: >-
+      grep -ls {{ (chrome_unpacked_root ~ '/' ~ item.slug ~ '/' ~ (item.load_subdir | default('.'))) | quote }}
+      "$HOME/Library/Application Support/Google/Chrome"/*/"Secure Preferences" 2>/dev/null | head -1
+  args:
+    executable: /bin/bash
+  loop: "{{ chrome_extensions | selectattr('source', 'eq', 'git') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: chrome_git_loaded
+  changed_when: false
+  failed_when: false
+  # A read-only grep, so it is safe under --check — and running it there is what
+  # lets a dry run tell "already loaded" apart from "still pending" instead of
+  # always claiming the latter.
+  check_mode: false
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: "Collect git extensions that still need their one-time manual load"
+  ansible.builtin.set_fact:
+    chrome_manual_load_pending: >-
+      {{ (chrome_manual_load_pending | default([])) + [{
+           'name': item.item.name,
+           'path': chrome_unpacked_root ~ '/' ~ item.item.slug ~ '/' ~ (item.item.load_subdir | default('.'))
+         }] }}
+  loop: "{{ chrome_git_loaded.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - not (item.stdout | default('') | trim)
+
+# set_fact is never "changed", so it cannot notify on its own. This no-op exists
+# purely to fire the handler once when the list above came back non-empty.
+- name: "Queue the end-of-run manual-load reminder"
+  ansible.builtin.command: "true"
+  changed_when: true
+  # Runs under --check too: the command is a literal no-op, and a dry run is
+  # exactly when you want to be told a manual step is still outstanding.
+  check_mode: false
+  notify: "chrome manual load reminder"
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - (chrome_manual_load_pending | default([])) | length > 0
+
+# ── The audit CLI ───────────────────────────────────────────────────────────
+# Symlinked rather than copied so edits to the topic are live on PATH, matching
+# how apps/ollama ships ollama-models. Teardown lives in remove.yaml.
+
+- name: "Ensure ~/bin exists (for the browser-ext CLI)"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/bin"
+    state: directory
+    mode: "0755"
+  when: ansible_facts['os_family'] == 'Darwin'
+  tags: [chrome_extensions, upgrade]
+
+- name: "Symlink the browser-ext CLI onto PATH"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/browser-ext"
+    dest: "{{ ansible_facts['env']['HOME'] }}/bin/browser-ext"
+    state: link
+    force: true
+  when: ansible_facts['os_family'] == 'Darwin'
+  tags: [chrome_extensions, upgrade]

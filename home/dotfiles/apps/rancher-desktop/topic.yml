@@ -1,0 +1,16 @@
+topic_name: rancher-desktop
+# Rancher Desktop is the macOS Docker engine: it bundles the daemon, the `docker`
+# CLI, and the `docker compose` v2 plugin. It is the `docker` provider on Darwin
+# (the apps/docker topic is Debian-only). Fully open source (Apache 2.0).
+#
+# topic_os is Darwin-only ON PURPOSE: in the main playbook this topic must not
+# run on Linux, where apps/docker (Docker Engine) is the `docker` provider —
+# two providers for one capability would be ambiguous. An OPTIONAL Linux GUI
+# install ("playground") is still available via the standalone runner, which
+# bypasses topic_os and installs on whatever OS it runs on:
+#   ansible-playbook apps/rancher-desktop/playbook.yaml --tags install -K
+# See README.md.
+topic_provides: [docker]
+topic_requires: [homebrew]
+topic_os: [Darwin]
+topic_tier: app

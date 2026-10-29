@@ -1,0 +1,46 @@
+# apps/apt/tasks/remove.yaml
+# Explicit uninstall tasks. Never run as part of provision or install.
+# Only invoked via --tags remove.
+# Mirror the install.yaml structure — one block per package manager.
+#
+# apt itself is never removed. What this topic creates and so tears down:
+#   - the source-audit state file.
+# What it deliberately leaves:
+#   - repaired keyrings: they belong to sources other topics or the user added,
+#     and removing them would re-break those sources;
+#   - retired sources and purged packages: retirement is one-way (retired.yaml).
+
+- name: "Remove: source-audit state"
+  ansible.builtin.file:
+    path: "{{ apt_source_audit_state }}"
+    state: absent
+  become: true
+
+# ── macOS (Homebrew) ──────────────────────────────────────────────────────────
+# - name: "Remove apt via Homebrew (macOS)"
+#   community.general.homebrew:
+#     name: apt
+#     state: absent
+#   when: ansible_facts['os_family'] == 'Darwin'
+
+# ── macOS (Homebrew Cask) ─────────────────────────────────────────────────────
+# - name: "Remove apt via Homebrew Cask (macOS)"
+#   community.general.homebrew_cask:
+#     name: apt
+#     state: absent
+#   when: ansible_facts['os_family'] == 'Darwin'
+
+# ── Linux (apt) ───────────────────────────────────────────────────────────────
+# - name: "Remove apt via apt (Linux)"
+#   ansible.builtin.apt:
+#     name: apt
+#     state: absent
+#   become: true
+#   when: ansible_facts['os_family'] == 'Debian'
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+# - name: "Remove apt Docker image"
+#   community.docker.docker_image:
+#     name: apt:latest
+#     state: absent
+#   when: install_method | default('') == 'docker'

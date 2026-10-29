@@ -1,0 +1,43 @@
+# apps/gnu-tools/tasks/install.yaml
+# Package installation tasks. Be explicit about which package manager is used.
+# Use when: conditions to guard each block by OS/arch.
+# Do NOT put upgrade logic here — upgrades are owned by system roles (homebrew, apt).
+# Do NOT put config/symlink tasks here — those are owned by chezmoi.
+
+# ── macOS (Homebrew) ──────────────────────────────────────────────────────────
+# - name: "Install gnu-tools via Homebrew (macOS)"
+#   community.general.homebrew:
+#     name: gnu-tools
+#     state: present
+#   when: ansible_facts['os_family'] == 'Darwin'
+
+# ── macOS (Homebrew Cask) ─────────────────────────────────────────────────────
+# - name: "Install gnu-tools via Homebrew Cask (macOS)"
+#   community.general.homebrew_cask:
+#     name: gnu-tools
+#     state: present
+#     install_options: "appdir={{ user_appdir }}"
+#   when: ansible_facts['os_family'] == 'Darwin'
+
+# ── Linux (apt) ───────────────────────────────────────────────────────────────
+# - name: "Install gnu-tools via apt (Linux)"
+#   ansible.builtin.apt:
+#     name: gnu-tools
+#     state: present
+#   become: true
+#   when: ansible_facts['os_family'] == 'Debian'
+
+# ── Linux (snap) ─────────────────────────────────────────────────────────────
+# - name: "Install gnu-tools via snap (Linux)"
+#   community.general.snap:
+#     name: gnu-tools
+#     state: present
+#   become: true
+#   when: ansible_facts['os_family'] == 'Debian'
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+# - name: "Pull gnu-tools Docker image"
+#   community.docker.docker_image:
+#     name: gnu-tools:latest
+#     source: pull
+#   when: install_method | default('') == 'docker'

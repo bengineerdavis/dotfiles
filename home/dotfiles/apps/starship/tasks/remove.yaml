@@ -1,0 +1,24 @@
+# apps/starship/tasks/remove.yaml
+# Explicit uninstall tasks. Never run as part of provision or install.
+# Only invoked via --tags remove.
+# Mirror the install.yaml structure — one block per package manager.
+
+# ── macOS (Homebrew) ────────────────────────────────────────────────────────────────
+- name: "Remove starship via Homebrew (macOS)"
+  community.general.homebrew:
+    name: starship
+    state: absent
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# ── macOS (Homebrew Cask) ─────────────────────────────────────────────────────
+- name: "Remove font-fira-code-nerd-font via Homebrew Cask (macOS)"
+  community.general.homebrew_cask:
+    name: font-fira-code-nerd-font
+    state: absent
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# EMPTY
+
+# EMPTY
+
+# EMPTY

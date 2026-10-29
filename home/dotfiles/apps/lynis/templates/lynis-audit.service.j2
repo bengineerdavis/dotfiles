@@ -1,0 +1,28 @@
+[Unit]
+# {{ ansible_managed }}
+# Rendered from apps/lynis/templates/lynis-audit.service.j2 — edits are overwritten.
+#
+# The Linux counterpart to com.user.lynis-audit.plist. A oneshot service that runs
+# the same monthly_audit.sh; lynis-audit.timer owns when it fires.
+Description=Monthly Lynis system audit
+Documentation=https://cisofy.com/lynis/
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash {{ lynis_audit_script }}
+
+# Matches the launchd agent's Background/LowPriorityIO/Nice settings, so an audit
+# never competes with interactive work.
+Nice=10
+IOSchedulingClass=idle
+CPUSchedulingPolicy=batch
+
+# A systemd unit inherits almost nothing, and the script calls lynis by absolute
+# path, so this only needs to cover what lynis itself shells out to.
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=HOME={{ ansible_facts['env']['HOME'] }}
+
+# The script writes its own dated report and run.log, so journal capture here is
+# only for anything that escapes it — a bash-level failure before logging starts.
+StandardOutput=journal
+StandardError=journal

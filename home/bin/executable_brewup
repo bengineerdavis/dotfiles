@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+
+# Homebrew Upgrade Script
+# This script automates the process of upgrading Homebrew packages.
+# It handles both formulae and casks, ensuring a smooth upgrade experience.
+# It also provides logging and error handling capabilities.
+# Additionally, it supports parallel updates for faster performance.
+
+# Author: Ben Davis
+# License: MIT
+# Author: Ben Davis w/ AI assistance
+# Email: bengineerdavis@gmail.com
+# Updated: 2025-09-11
+
+# Set up log file
+LOG_FILE="${HOME}/.brewup.log"
+
+
+# Logging functions
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "${LOG_FILE:-/tmp/brewup.log}"
+}
+
+info_log() {
+    echo "$*"
+    log "INFO: $*"
+}
+
+debug_log() {
+    if [ "${DEBUG:-0}" -eq 1 ]; then
+        echo "DEBUG: $*"
+    fi
+    log "DEBUG: $*"
+}
+
+
+# helper functions
+_handle_unlinked_kegs() {
+    info_log "Checking for unlinked kegs..."
+    local unlinked_kegs
+    unlinked_kegs=$(brew list --formula -1 | while read formula; do
+        if [ ! -L "${HOMEBREW_PREFIX:-/usr/local}/opt/$formula" ] && brew ls --versions "$formula" > /dev/null; then
+            echo "$formula"
+        fi
+    done)
+    
+    if [ -z "$unlinked_kegs" ]; then
+        info_log "No unlinked kegs found."
+        return 0
+    fi
+    
+    info_log "Found unlinked kegs. Attempting to link them..."
+    echo "$unlinked_kegs" | while read formula; do
+        debug_log "Linking $formula"
+        brew link --overwrite "$formula" || brew link --overwrite --force "$formula"
+    done
+    
+    info_log "Finished handling unlinked kegs."
+}
+
+_brew_update () {
+    brew update -v --force
+}
+
+_brew_upgrade_casks () {
+    brew upgrade -v \
+    --cask \
+    --greedy-latest \
+    --greedy-auto-updates
+}
+
+_brew_upgrade_formulae () {
+    brew upgrade -v \
+    --greedy-latest \
+    --greedy-auto-updates
+}
+
+# Modify main function to include the checks
+main () {
+    log "Starting main function with args: $*"
+    
+    # Update Homebrew itself
+    log "Updating Homebrew..."
+    # TODO: keep brew verbose for regular runs?? "-v"
+    brew update --force
+    log "Homebrew update completed"
+
+    # Handle unlinked kegs
+    _handle_unlinked_kegs
+    
+    # Check for new versions of installed Homebrew packages (formulae and casks)
+    # update all formulae
+    log "Upgrading formulae..."
+    _brew_upgrade_formulae || log "Formulae upgrade failed"
+
+    # update all casks
+    log "Upgrading casks..."
+    _brew_upgrade_casks || log "Cask upgrade failed"
+
+    info_log "Running brew cleanup"
+    brew cleanup --prune=all
+    
+    info_log "Running brew doctor"
+    brew doctor
+    
+    log "brewup.sh script completed successfully"
+    echo ""
+    echo "===================================================="
+    echo "Brew upgrade process completed."
+    echo "Log file available at: $LOG_FILE"
+    echo "To view the log, run: tail -f $LOG_FILE"
+    echo "===================================================="
+}
+
+main "$@"

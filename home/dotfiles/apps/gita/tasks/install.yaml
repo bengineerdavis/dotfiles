@@ -1,0 +1,89 @@
+# apps/gita/tasks/install.yaml
+#
+# Stopgap scope: claim the mise entry so the binary is installed, then register
+# the repos already on disk so `gita fetch` / `gita pull` work today.
+#
+# Mise entry ownership follows the herdr pattern (TOPIC-RECIPES): this topic
+# claims `pipx:gita` through mise's first-party `mise use -g` and removes it
+# through `mise unuse --global` in remove.yaml. Both commands write through
+# the deployed symlink into the tracked apps/mise/files/config.toml, so a run
+# that changes the entry leaves the repo dirty by design and the change is
+# committed as the capture — this topic never writes that file directly.
+#
+# The registration reads the committed catalogue (config/repos.yaml) for
+# repo -> group and writes gita's own repos.csv/groups.csv. Deliberately does
+# NOT move repos into the docs/LAYOUT.md type dirs — that is the migration, a
+# separate step. Every piece of state created here has a matching teardown in
+# remove.yaml (CRUD ownership invariant, docs/TOPICS.md).
+
+- name: "Install: probe whether the global mise config declares pipx:gita"
+  ansible.builtin.command:
+    cmd: grep -q -e pipx:gita {{ ansible_facts['env']['HOME'] }}/.config/mise/config.toml
+  register: gita_mise_entry_probe
+  changed_when: false
+  failed_when: false
+
+- name: "Install: claim the pipx:gita entry through mise (first-party command; commit the captured change after the run)"
+  ansible.builtin.command:
+    cmd: mise use -g pipx:gita
+  register: gita_mise_use
+  when: gita_mise_entry_probe.rc != 0
+  changed_when: true
+
+- name: "Install: probe gita on PATH"
+  ansible.builtin.shell:
+    cmd: command -v gita >/dev/null 2>&1
+  register: gita_probe
+  changed_when: false
+  failed_when: false
+  # Read-only probe; must run under --check too, or the fail condition below
+  # reads an undefined rc and fails a check-mode run for the wrong reason.
+  check_mode: false
+
+- name: "Install: fail with the fix if gita is absent"
+  ansible.builtin.fail:
+    msg: >-
+      gita not found on PATH after the mise entry ran. Fix: run `mise install`,
+      then re-run this topic.
+  when: gita_probe.rc != 0
+
+- name: "Install: load the repo catalogue"
+  ansible.builtin.include_vars:
+    file: "{{ gita_catalogue_path }}"
+    name: gita_catalogue
+
+- name: "Install: the catalogue must exist before anything is registered"
+  ansible.builtin.fail:
+    msg: >-
+      Repo catalogue missing at {{ gita_catalogue_path }}. Fix: restore
+      dotfiles/config/repos.yaml.
+  when: gita_catalogue.repos is not defined
+
+- name: "Install: check which catalogue repos are on disk"
+  ansible.builtin.stat:
+    path: "{{ gita_code_root }}/{{ item.path }}/.git"
+  loop: "{{ gita_catalogue.repos }}"
+  loop_control:
+    label: "{{ item.group }}/{{ item.path }}"
+  register: gita_repo_stats
+
+- name: "Install: register the repos that exist (gita writes repos.csv)"
+  ansible.builtin.command:
+    cmd: gita add "{{ gita_code_root }}/{{ item.item.path }}" -g "{{ item.item.group }}"
+  loop: "{{ gita_repo_stats.results }}"
+  loop_control:
+    label: "{{ item.item.group }}/{{ item.item.path }}"
+  when: item.stat.exists
+  # gita add is not idempotent (re-adding a known repo warns but is harmless),
+  # and registration is gita's own state, so this never aborts the run.
+  changed_when: false
+  failed_when: false
+
+- name: "Install: report repos declared but not on disk"
+  ansible.builtin.debug:
+    msg: "declared but not cloned, skipped: {{ item.item.group }}/{{ item.item.path }}"
+  loop: "{{ gita_repo_stats.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+  when: not item.stat.exists
+  changed_when: false

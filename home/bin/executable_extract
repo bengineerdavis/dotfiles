@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -euo pipefail
+shopt -s extglob
+
+# -----------------------------------------------------------------------------
+# Script Name:        extract
+# Description:        A robust file extraction script that supports multiple archive formats including .tar, .tar.gz, .tar.xz, .7z, .zip, .rar, .gz, .bz2, .xz, .zst, and .Z. It automatically detects the file extension and invokes the appropriate decompression tool.
+#
+# License:            MIT
+# Author:             Ben Davis <bengineerdavis@gmail.com>
+# Credits:            Original: Arch Wiki (https://wiki.archlinux.org/title/Bash/Functions#Extract) - Co-Author: Ben Davis
+# Created:            2026-03-23
+# Last Modified:      2026-03-23
+#
+# Usage:              extract file.tar.gz
+#                     extract file.zip file.rar
+#
+# Notes:
+#   - Requires standard Unix tools: bsdtar, 7z, uncompress, bunzip2, cabextract, gunzip, unrar, unxz, unzip, unzstd.
+#   - If any required tool is missing, the script will skip the file and output an error message.
+#   - The script supports both single files and multiple files as arguments.
+#   - Environment variables are not required, but the system must have the decompression tools installed.
+#   - Does not require sudo or root privileges.
+#
+# -----------------------------------------------------------------------------
+
+extract() {
+    local c e i
+
+    (($#)) || return
+
+    for i; do
+        c=''
+        e=1
+
+        if [[ ! -r $i ]]; then
+            echo "$0: file is unreadable: \`$i'" >&2
+            continue
+        fi
+
+        case $i in
+            *.t@(gz|lz|xz|b@(2|z?(2))|a@(z|r?(.@(Z|bz?(2)|gz|lzma|xz|zst)))))
+                   c=(bsdtar xvf);;
+            *.7z)  c=(7z x);;
+            *.Z)   c=(uncompress);;
+            *.bz2) c=(bunzip2);;
+            *.exe) c=(cabextract);;
+            *.gz)  c=(gunzip);;
+            *.rar) c=(unrar x);;
+            *.xz)  c=(unxz);;
+            *.zip) c=(unzip);;
+            *.zst) c=(unzstd);;
+            *)     echo "$0: unrecognized file extension: \`$i'" >&2
+                   continue;;
+        esac
+
+        command "${c[@]}" "$i"
+        ((e = e || $?))
+    done
+    return "$e"
+}
+
+extract "$@"

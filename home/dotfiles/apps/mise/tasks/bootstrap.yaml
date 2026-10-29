@@ -1,0 +1,28 @@
+# apps/<topic>/tasks/bootstrap.yaml
+# First-time setup of a system tool on a fresh machine. Confirmed, never silent.
+#
+# Only pkg-manager-tier topics typically need real content here. App-tier and
+# runtime-manager topics leave this empty — they assume their dependencies have
+# already been bootstrapped (the parent playbook's sanity check enforces this).
+#
+# Idempotent: safe to re-run.
+# Do NOT put install, upgrade, or remove logic here.
+
+# ── Example: bootstrap a pkg-manager binary ───────────────────────────────────
+# - name: "Bootstrap: check <topic> binary exists"
+#   ansible.builtin.stat:
+#     path: "{{ <topic>_bin }}"
+#   register: <topic>_bootstrap_stat
+#
+# - name: "Bootstrap: confirm <topic> installation"
+#   ansible.builtin.pause:
+#     prompt: |
+#       <topic> not found. Install now? [y/N]
+#   register: <topic>_bootstrap_confirm
+#   when: not <topic>_bootstrap_stat.stat.exists
+#
+# - name: "Bootstrap: install <topic>"
+#   ansible.builtin.shell: <install command>
+#   when:
+#     - not <topic>_bootstrap_stat.stat.exists
+#     - <topic>_bootstrap_confirm.user_input | default('n') | lower == 'y'

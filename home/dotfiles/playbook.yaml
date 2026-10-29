@@ -1,0 +1,233 @@
+---
+# playbook.yaml — main dotfiles provisioner
+# Driver: chezmoi. This playbook is invoked by chezmoi or directly.
+#
+# Topics are discovered dynamically. Each topic owns its lifecycle via
+# tasks/main.yaml. Run order is determined by meta/main.yml topic_tier.
+# See docs/TOPICS.md for the full contract.
+#
+# Tag hierarchy:
+#   provision      = bootstrap + prerequisites + upgrade + install
+#   bootstrap      = first-time setup of system tools
+#   prerequisites  = core deps before topics install
+#   upgrade        = refresh installed state
+#   install        = install topics
+#   remove         = explicit uninstall. Tagged `never` in every topic router,
+#                    so it is skipped by bare runs and by provision/install and
+#                    runs ONLY when you pass --tags remove.
+#
+# Examples:
+#   ansible-playbook playbook.yaml --tags provision   # full fresh machine
+#   ansible-playbook playbook.yaml --tags upgrade     # refresh everything
+#   ansible-playbook playbook.yaml --tags install     # install all topics
+#   ansible-playbook playbook.yaml --tags remove      # uninstall all topics (deliberate)
+#   ansible-playbook playbook.yaml                    # no tags → provision (never removes)
+
+- name: "Local Machine Setup"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: false
+
+  vars:
+    homebrew_prefix: "{{ '/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local' }}"
+    homebrew_bin: "{{ homebrew_prefix }}/bin/brew"
+    user_appdir: "{{ ansible_facts['env']['HOME'] }}/Applications"
+
+  pre_tasks:
+    # ── OS detection ─────────────────────────────────────────────────────────
+    - name: "Detect OS family"
+      ansible.builtin.debug:
+        msg: "OS: {{ ansible_facts['os_family'] }}, Arch: {{ ansible_facts['architecture'] }}"
+      tags: [always]
+
+    # ── Topic discovery ──────────────────────────────────────────────────────
+    # Each topic declares its identity in apps/<topic>/topic.yml at the role
+    # root. Ansible's role loader reserves meta/main.yml for galaxy/role
+    # metadata, so we deliberately sit alongside meta/ rather than inside it.
+    # See docs/TOPICS.md.
+
+    - name: "Find all topic.{yml,yaml} files"
+      ansible.builtin.find:
+        paths: "{{ playbook_dir }}/apps"
+        patterns:
+          - "topic.yml"
+          - "topic.yaml"
+        recurse: true
+        depth: 2
+        file_type: file
+      register: meta_find_result
+      tags: [always]
+
+    - name: "Collect topic.yml paths (sorted)"
+      ansible.builtin.set_fact:
+        topic_meta_paths: "{{ meta_find_result.files | map(attribute='path') | list | sort }}"
+      tags: [always]
+
+    - name: "Load each topic's topic.yml"
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: topic_meta_reads
+      loop: "{{ topic_meta_paths }}"
+      loop_control:
+        label: "{{ item | dirname | basename }}"
+      tags: [always]
+
+    - name: "Build topic_metadata (all topics in apps/)"
+      ansible.builtin.set_fact:
+        topic_metadata: >-
+          {{
+            topic_meta_reads.results
+            | map(attribute='content')
+            | map('b64decode')
+            | map('from_yaml')
+            | list
+          }}
+      tags: [always]
+
+    - name: "Prepare resolution inputs"
+      ansible.builtin.set_fact:
+        resolution_topic_metadata: "{{ topic_metadata }}"
+        resolution_os_family: "{{ ansible_facts['os_family'] }}"
+      tags: [always]
+
+    - name: "Resolve topic dependencies (roles/topic-resolution)"
+      ansible.builtin.import_role:
+        name: "roles/topic-resolution"
+
+  # ── Topic execution, ordered by tier ────────────────────────────────────────
+  # Each block runs one tier. Within a tier, topics are sorted alphabetically.
+  # Lifecycle tags on the inner import_tasks (in each topic's tasks/main.yaml)
+  # filter which phase runs.
+  tasks:
+    - name: "Run pkg-manager tier topics"
+      ansible.builtin.include_role:
+        name: "apps/{{ item.topic_name }}"
+      loop: >-
+        {{
+          topics_in_run
+          | selectattr('topic_tier', 'eq', 'pkg-manager')
+          | sort(attribute='topic_name')
+          | list
+        }}
+      loop_control:
+        label: "{{ item.topic_name }} [pkg-manager]"
+      tags: [bootstrap, prerequisites, upgrade, install, remove, provision]
+
+    - name: "Run runtime-manager tier topics"
+      ansible.builtin.include_role:
+        name: "apps/{{ item.topic_name }}"
+      loop: >-
+        {{
+          topics_in_run
+          | selectattr('topic_tier', 'eq', 'runtime-manager')
+          | sort(attribute='topic_name')
+          | list
+        }}
+      loop_control:
+        label: "{{ item.topic_name }} [runtime-manager]"
+      tags: [bootstrap, prerequisites, upgrade, install, remove, provision]
+
+    - name: "Run app tier topics"
+      ansible.builtin.include_role:
+        name: "apps/{{ item.topic_name }}"
+      loop: >-
+        {{
+          topics_in_run
+          | selectattr('topic_tier', 'eq', 'app')
+          | sort(attribute='topic_name')
+          | list
+        }}
+      loop_control:
+        label: "{{ item.topic_name }} [app]"
+      tags: [bootstrap, prerequisites, upgrade, install, remove, provision]
+
+  # ── Post: pull ollama models LAST (after every tier/topic) ───────────────────
+  # Models are hundreds of GB — they are "attachments": heavy data gated behind
+  # an explicit profile. They run ONLY when `full` (or `attachments`) is in the
+  # requested tags; a bare install/upgrade or `minimal` is apps-only and pulls
+  # nothing. The runner scripts (update.sh) resolve minimal/full and pass it as a
+  # tag; `ansible_run_tags` carries that choice here. Tags stay disjoint so no
+  # path triggers a sync+refresh double pull:
+  #   provision / install + full → `sync` (pull missing)
+  #   upgrade + full  OR  attachments → `sync --refresh` (re-pull only changed)
+  # PATH prepends ~/.local/bin so the uv-script CLI finds the system uv/uvx.
+  post_tasks:
+    - name: "Resolve attachments profile (heavy data gated behind 'full'/'attachments')"
+      ansible.builtin.set_fact:
+        attachments_enabled: "{{ ('full' in ansible_run_tags) or ('attachments' in ansible_run_tags) }}"
+      tags: [always]
+
+    - name: "ollama: pull missing manifest models (provision/install + full — runs last)"
+      ansible.builtin.command:
+        cmd: "{{ ansible_facts['env']['HOME'] }}/bin/ollama-models sync"
+      environment:
+        PATH: "{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ homebrew_prefix }}/bin:/usr/local/bin:/usr/bin:{{ ansible_facts['env']['PATH'] }}"
+      register: ollama_models_install
+      changed_when: "'pulled=0 ' not in (ollama_models_install.stdout | default(''))"
+      when:
+        - "'ollama' in provides_map_run"
+        - attachments_enabled | default(false) | bool
+      tags: [install, provision]
+
+    - name: "ollama: resolve the model update policy (prompt needs a TTY)"
+      ansible.builtin.set_fact:
+        ollama_model_policy_effective: >-
+          {{ 'report'
+             if (ollama_model_update_policy | default('prompt') == 'prompt'
+                 and (ansible_facts['env']['TERM'] | default('dumb')) in ['', 'dumb'])
+             else (ollama_model_update_policy | default('prompt')) }}
+      when: "'ollama' in provides_map_run"
+      tags: [always]
+
+    - name: "ollama: preview what a refresh would re-pull (no downloads)"
+      ansible.builtin.command:
+        cmd: "{{ ansible_facts['env']['HOME'] }}/bin/ollama-models sync --refresh --dry-run"
+      environment:
+        PATH: "{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ homebrew_prefix }}/bin:/usr/local/bin:/usr/bin:{{ ansible_facts['env']['PATH'] }}"
+      register: ollama_models_preview
+      changed_when: false
+      when:
+        - "'ollama' in provides_map_run"
+        - attachments_enabled | default(false) | bool
+        - ollama_model_policy_effective | default('skip') != 'skip'
+      tags: [upgrade, attachments]
+
+    - name: "ollama: the proposed model change"
+      ansible.builtin.debug:
+        var: ollama_models_preview.stdout_lines
+      when: not (ollama_models_preview is skipped)
+      tags: [upgrade, attachments]
+
+    - name: "ollama: approve re-pulling the models listed above"
+      ansible.builtin.pause:
+        prompt: "Re-pull these models? tens of GB is possible. [y/N]"
+      register: ollama_models_answer
+      when:
+        - not (ollama_models_preview is skipped)
+        - ollama_model_policy_effective | default('skip') == 'prompt'
+      tags: [upgrade, attachments]
+
+    # `auto` is the saved "yes, always" — set ollama_model_update_policy: auto
+    # once and this stops asking. `report` never reaches the refresh below.
+    - name: "ollama: record whether the refresh is approved"
+      ansible.builtin.set_fact:
+        ollama_models_approved: >-
+          {{ (ollama_model_policy_effective | default('skip') == 'auto')
+             or ((ollama_models_answer.user_input | default('') | trim | lower)
+                 in ['y', 'yes']) }}
+      when: "'ollama' in provides_map_run"
+      tags: [upgrade, attachments]
+
+    - name: "ollama: refresh changed manifest models to latest (upgrade + full — runs last)"
+      ansible.builtin.command:
+        cmd: "{{ ansible_facts['env']['HOME'] }}/bin/ollama-models sync --refresh"
+      environment:
+        PATH: "{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ homebrew_prefix }}/bin:/usr/local/bin:/usr/bin:{{ ansible_facts['env']['PATH'] }}"
+      register: ollama_models_refresh
+      changed_when: "'pulled=0 ' not in (ollama_models_refresh.stdout | default(''))"
+      when:
+        - "'ollama' in provides_map_run"
+        - attachments_enabled | default(false) | bool
+        - ollama_models_approved | default(false) | bool
+      tags: [upgrade, attachments]

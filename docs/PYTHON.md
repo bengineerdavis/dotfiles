@@ -56,7 +56,7 @@ Two layers own uv's machine state, per the one-concern-per-layer rule:
 
 - **The binary** — astral-installed at the system level (`~/.local/bin/uv`),
   deliberately not mise-managed or in Homebrew. The `apps/uv` topic installs
-  and self-updates it; `dotfiles/bootstrap/bootstrap.sh` owns the first
+  and self-updates it; `home/dotfiles/bootstrap/bootstrap.sh` owns the first
   install on a fresh machine.
 - **The user config** — `~/.config/uv/uv.toml`, rendered by chezmoi from
   `dot_config/uv/uv.toml.tmpl`. It pins `required-version` to the same floor
@@ -86,18 +86,18 @@ Four surfaces hold dependencies; each has its own add/remove rule. The root
    `uv add --script <file> <lib>`, never a hand edit; remove by deleting the
    line — uv resolves the rest per run. Scripts that shell out check their
    deps at runtime with `require()` and name the fix in the error (see
-   `bin/llm-ctx`).
+   `home/bin/llm-ctx`).
 2. **Test-run deps.** The `test` group in `pyproject.toml` — locked in
    `uv.lock`. Add: `uv add --group test LIB` and the suite must **skip, not
    error**, without it (`pytest.importorskip` at module level — the jinja2
    pattern in `tests/herdr/test_user_acceptance.py`). Remove: `uv remove
    --group test LIB`. `pytest-xdist` is optional by design: a `fast` group or
    a `--with` overlay, since a run without it just cannot use `-n`.
-3. **Toolchain and tools.** `dotfiles/apps/mise/files/config.toml` — the
+3. **Toolchain and tools.** `home/dotfiles/apps/mise/files/config.toml` — the
    captured state. Add/remove by editing the entry and committing it (the
    `github:` backend convention, never `ubi:`); upgrades come from
    `mise upgrade`, never a tool's own updater.
-4. **Ansible collections.** `dotfiles/requirements.yml` (deployed beside
+4. **Ansible collections.** `home/dotfiles/requirements.yml` (deployed beside
    `ansible.cfg`; `ansible-galaxy collection install -r requirements.yml`
    before the playbook runs). Declared but **unpinned** today — no
    `version:` — so a machine installing today may get a different

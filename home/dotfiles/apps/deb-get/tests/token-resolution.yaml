@@ -1,0 +1,103 @@
+---
+# apps/deb-get/tests/token-resolution.yaml
+#
+# Unit tests for the token-resolution chain: Bitwarden (skipped when `bw` is
+# absent) → ~/.localrc → environment variable. Does not mutate the live
+# ~/.localrc; uses temp files in /tmp.
+#
+# Run: ansible-playbook apps/deb-get/tests/token-resolution.yaml
+# Safe: creates a temp directory under /tmp and removes it.
+
+- name: "Test deb-get token resolution from .localrc"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: false
+
+  vars:
+    debget_test_tmp: "/tmp/deb-get-token-test"
+    debget_localrc_file: "{{ debget_test_tmp }}/.localrc"
+    debget_secrets_manager: bitwarden
+    # Ensure no stray env token leaks into this play.
+    debget_env_token: ""
+
+  tasks:
+    - name: "Setup: ensure clean temp directory"
+      ansible.builtin.file:
+        path: "{{ debget_test_tmp }}"
+        state: directory
+        mode: "0700"
+
+    - name: "Setup: write fake .localrc with DEBGET_TOKEN"
+      ansible.builtin.copy:
+        dest: "{{ debget_localrc_file }}"
+        content: |
+          # fake localrc
+          export DEBGET_TOKEN=test_localrc_token_12345
+          export BW_SESSION=test_session_unused_here
+        mode: "0600"
+
+    - name: "Reset debget_token fact for isolated test"
+      ansible.builtin.set_fact:
+        debget_token: ""
+
+    - name: "Import token-resolution tasks"
+      ansible.builtin.import_tasks: ../tasks/token-resolution.yaml
+
+    - name: "Assert token came from .localrc"
+      ansible.builtin.assert:
+        that:
+          - debget_token == 'test_localrc_token_12345'
+        success_msg: "PASS: token resolved from .localrc"
+        fail_msg: "FAIL: expected test_localrc_token_12345, got {{ debget_token }}"
+
+    - name: "Teardown: remove temp directory"
+      ansible.builtin.file:
+        path: "{{ debget_test_tmp }}"
+        state: absent
+
+- name: "Test deb-get token resolution from environment"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: false
+
+  vars:
+    debget_test_tmp: "/tmp/deb-get-token-test-env"
+    debget_localrc_file: "{{ debget_test_tmp }}/.localrc"
+    debget_secrets_manager: bitwarden
+
+  environment:
+    DEBGET_TOKEN: "test_env_token_67890"
+
+  tasks:
+    - name: "Setup: ensure clean temp directory and empty .localrc"
+      ansible.builtin.file:
+        path: "{{ debget_test_tmp }}"
+        state: directory
+        mode: "0700"
+
+    - name: "Setup: create empty .localrc"
+      ansible.builtin.file:
+        path: "{{ debget_localrc_file }}"
+        state: touch
+        mode: "0600"
+
+    - name: "Reset debget_token fact for isolated test"
+      ansible.builtin.set_fact:
+        debget_token: ""
+
+    - name: "Import token-resolution tasks"
+      ansible.builtin.import_tasks: ../tasks/token-resolution.yaml
+
+    - name: "Assert token fell back to environment"
+      ansible.builtin.assert:
+        that:
+          - debget_token == 'test_env_token_67890'
+        success_msg: "PASS: token fell back to environment variable"
+        fail_msg: "FAIL: expected test_env_token_67890, got {{ debget_token }}"
+
+    - name: "Teardown: remove temp directory"
+      ansible.builtin.file:
+        path: "{{ debget_test_tmp }}"
+        state: absent

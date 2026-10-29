@@ -1,0 +1,20 @@
+# apps/<topic>/tasks/prerequisites.yaml
+# Core dependencies required before this topic can install or upgrade.
+#
+# Only pkg-manager-tier topics typically need real content here (e.g., Xcode
+# CLI tools for Homebrew). App-tier and runtime-manager topics leave this
+# empty — their dependencies are expressed via topic_requires in topic.yml
+# and resolved by the parent playbook.
+#
+# Idempotent: safe to re-run. No confirmation needed.
+# Do NOT put install, upgrade, or remove logic here.
+
+# ── Example: install core dependencies via Homebrew ───────────────────────────
+# - name: "Prerequisites: install core packages"
+#   community.general.homebrew:
+#     name:
+#       - <package1>
+#       - <package2>
+#     state: present
+#     path: "{{ homebrew_prefix }}/bin"
+#   when: ansible_facts['os_family'] == 'Darwin'

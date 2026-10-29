@@ -1,0 +1,7 @@
+# apps/ori/tasks/upgrade.yaml
+# Intentionally empty — upgrade is owned by install.yaml.
+#
+# ori is app-tier but is NOT installed by brew or apt, so the system upgrade
+# pass cannot refresh it. Rather than duplicate the download logic, every task
+# in install.yaml carries the `upgrade` tag: `--tags upgrade` re-evaluates the
+# published SHA256 and swaps the binary only when upstream actually changed.

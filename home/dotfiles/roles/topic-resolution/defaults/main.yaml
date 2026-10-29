@@ -1,0 +1,15 @@
+# roles/topic-resolution/defaults/main.yaml
+#
+# Dependency tokens that are not binary names. The PATH probe in the sanity
+# check looks up a token with `command -v`, which fails for any token whose
+# on-disk binary has a different name. `homebrew` is the known case: Homebrew's
+# CLI is `brew` on every platform — macOS Homebrew and Linux linuxbrew alike —
+# so a probe for `homebrew` never resolves even when Homebrew is installed.
+# Likewise, the Bitwarden and 1Password CLIs are `bw` and `op` respectively,
+# not `bitwarden` or `1password`.
+# Every other token (node, apt, docker, mise, python…) is a real binary name
+# and is probed as itself.
+dependency_probe_binary:
+  homebrew: brew
+  bitwarden: bw
+  1password: op

@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# ollama-update-check — is a newer Ollama release tarball available?
+#
+# Installed on Debian by apps/ollama/tasks/install.yaml and driven by the
+# ollama-update-check.timer systemd timer. macOS upgrades via `brew upgrade`
+# (the cask), so this tool is Linux-only.
+#
+#   (no args)   NOTIFY: log to the journal and write/clear a marker file at
+#               /var/lib/ollama/update-available (contains the newer version).
+#   --apply     If newer, perform the same tarball swap the ansible topic does:
+#               stop the service, extract the base tarball into /usr, re-overlay
+#               the ROCm libs when /usr/lib/ollama/rocm is present, then restart.
+#
+# Both modes need root (journal/marker under /var, and /usr writes for --apply);
+# the systemd service runs it as root.
+set -euo pipefail
+
+REPO="ollama/ollama"
+MARKER="/var/lib/ollama/update-available"
+APPLY=0
+[ "${1:-}" = "--apply" ] && APPLY=1
+
+case "$(uname -m)" in
+  x86_64)        atag=amd64 ;;
+  aarch64|arm64) atag=arm64 ;;
+  *) echo "ollama-update-check: unsupported arch $(uname -m)" >&2; exit 1 ;;
+esac
+
+# Latest upstream version (tag_name like "v0.32.5" -> "0.32.5").
+latest="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
+  | grep -oE '"tag_name":[[:space:]]*"[^"]+"' | head -1 \
+  | sed -E 's/.*"v?([^"]+)".*/\1/')"
+[ -n "$latest" ] || { echo "ollama-update-check: could not resolve latest version" >&2; exit 1; }
+
+installed="$(ollama --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)"
+
+if [ "$installed" = "$latest" ]; then
+  rm -f "$MARKER" 2>/dev/null || true
+  logger -t ollama-update-check "up to date (${installed})" || true
+  exit 0
+fi
+
+logger -t ollama-update-check "update available: ${installed:-none} -> ${latest}" || true
+mkdir -p "$(dirname "$MARKER")" 2>/dev/null || true
+printf '%s\n' "$latest" > "$MARKER" 2>/dev/null || true
+
+if [ "$APPLY" -ne 1 ]; then
+  echo "ollama ${latest} available (installed: ${installed:-none})."
+  echo "Apply via the playbook (--tags upgrade) or: sudo $0 --apply"
+  exit 0
+fi
+
+# --apply: swap the tarball, mirroring tasks/install.yaml.
+base="https://github.com/${REPO}/releases/download/v${latest}/ollama-linux-${atag}.tar.zst"
+rocm="https://github.com/${REPO}/releases/download/v${latest}/ollama-linux-${atag}-rocm.tar.zst"
+
+systemctl stop ollama 2>/dev/null || true
+curl -fsSL "$base" | tar -x --zstd -C /usr
+if [ -d /usr/lib/ollama/rocm ]; then
+  curl -fsSL "$rocm" | tar -x --zstd -C /usr
+fi
+systemctl start ollama 2>/dev/null || true
+
+rm -f "$MARKER" 2>/dev/null || true
+logger -t ollama-update-check "applied ollama ${latest}" || true
+echo "upgraded ollama to ${latest}"

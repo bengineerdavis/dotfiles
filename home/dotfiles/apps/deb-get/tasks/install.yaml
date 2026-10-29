@@ -1,0 +1,20 @@
+# apps/deb-get/tasks/install.yaml
+# Ensure deb-get is installed and its managed repositories are authenticated.
+#
+# The actual first-time install lives in bootstrap.yaml (confirmed). This file
+# is the idempotent converge step used by --tags install/provision. Token and
+# auth resolution are handled in tasks/main.yaml so they are not duplicated.
+
+- name: "Install: ensure deb-get package is present via apt"
+  ansible.builtin.apt:
+    name: deb-get
+    state: present
+    update_cache: true
+  become: true
+
+- name: "Install: verify deb-get is executable"
+  ansible.builtin.command:
+    cmd: "{{ debget_bin }} version"
+  environment:
+    DEBGET_TOKEN: "{{ debget_token | default('') }}"
+  changed_when: false

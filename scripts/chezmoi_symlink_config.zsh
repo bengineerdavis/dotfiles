@@ -1,7 +1,7 @@
 # chezmoi_symlink_config
 #
 # Makes chezmoi manage a symlink like:
-#   ~/.config/<app>/<file> → ~/.local/share/chezmoi/dotfiles/apps/<app>/files/<file>
+#   ~/.config/<app>/<file> → ~/.local/share/chezmoi/home/dotfiles/apps/<app>/files/<file>
 #
 # Usage:
 #   chezmoi_symlink_config <app> <file>
@@ -35,5 +35,5 @@ EOS
   echo "Created chezmoi symlink template:"
   echo "  ${chezmoi_link_file}"
   echo "Will create symlink at:"
-  echo "  ~/.config/${app}/${file} -> ~/.local/share/chezmoi/dotfiles/apps/${app}/files/${file}"
+  echo "  ~/.config/${app}/${file} -> ~/.local/share/chezmoi/home/dotfiles/apps/${app}/files/${file}"
 }

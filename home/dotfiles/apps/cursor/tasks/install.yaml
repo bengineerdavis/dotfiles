@@ -1,0 +1,7 @@
+# apps/cursor/tasks/install.yaml
+- name: "Install cursor via Homebrew Cask (macOS)"
+  community.general.homebrew_cask:
+    name: cursor
+    state: present
+    install_options: "appdir={{ user_appdir }}"
+  when: ansible_facts['os_family'] == 'Darwin'

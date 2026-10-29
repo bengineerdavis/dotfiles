@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- {{ ansible_managed }}
+     Rendered from apps/lynis/templates/com.user.lynis-audit.plist.j2 — edits overwritten.
+     Runs on day {{ lynis_audit_day }} of each month. Output is captured, not discarded. -->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>{{ lynis_agent_label }}</string>
+
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>{{ lynis_audit_script }}</string>
+	</array>
+
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>{{ lynis_brew_prefix }}/bin:{{ lynis_brew_prefix }}/sbin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+		<key>HOME</key>
+		<string>{{ ansible_facts['env']['HOME'] }}</string>
+	</dict>
+
+	<!-- launchd handles the monthly cadence natively via Day, so the script no longer
+	     needs a `date +%d` guard the way the clamav-hosted version did. -->
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Day</key>
+		<integer>{{ lynis_audit_day }}</integer>
+		<key>Hour</key>
+		<integer>{{ lynis_audit_hour }}</integer>
+		<key>Minute</key>
+		<integer>{{ lynis_audit_minute }}</integer>
+	</dict>
+
+	<key>RunAtLoad</key>
+	<false/>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>LowPriorityIO</key>
+	<true/>
+	<key>Nice</key>
+	<integer>10</integer>
+
+	<key>StandardOutPath</key>
+	<string>{{ lynis_state_dir }}/agent.log</string>
+	<key>StandardErrorPath</key>
+	<string>{{ lynis_state_dir }}/agent.log</string>
+</dict>
+</plist>

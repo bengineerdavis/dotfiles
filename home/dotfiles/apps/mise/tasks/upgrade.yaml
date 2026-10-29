@@ -1,0 +1,102 @@
+# apps/mise/tasks/upgrade.yaml
+# Refresh mise-managed runtimes and global tools.
+# `brew upgrade` (tier 0) bumps the mise binary itself; this task bumps the
+# tools mise manages (python, node, llm, etc. — not uv, which is system-level).
+#
+# Idempotent. Safe to re-run.
+
+# Runs before the upgrade so the pin is visible in context rather than as a
+# footnote. A tool deliberately held back looks identical to one nobody has
+# bumped yet, and the difference otherwise lives only in a comment nobody reads
+# mid-run. Reads the version out of config.toml instead of restating it, so the
+# notice cannot drift from the pin and disappears by itself if the pin is lifted.
+- name: "Upgrade: note the tools deliberately held at a pinned version"
+  vars:
+    # Two things here are load-bearing and both were got wrong first time:
+    #   - Single backslashes, not double. Inside a YAML block scalar the doubled
+    #     form never reaches the regex engine as an escape and the match fails.
+    #   - `regex_findall`, not `regex_search`. With a capture group and no match
+    #     regex_search RAISES rather than returning none, so `| default(...)`
+    #     never runs and this notice would abort the topic the moment the line
+    #     were reformatted. A task that exists to report must not be able to
+    #     fail the run it is reporting on.
+    mise_skillet_pin: >-
+      {{ ((lookup('ansible.builtin.file', mise_config_file)
+           | regex_findall('"npm:@sentry/skillet".*?version\s*=\s*"([^"]+)"'))
+          + ['unset']) | first }}
+  ansible.builtin.debug:
+    msg: >-
+      npm:@sentry/skillet is pinned at {{ mise_skillet_pin }} — `mise upgrade`
+      will not move it, and that is deliberate. 1.8.0 depends on vite, whose
+      packument mise's npm resolver cannot fetch through the Sentry registry
+      proxy; spec.md pins skillet 1.7.0 for `skillet validate` as well.
+      Reasoning and the re-test command are in apps/mise/files/config.toml.
+  when: mise_skillet_pin not in ['latest', 'unset']
+
+- name: "Upgrade: bump all mise-managed tools (except ansible — see below)"
+  become: false
+  ansible.builtin.command:
+    # pipx:ansible is the controller RUNNING this very playbook. Upgrading it
+    # mid-run swaps its venv on disk, so a later task's module loads mismatched
+    # ansible-core module_utils → "Unknown profile name" deserialization skew.
+    # ansible is upgraded out-of-band by update.sh BEFORE the playbook starts;
+    # here we upgrade everything else and leave the running ansible untouched.
+    cmd: mise upgrade --yes --exclude pipx:ansible
+  register: mise_upgrade_result
+  # `| default('')` guards against the run where mise upgrades ansible itself:
+  # the module result can fail to deserialize, leaving the registered var
+  # without .stdout. mise prints "Upgraded N tools" / "installed" on change.
+  changed_when: >-
+    ('upgraded' in (mise_upgrade_result.stdout | default('') | lower))
+    or ('installed' in (mise_upgrade_result.stdout | default('') | lower))
+  # Fail on a broken mise, not on a tool that declined to upgrade. One
+  # unresolvable npm package used to abort the entire provisioning run here —
+  # every task after this one was skipped because 1 of 72 tools failed, while
+  # the other 71 had upgraded and the failed one was still installed and
+  # working at its previous version. See vars/main.yaml for the discriminator.
+  failed_when:
+    - (mise_upgrade_result.rc | default(0)) != 0
+    - "'no tools' not in (mise_upgrade_result.stderr | default('') | lower)"
+    - not ((mise_upgrade_result.stderr | default('')) is search(mise_partial_failure_pattern))
+
+# Tolerating the failure is only safe if it is still reported. Silently
+# continuing would turn "one tool is stale" into something nobody learns about
+# until the stale tool misbehaves.
+- name: "Upgrade: report tools that did not upgrade"
+  vars:
+    # `\S+` rather than `[^:]+`: the tool name CONTAINS colons
+    # ("npm:@sentry/skillet@latest"), so stopping at the first one reported the
+    # failing tool as "npm". Terminate on the colon-space that ends the name.
+    mise_upgrade_failures: >-
+      {{ mise_upgrade_result.stderr_lines | default([])
+         | select('search', 'Failed to (install|upgrade) ')
+         | map('regex_replace', '^.*Failed to (?:install|upgrade) (\S+): .*$', '\1')
+         | list }}
+  ansible.builtin.debug:
+    msg: >-
+      mise upgrade left {{ mise_upgrade_failures | length }} tool(s) on their
+      current version; every other tool upgraded:
+      {{ mise_upgrade_failures | join(', ') | default('see the mise output above', true) }}.
+      Provisioning continued. Run `mise upgrade` by hand for the full error.
+  when:
+    - (mise_upgrade_result.rc | default(0)) != 0
+    - (mise_upgrade_result.stderr | default('')) is search(mise_partial_failure_pattern)
+
+# Deliberately strict, unlike the upgrade above. A tool that fails to INSTALL
+# was just added to config.toml and has no working version to fall back on, so
+# the run has not delivered what the config asked for. A tool that fails to
+# UPGRADE still works at its current version.
+- name: "Upgrade: install any tools newly added to mise config"
+  become: false
+  ansible.builtin.command:
+    cmd: mise install --yes
+  register: mise_install_result
+  changed_when: "'installed' in (mise_install_result.stdout | default('') | lower)"
+  failed_when: (mise_install_result.rc | default(0)) != 0
+
+- name: "Upgrade: report mise upgrade summary"
+  ansible.builtin.debug:
+    msg: |
+      mise upgrade complete.
+      upgrade: {{ 'changed' if (mise_upgrade_result.changed | default(false)) else 'no change' }}
+      install: {{ 'changed' if (mise_install_result.changed | default(false)) else 'no change' }}

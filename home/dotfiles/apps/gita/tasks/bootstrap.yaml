@@ -1,0 +1,8 @@
+# apps/gita/tasks/bootstrap.yaml
+# First-time setup of a system tool on a fresh machine. Confirmed, never silent.
+#
+# App-tier topics leave this empty — dependencies are expressed via
+# topic_requires in topic.yml and resolved by the parent playbook.
+#
+# gita has none of its own: the binary arrives via mise, and git via the
+# apt/homebrew prerequisites.

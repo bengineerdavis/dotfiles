@@ -1,0 +1,19 @@
+# apps/deb-get/defaults/main.yaml
+# Tunables. Override in the parent playbook or with -e.
+---
+# Which secrets manager to consult first when resolving DEBGET_TOKEN.
+#   bitwarden  - use community.general.bitwarden lookup (default; personal)
+#   1password  - use community.general.onepassword lookup (work)
+#   localrc    - read from ~/.localrc only
+#   env        - read from the DEBGET_TOKEN environment variable only
+# An explicit -e debget_token=... always wins.
+debget_secrets_manager: bitwarden
+
+# Bitwarden item whose password field holds the token.
+debget_bitwarden_item: DEBGET_TOKEN
+
+# 1Password secret reference for the token (used when secrets_manager=1password).
+debget_onepassword_uri: "op://Personal/DEBGET_TOKEN/password"
+
+# Local shell rc file used as a fallback source for tokens and session keys.
+debget_localrc_file: "{{ ansible_facts['env']['HOME'] }}/.localrc"

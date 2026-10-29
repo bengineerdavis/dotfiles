@@ -1,0 +1,7 @@
+# apps/firefox/topic.yml — topic metadata read by the parent playbook.
+# See docs/TOPICS.md.
+topic_name: firefox
+topic_provides: []
+topic_requires: [homebrew]
+topic_os: [Darwin]
+topic_tier: app

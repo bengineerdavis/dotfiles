@@ -1,7 +1,7 @@
 """run-role.sh must resolve the playbook relative to itself, not cwd.
 
-AGENTS.md § Commands documents it as `dotfiles/executable_run-role.sh
-<topic>`, i.e. run from the repo root.
+AGENTS.md § Commands invokes the source `run-role.sh` through bash from
+the repo root.
 """
 
 

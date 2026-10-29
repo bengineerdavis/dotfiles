@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# -----------------------------------------------------------------------------
+# Script Name:        summarize-first-email.sh
+# Description:        Summarizes and rephrases the content of a customer's first email reply into clear, itemized, and actionable requests. Uses an LLM to convert complex or ambiguous initial emails into concise, team-friendly questions that capture the customer's intent.
+#
+# License:            MIT
+# Author:             Ben Davis <bengineerdavis@gmail.com>
+# Credits:            None
+# Created:            2026-03-23
+# Last Modified:      2026-03-23
+#
+# Usage:              ./summarize-first-email.sh
+#
+# Notes:
+#   - Requires an external LLM service (e.g., via llm command) to process the input text.
+#   - The input file 'first-reply.md' must exist in the current directory and contain the customer's initial email content.
+#   - The script assumes the 'llm' command is available and configured in the environment (e.g., via API keys or local setup).
+#   - Output is saved as "$MODEL-llm-processed-reply.md" in the current directory.
+#   - No sudo or root privileges required.
+#
+# -----------------------------------------------------------------------------
+
+## DEPENDENCIES ##
+# Check EVERY dependency this script shells out to, system tools and hand-rolled
+# ~/bin scripts alike — a standalone script cannot assume the machine running it
+# was ever provisioned. Being topic-managed is not a reason to skip the check:
+# it only means something *should* have installed it, which is exactly the
+# assumption that breaks on a fresh or half-applied box. Failing here names the
+# missing dependency; failing later means a bare "command not found" swallowed
+# by a redirect, after the output file has already been truncated.
+require() {
+    local missing=()
+    local cmd
+    for cmd in "$@"; do
+        command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
+    done
+    if ((${#missing[@]})); then
+        printf '%s: missing dependencies: %s\n' "${0##*/}" "${missing[*]}" >&2
+        printf '%s: ~/bin scripts come from `chezmoi apply ~/bin`; system tools\n' \
+            "${0##*/}" >&2
+        printf '%s: come from the ansible topics (`update.sh`).\n' "${0##*/}" >&2
+        exit 127
+    fi
+}
+
+require llm-ctx
+
+## VARIABLES ##
+# Use existing MODEL env var if set; otherwise use first script arg; fallback to default.
+if [[ -n "$1" ]]; then
+    FILES=("$1")
+else
+    FILES=("./attachments/**" "mail.md")
+fi
+
+# | Model | Weights | +KV @32K | Verdict @33% headroom |
+# |---|---|---|---|
+# | gpt-oss:20b | 13GB | ~15GB | ✅ Easily |
+# | lfm2:24b | 14GB | ~16GB | ✅ Easily |
+# | **granite4:32b-a9b-h** | 19GB | ~20GB | ✅ Yes (tiny KV — hybrid) |
+# | glm-4.7-flash | 19GB | ~21–22GB | ✅ Yes |
+# | qwen3.6:35b-a3b-mlx | 21GB | ~23–24GB | ⚠️ Barely |
+# | olmo-3.1:32b-instruct | 19GB | ~23–27GB | ⚠️ Tight (dense = fat KV) |
+# | qwen3.5:9b / ministral-3:8b | ~9–10GB | ~11GB | ✅ Easily |
+# | gemma4:12b-mlx | 7.7GB | ~9–10GB | ✅ Excellent |
+MODEL="${2:-"qwen3.6:35b-a3b-nvfp4"}"  
+PROMPT=$(cat <<'EOF'
+You are an experienced senior technical support engineer; 
+help summarize and target complex initial requests by email, 
+slack, or other text-based communication and histories into 
+itemized and easy to understand asks from us (rephrase to be 
+the better version of the question)? Make sure to put it into
+your own words instead of trying to re-ask the question -- 
+describe it to me as if you were helping me on the team to 
+understand the ticket and what the customer is asking, and 
+plan to reuse for escalation purposes.
+EOF
+)
+
+# MAIN #
+# --work: this script exists to process a customer's email reply, so every run
+# is work-tagged by construction. It does not suppress logging by itself — it
+# asks the policy layers, via bin/policy, and they currently deny.
+llm-ctx --work -v -m "$MODEL" "${FILES[@]}" -- "$PROMPT" > \
+"$MODEL-summarized.md"

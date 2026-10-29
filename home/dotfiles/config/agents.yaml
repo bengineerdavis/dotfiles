@@ -1,0 +1,127 @@
+# agents.yaml — the shared herdr-agent-integration catalogue.
+#
+# The data half of the shared-catalogue pattern (docs/TOPIC-RECIPES.md,
+# shared-catalogue recipe); the subscriber is the herdr topic, which consumes
+# its slice via an interim role-relative direct read until `topic_subscribes`
+# lands (TASKS.md § Planned). Topics never read topics.
+#
+# Schema (editors.yaml pattern):
+#   id        herdr integration id, exactly as `herdr integration install` spells it
+#   why       required; what wiring it buys. Confirmed entries carry a plain why;
+#             drafted-only entries would carry a "Review:" prefix
+#   topics    optional; absent = shared by default. Entries scoped to the
+#             subscribers listed here; everything else is excluded structurally
+#   kind      lifecycle (hook reports working/idle/blocked) or session
+#             (hook reports session identity for native restore) — herdr's
+#             integration-type table
+#   probe     binary name resolved on PATH (no separators)
+#   config_dir  home-relative (`~/...`); herdr refuses an install when the
+#             agent's config dir does not exist, so the consumer topic
+#             declines first
+#   min_version  dated verdict {version, checked} — the herdr integration
+#             version floor for native session restore (docs 0.9.1)
+#   verdicts  dated per-consumer evidence, editors.yaml style
+#
+# agent_integrations_ignored: upstream ids the catalogue does NOT wire, each
+# with a why-not and a checked date, so an id-diff drift report does not read
+# them as drift forever. When herdr adds an integration id, it lands here (or
+# is wired) — an unaccounted id fails the suite (tests/herdr/).
+#
+# Upstream facts: https://herdr.dev/docs/integrations/ (0.9.1, checked
+# 2026-09-19 — see dotfiles/apps/herdr/README.md § Upstream references).
+
+version: 1
+
+agent_integrations:
+
+  - id: opencode
+    why: Native lifecycle authority (working/idle/blocked) and session restore for the agent CLIs this repo provisions
+    probe: opencode
+    config_dir: ~/.config/opencode
+    kind: lifecycle
+    topics: [herdr]
+    min_version: {version: 5, checked: "2026-09-19"}
+    verdicts:
+      herdr: {status: ok, checked: "2026-09-19"}
+
+  - id: claude
+    why: Session-identity hook so herdr can restore Claude Code panes into their native sessions
+    probe: claude
+    config_dir: ~/.claude
+    kind: session
+    topics: [herdr]
+    min_version: {version: 6, checked: "2026-09-19"}
+    verdicts:
+      herdr: {status: ok, checked: "2026-09-19"}
+
+  - id: cursor
+    why: Session identity for the Cursor Agent CLI; skips-and-reports while cursor-agent is not installed (2026-09-19)
+    probe: cursor-agent
+    config_dir: ~/.cursor
+    kind: session
+    topics: [herdr]
+    min_version: {version: 1, checked: "2026-09-19"}
+    verdicts:
+      herdr: {status: ok, checked: "2026-09-19"}
+
+agent_integrations_ignored:
+
+  - id: codex
+    why: Candidate — the codex binary is mise-owned npm, no topic owns ~/.codex yet; wire when an apps/codex topic exists
+    checked: "2026-09-19"
+
+  - id: pi
+    why: Not installed on any managed machine; revisit if a pi topic lands
+    checked: "2026-09-19"
+
+  - id: omp
+    why: Not installed; omp shares Pi's config-dir semantics and would need its own directory decision first
+    checked: "2026-09-19"
+
+  - id: copilot
+    why: Not installed on any managed machine
+    checked: "2026-09-19"
+
+  - id: devin
+    why: Not installed on any managed machine
+    checked: "2026-09-19"
+
+  - id: droid
+    why: Not installed on any managed machine
+    checked: "2026-09-19"
+
+  - id: kimi
+    why: Not installed on any managed machine
+    checked: "2026-09-19"
+
+  - id: kilo
+    why: Not installed on any managed machine
+    checked: "2026-09-19"
+
+  - id: hermes
+    why: Not installed on any managed machine
+    checked: "2026-09-19"
+
+  - id: qodercli
+    why: Not installed on any managed machine
+    checked: "2026-09-19"
+
+  - id: qwen
+    why: Not installed on any managed machine
+    checked: "2026-09-19"
+
+  - id: letta
+    why: Not installed on any managed machine; upstream marks the integration experimental
+    checked: "2026-09-19"
+
+  - id: mastracode
+    why: Not installed on any managed machine
+    checked: "2026-09-19"
+
+  - id: antigravity-cli
+    why: Not installed on any managed machine
+    checked: "2026-09-19"
+
+  - id: grok
+    why: Not installed; hosted-vendor dependency policy also weighs against the Grok CLI here
+    checked: "2026-09-19"

@@ -1,0 +1,76 @@
+# tasks/upgrade.yaml — currency for a mise-managed install.
+#
+# mise owns upgrades for the tools it installs (TOPICS.md § Presence vs
+# currency; TOPIC-RECIPES.md: never self-update a manager-installed tool).
+# `herdr update` is valid for direct installs only and this topic must never
+# call it — enforced by tests/herdr.
+#
+# The upgrade phase runs BEFORE install in the router, and it must tolerate
+# the state it will legitimately encounter after `--tags remove`: the
+# install pruned, the entry gone, the shim dangling. Probe first; skip with
+# a report rather than fail — the install phase owns provisioning.
+# (The 2026-09-19 re-converge died exactly here: 'No version is set for
+# shim: herdr' turned into a misleading 'outdated integrations' raise whose
+# own fix — run the install — was unreachable, because install runs after
+# upgrade.)
+
+- name: "Upgrade: probe whether herdr is provisioned (the relent direction)"
+  ansible.builtin.command:
+    cmd: "{{ herdr_shims_dir }}/herdr --version"
+  register: herdr_upgrade_presence
+  changed_when: false
+  failed_when: false
+
+- name: "Upgrade: herdr not provisioned — the install phase owns provisioning (skipping upgrade currency checks)"
+  ansible.builtin.debug:
+    msg: >-
+      herdr is not provisioned (probe rc {{ herdr_upgrade_presence.rc }}) —
+      skipping the upgrade-phase currency checks; the install phase
+      provisions it (`mise use -g herdr`).
+  when: herdr_upgrade_presence.rc != 0
+
+- name: "Upgrade: herdr through mise, its owning manager"
+  ansible.builtin.command:
+    cmd: mise upgrade herdr --yes
+  when: herdr_upgrade_presence.rc == 0
+  register: herdr_upgrade_result
+  # mise prints `old -> new` when it upgrades something; a current install
+  # prints no arrow, so the second run of an upgraded fleet reports changed=0.
+  # Verified on the 2026-09-19 converge pass: all up to date -> changed=false.
+  changed_when: "'->' in (herdr_upgrade_result.stdout ~ herdr_upgrade_result.stderr)"
+
+- name: "Upgrade: enforce the catalogue's integration version floors"
+  # `--outdated-only` lists integrations below the native-restore floors the
+  # catalogue records (measured serverless on 0.9.1: empty output = current).
+  # No module exists for a third-party CLI's version currency; this is the
+  # herdr CLI's own check (extension-after-adoption rule, 2026-09-19).
+  ansible.builtin.command:
+    cmd: "{{ herdr_shims_dir }}/herdr integration status --outdated-only"
+  when: herdr_upgrade_presence.rc == 0
+  register: herdr_outdated_result
+  changed_when: false
+  failed_when: false
+
+- name: "Upgrade: herdr's environment is broken — never read as 'outdated'"
+  ansible.builtin.fail:
+    msg: >-
+      `herdr integration status --outdated-only` failed (rc
+      {{ herdr_outdated_result.rc }}) with no usable output — the herdr
+      environment is broken (a dangling shim after a remove? not
+      provisioned?). Fix: run this topic's install phase
+      (`~/dotfiles/run-role.sh herdr`), which provisions the binary and the
+      entry, then re-run the upgrade.
+  when: herdr_upgrade_presence.rc == 0
+        and herdr_outdated_result.rc != 0
+        and (herdr_outdated_result.stdout | default('') | trim | length) == 0
+
+- name: "Upgrade: outdated integrations raise with the named fix"
+  ansible.builtin.fail:
+    msg: >-
+      herdr reports outdated integrations (below the catalogue's
+      native-restore floors):
+      {{ herdr_outdated_result.stdout_lines | default([]) | join('; ') }}.
+      Fix: re-run this topic's install (the integration loop re-wires
+      current integrations), then re-run the upgrade.
+  when: herdr_upgrade_presence.rc == 0
+        and (herdr_outdated_result.stdout | default('') | trim | length) > 0

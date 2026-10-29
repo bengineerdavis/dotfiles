@@ -1,0 +1,404 @@
+#!/usr/bin/env bash
+# ---------------------------------------------------------------------------------------
+# Script Name:        update-script-header.sh
+# Description:        Automatically analyzes and updates the standardized header documentation 
+#                     (including usage, description, and notes) for target bash scripts 
+#                     using an external Large Language Model (LLM) CLI tool.
+#
+# License:            MIT
+# Author:             Ben Davis <bengineerdavis@gmail.com>
+# Credits:            
+# Created:            2025-10-07
+# Last Modified:      2026-04-10
+#
+# Usage:              ./update-script-header.sh <file_or_glob> [file_or_glob...] [--model <llm_model>]
+#                     Examples:
+#                       ./update-script-header.sh myscript.sh
+#                       ./update-script-header.sh scripts/*.sh
+#                       ./update-script-header.sh deploy.sh setup.sh teardown.sh
+#                       ./update-script-header.sh "scripts/**/*.sh" --model qwen3:8b
+#
+# Notes:
+#   - Requires 'llm' CLI tool to be installed and accessible in the PATH.
+#   - Handles single file paths, glob patterns, and multiple arguments.
+#   - Environment variable DEBUG_MODE=1 can be set to see raw LLM prompts and outputs.
+#   - The script ensures target files exist and will attempt to update headers non-destructively.
+#
+# ---------------------------------------------------------------------------------------
+#!/usr/bin/env bash
+
+# Define header template
+read -r -d '' HEADER <<'HEAD'
+# -----------------------------------------------------------------------------
+# Script Name:        [INSERT_SCRIPT_NAME_HERE - Default: use the existing filename]
+# Description:        [Provide a brief description of what this script does. - Default: create a summary if it's missing]
+#
+# License:            [Specify license, e.g., MIT, Apache 2.0, GPL v3.0 - Default: MIT]
+# Author:             [Your Name or Organization - Default: Ben Davis - bengineerdavis@gmail.com]
+# Credits:            [List contributors or sources, if any - Default: Leave blank]
+# Created:            [YYYY-MM-DD: Use the creation date, do not change]
+# Last Modified:      [YYYY-MM-DD - Default: blank, unless modification date is detected, then use that]
+#
+# Usage:              [Provide example usage, if applicable -- do not change if usage has been defined!]
+#
+# Notes:
+#   - [Add any important notes or warnings about this script.]
+#   - [Mention dependencies or required environment variables.]
+#
+# -----------------------------------------------------------------------------
+HEAD
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+# Separate --model <value> from the list of file paths/globs.
+# Everything else is treated as a file path or glob pattern.
+
+LLM_MODEL="${LLM_MODEL:-gemma4:e4b}"
+RAW_TARGETS=()
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --model)
+            if [[ -z "$2" ]]; then
+                echo "Error: --model requires a value."
+                exit 1
+            fi
+            LLM_MODEL="$2"
+            shift 2
+            ;;
+        *)
+            RAW_TARGETS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+if [[ ${#RAW_TARGETS[@]} -eq 0 ]]; then
+    echo "Error: No file path or glob pattern provided."
+    echo "Usage: $0 <file_or_glob> [file_or_glob...] [--model <llm_model>]"
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Expand globs and deduplicate the final file list
+# ---------------------------------------------------------------------------
+# We iterate over each raw target with nullglob enabled so that an unmatched
+# pattern silently expands to nothing (we warn the user separately).
+
+declare -A _SEEN          # associative array used as a set for deduplication
+TARGET_FILES=()
+
+_old_nullglob=$(shopt -p nullglob)   # save original setting
+shopt -s nullglob
+shopt -s globstar 2>/dev/null        # enable ** globs when available
+
+for pattern in "${RAW_TARGETS[@]}"; do
+    # Attempt glob expansion
+    expanded=( $pattern )
+
+    if [[ ${#expanded[@]} -eq 0 ]]; then
+        # Pattern matched nothing — treat it as a literal path (new file)
+        expanded=( "$pattern" )
+    fi
+
+    for f in "${expanded[@]}"; do
+        # Resolve to real path for deduplication (file may not exist yet)
+        key="$(realpath -m "$f" 2>/dev/null || echo "$f")"
+        if [[ -z "${_SEEN[$key]+x}" ]]; then
+            _SEEN[$key]=1
+            TARGET_FILES+=("$f")
+        fi
+    done
+done
+
+eval "$_old_nullglob"   # restore nullglob to what it was
+
+if [[ ${#TARGET_FILES[@]} -eq 0 ]]; then
+    echo "Error: No files matched the provided patterns."
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Shared configuration
+# ---------------------------------------------------------------------------
+
+TODAY="$(date +%Y-%m-%d)"
+GIT_USER_NAME=$(git config --local user.name 2>/dev/null \
+    || git config --global user.name 2>/dev/null \
+    || echo "Ben Davis")
+GIT_USER_EMAIL=$(git config --local user.email 2>/dev/null \
+    || git config --global user.email 2>/dev/null \
+    || echo "bengineerdavis@gmail.com")
+DEBUG_MODE="${DEBUG_MODE:-0}"
+
+echo "Using LLM model: $LLM_MODEL"
+echo "Today's date:    $TODAY"
+
+# ---------------------------------------------------------------------------
+# Dependency check
+# ---------------------------------------------------------------------------
+
+check_dependencies() {
+    if ! command -v llm &>/dev/null; then
+        echo "Error: 'llm' command not found. Please install the LLM CLI tool."
+        exit 1
+    fi
+    if ! llm models list | grep -q "$LLM_MODEL"; then
+        echo "Error: LLM model '$LLM_MODEL' not found."
+        echo "Run 'llm models list' to see available models."
+        exit 1
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# LLM instructions (static — no variable expansion)
+# ---------------------------------------------------------------------------
+
+read -r -d '' INSTRUCTIONS <<'INSTRUCTIONS_END'
+You are an expert bash script documentation assistant.
+
+Your task is to analyze and create/update bash script headers intelligently.
+
+INTELLIGENCE REQUIRED:
+1. **Analyze the script content** (if it exists) to understand what it does
+   - For NEW/EMPTY scripts: Infer purpose from filename
+   - For EXISTING scripts: Read the actual code logic, functions, and operations
+
+2. **Generate or improve the description**:
+   - NEW files: Write a clear, specific description based on filename
+   - EXISTING files: Base description on actual script functionality
+   - Make it 1-2 sentences, clear and professional
+
+3. **Smart Usage examples**:
+   - NEW files: Generate realistic examples based on inferred purpose
+   - EXISTING files: Analyze actual parameters ($1, $2, flags, etc.) and create accurate usage
+   - If existing usage is good, preserve it; if generic or wrong, improve it
+
+4. **Intelligent Notes**:
+   - Identify actual dependencies (jq, curl, docker, git, etc.)
+   - Note required environment variables found in the script
+   - Warn about sudo/root requirements if detected
+   - Mention external tools, APIs, or files the script interacts with
+   - For new files, suggest likely requirements based on script name/type
+
+5. **Date handling**:
+   - NEW files: Created = today, Last Modified = blank
+   - EXISTING files: Preserve original Created date if it exists, otherwise use today
+   - EXISTING files: Update Last Modified to today's date
+
+6. **Preserve existing good values**:
+   - Keep Credits if they exist
+   - Keep License if specified (otherwise default to MIT)
+   - Keep Author if specified (otherwise use provided default)
+   - Don't blindly overwrite good descriptions or notes
+
+7. **Output format**:
+   - NEW files: Start with #!/usr/bin/env bash, add header, then "# Script content goes here"
+   - EXISTING files: Preserve all script content, only update/add the header
+   - Output ONLY the complete script
+   - No explanations, no markdown blocks, no commentary
+   - The output MUST follow this exact sequence with NO extra lines or separators:
+     1. The Shebang: #!/usr/bin/env bash
+     2. The Opening Header Line: # ---...
+     3. The Header Content: (Script Name, Description, Author, etc.)
+     4. The Closing Header Line: # ---...
+     5. The Script Code: (The actual bash logic)
+   - DO NOT include triple backticks, "---" separators, or conversational text.
+INSTRUCTIONS_END
+
+# ---------------------------------------------------------------------------
+# Per-file processing functions
+# ---------------------------------------------------------------------------
+
+# Ensure the file exists (creating it with a shebang if it doesn't).
+ensure_file_exists() {
+    local input_path="$1"
+    if [[ ! -e "$input_path" ]]; then
+        echo "  File does not exist. Creating $input_path..."
+        mkdir -p "$(dirname "$input_path")" || { echo "  Failed to create directory."; return 1; }
+        touch "$input_path"               || { echo "  Failed to create file."; return 1; }
+        echo "#!/usr/bin/env bash" > "$input_path"
+    fi
+}
+
+# Build the prompt for a single file and call the LLM, writing output to a
+# temporary .tmp file next to the target.
+cognition() {
+    local script_path="$1"
+    local script_name
+    script_name="$(basename "$script_path")"
+    local file_content
+    file_content="$(cat "$script_path")"
+
+    # Build the prompt (uses variables from current scope)
+    local prompt
+    prompt="$(cat <<EOF
+$INSTRUCTIONS
+
+HEADER TEMPLATE TO USE:
+$HEADER
+
+CURRENT SCRIPT INFORMATION:
+- Script Name: $script_name
+- File path: $script_path
+- Today's Date: $TODAY
+
+DEFAULT VALUES (use if not specified in existing header):
+- License: MIT
+- Author: $GIT_USER_NAME <$GIT_USER_EMAIL>
+- Created: $TODAY
+
+CURRENT SCRIPT CONTENT:
+$file_content
+
+Now output the complete updated script with intelligent, accurate header.
+EOF
+)"
+
+    printf "%s\n" "$prompt" | llm -m "$LLM_MODEL" |
+        sed '/^```/d'              |
+        sed '/^---/d'              |
+        sed '/^Here is/d'          |
+        sed '/^I have updated/d'   > "${script_path}.tmp"
+}
+
+# Show a spinner while a background PID is running.
+show_spinner() {
+    local pid=$1
+    local delay=0.1
+    local spinstr='|/-\'
+    while ps -p "$pid" >/dev/null 2>&1; do
+        local temp="${spinstr#?}"
+        printf " [%c] Processing..." "$spinstr"
+        spinstr="${temp}${spinstr%"$temp"}"
+        sleep "$delay"
+        printf "\r"
+    done
+    printf "    \r"
+}
+
+# Process a single file: ensure it exists, call the LLM, preview, confirm, apply.
+# Returns 0 on success/skip, non-zero on hard error.
+process_file() {
+    local input_path="$1"
+    local batch_confirmed="$2"   # "yes" if the caller already got batch confirmation
+
+    echo ""
+    echo "----------------------------------------"
+    echo "Processing: $input_path"
+
+    ensure_file_exists "$input_path" || return 1
+
+    local script_path
+    script_path="$(realpath "$input_path")"
+    local file_size
+    file_size=$(wc -l < "$script_path")
+    [[ "$file_size" -le 1 ]] && echo "  Detected new/empty file."
+
+    echo "  Sending request to LLM model: $LLM_MODEL"
+    echo "  Please wait..."
+
+    if [[ "$DEBUG_MODE" == "1" ]]; then
+        echo "=== DEBUG: LLM output ==="
+        cognition "$script_path"
+    else
+        cognition "$script_path" &
+        local llm_pid=$!
+        show_spinner "$llm_pid"
+        wait "$llm_pid"
+        local llm_exit=$?
+        if [[ $llm_exit -ne 0 ]]; then
+            echo "  Error: LLM command failed (exit $llm_exit). Skipping."
+            rm -f "${script_path}.tmp"
+            return 1
+        fi
+        echo "  ✓ LLM processing complete"
+    fi
+
+    if [[ ! -s "${script_path}.tmp" ]]; then
+        echo "  Error: LLM produced no output. Skipping."
+        rm -f "${script_path}.tmp"
+        return 1
+    fi
+
+    local lines
+    lines=$(wc -l < "${script_path}.tmp")
+    echo "  Generated $lines lines"
+
+    # In non-debug, single-file mode: preview and confirm per-file.
+    # In batch mode (batch_confirmed=yes): skip per-file confirm (already confirmed).
+    if [[ "$DEBUG_MODE" != "1" && "$batch_confirmed" != "yes" ]]; then
+        echo ""
+        echo "=== Preview (first 20 lines) ==="
+        head -n 20 "${script_path}.tmp"
+        echo "=== End Preview ==="
+        echo ""
+        echo "Apply these changes to $input_path? (yes/no)"
+        read -r confirm
+        if [[ ! "$confirm" =~ ^[Yy][Ee][Ss]$|^[Yy]$ ]]; then
+            echo "  Changes discarded."
+            rm -f "${script_path}.tmp"
+            return 0
+        fi
+    fi
+
+    mv "${script_path}.tmp" "$script_path"
+    echo "  ✓ Header updated: $script_path"
+}
+
+# ---------------------------------------------------------------------------
+# MAIN
+# ---------------------------------------------------------------------------
+
+check_dependencies
+
+BATCH_MODE=false
+[[ ${#TARGET_FILES[@]} -gt 1 ]] && BATCH_MODE=true
+
+if $BATCH_MODE; then
+    echo ""
+    echo "Files to process (${#TARGET_FILES[@]} total):"
+    for f in "${TARGET_FILES[@]}"; do
+        echo "  $f"
+    done
+    echo ""
+    echo "Add or update headers for all ${#TARGET_FILES[@]} files? (yes/no)"
+    read -r answer
+    if [[ ! "$answer" =~ ^[Yy][Ee][Ss]$|^[Yy]$ ]]; then
+        echo "No changes made."
+        exit 0
+    fi
+
+    # Batch: show per-file preview only in debug mode; otherwise apply directly.
+    batch_confirm_flag="yes"
+    if [[ "$DEBUG_MODE" == "1" ]]; then
+        batch_confirm_flag="no"   # debug mode still shows output per-file
+    fi
+
+    success_count=0
+    fail_count=0
+    for f in "${TARGET_FILES[@]}"; do
+        if process_file "$f" "$batch_confirm_flag"; then
+            (( success_count++ )) || true
+        else
+            (( fail_count++ )) || true
+        fi
+    done
+
+    echo ""
+    echo "========================================"
+    echo "Batch complete: $success_count updated, $fail_count failed/skipped"
+    echo "========================================"
+
+else
+    # Single file — original interactive flow
+    echo ""
+    echo "Would you like to add or update the script header for '${TARGET_FILES[0]}'? (yes/no)"
+    read -r answer
+    if [[ "$answer" =~ ^[Yy][Ee][Ss]$|^[Yy]$ ]]; then
+        process_file "${TARGET_FILES[0]}" "no"
+    else
+        echo "No changes made."
+    fi
+fi

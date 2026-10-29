@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Managed by apps/loreai (TASK-243).
+     Per-user launchd agent for the Lore.AI gateway: the persistent setup
+     (lore setup claude-code / codex / …) points every agent at
+     127.0.0.1:3207, so something must keep the gateway alive across
+     reboots and logouts — Lore's own docs say "run the gateway under a
+     system service manager". Runs `lore start` in the foreground (no
+     --bg) so launchd owns the lifecycle; the per-machine answers
+     (telemetry, LORE_WORKER_MODEL, the OpenRouter key) come from
+     ~/.config/loreai/env.zsh, written by tasks/prompts.yaml. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>{{ loreai_gateway_label }}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-c</string>
+    <string>source {{ loreai_env_file }} &amp;&amp; export LORE_WORKER_API_KEY="${LORE_WORKER_API_KEY:-$OPENROUTER_API_KEY}" &amp;&amp; {{ loreai_install_dir }}/lore start --local; rc=$?; if [ $rc -ne 0 ]; then exit $rc; fi; {{ loreai_install_dir }}/lore stop >/dev/null 2>&amp;1 || true; {{ loreai_install_dir }}/lore start --local; rc=$?; if [ $rc -ne 0 ]; then exit $rc; fi; while sleep 10; do port=$(cat {{ ansible_env.HOME }}/.local/share/lore/gateway.port 2>/dev/null); if [ -z "$port" ] || ! {{ loreai_install_dir }}/lore doctor 2>&amp;1 | grep -q "gateway reachable: responding on port $port"; then exit 1; fi; done</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>{{ loreai_service_path }}</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>{{ loreai_logs_dir }}/gateway.log</string>
+  <key>StandardErrorPath</key><string>{{ loreai_logs_dir }}/gateway.log</string>
+</dict>
+</plist>

@@ -1,0 +1,25 @@
+# apps/claude-code/topic.yml
+#
+# Topic metadata read by the parent playbook. See docs/TOPICS.md.
+#
+# Lives at the role root (not under meta/) because Ansible reserves
+# meta/main.yml for galaxy_info / role dependencies and rejects unknown
+# top-level keys there.
+
+topic_name: claude-code
+
+# App-tier: provides nothing to other topics.
+topic_provides: []
+
+# Both artifacts are Homebrew casks, so brew is the only dependency. Node is
+# deliberately NOT required: the npm package is an alternative install method,
+# not a runtime dep — the cask ships a native binary that never invokes node.
+topic_requires: [homebrew]
+
+# Darwin only, deliberately. Homebrew casks are macOS-only, and Claude Code on
+# Debian installs from a signed apt repository — a different mechanism needing
+# sudo and a GPG key. Half-implementing that here would be worse than not
+# claiming Debian at all. See CHANGELOG.md known_issues.
+topic_os: [Darwin]
+
+topic_tier: app

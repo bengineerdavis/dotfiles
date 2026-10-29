@@ -1,0 +1,7 @@
+topic_name: docker
+# Linux-only Docker engine (apt). On macOS, `docker` is provided by the
+# rancher-desktop topic instead — see apps/rancher-desktop/topic.yml.
+topic_provides: [docker]
+topic_requires: []
+topic_os: [Debian]
+topic_tier: pkg-manager

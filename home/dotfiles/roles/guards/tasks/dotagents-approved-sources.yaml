@@ -1,0 +1,120 @@
+# roles/guards/tasks/dotagents-approved-sources.yaml
+#
+# Guard: every skill on this machine came from a source someone approved.
+#
+# ~/.agents/skills is user-global — claude, cursor, codex, opencode and copilot
+# all auto-load it — so a directory dropped there is read into context on every
+# session on the machine, including ones working on unrelated personal
+# repositories. That is how unlicensed material spreads without anyone deciding
+# to spread it, and on 2026-09-12 it had already happened here.
+#
+# The decision itself lives in `skill-trust`, not in this file. Precedence
+# (ban > exclude > approved source > permissive licence > deny), the licence
+# tiers, and the rule that an absent licence denies rather than passes are all
+# things a human wants to run by hand and an agent wants to ask — so they belong
+# in a program, with its own tests, not in Ansible YAML that only a play can
+# reach. This task's whole job is to supply the machine's rules and turn a
+# non-zero exit into a message naming the fix.
+#
+# Note what is piped in: dotagents can say whether what it declared is
+# installed, but never whether something is installed that it never declared.
+# The second question is the provenance one, and it is why the audit reads the
+# filesystem as well as the manager's inventory.
+#
+# Parameters (see roles/guards/defaults/main.yaml):
+#   guard_approved_sources, guard_denied_sources, guard_vendored_skills,
+#   guard_skill_excludes, guard_skill_include_hidden, guard_allow_copyleft,
+#   guard_agents_skills_dir, guard_allow_unapproved_skills, guard_caller,
+#   guard_skill_trust_rules, guard_skill_trust_cmd, guard_dotagents_list_cmd,
+#   guard_foreign_buckets
+
+- name: "Guard: check skill-trust is installed"
+  ansible.builtin.command: "{{ guard_skill_trust_cmd }} --help"
+  environment:
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ ansible_facts['env']['PATH'] }}"
+  register: guard_skill_trust_present
+  changed_when: false
+  failed_when: false
+
+- name: "Guard: fail with the fix if skill-trust is absent"
+  # The dependency guard docs/TOPICS.md requires of every script: name the
+  # missing thing and how to get it, rather than failing somewhere downstream
+  # with a confusing error.
+  ansible.builtin.fail:
+    msg: >-
+      [dotagents-approved-sources] {{ guard_caller }} needs `skill-trust`, which
+      is not on PATH. It lives in this repo and installs from it:
+      `uv tool install <chezmoi source>/tools/skill-trust`. Nothing has been
+      checked, so this run proves nothing about what is installed.
+  when: guard_skill_trust_present.rc != 0
+
+- name: "Guard: ensure the skill-trust config directory"
+  ansible.builtin.file:
+    path: "{{ guard_skill_trust_rules | dirname }}"
+    state: directory
+    mode: "0700"
+
+- name: "Guard: write this machine's trust rules"
+  # A stable path, not a tempfile: `skill-trust resolve` and bare
+  # `skill-trust check` default to reading exactly what the guard enforces,
+  # which only works if the composed rules survive the run. Overwritten every
+  # run; when several topics call this guard, the file reflects the most
+  # recent caller.
+  ansible.builtin.copy:
+    dest: "{{ guard_skill_trust_rules }}"
+    mode: "0600"
+    content: |
+      # Written by roles/guards/tasks/dotagents-approved-sources.yaml ({{ guard_caller }}).
+      # Overwritten every run — machine-local decisions belong in trust.yaml
+      # beside this file (`skill-trust trust add`), never in here.
+      {{ {
+        'approved_sources': guard_approved_sources,
+        'deny_sources': guard_denied_sources,
+        'vendored': guard_vendored_skills,
+        'exclude': guard_skill_excludes,
+        'include_hidden': guard_skill_include_hidden,
+        'licences': {'allow_copyleft': guard_allow_copyleft | bool},
+        'foreign_buckets': guard_foreign_buckets | bool,
+      } | to_nice_yaml }}
+
+- name: "Guard: audit every installed skill against the approved sources"
+  # Piped, so the manager's inventory and the filesystem are judged together.
+  # --offline keeps provisioning independent of GitHub being reachable; an
+  # unknown licence then denies, which is the direction to fail in.
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      {{ guard_dotagents_list_cmd }} |
+      {{ guard_skill_trust_cmd }} --offline --config {{ guard_skill_trust_rules | quote }}
+      audit --skills-dir {{ guard_agents_skills_dir | quote }} --declared-json -
+  args:
+    executable: /bin/bash
+  environment:
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
+  register: guard_skill_audit
+  changed_when: false
+  failed_when: false
+
+- name: "Guard: fail with what skill-trust reported"
+  # rc 1 is a denial, 2 means nothing was examined, 3 means the rules were
+  # unreadable. None of them is a pass: "I could not tell you" must not read as
+  # "nothing is wrong", which is how an audit silently stops auditing.
+  ansible.builtin.fail:
+    msg: >-
+      [dotagents-approved-sources] {{ guard_caller }}: skill-trust refused the
+      skill set in {{ guard_agents_skills_dir }} (exit
+      {{ guard_skill_audit.rc }}).
+      {{ (guard_skill_audit.stdout | default('') | trim)
+         or (guard_skill_audit.stderr | default('') | trim)
+         or 'no output' }}
+      Nothing has been installed, moved or deleted. A first detection does not
+      have to fail next time: run `skill-trust resolve` in a terminal to
+      approve, vendor or deny each finding once — the answer is remembered in
+      {{ guard_skill_trust_rules | dirname }}/trust.yaml, and a recorded
+      denial keeps failing until the thing is removed. Non-interactive:
+      `skill-trust trust list` / `skill-trust trust add --help`. Accept
+      unapproved skills for one run with
+      `-e guard_allow_unapproved_skills=true`.
+  when:
+    - not (guard_allow_unapproved_skills | bool)
+    - guard_skill_audit.rc != 0

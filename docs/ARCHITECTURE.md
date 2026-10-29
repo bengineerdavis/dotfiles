@@ -14,9 +14,10 @@ zsh        ← runtime: sources each topic's shell fragments dynamically
 ```
 
 They do not overlap. chezmoi owns files in `$HOME`; Ansible owns installed
-software and system state; zsh owns interactive-shell wiring. The Ansible tree
-itself is deployed by chezmoi to `~/dotfiles`, which is where playbooks run
-from (`$ZSH="$HOME/dotfiles"`).
+software and system state; zsh owns interactive-shell wiring. The source
+payload lives under `home/` (selected by `.chezmoiroot`); chezmoi deploys the
+Ansible tree to `~/dotfiles`, which is where playbooks run from
+(`$ZSH="$HOME/dotfiles"`).
 
 ## Topics are Ansible roles
 

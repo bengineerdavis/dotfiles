@@ -47,8 +47,11 @@ CRUD-ownership invariant. It is the source of truth and the 39 topic files cite 
 `docs/ARCHITECTURE.md` has the big picture,
 `CONTRIBUTING.md` at the root carries the workflow around it.
 
-Root `docs/` is the only maintained documentation tree. It is repository-only,
-not part of the chezmoi payload.
+`.chezmoiroot` names `home/` as the chezmoi source state. Paths inside
+`home/` stay unchanged when they describe deployed files or topic layouts.
+Repository-only tooling, tests, and project docs stay outside it. Root
+`docs/` is the only maintained project-level documentation tree; topic docs
+stay with their topics.
 
 The one rule worth repeating here because it is the most common mistake: **one
 concern per layer.** chezmoi owns dotfiles and symlinks, Ansible owns package
@@ -134,7 +137,7 @@ ladder is enforced by agent judgment and by review.
 
 ## Where the source of truth is
 
-Scripts under `bin/` are **chezmoi source files**, named `executable_<name>`. The
+Scripts under `home/bin/` are **chezmoi source files**, named `executable_<name>`. The
 deployed copy at `~/bin/<name>` is what actually runs. They drift, in both
 directions:
 
@@ -144,7 +147,7 @@ chezmoi add ~/bin/<name>       # deployed  -> source   (adopt a hand-edit)
 chezmoi apply ~/bin/<name>     # source    -> deployed  (push a repo change)
 ```
 
-Before editing a `bin/` script, check `chezmoi status`. Committing the source while
+Before editing a `home/bin/` script, check `chezmoi status`. Committing the source while
 the deployed copy is ahead silently reverts the working version on the next
 `chezmoi apply`.
 
@@ -263,16 +266,16 @@ Files with more than one session touching them recently. Check `git log -3 <file
 and `chezmoi status` before editing. Claim the covering task's lease (above)
 first.
 
-- `bin/executable_fetchurl` — actively developed; caused the only real merge
+- `home/bin/executable_fetchurl` — actively developed; caused the only real merge
   conflict so far.
-- `bin/executable_pii-redactor` — ported to Python, then extended with layered
+- `home/bin/executable_pii-redactor` — ported to Python, then extended with layered
   redaction by another session. Suite is 63 tests; run it after any change.
   Its conftest default mock is a *working* model, not `cat`: a pass-through mock
   plus exit-status assertions is green exactly when the tool leaks, which is the
   defect the layers exist to prevent. Ask for `mock_llm("cat")` explicitly.
-- `bin/executable_model-bench` — multi-case judge suite; the reference scorecards
+- `home/bin/executable_model-bench` — multi-case judge suite; the reference scorecards
   in `CASES` must be re-derived if a case script changes.
-- `dotfiles/apps/mise/files/config.toml` — two sessions edited it within an hour
+- `home/dotfiles/apps/mise/files/config.toml` — two sessions edited it within an hour
   on 2026-09-11 (`b038cbe` removed two broken pipx tools, `907f3d0` pinned
   skillet). It rebased cleanly because the edits were in different regions, but
   it is a long flat list of tools that everything installs through, so the next
@@ -330,7 +333,7 @@ ownerless second roborev install channel shadowing the `apps/roborev`
 topic's checksum-verified binary — caught by a roborev review of the
 commit, not by the session that made it. TOPIC-RECIPES.md's
 tool-entry-ownership recipe is the standing rule; foreign sessions read it
-before touching `dotfiles/apps/mise/files/config.toml`.
+before touching `home/dotfiles/apps/mise/files/config.toml`.
 
 **Point back.** A change here that another local repository depends on gets
 a provenance pointer in that repository's HANDOFF or spec (the zshenv TMPDIR
@@ -685,8 +688,8 @@ uv run --frozen --with pytest-xdist pytest tests tools -q -n auto --dist workste
 uv run --frozen --group test-llm pytest tests tools -m llm_judge -q   # only real-model tests
 
 bats tests/<name>.bats         # bash scripts only — see Languages below
-dotfiles/executable_run-role.sh <topic>          # apply one ansible topic
-dotfiles/executable_run-role.sh <topic> remove   # tear it down
+bash home/dotfiles/executable_run-role.sh <topic>          # apply one ansible topic
+bash home/dotfiles/executable_run-role.sh <topic> remove   # tear it down
 ```
 
 A bare `pytest tests` reports "24 passed, 89 skipped" and looks green while testing
@@ -780,18 +783,18 @@ trade stops paying: argument parsing, temp files and error paths are where bash 
 verbose and subtly wrong.
 
 Count lines of **logic**, not lines of file. A script that is mostly an interface to
-other programs does not qualify however long it is — `bin/findline` is 256 code
+other programs does not qualify however long it is — `home/bin/findline` is 256 code
 lines that pipe `rg` into `fzf` with a `bat` preview, so all the behaviour and all
 the speed live in three Rust binaries. Porting it would add interpreter startup to
 an interactive tool and make it worse. Its header records this so the question is
-not reopened. Contrast `bin/clipped`: similar size, but genuinely branchy platform
+not reopened. Contrast `home/bin/clipped`: similar size, but genuinely branchy platform
 dispatch, and worth porting.
 
 Stdlib-only Python needs no dependency block — use `#!/usr/bin/env python3` like
-`bin/mailbox`. Reach for `#!/usr/bin/env -S uv run --script` with inline PEP 723
-deps only when third-party packages are genuinely needed, as `bin/llm-ctx` does.
+`home/bin/mailbox`. Reach for `#!/usr/bin/env -S uv run --script` with inline PEP 723
+deps only when third-party packages are genuinely needed, as `home/bin/llm-ctx` does.
 
-`bin/binned` applies this rule to the scripts it generates: it counts effective
+`home/bin/binned` applies this rule to the scripts it generates: it counts effective
 lines, recommends Python above 100, and asks a model in the 80–100 band.
 
 ### Conventions
@@ -852,7 +855,7 @@ finished until it has been seen to fail against a deliberately broken copy. Both
 were bought by suites here that passed while testing nothing.
 
 **pytest is primary.** Any Python script gets pytest tests. bats remains correct
-only for scripts that are still bash (`bin/cleanup`).
+only for scripts that are still bash (`home/bin/cleanup`).
 
 When porting a script, keep its bats suite until the pytest suite is proven
 equivalent — it tests the CLI as a black box, so it survives a language change
@@ -862,9 +865,9 @@ Layout: `tests/<script>/conftest.py` plus `test_*.py` split by concern. Mark tes
 that call real models with `llm_judge` so they stay out of the default run.
 
 A port is a chance to test what bash could not. `default_output()` in
-`bin/pii-redactor` was previously only reachable by running the whole CLI and seeing
+`home/bin/pii-redactor` was previously only reachable by running the whole CLI and seeing
 which file appeared; called directly, the path edge cases became explicit. Platform
-dispatch in `bin/clipped` could only be exercised by mocking `uname` on `PATH`, so
+dispatch in `home/bin/clipped` could only be exercised by mocking `uname` on `PATH`, so
 in practice only the host platform was ever tested.
 
 ### Prove the test fails
@@ -874,11 +877,11 @@ fail. This is how: break the code on purpose and watch the suite go red. It is
 mutation testing done by hand, and it is cheap.
 
 ```bash
-cp bin/executable_thing /tmp/thing.good          # keep the original
+cp home/bin/executable_thing /tmp/thing.good          # keep the original
 # edit the target: invert a guard, neuter a mechanism, make an error
 # path return a positive value instead of "unknown"
 uv run --with pytest pytest tests/thing -q       # MUST fail, and on the right test
-cp /tmp/thing.good bin/executable_thing          # restore
+cp /tmp/thing.good home/bin/executable_thing     # restore
 uv run --with pytest pytest tests/thing -q       # green again
 ```
 
@@ -1001,18 +1004,18 @@ access, so vendor-native ids like `claude-opus-4.7` resolve to nothing — use
 `openrouter/anthropic/claude-opus-4.7`.
 
 No hosted GPT or Grok as a default, a recommendation, or a fallback. They are
-legitimate as **benchmark subjects** — that is what `bin/model-bench` is for. The
+legitimate as **benchmark subjects** — that is what `home/bin/model-bench` is for. The
 line is hosted-vendor dependency, not the name: `gpt-oss:20b` is open-weights and
 runs locally under Ollama, so it is welcome; `gpt-4o` is not.
 
 Model ids must be the exact `ollama list` tag. What is pulled here are MLX and QAT
 builds, so `qwen3.5:35b` does not exist but `qwen3.5:35b-mlx` does. Never match ids
-by substring: `bin/binned` used to, so a bare `qwen3.5:35b` matched the installed
+by substring: `home/bin/binned` used to, so a bare `qwen3.5:35b` matched the installed
 `-mlx` tag, passed the availability check, then failed at `llm -m` from inside a
 judge panel.
 
 **Do not invent ratings or benchmark numbers.** Quality claims must come from a
-measured run. `bin/model-bench` scores judges on *calibration* against a reference
+measured run. `home/bin/model-bench` scores judges on *calibration* against a reference
 scorecard rather than on the scores they emit, because measuring raw magnitude
 rewarded generosity — two local models awarded a flat 10/10 to a script with no
 comments and an unguarded `--delete`, and outranked the model that caught it.
@@ -1022,7 +1025,7 @@ comments and an unguarded `--delete`, and outranked the model that caught it.
 Check every dependency a script shells out to, system tools and hand-rolled
 `~/bin` scripts alike. Being topic-managed is not a reason to skip the check: it
 only means something *should* have installed it, which is exactly the assumption
-that breaks on a fresh or half-applied box. See `require()` in `bin/llm-ctx`.
+that breaks on a fresh or half-applied box. See `require()` in `home/bin/llm-ctx`.
 
 Name the fix in the error, not just the failure: `~/bin` scripts come from
 `chezmoi apply ~/bin`, system tools from the Ansible topics via `update.sh`.

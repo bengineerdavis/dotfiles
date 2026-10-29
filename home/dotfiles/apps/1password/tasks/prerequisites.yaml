@@ -1,0 +1,7 @@
+# /home/bdavis/dotfiles/apps/1password/tasks/prerequisites.yaml
+# No-op lifecycle file for this marker topic.
+
+- name: "prerequisites: no-op"
+  ansible.builtin.debug:
+    msg: "{{ role_name }}: prerequisites is a no-op; the CLI binary is managed by apps/mise"
+  changed_when: false

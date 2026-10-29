@@ -1,0 +1,10 @@
+# tasks/bootstrap.yaml — app-tier stub.
+#
+# First-time system setup belongs to the pkg-manager tier (apps/homebrew,
+# apps/apt); herdr needs none of it. The import stays so the router keeps all
+# five lifecycle files wired (tests/herdr/test_lifecycle_contract.py).
+- name: "Bootstrap: nothing to bootstrap for herdr (app-tier stub)"
+  ansible.builtin.debug:
+    msg: >-
+      herdr has no system bootstrap (app tier). Its prerequisite is mise,
+      declared in topic_requires and resolved by roles/topic-resolution.

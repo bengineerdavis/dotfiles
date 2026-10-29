@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# ollama-profile — the usage figures that stay on this machine.
+#
+# These are DELIBERATELY not committed: apps/ollama lives in a PUBLIC repo, and
+# the task-type split and prompt-size distribution describe real work. The eval
+# cases reference them by pointing here rather than by quoting numbers.
+#
+# Run it when you actually want the figures — a journal entry, a writeup, a
+# decision about ladder rungs. Output goes to stdout, and with --save to
+# ~/.local/share/ollama-evals/usage-profile.md, which is outside any git repo.
+set -euo pipefail
+OUT="${XDG_DATA_HOME:-$HOME/.local/share}/ollama-evals/usage-profile.md"
+render() {
+  echo "# Local usage profile"
+  echo
+  echo "Generated $(date -u +%Y-%m-%dT%H:%M:%SZ) on $(hostname -s). Not committed."
+  echo
+  echo '## Prompt size distribution'
+  echo '```'
+  ollama-usage ctx 2>/dev/null || echo "(ollama-usage unavailable)"
+  echo '```'
+  echo
+  echo '## Per-model usage'
+  echo '```'
+  ollama-usage report 2>/dev/null || echo "(ollama-usage unavailable)"
+  echo '```'
+  echo
+  echo '## Task-type coverage'
+  echo '```'
+  ollama-evals coverage 2>/dev/null || echo "(ollama-evals unavailable)"
+  echo '```'
+}
+if [ "${1:-}" = "--save" ]; then
+  render > "$OUT"; echo "written: $OUT"
+else
+  render
+fi

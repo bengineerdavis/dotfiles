@@ -1,0 +1,115 @@
+# apps/loreai/tasks/remove.yaml
+# Teardown for everything install.yaml creates. Never runs as part of
+# provision/install — only via --tags remove (tagged `never` in main.yaml).
+#
+# What the topic creates, and how each piece is torn down:
+#   the gateway service unit       → bootout/disable, unit files + logs
+#                                    removed (TASK-243); a `lore start --bg`
+#                                    gateway the user launched by hand is
+#                                    stopped too, so removal leaves no
+#                                    listener behind
+#   per-agent `lore setup` config  → `lore setup undo <app>` (needs the
+#                                    binary, so undo runs BEFORE removal)
+#   the lore binary                → deleted below
+#   ~/.config/loreai/env.zsh       → deleted below (the per-machine answers)
+#   files/zsh/path.zsh PATH entry  → self-guarding; nothing to do
+#   opencode plugin package        → `opencode plugin remove` below
+#   opencode plugin config         → disappears with the topic directory;
+#                                    the chezmoi include is stat-guarded —
+#                                    delete the topic, `chezmoi apply`
+# What it deliberately preserves: the memory database and Lore's own
+# config/channel dirs (loreai_preserved_dirs) — the database is the point
+# of the tool, and `lore uninstall` makes the same choice. The printed
+# paths are the manual purge list.
+
+- name: "loreai: stop the gateway service (Darwin)"
+  ansible.builtin.shell:
+    cmd: launchctl bootout gui/$(id -u)/{{ loreai_gateway_label }} 2>/dev/null || true
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: "loreai: stop and disable the gateway service (Debian)"
+  ansible.builtin.systemd:
+    name: lore-gateway
+    enabled: false
+    state: stopped
+    scope: user
+  when: ansible_facts['os_family'] == 'Debian'
+  # Pre-service installs have no lore-gateway unit; teardown must still
+  # reach setup undo and the remaining removal steps (apps/ollama precedent).
+  failed_when: false
+
+- name: "loreai: stop any hand-launched background gateway"
+  # `lore stop` kills any gateway recorded in the pid file, including a
+  # service-owned foreground one. It must run AFTER the service stops so
+  # launchd/systemd cannot respawn the process during teardown.
+  ansible.builtin.command: "{{ loreai_install_dir }}/lore stop"
+  register: loreai_stop
+  changed_when: false
+  failed_when: false
+
+- name: "loreai: remove the service unit files and gateway logs"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ loreai_plist_path }}"
+    - "{{ loreai_unit_path }}"
+    - "{{ loreai_logs_dir }}"
+
+- name: "loreai: reload systemd after removing the unit (Debian)"
+  ansible.builtin.systemd:
+    scope: user
+    daemon_reload: true
+  when: ansible_facts['os_family'] == 'Debian'
+  failed_when: false
+
+- name: "loreai: undo each agent's setup (before removing the binary)"
+  ansible.builtin.command: "{{ loreai_install_dir }}/lore setup undo {{ item.app }}"
+  register: loreai_setup_undo
+  changed_when: false
+  failed_when: false
+  loop: "{{ loreai_setup_agents }}"
+  loop_control:
+    label: "{{ item.app }}"
+
+- name: "loreai: report setup undo"
+  ansible.builtin.debug:
+    msg: >-
+      {{ item.item.app }}:
+      {{ (item.stdout_lines | default([])) | join(' | ')
+         if item.rc == 0 else 'skipped (' ~ (item.stderr | default('no output')) | trim ~ ')' }}
+  loop: "{{ loreai_setup_undo.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.app }}"
+
+- name: "loreai: remove the opencode plugin package"
+  # OpenCode owns both the package and its registration. Its legacy
+  # opencode.json is lower precedence than the chezmoi-owned jsonc.
+  ansible.builtin.command: opencode plugin remove @loreai/opencode
+  register: loreai_opencode_plugin_remove
+  changed_when: false
+  failed_when: false
+
+- name: "loreai: remove the lore binary"
+  ansible.builtin.file:
+    path: "{{ loreai_install_dir }}/lore"
+    state: absent
+
+- name: "loreai: remove the per-machine answers and disposable caches"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ loreai_config_dir }}"
+    - "{{ ansible_env.HOME }}/.cache/lore"
+
+- name: "loreai: name what is preserved, and the opencode note"
+  ansible.builtin.debug:
+    msg: >-
+      Removed: the lore binary, {{ loreai_config_dir }}, ~/.cache/lore, the
+      gateway service unit and its logs, each agent's setup config, and the
+      opencode plugin package. PRESERVED for manual review (the memory
+      database is the point of the tool): {{ loreai_preserved_dirs | join(', ') }} —
+      delete by hand to purge. opencode: the plugin key lives in the
+      chezmoi-included fragment; it disappears from the deployed config on
+      the next `chezmoi apply` after the topic directory is removed.

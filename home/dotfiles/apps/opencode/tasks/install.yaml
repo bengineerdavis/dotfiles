@@ -1,0 +1,102 @@
+# apps/opencode/tasks/install.yaml
+# Binary install. The skill sync is owned by apps/dotagents.
+#
+# Config files (opencode.jsonc) are NOT here — chezmoi owns them. See
+# dot_config/opencode/opencode.jsonc in the chezmoi source tree.
+#
+# Every piece of state created here has a matching teardown in remove.yaml,
+# per the CRUD ownership invariant in docs/TOPICS.md.
+
+# ── Guard: the dependency graph promised us a brew ───────────────────────────
+# topic_requires: [homebrew] resolves via the homebrew topic on Darwin and via
+# the PATH check on Debian (linuxbrew). If neither ran, fail with the fix
+# named rather than with a confusing module error.
+
+- name: "Check that brew is on PATH"
+  ansible.builtin.command: brew --version
+  register: opencode_brew_check
+  changed_when: false
+  failed_when: false
+
+- name: "Fail with the fix if brew is absent"
+  ansible.builtin.fail:
+    msg: >-
+      brew not found on PATH. On macOS run the homebrew topic's bootstrap
+      (apps/homebrew, --tags bootstrap); on Debian install linuxbrew first
+      (https://docs.brew.sh/Homebrew-on-Linux), then re-run.
+  when: opencode_brew_check.rc != 0
+
+# ── The binary, from the pinned tap ─────────────────────────────────────────
+# anomalyco/tap is pinned deliberately: homebrew/core carries a formula of the
+# same name, and the tap is the one that tracks releases. Measured 2026-09-14:
+# tap 1.18.31, core 1.18.30 — core's formula sets `livecheck { throttle 5 }`,
+# so it only tracks every fifth release and trails upstream by design. Naming
+# the tap explicitly keeps both OSes on the same source instead of leaving
+# Darwin on core and Debian on the tap.
+#
+# The v2 migration (docs/research/opencode-v2/PLAN.md, 2026-10-06):
+# the install target is the tap's opencode-v2 formula, which declares
+# `conflicts_with "opencode"` — both install an opencode binary. The v1
+# formula is uninstalled and its trust residue cleaned in the same run,
+# below, before the v2 install.
+
+- name: "Trust the tap so Homebrew will load its formulae: {{ opencode_tap }}"
+  # Homebrew 7 will not load formulae from a third-party tap until the tap is
+  # trusted, and the refusal surfaces at tap time, not install time: `brew tap`
+  # validates every formula in the tap and aborts the whole tap with
+  # "Cannot tap anomalyco/tap: invalid syntax in tap!" — a message that names
+  # neither trust nor the fix. Measured on Homebrew 7.0.1, 2026-09-14.
+  #
+  # So this runs BEFORE the tap task. Trust is a config entry keyed by name
+  # (~/.homebrew/trust.json, or $XDG_CONFIG_HOME/homebrew/trust.json when that
+  # is set), not a property of tap contents, so trusting an untapped tap is
+  # valid and is the only ordering that works.
+  #
+  # No Ansible module covers this — homebrew_tap predates brew's trust store —
+  # hence the raw command. It is idempotent by design: a second run exits 0 and
+  # reports "Already trusted tap", which is what changed_when reads.
+  #
+  # Trusting a tap lets brew execute its Ruby. That is the same judgement the
+  # skill sources get in apps/dotagents: this tap is upstream opencode's own
+  # (anomalyco/opencode ships it via GoReleaser), so trusting it is trusting
+  # the vendor whose binary we are installing anyway.
+  ansible.builtin.command:
+    cmd: "brew trust --tap {{ opencode_tap }}"
+  register: opencode_trust_tap
+  changed_when: "'Already trusted' not in opencode_trust_tap.stdout"
+
+- name: "Tap {{ opencode_tap }}"
+  community.general.homebrew_tap:
+    name: "{{ opencode_tap }}"
+    state: present
+
+- name: "Remove the conflicting v1 formula before installing v2"
+  # The v2 formula declares `conflicts_with "opencode"` (verified in the tap's
+  # opencode-v2.rb, 2026-10-06): brew refuses the v2 install while any v1
+  # formula is present, so the uninstall runs first, in the same run — not in
+  # a follow-up run the operator has to remember. state: absent is idempotent:
+  # a machine that never installed v1 no-ops. A machine with a homebrew/core
+  # `opencode` rather than this tap's fails with brew's readable conflict
+  # error instead of silently — acceptable, and not this box's situation.
+  community.general.homebrew:
+    name: "{{ opencode_tap }}/opencode"
+    state: absent
+
+- name: "Clean the v1 formula trust residue"
+  # `brew install` writes a formula trust entry next to the tap entry (see
+  # remove.yaml; measured 2026-09-14), and uninstalling does not remove it —
+  # machines that ever installed v1 keep a trust entry for a formula this
+  # topic no longer installs. Decision 2's safe default (PLAN.md § Open
+  # author decisions, 2026-10-06): clean it on install. Harmless when
+  # absent; converges machines from both eras.
+  ansible.builtin.command:
+    cmd: "brew untrust --formula {{ opencode_tap }}/opencode"
+  register: opencode_untrust_v1_formula
+  changed_when: "'Not trusted' not in opencode_untrust_v1_formula.stdout"
+
+- name: "Install opencode v2 from the pinned tap"
+  # Homebrew's own refusal names the conflict if anything above missed one —
+  # the uninstall must precede this task in the same run.
+  community.general.homebrew:
+    name: "{{ opencode_tap }}/opencode-v2"
+    state: present

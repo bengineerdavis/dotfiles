@@ -1,0 +1,15 @@
+# apps/loreai/tasks/agents/pi.yaml — extension: pi
+# Included by agents.yaml only when pi was detected. lore setup is
+# documented idempotent (re-running updates the fields it owns and preserves
+# the rest); it is a converge operation, so changed_when stays false and the
+# output is reported instead of parsed.
+
+- name: "loreai: configure pi to route through the gateway"
+  ansible.builtin.command: "{{ loreai_install_dir }}/lore setup pi"
+  register: loreai_setup_pi
+  changed_when: false
+
+- name: "loreai: report the pi setup"
+  ansible.builtin.debug:
+    msg: >-
+      lore setup pi: {{ loreai_setup_pi.stdout_lines | default([]) | join(' | ') }}

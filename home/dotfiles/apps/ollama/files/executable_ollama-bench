@@ -1,0 +1,191 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = []
+# ///
+"""ollama-bench — rudimentary head-to-head for deciding what to put in the manifest.
+
+Deliberately crude. It answers "is this candidate fast enough and does its
+output look right?", which is what actually gates swapping a model — not
+leaderboard scores, which say nothing about how a specific quant behaves on
+this hardware.
+
+Measures per model, from ollama's own counters:
+  load_ms        cold start (weights into memory)
+  prompt_tok_s   prompt ingestion rate
+  gen_tok_s      generation rate — the number you feel
+  peak_gb        resident size while loaded
+
+and saves the full text so a human can judge quality. There is no automatic
+scoring: rating output is the part a benchmark cannot do for you.
+
+  ollama-bench run qwen3.6:27b-mlx gemma4:31b-mlx     compare candidates
+  ollama-bench run --suite coding <models…>           use one prompt group
+  ollama-bench show                                   last run's table
+  ollama-bench show --diff a.json b.json              two runs side by side
+
+This NEVER edits the manifest. Ansible installs this tool; it does not run it
+and does not act on it. Deciding which models to declare stays a human call —
+see the boundary note in apps/ollama/README.md.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+API = os.environ.get("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
+if not API.startswith("http"):
+    API = f"http://{API}"
+
+SUITES = {
+    "general": [
+        "Explain in three sentences why unified memory helps LLM inference.",
+        "Summarise the tradeoff between a dense 27B model and a 35B MoE with 3B active.",
+    ],
+    "coding": [
+        "Write a Python function that merges overlapping intervals. Code only.",
+        "This shell line is wrong: `find . -name *.py | xargs grep foo`. Fix it and say why.",
+    ],
+    "reasoning": [
+        "A train leaves at 14:05 and takes 3h40m, but loses 25 minutes. Arrival time? Show steps.",
+    ],
+}
+
+
+def results_dir() -> Path:
+    base = os.environ.get("XDG_DATA_HOME")
+    root = Path(base) if base else Path.home() / ".local" / "share"
+    return root / "ollama-bench"
+
+
+def post(path: str, payload: dict, timeout: int = 600) -> dict:
+    req = urllib.request.Request(
+        f"{API}{path}", data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.load(r)
+
+
+def resident_gb(model: str) -> float:
+    try:
+        out = subprocess.run(["ollama", "ps"], capture_output=True, text=True,
+                             check=True).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return 0.0
+    for line in out.splitlines()[1:]:
+        f = line.split()
+        if f and f[0] == model and len(f) > 3:
+            try:
+                v = float(f[2])
+                return v / 1024 if f[3].upper().startswith("M") else v
+            except ValueError:
+                return 0.0
+    return 0.0
+
+
+def bench_one(model: str, prompts: list[str], num_ctx: int) -> dict:
+    subprocess.run(["ollama", "stop", model], capture_output=True)  # force cold start
+    runs, peak = [], 0.0
+    for i, prompt in enumerate(prompts):
+        try:
+            d = post("/api/generate", {
+                "model": model, "prompt": prompt, "stream": False,
+                "options": {"num_ctx": num_ctx, "temperature": 0},
+                "keep_alive": "120s"})
+        except (urllib.error.URLError, OSError) as e:
+            return {"model": model, "error": str(e)}
+        # ollama reports nanoseconds; guard against absent counters on some runners
+        ped, pec = d.get("prompt_eval_duration", 0), d.get("prompt_eval_count", 0)
+        ed, ec = d.get("eval_duration", 0), d.get("eval_count", 0)
+        runs.append({
+            "prompt": prompt,
+            "load_ms": round(d.get("load_duration", 0) / 1e6),
+            "prompt_tok_s": round(pec / (ped / 1e9), 1) if ped else None,
+            "gen_tok_s": round(ec / (ed / 1e9), 1) if ed else None,
+            "out_tokens": ec,
+            "response": d.get("response", "")[:1200],
+        })
+        if i == 0:
+            peak = resident_gb(model)
+    ok = [r for r in runs if r["gen_tok_s"]]
+    return {
+        "model": model,
+        "peak_gb": peak,
+        "load_ms": runs[0]["load_ms"] if runs else None,
+        "gen_tok_s": round(sum(r["gen_tok_s"] for r in ok) / len(ok), 1) if ok else None,
+        "prompt_tok_s": round(sum(r["prompt_tok_s"] for r in ok if r["prompt_tok_s"])
+                              / max(1, len([r for r in ok if r["prompt_tok_s"]])), 1) if ok else None,
+        "runs": runs,
+    }
+
+
+def table(results: list[dict]) -> None:
+    print(f"{'model':<40}{'peak GB':>9}{'load ms':>9}{'prompt t/s':>12}{'gen t/s':>9}")
+    for r in results:
+        if r.get("error"):
+            print(f"  {r['model']:<38}{'ERROR: ' + r['error'][:40]:>39}")
+            continue
+        print(f"  {r['model']:<38}{r['peak_gb']:>9.1f}{r['load_ms'] or 0:>9}"
+              f"{r['prompt_tok_s'] or 0:>12}{r['gen_tok_s'] or 0:>9}")
+
+
+def cmd_run(args):
+    prompts = []
+    for s in (args.suite or list(SUITES)):
+        prompts += SUITES.get(s, [])
+    if not prompts:
+        sys.exit(f"unknown suite; choose from {', '.join(SUITES)}")
+    results = [bench_one(m, prompts, args.num_ctx) for m in args.models]
+    table(results)
+    d = results_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = d / f"{stamp}.json"
+    out.write_text(json.dumps(
+        {"at": stamp, "num_ctx": args.num_ctx, "suites": args.suite or list(SUITES),
+         "results": results}, indent=2))
+    print(f"\nsaved {out}")
+    print("read the `response` fields to judge quality — this tool does not score.")
+
+
+def cmd_show(args):
+    d = results_dir()
+    if args.diff:
+        for f in args.diff:
+            data = json.loads(Path(f).read_text())
+            print(f"\n{f}  ({data['at']}, ctx={data['num_ctx']})")
+            table(data["results"])
+        return
+    files = sorted(d.glob("*.json"))
+    if not files:
+        sys.exit(f"no runs yet in {d}")
+    data = json.loads(files[-1].read_text())
+    print(f"{files[-1].name}  ctx={data['num_ctx']}  suites={','.join(data['suites'])}")
+    table(data["results"])
+
+
+def main():
+    p = argparse.ArgumentParser(prog="ollama-bench", description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = p.add_subparsers(dest="cmd", required=True)
+    r = sub.add_parser("run", help="benchmark one or more models")
+    r.add_argument("models", nargs="+")
+    r.add_argument("--suite", action="append", choices=list(SUITES))
+    r.add_argument("--num-ctx", dest="num_ctx", type=int, default=8192)
+    r.set_defaults(func=cmd_run)
+    s = sub.add_parser("show", help="show the last run, or diff saved runs")
+    s.add_argument("--diff", nargs=2, metavar="FILE")
+    s.set_defaults(func=cmd_show)
+    args = p.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

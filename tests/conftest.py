@@ -1,10 +1,9 @@
 """The payload-root seam for every test suite.
 
 The chezmoi payload — bin/, dotfiles/, dot_config/ and the chezmoi
-special files — lives at the repo root today and moves under home/ via
-.chezmoiroot (TASKS.md § Planned, payload move). PAYLOAD_ROOT is the one
-binding that names where that content lives, so the move repoints a
-single line instead of ~25 divergent patches.
+special files — lives under home/ via .chezmoiroot. PAYLOAD_ROOT is the
+single binding for that content; repository-only tooling stays at the
+checkout root.
 
 What goes through it: fixture paths to bin/, dotfiles/ and the chezmoi
 special files, built here or in a suite harness. What does not:
@@ -25,12 +24,35 @@ run, including a run of a single subdirectory.
 from __future__ import annotations
 
 import pathlib
+import shutil
+import subprocess
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 
-# The payload root. Today the repo root itself; the move repoints ONLY
-# this line, to REPO / "home".
-PAYLOAD_ROOT = REPO
+# The chezmoi source root; repository-only tooling stays above it.
+PAYLOAD_ROOT = REPO / "home"
 
 sys.modules.setdefault("payload_seam", sys.modules[__name__])
+
+
+def payload_census(source: pathlib.Path) -> list[str]:
+    """Read managed source paths, failing if chezmoi cannot answer.
+
+    Callers must assert the expected inventory, not just this command's
+    success: an empty source root can exit zero while planning deletion.
+    """
+    if shutil.which("chezmoi") is None:
+        raise RuntimeError("chezmoi is required for the payload census")
+    result = subprocess.run(
+        ["chezmoi", "-S", str(source), "managed", "--path-style=source-relative"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr)
+    managed = result.stdout.split()
+    if not managed:
+        raise RuntimeError(f"empty chezmoi source state at {source}")
+    return managed

@@ -1,0 +1,7 @@
+# apps/dotagents/tasks/prerequisites.yaml
+# App-tier topics leave this empty: node comes from apps/mise.
+
+- name: "Prerequisites are covered by the mise topic"
+  ansible.builtin.debug:
+    msg: "node resolves through the mise shims; see apps/mise."
+    verbosity: 2

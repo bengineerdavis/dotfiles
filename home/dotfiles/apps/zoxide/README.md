@@ -1,0 +1,1 @@
+https://github.com/ajeetdsouza/zoxide?tab=readme-ov-file#installation

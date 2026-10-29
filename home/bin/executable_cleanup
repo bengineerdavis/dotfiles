@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# cleanup.sh — Trash screenshots and old downloads via trash-put (tp)
+
+set -euo pipefail
+
+## Functions and other logic
+TP=$(command -v tp || command -v trash-put)
+
+if [[ -z "$TP" ]]; then
+  cat <<'ERR' >&2
+[cleanup] ERROR: trash-put (tp) not found in PATH.
+[cleanup] Please install trash-cli @ https://github.com/andreafrancia/trash-cli
+[cleanup] For example:
+  - On Debian/Ubuntu: sudo apt install trash-cli
+  - On macOS with Homebrew: brew install trash-cli
+  - See more @ https://github.com/andreafrancia/trash-cli?tab=readme-ov-file#installation
+ERR
+
+  exit 1
+fi
+
+trash_glob() {
+  local label="$1"
+  local pattern="$2"
+
+  # Expand the glob here, safely — nullglob makes unmatched patterns vanish
+  shopt -s nullglob
+  local files=($pattern)
+  shopt -u nullglob
+
+  if [[ ${#files[@]} -eq 0 ]]; then
+    echo "[cleanup] No $label to trash."
+  else
+    echo "[cleanup] Trashing ${#files[@]} $label..."
+    "$TP" "${files[@]}" && echo "[cleanup] Done — $label sent to Trash." 
+  fi
+}
+
+## Main: calling function on 'trashing rules'
+# Add more rules as needed, e.g. for old files in ~/Documents, etc.
+trash_glob "screenshots"  "$HOME/Desktop/Screenshot*"
+trash_glob "downloads"    "$HOME/Downloads/*"

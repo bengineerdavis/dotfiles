@@ -1,0 +1,73 @@
+# apps/rancher-desktop/tasks/install.yaml
+# Package installation tasks. Be explicit about which package manager is used.
+# Use when: conditions to guard each block by OS/arch.
+# Do NOT put upgrade logic here — upgrades are owned by system roles (homebrew, apt).
+# Do NOT put config/symlink tasks here — those are owned by chezmoi.
+
+# ── macOS (Homebrew Cask) ─────────────────────────────────────────────────────
+# The cask is named `rancher` (Rancher Desktop). Installing it provides the
+# `docker` CLI + `docker compose` v2 plugin and the background VM/daemon.
+- name: "Install Rancher Desktop via Homebrew Cask (macOS)"
+  community.general.homebrew_cask:
+    name: rancher
+    state: present
+    install_options: "appdir={{ user_appdir }}"
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# First launch (start the VM, choose dockerd/moby over containerd, accept the
+# admin networking prompt) is interactive and not driven here — open the app
+# once after install. The apps/docker topic owns the Linux engine instead.
+
+# ── PATH ownership ───────────────────────────────────────────────────────────
+# Take pathManagementStrategy off Rancher's rc-file default and clean up any
+# block it already injected. Shared with upgrade.yaml, because an app update
+# re-applies the injection. See tasks/path-management.yaml.
+
+- name: "Rancher: own the PATH entry instead of Rancher's rc-file injection"
+  ansible.builtin.import_tasks: path-management.yaml
+
+- name: "Rancher: run the engine as a background service"
+  ansible.builtin.import_tasks: service-mode.yaml
+
+# ── Linux (apt, OPTIONAL playground) ──────────────────────────────────────────
+# Only reachable via the standalone runner — the main playbook keeps this topic
+# Darwin-only (topic.yml), where apps/docker is the `docker` provider. Running
+# this topic's standalone playbook on a Linux host is itself the opt-in; that is
+# the only path that reaches here. It installs the Rancher Desktop GUI from the
+# upstream openSUSE OBS repo so it can be tried out alongside Docker Engine.
+# Run with -K so Ansible can supply the sudo password for the apt steps.
+- name: "Install Rancher Desktop (Linux playground)"
+  when: ansible_facts['os_family'] == 'Debian'
+  become: true
+  block:
+    - name: "Linux: fetch Rancher Desktop OBS signing key"
+      ansible.builtin.get_url:
+        url: "https://download.opensuse.org/repositories/isv:/Rancher:/stable/deb/Release.key"
+        dest: /tmp/rancher-desktop-obs.key
+        mode: "0644"
+
+    - name: "Linux: install dearmored OBS signing key to keyrings"
+      ansible.builtin.command:
+        cmd: >-
+          gpg --dearmor
+          -o /usr/share/keyrings/isv-rancher-stable-archive-keyring.gpg
+          /tmp/rancher-desktop-obs.key
+        creates: /usr/share/keyrings/isv-rancher-stable-archive-keyring.gpg
+
+    - name: "Linux: add Rancher Desktop OBS apt repository"
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [signed-by=/usr/share/keyrings/isv-rancher-stable-archive-keyring.gpg]
+          https://download.opensuse.org/repositories/isv:/Rancher:/stable/deb/ ./
+        filename: isv-rancher-stable
+        state: present
+
+    - name: "Linux: install rancher-desktop package"
+      ansible.builtin.apt:
+        name: rancher-desktop
+        state: present
+        update_cache: true
+
+# Linux first-run notes (manual, see README): Rancher Desktop needs KVM access
+# (be in the `kvm` group / have /dev/kvm) and a configured `pass` store for
+# credentials, then launch the GUI from your desktop's app menu.

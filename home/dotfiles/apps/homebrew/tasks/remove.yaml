@@ -1,0 +1,33 @@
+# apps/homebrew/tasks/remove.yaml
+# Explicit uninstall tasks. Never run as part of provision or install.
+# Only invoked via --tags remove.
+# Mirror the install.yaml structure — one block per package manager.
+
+# ── macOS (Homebrew) ──────────────────────────────────────────────────────────
+# - name: "Remove homebrew via Homebrew (macOS)"
+#   community.general.homebrew:
+#     name: homebrew
+#     state: absent
+#   when: ansible_facts['os_family'] == 'Darwin'
+
+# ── macOS (Homebrew Cask) ─────────────────────────────────────────────────────
+# - name: "Remove homebrew via Homebrew Cask (macOS)"
+#   community.general.homebrew_cask:
+#     name: homebrew
+#     state: absent
+#   when: ansible_facts['os_family'] == 'Darwin'
+
+# ── Linux (apt) ───────────────────────────────────────────────────────────────
+# - name: "Remove homebrew via apt (Linux)"
+#   ansible.builtin.apt:
+#     name: homebrew
+#     state: absent
+#   become: true
+#   when: ansible_facts['os_family'] == 'Debian'
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+# - name: "Remove homebrew Docker image"
+#   community.docker.docker_image:
+#     name: homebrew:latest
+#     state: absent
+#   when: install_method | default('') == 'docker'

@@ -1,0 +1,6 @@
+# apps/cursor/tasks/remove.yaml
+- name: "Remove cursor via Homebrew Cask (macOS)"
+  community.general.homebrew_cask:
+    name: cursor
+    state: absent
+  when: ansible_facts['os_family'] == 'Darwin'

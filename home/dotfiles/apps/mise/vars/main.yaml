@@ -1,0 +1,15 @@
+# vars/main.yaml
+
+# What separates "one tool failed to upgrade" from "mise itself broke".
+#
+# `mise upgrade` exits 1 if ANY tool fails, so rc alone cannot tell the two
+# apart — and treating them alike let a single unresolvable npm package abort
+# the whole provisioning run. When mise reaches the point of reporting per-tool
+# results it prints a summary line ("installed 0 tools · 1 failed in 77.3s");
+# a mise-level failure (bad config, missing binary, unparseable toml) exits
+# before any such line exists. tasks/upgrade.yaml uses this to downgrade the
+# first case to a report and keep failing on the second.
+#
+# Defined here rather than inline because two tasks test the same condition and
+# a discriminator stated twice is a discriminator that drifts.
+mise_partial_failure_pattern: '\d+ failed in '

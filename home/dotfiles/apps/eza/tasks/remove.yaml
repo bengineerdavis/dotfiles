@@ -1,0 +1,33 @@
+# apps/eza/tasks/remove.yaml
+# Explicit uninstall tasks. Never run as part of provision or install.
+# Only invoked via --tags remove.
+# Mirror the install.yaml structure — one block per package manager.
+
+# ── macOS (Homebrew) ────────────────────────────────────────────────────────────
+- name: "Remove eza via Homebrew (macOS)"
+  community.general.homebrew:
+    name: eza
+    state: absent
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# ── macOS (Homebrew Cask) ───────────────────────────────────────────────────────
+# - name: "Remove eza via Homebrew Cask (macOS)"
+#   community.general.homebrew_cask:
+#     name: eza
+#     state: absent
+#   when: ansible_facts['os_family'] == 'Darwin'
+
+# ── Linux (apt) ──────────────────────────────────────────────────────────────────
+# - name: "Remove eza via apt (Linux)"
+#   ansible.builtin.apt:
+#     name: eza
+#     state: absent
+#   become: true
+#   when: ansible_facts['os_family'] == 'Debian'
+
+# ── Docker ───────────────────────────────────────────────────────────────────────
+# - name: "Remove eza Docker image"
+#   community.docker.docker_image:
+#     name: eza:latest
+#     state: absent
+#   when: install_method | default('') == 'docker'

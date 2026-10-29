@@ -1,0 +1,16 @@
+# apps/visual-studio-code/tasks/upgrade.yaml
+# Currency for state the brew upgrade pass cannot reach: the extensions.
+# The app itself self-updates (cask auto_updates), and its extension host
+# auto-updates by default — this task covers the gap TOPICS.md § Presence
+# vs currency warns about, "if brew upgrade will not move this to the
+# latest version, what will?"
+#
+# changed_when is false deliberately: `--update-extensions` prints its own
+# account of what it did (visible at -v), and parsing "updated" vs
+# "up to date" would bake the CLI's wording in as a contract. A task that
+# always reported changed would also fail the queued converge-twice check.
+
+- name: "Update the installed extensions"
+  ansible.builtin.command: code --update-extensions
+  changed_when: false
+  when: ansible_facts['os_family'] == 'Darwin'

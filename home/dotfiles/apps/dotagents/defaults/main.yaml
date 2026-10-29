@@ -1,0 +1,157 @@
+# apps/dotagents/defaults/main.yaml
+#
+# The machine's global agent-artifact declaration: which agent runtimes are
+# wired, which sources may put skills on this machine, and the per-run escape
+# hatches. The decision this implements is in
+# `docs/AGENT-ARTIFACTS.md`; the topic contract is in
+# `docs/TOPICS.md`.
+#
+# dotagents owns the artifacts. This file owns the APPROVAL. Adding a source
+# accepts everything in it, now and in future, so each entry carries a `why`
+# a reviewer can check against the publisher and the licence.
+#
+# This topic exists so the skill set is not a side effect of the opencode
+# topic. The artifacts are user-global and every agent runtime loads them;
+# owning them from one coding tool's topic made that tool look required.
+
+# ── Agent runtimes ───────────────────────────────────────────────────────────
+
+# Written into ~/.agents/agents.toml by `init`, and only on a fresh machine:
+# dotagents owns that file afterwards. Adding an agent later needs a deliberate
+# `dotagents init --force --agents ...`, which resets the declaration — the
+# install below then re-adds every source in this file.
+#
+# codex, copilot and vscode have no topic of their own here; their installation
+# is machine-local, which is why the list lives in this topic rather than being
+# assembled from agent topics.
+dotagents_agents:
+  - claude
+  - cursor
+  - codex
+  - vscode
+  - opencode
+  - copilot
+
+# ── Approved sources ─────────────────────────────────────────────────────────
+
+# Each entry becomes a `dotagents trust add` (so an unapproved source is
+# refused by dotagents itself, not merely undeclared) and a `dotagents add
+# <source> --all` wildcard declaration.
+#
+#   source:  owner/repo shorthand, a GitHub org, or a git domain
+#   why:     why THIS SOURCE may put skills on this machine
+#   exclude: optional skill names to veto from an otherwise approved source
+#
+# `exclude` is the veto that makes source-level trust survivable: dotagents
+# stores it on the wildcard entry, so an excluded skill is not merely
+# uninstalled, it is refused on every subsequent sync.
+dotagents_sources:
+  - source: bengineerdavis/ai-prompt-library
+    why: >-
+      The author's own library. Skills here are written in this repo's voice
+      and reviewed by the same person who runs them, so the trust question is
+      self-answering.
+    exclude: []
+
+  - source: getsentry/skillet
+    why: >-
+      Public and MIT (verified 2026-09-12 via `gh api repos/getsentry/skillet`),
+      and the toolchain the library's own skills are authored with — so its
+      authoring skill and the specs it validates stay on the same version.
+    # Empty deliberately. The source brings four openspec-* skills, and they
+    # stay: skillet is MIT, so they arrive under a permissive licence rather
+    # than merely from a tolerated source.
+    exclude: []
+
+  - source: mattpocock/skills
+    why: >-
+      MIT (verified 2026-10-26 via `gh api repos/mattpocock/skills`), by a
+      public author with a named identity behind the work. It is a plugin
+      marketplace repository, so dotagents installs it as a plugin rather than
+      as a wildcard skill source; see `known_issues` in CHANGELOG.md for what
+      that does and does not wire.
+    exclude: []
+
+# On-disk skill directories allowed to exist without being declared. Each needs
+# a reason a human can check, which in practice means a LICENSE and a
+# PROVENANCE note in the directory itself. Vendoring is a deliberate act;
+# forgetting to declare something is not, and the guard cannot tell them apart
+# without this.
+dotagents_vendored:
+  - name: no-ai-slop
+    why: >-
+      Third-party, vendored rather than sourced — carries LICENSE and
+      PROVENANCE.md recording the upstream commit and a deliberate deviation.
+
+  # roborev (kenn-io/roborev) ships its review/fix/refine skills inside the
+  # binary: `roborev skills install` writes them into agent config dirs
+  # (~/.claude/skills, and this machine's ~/.agents/skills on 2026-10-15), and
+  # they are not published as a git source dotagents could reference. They are
+  # MIT (roborev is MIT), every directory carries LICENSE and PROVENANCE.md,
+  # and the roborev topic (apps/roborev) owns the roborev side of the
+  # relationship. Refresh discipline: a `roborev skills install` rewrites these
+  # directories and may drop PROVENANCE.md — the guard exists to force the
+  # re-vendor to be a decision, so let it fail and re-vendor.
+  - name: roborev-design-review
+    why: >-
+      Bonded tool skill: vibecoded UI review for the same daemon the commit
+      reviews come from; vendored, not ask-trusted, because roborev owns its
+      lifecycle end to end.
+  - name: roborev-design-review-branch
+    why: Same as roborev-design-review, branch-wide variant.
+  - name: roborev-fix
+    why: >-
+      Bonded tool skill: runs fixes for the daemon's open findings; its file
+      scope is roborev's own review IDs, so vendoring it is the tool-trust
+      question already answered by installing roborev.
+  - name: roborev-lookahead-review
+    why: Same as roborev-design-review, lookahead variant.
+  - name: roborev-lookahead-review-branch
+    why: Same as roborev-design-review, lookahead branch variant.
+  - name: roborev-refine
+    why: >-
+      Bonded tool skill: iterative fix/re-review loop against the daemon;
+      trusted because the daemon is installed and its findings are the input.
+  - name: roborev-respond
+    why: >-
+      Bonded tool skill: rebuttals/answers to stored reviews; roborev-owned
+      output surface, vendored with the rest of its skill family.
+  - name: roborev-review
+    why: >-
+      Bonded tool skill: on-demand review through the daemon; the daemon is a
+      binary installed from its authors' own channel, so this is tool trust,
+      not source trust.
+  - name: roborev-review-branch
+    why: Same as roborev-review, branch-wide variant.
+  - name: roborev-snooze
+    why: >-
+      Bonded tool skill: silences agent-hook reminders in a worktree; harmless
+      surface, vendored to keep the family on one lifecycle.
+
+# ── Behaviour flags ──────────────────────────────────────────────────────────
+
+# Run `dotagents remove <source>` for each approved source on teardown. Off by
+# default: skills install user-global and serve every agent on the machine, so
+# removing the tool that happens to trigger the sync must not silently strip
+# the shared library. Set true only when the whole skill set is going away.
+dotagents_remove_skills: false
+
+# Accept an unmigratable agent skills directory for one run, letting dotagents
+# fail on its own terms instead of the guard stopping first. Off by default: the
+# conflict means two copies of the same skill exist and something has to decide
+# which one survives, which is not a call a provisioning run makes silently.
+dotagents_allow_skill_dir_conflicts: false
+
+# Accept unapproved or undeclared skills in the user-global path for one run.
+# Off by default, and deliberately loud: an undeclared skill directory is how
+# unlicensed material ends up loaded into every agent session on the machine,
+# which is exactly what this topic exists to prevent.
+dotagents_allow_unapproved_skills: false
+
+# Recognise a foreign skill bucket as external rather than denying it. Passed
+# through to `guard_foreign_buckets`. On by default: Claude Code's cloud sync
+# writes a `synced/` bucket into ~/.agents/skills, and a deny there is not
+# implementable — a deleted synced skill is recreated byte-identical on the
+# next session, so the guard would fail every run forever. Off restores the
+# fail-closed denial.
+dotagents_skill_foreign: true

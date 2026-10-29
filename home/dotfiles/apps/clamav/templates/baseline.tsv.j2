@@ -1,0 +1,20 @@
+# {{ ansible_managed }}
+# Reviewed-and-accepted scan findings. Installed once and never overwritten, so your
+# edits survive `run-role.sh clamav`.
+#
+# Format, tab-separated:
+#   <sha256>	<signature>	<path>	<yyyy-mm-dd>	<why you accepted it>
+#
+# Matching is on sha256 + signature ONLY. The path is a human note. That means:
+#   * a file whose contents change stops matching and alerts again — swapping malware into
+#     an accepted path does not inherit its acceptance
+#   * a file that merely moves (a dependency version bump with identical fixtures) stays
+#     accepted, with no churn
+#
+# Nothing is ever added here automatically. Each run writes unrecognised findings to
+# new-findings.tsv with the hash already filled in; accept them deliberately:
+#
+#   cat ~/.clamav_automation/new-findings.tsv >> ~/.clamav_automation/baseline.tsv
+#
+# then add the date and reason columns by hand. If you cannot say why a finding is benign,
+# it does not belong here.

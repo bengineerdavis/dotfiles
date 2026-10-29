@@ -1,0 +1,22 @@
+# apps/1password/tasks/upgrade.yaml
+#
+# Nothing to upgrade here, deliberately.
+#   • `op` is upgraded by the mise topic.
+#   • The desktop app is NOT upgraded by brew. The cask declares
+#     `auto_updates true`: 1Password's own updater keeps it current, and plain
+#     `brew outdated` skips it. Adding `greedy` would make brew a second updater
+#     racing the first on the same bundle — the reason apps/chrome declines to
+#     hand Chrome to brew at all. The cost of this choice: if 1Password's
+#     updater is turned off, nothing updates the app, and brew's recorded
+#     version drifts behind the real one.
+#   • What an update CAN leave behind is the old process still running. The
+#     restart-stale check at the end of install.yaml is tagged `upgrade`, so it
+#     runs on every upgrade whoever did the updating.
+
+- name: "upgrade: no-op"
+  ansible.builtin.debug:
+    msg: >-
+      {{ role_name }}: upgrade is a no-op; op is upgraded by apps/mise and the
+      desktop app by its own updater. A stale app is restarted at the end of
+      install.yaml.
+  changed_when: false

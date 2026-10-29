@@ -1,0 +1,15 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# apps/docker/tasks/prerequisites.yaml
+# ──────────────────────────────────────────────────────────────────────────────
+# TODO: ensure Docker Compose and other Docker ecosystem tools are present.
+
+- name: "Prerequisites: check Docker Compose available"
+  ansible.builtin.command:
+    cmd: docker compose version
+  register: docker_compose_check
+  failed_when: false
+  changed_when: false
+
+- name: "Prerequisites: report Docker Compose status"
+  ansible.builtin.debug:
+    msg: "{{ 'Docker Compose available' if docker_compose_check.rc == 0 else 'Docker Compose not found — TODO: install' }}"

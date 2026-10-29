@@ -26,10 +26,11 @@ from __future__ import annotations
 
 import pathlib
 
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
 import yaml
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-TASKS = REPO / "dotfiles" / "apps" / "opencode" / "tasks"
+TASKS = PAYLOAD_ROOT / "dotfiles" / "apps" / "opencode" / "tasks"
 
 # The formula names, in both spellings the topic may use: via the
 # opencode_tap default (the house form the plan writes) or the literal tap

@@ -1,0 +1,239 @@
+#!/usr/bin/env python3
+"""
+clipped — universal clipboard utility
+
+Copies to and pastes from the system clipboard, picking whichever backend the
+machine actually has: pbcopy/pbpaste on macOS, xclip/xsel/wl-clipboard on Linux
+and the BSDs, clip.exe/powershell.exe under the Windows subsystems.
+
+Ported from bash. The platform dispatch is the reason: three nested layers of
+`case`/`command -v` fallbacks, duplicated once for copy and once for paste, is
+exactly the branchy logic that bash makes verbose and easy to get subtly wrong.
+Here the backends are a table and the dispatch is one loop.
+
+Behaviour follows tests/clipped.bats, which was written as a specification
+before the behaviour existed — auto mode, file arguments and the guidance
+messages were all specified there and never implemented. See CHOICES below.
+
+Author: Ben Davis <bengineerdavis@gmail.com>
+License: MIT
+Dependencies:
+  macOS            pbcopy/pbpaste (built in)
+  Ubuntu/Debian    sudo apt install xclip xsel wl-clipboard
+  Fedora           sudo dnf install xclip xsel wl-clipboard
+  Arch             sudo pacman -S xclip xsel wl-clipboard
+  FreeBSD          pkg install xclip xsel
+"""
+
+from __future__ import annotations
+
+import platform
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+VERSION = "1.2.0"
+
+PROG = "clipped"
+
+# Backend candidates per platform, in preference order. First one present on
+# PATH wins. Native tools come first; pbcopy/pbpaste trail every list because
+# they can show up anywhere via homebrew and make a decent last resort.
+#
+# The Windows entries stay in the table even though this script runs under a
+# Unix shell: Cygwin/MSYS/Git-Bash all report their own uname and do have
+# clip.exe on PATH.
+_COPY_BACKENDS = {
+    "Darwin":  [["pbcopy"]],
+    "Linux":   [["xclip", "-selection", "clipboard"],
+                ["xsel", "--clipboard", "--input"],
+                ["wl-copy"],
+                ["pbcopy"]],
+    "Windows": [["clip.exe"], ["pbcopy"]],
+}
+
+_PASTE_BACKENDS = {
+    "Darwin":  [["pbpaste"]],
+    "Linux":   [["xclip", "-selection", "clipboard", "-o"],
+                ["xsel", "--clipboard", "--output"],
+                ["wl-paste"],
+                ["pbpaste"]],
+    "Windows": [["powershell.exe", "-command", "Get-Clipboard"], ["pbpaste"]],
+}
+
+HELP = f"""\
+{PROG} - Universal clipboard utility
+
+USAGE:
+    {PROG} [COMMAND] [FILE...]
+
+COMMANDS:
+    copy, c         Copy to the clipboard, from FILE(s) or stdin
+    paste, p        Paste from the clipboard to stdout
+    --help, -h      Show this help message
+    --version       Show version information
+
+Auto mode:
+    Run {PROG} with no command and it picks one for you: when stdin is piped
+    it copies what arrives, and when stdin is a TTY it pastes. That makes
+    `... | {PROG}` and a bare `{PROG}` both do the obvious thing.
+
+EXAMPLES:
+    echo 'hello world' | {PROG} copy
+    {PROG} paste
+    {PROG} c README.md              # copy a file's contents
+    {PROG} c src/*.py               # several files, concatenated
+    ls -la | {PROG}                 # auto mode: copies
+    {PROG} > out.txt                # auto mode: pastes
+
+SUPPORTED SYSTEMS:
+    macOS           pbcopy/pbpaste (built in)
+    Linux           xclip, xsel, or wl-clipboard
+    FreeBSD         xclip or xsel
+    Other Unix      falls back to pbcopy/pbpaste if present
+
+INSTALLATION REQUIREMENTS:
+    macOS:          No additional packages needed
+    Ubuntu/Debian:  sudo apt install xclip xsel wl-clipboard
+    CentOS/RHEL:    sudo yum install xclip xsel
+    Fedora:         sudo dnf install xclip xsel wl-clipboard
+    Arch Linux:     sudo pacman -S xclip xsel wl-clipboard
+    FreeBSD:        pkg install xclip xsel
+"""
+
+USAGE_HINT = f"""\
+Usage: {PROG} [copy|paste|--help|--version] [FILE...]
+
+Commands:
+  copy, c      Copy to clipboard, from FILE(s) or stdin
+  paste, p     Paste from clipboard to stdout
+  --help, -h   Show detailed help
+  --version    Show version information
+
+Auto: copy stdin, or paste if no stdin
+
+Examples:
+  echo 'hello world' | {PROG} copy
+  {PROG} paste
+  {PROG} c README.md
+  ls | {PROG} c"""
+
+
+def die(*lines: str) -> None:
+    for line in lines:
+        print(line, file=sys.stderr)
+    raise SystemExit(1)
+
+
+def platform_key(system: str | None = None) -> str:
+    """Map a uname-style system name onto a key in the backend tables.
+
+    Everything BSD-ish shares Linux's X11/Wayland tooling, and anything
+    unrecognised is treated the same way — the lists all end in pbcopy/pbpaste,
+    so an unknown Unix still gets a shot at working rather than a hard refusal.
+    """
+    name = system if system is not None else platform.system()
+    if name == "Darwin":
+        return "Darwin"
+    if name.startswith(("CYGWIN", "MINGW", "MSYS", "Windows")):
+        return "Windows"
+    return "Linux"
+
+
+def find_backend(action: str, system: str | None = None) -> list[str]:
+    """Return the argv for the first available clipboard backend.
+
+    Exits with installation guidance when nothing is present, since that is a
+    setup problem the user has to fix rather than something to paper over.
+    """
+    table = _COPY_BACKENDS if action == "copy" else _PASTE_BACKENDS
+    key = platform_key(system)
+    for argv in table[key]:
+        if shutil.which(argv[0]):
+            return argv
+
+    tools = ", ".join(sorted({argv[0] for argv in table[key]}))
+    die(
+        f"{PROG}: no clipboard utility found for {platform.system()}.",
+        f"{PROG}: looked for: {tools}",
+        f"{PROG}: on Debian/Ubuntu try: sudo apt install xclip xsel wl-clipboard",
+    )
+    raise AssertionError("unreachable")  # die() exits
+
+
+def read_files(paths: list[str]) -> bytes:
+    """Concatenate the given files, in order, as raw bytes.
+
+    Bytes rather than text: the clipboard is happy to carry a UTF-16 snippet or
+    a stray latin-1 byte, and decoding here would fail on content that would
+    otherwise have round-tripped fine.
+    """
+    chunks = []
+    for name in paths:
+        path = Path(name)
+        try:
+            chunks.append(path.read_bytes())
+        except FileNotFoundError:
+            die(f"{PROG}: file not found: {name}")
+        except IsADirectoryError:
+            die(f"{PROG}: not a file: {name}")
+        except OSError as exc:
+            die(f"{PROG}: cannot read {name}: {exc}")
+    return b"".join(chunks)
+
+
+def do_copy(files: list[str]) -> None:
+    if files:
+        data = read_files(files)
+    elif sys.stdin.isatty():
+        # Nothing piped in and no files named: the user almost certainly meant
+        # one of the two, so say which rather than hanging on an empty read.
+        die(
+            f"{PROG}: copy mode expects stdin or file arguments.",
+            f"{PROG}: try: echo hello | {PROG} c",
+            f"{PROG}:  or: {PROG} c README.md",
+        )
+    else:
+        data = sys.stdin.buffer.read()
+
+    argv = find_backend("copy")
+    result = subprocess.run(argv, input=data)
+    if result.returncode != 0:
+        die(f"{PROG}: {argv[0]} failed with status {result.returncode}")
+
+
+def do_paste() -> None:
+    argv = find_backend("paste")
+    result = subprocess.run(argv, stdout=subprocess.PIPE)
+    if result.returncode != 0:
+        die(f"{PROG}: {argv[0]} failed with status {result.returncode}")
+    sys.stdout.buffer.write(result.stdout)
+    sys.stdout.buffer.flush()
+
+
+def main(argv: list[str]) -> None:
+    if not argv:
+        # Auto mode. Piped input is something to store; a TTY means the user is
+        # asking to see what is already there.
+        do_copy([]) if not sys.stdin.isatty() else do_paste()
+        return
+
+    command, rest = argv[0], argv[1:]
+
+    if command in ("copy", "c"):
+        do_copy(rest)
+    elif command in ("paste", "p"):
+        do_paste()
+    elif command in ("--help", "-h", "help"):
+        print(HELP, end="")
+    elif command == "--version":
+        print(f"{PROG} version {VERSION}")
+        print("Copyright (c) 2025 Ben Davis")
+        print("MIT License")
+    else:
+        die(f"{PROG}: Unknown command '{command}'", "", USAGE_HINT)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

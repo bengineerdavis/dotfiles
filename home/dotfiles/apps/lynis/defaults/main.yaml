@@ -1,0 +1,11 @@
+# apps/lynis/defaults/main.yaml
+# Tunables. Override in the parent playbook or with -e.
+---
+# Day of month, hour and minute for the audit. Matches the previous behaviour, which ran
+# on the first of the month from inside the clamav scan script.
+lynis_audit_day: 1
+lynis_audit_hour: 10
+lynis_audit_minute: 30
+
+# Keep the last N audit logs.
+lynis_keep_logs: 6

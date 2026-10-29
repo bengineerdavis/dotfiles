@@ -1,0 +1,6 @@
+#!/bin/sh
+#Script written for a Zim Mac app by Izhak Jakov
+#
+##########################################
+export LANG=en_CA.UTF-8
+exec /usr/local/bin/zim;

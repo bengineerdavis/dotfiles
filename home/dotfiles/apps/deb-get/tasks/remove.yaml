@@ -1,0 +1,15 @@
+# apps/deb-get/tasks/remove.yaml
+# Explicit uninstall. Only runs under --tags remove.
+#
+# Removes the deb-get package only. The apt sources deb-get may have added are
+# not torn down here: their packages (gh from the GitHub CLI repo, say) outlive
+# deb-get, and their signing keys are now kept valid by the apt topic
+# (apps/apt/defaults/main.yaml, apt_keyrings). Deleting them here would break a
+# source another topic still maintains.
+
+- name: "Remove: purge deb-get"
+  ansible.builtin.apt:
+    name: deb-get
+    state: absent
+    purge: true
+  become: true

@@ -1,0 +1,123 @@
+# managers.yaml — what each dependency manager requires of a topic.
+#
+# Lives here, beside playbook.yaml and requirements.yml, because it is fleet
+# data: the scaffolder (topical, in its own repo) reads this file from the
+# checkout, while the canonical topic skeleton ships with the tool.
+#
+# Derived from the 27 existing topics on 2026-09-14, not invented — the counts
+# below are real usage with commented-out template blocks excluded. Consumed by
+# the topic scaffolder (TASKS.md A8/A9); useful on its own to anyone writing a
+# topic by hand, which is how every topic is written today.
+#
+# Each entry answers the four questions that differ per manager and that a
+# topic gets wrong silently:
+#   module        what to call
+#   playbook_vars vars the topic's standalone playbook MUST define, or the role
+#                 fails with "'x' is undefined" when run outside the parent
+#   become        does it need privilege escalation
+#   upgraded_by   who moves it to the latest version — see docs/TOPICS.md
+#                 § "Presence vs currency". `topic` means nothing else will.
+#   os            which topic_os values it is valid for
+
+version: 1
+
+# Canonical definitions for the playbook_vars a manager lists. The scaffolder
+# splices only the definitions the chosen managers need, so a formula topic
+# does not inherit user_appdir it never uses. Values verified identical across
+# every topic playbook on 2026-10-20 before being lifted here.
+playbook_var_defs:
+  homebrew_prefix: >-
+    {{ '/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local' }}
+  user_appdir: >-
+    {{ ansible_facts['env']['HOME'] }}/Applications
+
+managers:
+
+  homebrew_formula:
+    module: community.general.homebrew
+    used_by: 12          # eza, fzf, starship, tmux, zoxide, trash-cli, ...
+    playbook_vars: []
+    become: false        # brew refuses to run under sudo
+    upgraded_by: system_role   # apps/homebrew upgrade_all: true
+    os: [Darwin, Debian]       # Debian via linuxbrew; see apps/opencode
+    notes: >-
+      The default for a CLI tool on macOS. Needs nothing beyond the module.
+
+  homebrew_cask:
+    module: community.general.homebrew_cask
+    used_by: 10          # cursor, rectangle, visual-studio-code, claude-code, ...
+    playbook_vars: [homebrew_prefix, user_appdir]
+    become: false
+    upgraded_by: system_role   # apps/homebrew cask pass, minus the exclude list
+    os: [Darwin]               # casks are macOS-only
+    notes: >-
+      The vars are the trap. Every cask topic's standalone playbook defines
+      homebrew_prefix and user_appdir because install_options uses
+      `appdir={{ user_appdir }}`; the parent playbook defines them too. Scaffold
+      a cask topic without them and the role dies on "'user_appdir' is
+      undefined" — which is exactly how apps/claude-code shipped broken on
+      2026-09-14, having been copied from a topic that installs no cask.
+
+  homebrew_tap:
+    module: community.general.homebrew_tap
+    used_by: 1           # opencode
+    playbook_vars: []
+    become: false
+    upgraded_by: system_role
+    os: [Darwin, Debian]
+    notes: >-
+      Homebrew 7 will not load a third-party tap's formulae until the tap is
+      trusted, and it reports the refusal at TAP time as "invalid syntax in
+      tap!", naming neither trust nor the fix. A tap topic must run
+      `brew trust --tap <tap>` BEFORE tapping, and revoke both the tap and the
+      formula trust entry on teardown. See apps/opencode and apps/claude-code.
+
+  apt:
+    module: ansible.builtin.apt
+    used_by: 6           # docker, clamav, lynis, mise, ollama, deb-get
+    playbook_vars: []
+    become: true         # the only manager here that needs it
+    upgraded_by: system_role   # apps/apt
+    os: [Debian]
+    notes: >-
+      become: true appears in exactly the six apt-using topics and nowhere
+      else — the correlation is total, which is why a scaffold can infer it.
+      `deb:` accepts a URL and downloads it, so installing a published .deb
+      needs no separate get_url step.
+
+  apt_repository:
+    module: ansible.builtin.deb822_repository
+    used_by: 1           # mise
+    playbook_vars: []
+    become: true
+    upgraded_by: system_role
+    os: [Debian]
+    notes: >-
+      For third-party repos with their own signing key. Teardown must remove the
+      repo file AND the keyring, or the machine keeps fetching from a source
+      nothing installs from.
+
+  release_artifact:
+    module: ansible.builtin.get_url   # + unarchive / file
+    used_by: 4           # ori, ollama, zim, mise
+    playbook_vars: []
+    become: false        # installs under $HOME
+    upgraded_by: topic   # ← the important one
+    os: [Darwin, Debian]
+    notes: >-
+      No system role reaches these, so the topic MUST own its upgrade or it
+      silently never updates. apps/ori and apps/ollama both tag their install
+      tasks [install, upgrade] so one checksum-compared fetch serves both. This
+      is the case docs/TOPICS.md § "Presence vs currency" exists for.
+
+# ── Deliberately absent ──────────────────────────────────────────────────────
+#
+# snap: template_dir scaffolds a commented snap block and ZERO topics use it.
+# Across the repo that boilerplate accounts for 37 commented-out module lines
+# that have been copied forward into topics that never wanted them. A
+# manager-aware scaffold should emit the one block a topic needs rather than
+# every block it might, which deletes this category rather than documenting it.
+#
+# npm / cargo / ubi / github releases: real managers on this machine, but owned
+# by apps/mise through its config.toml rather than by individual topics. A topic
+# needing one declares mise in topic_requires; it does not install directly.

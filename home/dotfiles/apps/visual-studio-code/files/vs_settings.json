@@ -1,0 +1,16 @@
+{
+    "security.workspace.trust.untrustedFiles": "open",
+    "editor.fontLigatures": true,
+    "editor.fontSize": 13,
+    "editor.fontFamily": "'FiraCode Nerd Font', 'FiraCode NF', 'Fira Code', monospace",
+    "terminal.integrated.fontFamily": "'FiraCode Nerd Font Mono'",
+    "python.defaultInterpreterPath": "/opt/homebrew/bin/python3",
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll.ruff": "explicit",
+            "source.organizeImports.ruff": "explicit"
+        }
+    }
+}

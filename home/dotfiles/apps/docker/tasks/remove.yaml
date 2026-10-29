@@ -1,0 +1,14 @@
+# apps/docker/tasks/remove.yaml
+# Explicit uninstall tasks. Never run as part of provision or install.
+# Only invoked via --tags remove.
+# Mirror the install.yaml structure — one block per package manager.
+
+# ── Linux (apt) ───────────────────────────────────────────────────────────────
+- name: "Remove Docker engine + compose v2 via apt (Linux)"
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - docker-compose-v2
+    state: absent
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'

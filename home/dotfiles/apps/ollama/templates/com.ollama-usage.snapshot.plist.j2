@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Managed by apps/ollama. Appends one usage snapshot per day so trends in
+     context length, per-model use and OpenRouter spend can be seen over time.
+     Reads only; never edits the manifest. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.ollama-usage.snapshot</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>{{ ansible_facts['env']['HOME'] }}/bin/ollama-usage</string>
+    <string>snapshot</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>{{ ollama_usage_snapshot_hour | default(9) }}</integer>
+    <key>Minute</key><integer>{{ ollama_usage_snapshot_minute | default(15) }}</integer>
+  </dict>
+  <key>RunAtLoad</key><false/>
+  <key>StandardOutPath</key><string>{{ ansible_facts['env']['HOME'] }}/.local/share/ollama-usage/snapshot.log</string>
+  <key>StandardErrorPath</key><string>{{ ansible_facts['env']['HOME'] }}/.local/share/ollama-usage/snapshot.log</string>
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string>{{ ansible_facts['env']['HOME'] }}/bin:{{ ansible_facts['env']['HOME'] }}/.local/bin:/usr/bin:/bin</string></dict>
+</dict>
+</plist>

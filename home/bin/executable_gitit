@@ -1,0 +1,460 @@
+#!/usr/bin/env bash
+#
+# gitit - Open local git repository files in their remote web interface
+#
+# Version: 1.2.0
+#
+# Usage: gitit [options] [file_path]
+#
+# Options:
+#   -h, --help           Display this help message
+#   -c, --copy           Copy the URL to clipboard instead of opening browser
+#   -q, --quiet          Suppress all output except errors
+#   -v, --verbose        Enable verbose output for debugging
+#   -V, --version        Display version information
+#
+# Examples:
+#   gitit                       # Open remote URL for current directory
+#   gitit README.md             # Open remote URL for specific file
+#   gitit --copy path/to/file   # Copy URL to clipboard without opening browser
+#
+# Requirements:
+#   - Git
+#   - realpath (coreutils)
+#   - Browser opener (open, xdg-open, etc.)
+#   - xclip/pbcopy (for --copy option)
+#
+# Return codes:
+#   0 - Success
+#   1 - Git repository not found
+#   2 - Branch/remote determination failed
+#   3 - Browser/clipboard operation failed
+#   4 - Invalid usage
+
+# Script version
+VERSION="1.2.0"
+
+# Default options
+OPT_QUIET=false
+OPT_VERBOSE=false
+OPT_COPY=false
+
+# Log levels
+log_debug() { $OPT_VERBOSE && echo "[DEBUG] $*" >&2; return 0; }
+log_info() { ! $OPT_QUIET && echo "$*"; return 0; }
+log_error() { echo "[ERROR] $*" >&2; return 0; }
+
+# Display help message
+show_help() {
+    cat <<EOF
+gitit - Open local git repository files in their remote web interface
+
+Version: $VERSION
+
+USAGE:
+  gitit [options] [file_path]
+
+OPTIONS:
+  -h, --help           Display this help message
+  -c, --copy           Copy the URL to clipboard instead of opening browser
+  -q, --quiet          Suppress all output except errors
+  -v, --verbose        Enable verbose output for debugging
+  -V, --version        Display version information
+
+EXAMPLES:
+  gitit                       # Open remote URL for current directory
+  gitit README.md             # Open remote URL for specific file
+  gitit --copy path/to/file   # Copy URL to clipboard without opening browser
+
+USAGE NOTES:
+  - If no path is specified, the current directory is used
+  - The script will search for a git repository in the current and parent directories
+  - Supported hosting services: GitHub, GitLab, BitBucket, Azure DevOps
+  - SSH and HTTPS remote URLs are both supported
+  - For directories, the URL will point to the tree view
+  - For files, the URL will point to the blob view
+  - Returns non-zero exit code on failure (1-4)
+
+REQUIREMENTS:
+  - Git
+  - realpath (coreutils)
+  - Browser opener (open, xdg-open, etc.)
+  - xclip/pbcopy (for --copy option)
+EOF
+}
+
+# Display version information
+show_version() {
+    echo "gitit version $VERSION"
+}
+
+# Copy text to clipboard based on OS
+copy_to_clipboard() {
+    local text="$1"
+    
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        echo -n "$text" | pbcopy
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        # Linux - try various clipboard tools
+        if command -v xclip &>/dev/null; then
+            echo -n "$text" | xclip -selection clipboard
+        elif command -v xsel &>/dev/null; then
+            echo -n "$text" | xsel --clipboard --input
+        elif command -v wl-copy &>/dev/null; then
+            echo -n "$text" | wl-copy
+        else
+            log_error "No clipboard tool found (install xclip, xsel, or wl-copy)"
+            return 1
+        fi
+    elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OSTYPE" == "win32" ]]; then
+        # Windows
+        echo -n "$text" | clip
+    else
+        log_error "Clipboard not supported on this OS"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Function to open a URL in the default browser
+open_in_browser() {
+    local url="$1"
+    
+    # Sanitize URL - basic protection against command injection
+    if ! [[ "$url" =~ ^https?:// ]]; then
+        log_error "Invalid URL format: $url"
+        return 1
+    fi
+    
+    log_debug "Opening URL in browser: $url"
+    
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        open "$url"
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        # Linux
+        if command -v xdg-open &>/dev/null; then
+            xdg-open "$url"
+        elif command -v gnome-open &>/dev/null; then
+            gnome-open "$url"
+        elif command -v kde-open &>/dev/null; then
+            kde-open "$url"
+        else
+            log_error "Could not find a browser opener (install xdg-utils package)"
+            return 1
+        fi
+    elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OSTYPE" == "win32" ]]; then
+        # Windows
+        start "$url"
+    else
+        log_error "Browser opening not supported on this OS"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Find the git repository root directory
+find_git_root() {
+    local start_dir="$1"
+    
+    if ! command -v git &>/dev/null; then
+        log_error "Git command not found. Please install git."
+        return 1
+    fi
+    
+    # Store current directory
+    local current_dir="$PWD"
+    
+    # Change to start directory
+    cd "$start_dir" 2>/dev/null || return 1
+    
+    # Check if we're in a git repository
+    if ! git rev-parse --is-inside-work-tree &>/dev/null; then
+        log_error "Not in a git repository"
+        cd "$current_dir" || return 1
+        return 1
+    fi
+    
+    # Get the git root
+    local git_root
+    git_root=$(git rev-parse --show-toplevel)
+    
+    # Return to original directory
+    cd "$current_dir" || return 1
+    
+    echo "$git_root"
+    return 0
+}
+
+# Convert any git remote URL to HTTPS format
+convert_to_https_url() {
+    local remote_url="$1"
+    local https_url=""
+    
+    # Step 1: Convert to HTTPS format using sed
+    if [[ "$remote_url" =~ ^https?:// ]]; then
+        # Already HTTPS
+        https_url="$remote_url"
+    elif [[ "$remote_url" =~ ^git@ ]]; then
+        # SSH: git@github.com:user/repo.git
+        https_url=$(echo "$remote_url" | sed 's|git@\([^:]*\):\(.*\)|https://\1/\2|')
+    elif [[ "$remote_url" =~ ^ssh:// ]]; then
+        # Explicit SSH: ssh://git@github.com/user/repo.git
+        https_url=$(echo "$remote_url" | sed 's|ssh://git@\([^/]*\)/\(.*\)|https://\1/\2|')
+    elif [[ "$remote_url" =~ ^git:// ]]; then
+        # Git protocol: git://github.com/user/repo.git
+        https_url=$(echo "$remote_url" | sed 's|git://\([^/]*\)/\(.*\)|https://\1/\2|')
+    else
+        # Unknown format
+        https_url="$remote_url"
+    fi
+    
+    # Step 2: Always remove .git suffix if present
+    https_url="${https_url%.git}"
+    
+    echo "$https_url"
+    return 0
+}
+
+# Get the default branch (main or master) for a repository
+get_default_branch() {
+    local git_dir="$1"
+    local current_dir="$PWD"
+    local default_branch=""
+    
+    # Change to git directory
+    cd "$git_dir" || return 1
+    
+    # Try to get the current branch first
+    default_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    
+    # Check if we got a usable branch name
+    if [[ "$default_branch" == "HEAD" || -z "$default_branch" ]]; then
+        # We're in detached HEAD state or couldn't get branch name
+        # Fall back to checking for main or master
+        if git show-ref --verify --quiet refs/heads/main; then
+            default_branch="main"
+        elif git show-ref --verify --quiet refs/heads/master; then
+            default_branch="master"
+        else
+            # If all else fails, use default checkout hash
+            default_branch=$(git rev-parse --short HEAD 2>/dev/null)
+        fi
+    fi
+    
+    # Return to original directory
+    cd "$current_dir" || return 1
+    
+    echo "$default_branch"
+    return 0
+}
+
+# Determine the hosting service type from URL
+get_hosting_service() {
+    local url="$1"
+    
+    if [[ "$url" =~ github\.com ]]; then
+        echo "github"
+    elif [[ "$url" =~ gitlab ]]; then
+        echo "gitlab"
+    elif [[ "$url" =~ bitbucket ]]; then
+        echo "bitbucket"
+    elif [[ "$url" =~ azure\.com ]]; then
+        echo "azure"
+    else
+        # Default to github format
+        echo "github"
+    fi
+}
+
+# Get the remote URL for a local file
+get_remote_url() {
+    local target_path="$1"
+    local original_dir="$PWD"
+    
+    # Resolve the absolute path
+    local target_abs
+    if [[ "$target_path" == "." ]]; then
+        target_abs="$PWD"
+    else
+        target_abs=$(realpath "$target_path" 2>/dev/null || echo "$target_path")
+    fi
+    
+    log_debug "Target path: $target_abs"
+    
+    # Find the git root
+    local git_root
+    if [[ -d "$target_abs" ]]; then
+        git_root=$(find_git_root "$target_abs")
+    else
+        git_root=$(find_git_root "$(dirname "$target_abs")")
+    fi
+    
+    if [[ $? -ne 0 || -z "$git_root" ]]; then
+        log_error "Failed to find git repository"
+        return 1
+    fi
+    
+    log_debug "Git root: $git_root"
+    
+    # Change to git directory to run git commands
+    cd "$git_root" || return 1
+    
+    # Get the remote URL
+    local remote_url
+    
+    # Try origin first, then upstream, then branch remote
+    if git config --get remote.origin.url &>/dev/null; then
+        remote_url=$(git config --get remote.origin.url)
+    elif git config --get remote.upstream.url &>/dev/null; then
+        remote_url=$(git config --get remote.upstream.url)
+    else
+        local branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+        local branch_remote=$(git config --get "branch.$branch.remote" 2>/dev/null)
+        
+        if [[ -n "$branch_remote" ]]; then
+            remote_url=$(git config --get "remote.$branch_remote.url" 2>/dev/null)
+        fi
+    fi
+    
+    if [[ -z "$remote_url" ]]; then
+        log_error "No remote URL found"
+        cd "$original_dir" || return 1
+        return 1
+    fi
+    
+    log_debug "Remote URL: $remote_url"
+    
+    # Convert to HTTPS URL
+    local https_url
+    https_url=$(convert_to_https_url "$remote_url")
+    
+    log_debug "HTTPS URL: $https_url"
+    
+    # Get the default branch (main or master)
+    local default_branch
+    default_branch=$(get_default_branch "$git_root")
+    
+    log_debug "Default branch: $default_branch"
+    
+    # Get the relative path from git root to target
+    local relative_path=""
+    if [[ "$target_abs" != "$git_root" ]]; then
+        relative_path=$(realpath --relative-to="$git_root" "$target_abs")
+    fi
+    
+    log_debug "Relative path: $relative_path"
+    
+    # Determine if target is a file or directory
+    local path_type="blob"
+    if [[ -d "$target_abs" ]]; then
+        path_type="tree"
+    fi
+    
+    # Get the hosting service
+    local hosting_service
+    hosting_service=$(get_hosting_service "$https_url")
+    
+    # Build the final URL
+    local final_url
+    case "$hosting_service" in
+        github)
+            final_url="${https_url}/${path_type}/${default_branch}/${relative_path}"
+            ;;
+        gitlab)
+            final_url="${https_url}/-/${path_type}/${default_branch}/${relative_path}"
+            ;;
+        bitbucket)
+            final_url="${https_url}/browse/${relative_path}?at=refs%2Fheads%2F${default_branch}"
+            ;;
+        azure)
+            final_url="${https_url}?path=${relative_path}&version=GB${default_branch}"
+            ;;
+        *)
+            # Default to GitHub format
+            final_url="${https_url}/${path_type}/${default_branch}/${relative_path}"
+            ;;
+    esac
+    
+    # Return to original directory
+    cd "$original_dir" || return 1
+    
+    echo "$final_url"
+    return 0
+}
+
+# Main function
+main() {
+    # Parse command line arguments
+    local target_path="."
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            -V|--version)
+                show_version
+                exit 0
+                ;;
+            -c|--copy)
+                OPT_COPY=true
+                shift
+                ;;
+            -q|--quiet)
+                OPT_QUIET=true
+                shift
+                ;;
+            -v|--verbose)
+                OPT_VERBOSE=true
+                shift
+                ;;
+            -*)
+                log_error "Unknown option: $1"
+                show_help
+                exit 4
+                ;;
+            *)
+                target_path="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    # Get the remote URL
+    local remote_url
+    remote_url=$(get_remote_url "$target_path")
+    
+    if [[ $? -ne 0 || -z "$remote_url" ]]; then
+        exit 1
+    fi
+    
+    # Copy to clipboard if requested
+    if $OPT_COPY; then
+        if copy_to_clipboard "$remote_url"; then
+            log_info "Copied to clipboard: $remote_url"
+            exit 0
+        else
+            log_error "Failed to copy URL to clipboard"
+            log_info "URL: $remote_url"
+            exit 3
+        fi
+    else
+        # Otherwise open in browser
+        log_info "Opening: $remote_url"
+        if open_in_browser "$remote_url"; then
+            exit 0
+        else
+            log_error "Failed to open URL in browser"
+            log_info "URL: $remote_url"
+            exit 3
+        fi
+    fi
+}
+
+# Run the main function
+main "$@"

@@ -66,12 +66,12 @@ variable SHALL have its removal updated in the same commit.
 
 ### Behavior: Layering — source and deployed are checked before editing
 
-`bin/` holds chezmoi SOURCE files and `~/bin/` is what runs; they drift in both
+`home/bin/` holds chezmoi SOURCE files and `~/bin/` is what runs; they drift in both
 directions, so the author SHALL check both before editing either.
 
-#### Scenario: A `bin/` script needs a change
+#### Scenario: A `home/bin/` script needs a change
 
-- **WHEN** a script under `bin/` is about to be edited
+- **WHEN** a script under `home/bin/` is about to be edited
 - **THEN** run `chezmoi status` first. Committing the source while the deployed
   copy is ahead silently reverts the working version on the next apply
 

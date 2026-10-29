@@ -12,7 +12,8 @@ repos:
   #    identify, whose shebang detection requires the exec bit. Chezmoi
   #    sources carry the exec bit in the executable_ name prefix and are
   #    mode 644 on disk, so identify tags every bin/ script non-executable —
-  #    the extensionless Python scripts are NOT matched by this filter. Their
+  #    the extensionless Python scripts under home/bin/ are NOT matched by
+  #    this filter. Their
   #    ruff coverage is owned by the test suite (see TASKS.md), not by these
   #    hooks.
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -56,8 +57,7 @@ repos:
             tests/|                       # test files are not subjects
             scripts/run-bats\.sh          # the runner itself
           )$
-        # bin/ at either payload root: root bin/ today, home/bin/ after
-        # the .chezmoiroot move (TASKS.md § Planned, payload move step 3).
+        # bin/ is chezmoi payload under home/bin/. scripts/ stays repo-only.
         files: ^((home/)?bin|scripts)/
         pass_filenames: false # runner pulls staged files itself via git
         stages: [pre-commit, pre-push]

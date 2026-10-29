@@ -1,0 +1,61 @@
+# apps/apt/defaults/main.yaml
+# Tunables. Override in the parent playbook or with -e.
+---
+# How long (seconds) apt tasks wait for another process to release the dpkg /
+# lists lock. PackageKit (GNOME Software) takes /var/lib/apt/lists/lock for a
+# few seconds at a time on desktop hosts; the module default of 60s lost that
+# race on 2026-09-20. Waiting is enough — the daemon is short-lived, not wedged.
+apt_lock_timeout: 300
+
+# Skip the cache refresh when the lists are younger than this (seconds). Only
+# the prerequisites phase uses it; `upgrade` always refreshes, since a stale
+# cache there would upgrade against old indexes.
+apt_cache_valid_time: 3600
+
+# Repositories whose signing keyring this topic keeps valid. Only repos that are
+# already configured are touched: the destination is read from the source's
+# signed-by=, and a repo with no source is skipped. `require_keys` lists key IDs
+# the download must contain, so a stale upstream URL fails loudly rather than
+# writing a keyring apt will still reject.
+#
+# Key IDs verified against the upstream URLs on 2026-09-22:
+#   github-cli  5612B36462313325 (added 2026-04; 23F3D4EA75716059 expires 2026-09)
+#   hashicorp   FC9CA96ACA026560 (rotated 2026-09)
+apt_keyrings:
+  - name: github-cli
+    repo_host: cli.github.com
+    url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
+    require_keys: [5612B36462313325]
+
+  - name: hashicorp
+    repo_host: apt.releases.hashicorp.com
+    url: https://apt.releases.hashicorp.com/gpg
+    require_keys: [FC9CA96ACA026560]
+
+# Repositories that are gone for good. Each file is commented out in place
+# (kept, not deleted) with a note saying why, so the record survives on disk
+# and a re-run is a no-op. Retiring a repo is a human decision; the source
+# audit below only reports candidates.
+apt_retired_sources:
+  - file: /etc/apt/sources.list.d/prebuilt-mpr.list
+    keyring: /usr/share/keyrings/prebuilt-mpr-archive-keyring.gpg
+    reason: >-
+      makedeb was archived upstream on 2025-11-21
+      (https://hunterwittenborn.com/blog/stepping-back-from-open-source/);
+      proget.makedeb.org answers HTTP 530 and apt-get update exits 100.
+
+# Packages that only a retired source ever provided. Purged, not autoremoved:
+# their dependencies (build-essential, libssl-dev, ...) may be wanted by other
+# things and are left for `apt autoremove` to judge.
+apt_retired_packages:
+  - makedeb
+  - mist
+  - tap
+
+# Source audit: report-only. A host failing `apt-get update` this many
+# consecutive runs is flagged as a retirement candidate.
+apt_source_audit_threshold: 3
+apt_source_audit_state: /var/lib/dotfiles/apt-source-audit.json
+
+# Seconds to wait when downloading a keyring.
+apt_keyring_timeout: 60

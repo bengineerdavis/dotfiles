@@ -1,0 +1,28 @@
+# apps/chrome/topic.yml
+#
+# Topic metadata read by the parent playbook. See docs/TOPICS.md.
+#
+# Lives at the role root (not under meta/) because Ansible reserves
+# meta/main.yml for galaxy_info / role dependencies and rejects unknown
+# top-level keys there.
+
+topic_name: chrome
+
+# App-tier: provides nothing to other topics.
+topic_provides: []
+
+# homebrew installs the cask on a fresh machine. On a machine where Chrome
+# already exists (Google's own installer + Keystone), install.yaml skips the
+# cask entirely — see the comment there.
+#
+# git and node are for `source: git` extensions: they are cloned from a repo and
+# built before Chrome can load them. Neither is needed if the manifest declares
+# only `source: store` entries, but the graph should state what the topic can
+# reach for. node is provided by apps/mise (mise config.toml -> node = "lts").
+topic_requires: [homebrew, git, node]
+
+# macOS only. The External Extensions seeding mechanism this topic relies on
+# has a different path layout on Linux, and the work workstation is a Mac.
+topic_os: [Darwin]
+
+topic_tier: app

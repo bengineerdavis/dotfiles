@@ -1,0 +1,153 @@
+# apps/claude-code/tasks/install.yaml
+# Installs the Claude Code CLI and the Claude desktop app, and clears the
+# conflicting install that shadowed them.
+#
+# Config files are NOT here. ~/.claude/ is machine-local for now — settings,
+# credentials and session history live together and have not been split into
+# portable and local halves yet. See CHANGELOG.md known_issues.
+#
+# Every piece of state created here has a matching teardown in remove.yaml,
+# per the CRUD ownership invariant in docs/TOPICS.md.
+
+# ── Guard: the dependency graph promised us a brew ───────────────────────────
+
+- name: "Check that brew is on PATH"
+  ansible.builtin.command: brew --version
+  register: claude_code_brew_check
+  changed_when: false
+  failed_when: false
+
+- name: "Fail with the fix if brew is absent"
+  ansible.builtin.fail:
+    msg: >-
+      brew not found on PATH. Run the homebrew topic's bootstrap
+      (apps/homebrew, --tags bootstrap), then re-run.
+  when: claude_code_brew_check.rc != 0
+
+# ── The CLI, from one of two mutually exclusive casks ────────────────────────
+# claude-code and claude-code@latest both ship a `claude` binary and each
+# declares `conflicts_with` the other, so installing one while the other is
+# present fails outright. Switching channels therefore means uninstalling
+# first — which is a real path, not a theoretical one: this machine had
+# claude-code installed when the topic defaulted to claude-code@latest.
+
+- name: "Determine which claude-code cask is unwanted here"
+  ansible.builtin.set_fact:
+    claude_code_other_cask: >-
+      {{ 'claude-code' if claude_code_cask == 'claude-code@latest'
+         else 'claude-code@latest' }}
+
+- name: "List installed casks"
+  ansible.builtin.command: brew list --cask
+  register: claude_code_installed_casks
+  changed_when: false
+  # Read-only query. Must run under --check too, or the conditional below
+  # reads an undefined result — the same trap apps/homebrew documents.
+  check_mode: false
+
+- name: "Uninstall the conflicting cask: {{ claude_code_other_cask }}"
+  community.general.homebrew_cask:
+    name: "{{ claude_code_other_cask }}"
+    state: absent
+  # Without this the install below fails with brew's conflicts_with error,
+  # which names the conflict but not that switching channels is the cause.
+  when: claude_code_other_cask in claude_code_installed_casks.stdout_lines
+
+- name: "Install the Claude Code CLI: {{ claude_code_cask }}"
+  community.general.homebrew_cask:
+    name: "{{ claude_code_cask }}"
+    state: present
+
+# Deliberately NOT set anywhere in this topic:
+# CLAUDE_CODE_PACKAGE_MANAGER_AUTO_UPDATE=1 makes Claude Code run `brew upgrade`
+# on its own in the background. That is exactly the second version owner this
+# topic exists to remove, so it stays unset. Recorded here because the absence
+# of a setting is invisible to anyone reading for one.
+#
+# Nothing else is needed to keep brew authoritative — upstream is explicit that
+# "Homebrew installations do not auto-update", so there is no self-updater to
+# disable under a cask install.
+
+# ── The desktop app ─────────────────────────────────────────────────────────
+
+- name: "Install the Claude desktop app"
+  community.general.homebrew_cask:
+    name: claude
+    state: present
+    install_options: "appdir={{ user_appdir }}"
+  when: claude_code_install_gui | bool
+
+# ── Clear the install that shadowed brew ────────────────────────────────────
+# An undeclared mise install of npm:@anthropic-ai/claude-code left a shim at
+# ~/.local/share/mise/shims/claude. mise's shim directory precedes
+# /opt/homebrew/bin on PATH, so `claude` resolved to the shim and only worked
+# by falling through — with mise reporting a version (2.1.140) that no longer
+# matched the binary that actually ran. Upstream calls this class of problem
+# "conflicting installations" and `claude doctor` reports it.
+#
+# Guarded on the install directory existing, which is what makes this
+# idempotent: once removed, every later run skips.
+
+- name: "Look for a mise claude shim shadowing brew"
+  # Guard on the SHIM, not on the install directory. `mise uninstall` removes
+  # the version tree but leaves its alias symlinks (latest, 2.1, 2) dangling in
+  # installs/, so a guard on that directory stays true forever and the uninstall
+  # repeats on every run. The shim is also the thing that actually does harm —
+  # it is what wins on PATH — so it is the honest condition to test.
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims/claude"
+  register: claude_code_mise_shim
+  when: claude_code_remove_mise_orphan | bool
+
+- name: "Uninstall the shadowing mise claude-code"
+  ansible.builtin.command:
+    cmd: mise uninstall npm:@anthropic-ai/claude-code
+  register: claude_code_mise_uninstall
+  changed_when: claude_code_mise_uninstall.rc == 0
+  failed_when: false
+  when:
+    - claude_code_remove_mise_orphan | bool
+    - claude_code_mise_shim.stat.exists | default(false)
+
+- name: "Reshim mise so the shadowing claude shim goes away"
+  # `uninstall` drops the version tree; the shim is pruned by a reshim. Without
+  # this the dead shim keeps winning on PATH even though its target is gone.
+  ansible.builtin.command:
+    cmd: mise reshim
+  register: claude_code_mise_reshim
+  changed_when: claude_code_mise_reshim.rc == 0
+  failed_when: false
+  when:
+    - claude_code_remove_mise_orphan | bool
+    - claude_code_mise_shim.stat.exists | default(false)
+
+- name: "Remove the dangling mise install directory"
+  # What uninstall leaves behind: alias symlinks pointing at a version tree that
+  # no longer exists. Harmless, but they are why the guard above cannot test
+  # this path. `state: absent` is idempotent on its own, so this runs
+  # unconditionally and reports changed exactly once.
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/installs/npm-anthropic-ai-claude-code"
+    state: absent
+  when: claude_code_remove_mise_orphan | bool
+
+# ── Report what the machine actually ended up with ──────────────────────────
+
+- name: "Ask claude doctor what it sees"
+  # Read-only installation and settings diagnostics; it does not start a
+  # session. Never fails the run — a doctor warning is information for the
+  # operator, not a reason to abort a provisioning pass.
+  ansible.builtin.command: claude doctor
+  register: claude_code_doctor
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: "Report the install"
+  ansible.builtin.debug:
+    msg: >-
+      CLI from {{ claude_code_cask }}
+      ({{ 'stable' if claude_code_cask == 'claude-code' else 'latest' }} channel);
+      desktop app {{ 'installed' if claude_code_install_gui | bool else 'skipped' }}.
+      brew owns the version — `brew upgrade` is the only thing that moves it.
+      claude doctor exited {{ claude_code_doctor.rc }}.

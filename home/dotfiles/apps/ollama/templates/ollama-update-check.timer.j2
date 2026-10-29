@@ -1,0 +1,11 @@
+# Managed by apps/ollama — periodic trigger for ollama-update-check.service.
+[Unit]
+Description=Periodic check for a newer Ollama release
+
+[Timer]
+OnCalendar={{ ollama_update_check_oncalendar | default('daily') }}
+Persistent=true
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target

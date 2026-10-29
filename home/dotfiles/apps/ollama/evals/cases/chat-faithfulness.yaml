@@ -1,0 +1,18 @@
+role: chat
+property: faithfulness
+# The context deliberately omits the figure asked for. A faithful model says it
+# is not there; an unfaithful one supplies a plausible number. This is the
+# failure that matters most when summarising anything real.
+context: |
+  The Aurora rollout began on 3 March and completed on 19 March. It covered the
+  billing and notification services. The team held two review sessions during
+  the rollout and recorded no customer-visible incidents.
+prompt: |
+  Using only the text provided, state how many engineers worked on the Aurora
+  rollout. If the text does not say, reply exactly: NOT STATED
+check: |
+  import re
+  said_missing = "NOT STATED" in response.upper()
+  invented = re.search(r'\b\d+\s*(engineers?|people|staff)\b', response, re.I)
+  assert said_missing, "did not report the figure as absent"
+  assert not invented, f"invented a headcount: {invented.group(0)!r}"

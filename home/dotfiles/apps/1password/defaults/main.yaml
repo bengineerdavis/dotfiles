@@ -1,0 +1,23 @@
+# apps/1password/defaults/main.yaml
+
+# Where the 1Password desktop app lives on macOS. This is an exception to the
+# repo convention of installing casks into ~/Applications (HOMEBREW_CASK_OPTS,
+# apps/homebrew/migrate-casks-to-homedir.yml), and it is deliberate.
+#
+# 1Password's own support article on the error "We weren't able to connect to
+# the 1Password extension in your browser" says both 1Password and the browser
+# must be in /Applications, and tells you to move them there
+# (support.1password.com/cs/cannot-connect-browser/, published 2026-07-28, read
+# 2026-09-23). So in ~/Applications, browser integration breaks. The claim that
+# system unlock (Touch ID) also needs /Applications was NOT found in
+# 1Password's Touch ID article, so it is not relied on here.
+#
+# The existing app is already in /Applications, and the cask adopts it there
+# rather than moving it.
+onepassword_appdir: /Applications
+
+# Whether `--tags remove` uninstalls the desktop app. Off by default: the app
+# was on this machine before the topic adopted it, and a teardown cannot tell
+# a copy the topic installed from one a person installed. Uninstall never zaps,
+# so vault data and settings under ~/Library stay either way.
+onepassword_remove_app: false

@@ -1,0 +1,927 @@
+# apps/ollama/tasks/install.yaml
+# Package installation tasks. Be explicit about which package manager is used.
+# Use when: conditions to guard each block by OS/arch.
+# Do NOT put upgrade logic here — upgrades are owned by system roles (homebrew, apt).
+# Do NOT put config/symlink tasks here — those are owned by chezmoi.
+
+# ── macOS (Homebrew formula — headless, NOT the GUI cask) ───────────────────
+# The `ollama-app` cask was dropped deliberately. Its server is launched by
+# launchd as a child of PID 1, so it never inherits a shell and cannot be
+# configured from files/zsh/env.zsh; its settings live in an opaque SQLite
+# database instead. The formula gives a plain binary we start ourselves, which
+# makes the launchd agent below the single place server config lives.
+#
+# ⚠ If you ever remove the old cask by hand, do NOT pass --zap. Its zap stanza
+#   trashes ~/.ollama — every model you have. Plain `brew uninstall --cask
+#   ollama-app` only stops the agent and removes the app bundle.
+- name: "Install ollama via Homebrew formula (macOS, headless)"
+  community.general.homebrew:
+    name: ollama
+    state: present
+  when: ansible_facts['os_family'] == 'Darwin'
+
+# ── Linux (apt) ──────────────────────────────────────────────────────────────
+# EMPTY
+
+# ── Linux (snap) ─────────────────────────────────────────────────────────────
+# EMPTY
+
+# ── Docker ───────────────────────────────────────────────────────────────────
+# EMPTY
+
+# TODO: belongs in system role (homebrew/apt/docker)
+- name: Fail if macOS version is below 14 (Sonoma)
+  ansible.builtin.fail:
+    msg: >
+      Ollama requires macOS 14 (Sonoma) or newer. Current version: {{ ansible_facts['distribution_version'] }}.
+  when:
+    - ansible_facts['os_family'] == "Darwin"
+    - (ansible_facts['distribution_major_version'] | int) < 14
+  tags: ollama_requirements
+
+# TODO: belongs in system role (homebrew/apt/docker)
+- name: Fail if not running on Apple Silicon or Intel macOS
+  ansible.builtin.fail:
+    msg: >
+      Ollama requires Apple M‑series (recommended) or Intel x86 macOS.
+      Detected architecture: {{ ansible_facts['architecture'] }}.
+  when:
+    - ansible_facts['os_family'] == "Darwin"
+    - ansible_facts['architecture'] not in ["arm64", "x86_64"]
+  tags: ollama_requirements
+
+# TODO: verify placement
+- name: Warn if memory may limit model sizes
+  ansible.builtin.debug:
+    msg: >
+      WARNING: This Mac has {{ (ansible_facts['memtotal_mb'] / 1024) | round(1) }} GB RAM.
+      8–12 GB is best for 3–8B models; 16 GB+ recommended for 13B+ models.
+      Consider starting with 7–8B models on 8 GB systems.
+  when:
+    - ansible_facts['os_family'] == "Darwin"
+    - (ansible_facts['memtotal_mb'] | int) < 16384
+  tags: ollama_resources
+
+# TODO: verify placement
+- name: Check free disk space (home volume) in KB
+  ansible.builtin.shell: |
+    df -k "{{ ansible_facts['env']['HOME'] }}" | awk 'NR==2 {print $4}'
+  register: ollama_free_kb
+  changed_when: false
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_resources
+
+# TODO: verify placement
+- name: Set fact for free disk space in MB
+  ansible.builtin.set_fact:
+    ollama_free_mb: "{{ (ollama_free_kb.stdout | int) / 1024 }}"
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_resources
+
+# TODO: verify placement
+- name: Warn when less than 20 GB free for models
+  ansible.builtin.debug:
+    msg: >
+      WARNING: Only {{ ollama_free_mb | int }} MB free on the volume
+      containing {{ ansible_facts['env']['HOME'] }}. Consider freeing space before
+      pulling larger Ollama models (they can consume tens of GB).
+  when:
+    - ansible_facts['os_family'] == "Darwin"
+    - ollama_free_mb | int < 20000 # < ~20 GB
+    - ollama_free_mb | int >= 10000 # between ~10 GB and 20 GB
+  tags: ollama_resources
+
+# TODO: verify placement
+- name: Strong warning when less than 10 GB free for models
+  ansible.builtin.debug:
+    msg: >
+      STRONG WARNING: Only {{ ollama_free_mb | int }} MB free on the volume
+      containing {{ ansible_facts['env']['HOME'] }}. This is likely insufficient for
+      medium/large Ollama models; expect pull failures or aggressive eviction.
+  when:
+    - ansible_facts['os_family'] == "Darwin"
+    - ollama_free_mb | int < 10000 # < ~10 GB
+  tags: ollama_resources
+
+# The GUI app is intentionally NOT installed (see the formula note at the top),
+# so the old "is Ollama.app present?" checks were removed — they only produced
+# false warnings once the cask was dropped.
+
+- name: Check ollama CLI is available
+  ansible.builtin.command: ollama --version
+  register: ollama_version_check
+  changed_when: false
+  failed_when: false # warn-only, do not fail play
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_health
+
+# TODO: verify placement
+- name: Warn if ollama CLI is not usable
+  ansible.builtin.debug:
+    msg: >
+      WARNING: ollama CLI did not respond correctly. The CLI comes from the
+      Homebrew formula (/opt/homebrew/bin/ollama) and the server is run by the
+      com.ollama.server launchd agent — check `launchctl print
+      gui/$(id -u)/com.ollama.server` and ~/.ollama/logs/server.log.
+  when:
+    - ansible_facts['os_family'] == "Darwin"
+    - ollama_version_check.rc is defined
+    - ollama_version_check.rc != 0
+  tags: ollama_health
+
+# TODO: verify placement
+- name: Ensure local Zsh completions directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.zsh_completions"
+    state: directory
+    mode: "0755"
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_zsh
+
+# TODO: verify placement
+- name: Ensure Ollama app topic directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/dotfiles/apps/ollama"
+    state: directory
+    mode: "0755"
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_zsh
+
+# TODO: verify placement
+- name: Download latest Ollama Zsh completion to temporary path
+  ansible.builtin.get_url:
+    url: "https://gist.githubusercontent.com/obeone/9313811fd61a7cbb843e0001a4434c58/raw/_ollama.zsh"
+    dest: "/tmp/_ollama.zsh"
+    mode: "0644"
+    force: true
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_zsh
+
+# DUAL OWNERSHIP, DELIBERATE — do not "fix" without deciding the question below.
+#
+# This dest is also chezmoi-managed, so two tools write the same path. That
+# normally violates the CRUD ownership invariant in docs/TOPICS.md, and it
+# is allowed here on purpose: ansible performs the *initial* setup (fetching the
+# completion, which is not in the repo until it exists), and chezmoi owns it
+# afterwards so pulled changes apply without re-running the play.
+#
+# The practical consequence, stated plainly so it is never a surprise: after
+# setup, `chezmoi apply` reverts whatever this task last downloaded. That is the
+# intended direction — chezmoi is the source of truth once the topic exists —
+# but it does mean re-running install does not durably pick up a newer upstream
+# gist. Getting a new version means committing it to chezmoi.
+#
+# Note the inversion: for THIS file the topic-root copy is the live one — it is
+# what ~/.zsh_completions/_ollama symlinks to — while
+# files/zsh/_ollama_zsh_completion is unreachable. Every *.zsh fragment is the
+# other way round (files/zsh live, root dead). The .zshrc glob only takes
+# `*.zsh`, so it never applied to this file in either location.
+#
+# UNDECIDED: whether to formalise this by giving one tool sole ownership.
+# Deferred, not overlooked.
+- name: Install or update Ollama Zsh completion under dotfiles topic
+  ansible.builtin.copy:
+    src: "/tmp/_ollama.zsh"
+    dest: "{{ ansible_facts['env']['HOME'] }}/dotfiles/apps/ollama/_ollama_zsh_completion"
+    mode: "0644"
+    remote_src: true
+  when:
+    - ansible_facts['os_family'] == "Darwin"
+    # get_url reports "changed" under --check but writes nothing, so /tmp/_ollama.zsh
+    # does not exist there and this copy fails on a missing source — aborting the
+    # parent playbook before the app tier ever runs. The dry run declined to create
+    # the file, so the dry run has no business copying it.
+    - not ansible_check_mode
+  tags: ollama_zsh
+
+# TODO: verify placement
+- name: Symlink Ollama completion into ~/.zsh_completions as _ollama
+  ansible.builtin.file:
+    src: "{{ ansible_facts['env']['HOME'] }}/dotfiles/apps/ollama/_ollama_zsh_completion"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.zsh_completions/_ollama"
+    state: link
+    force: true
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_zsh
+
+# TODO: verify placement
+- name: Set Ollama path facts
+  ansible.builtin.set_fact:
+    ollama_home_dir: "{{ ansible_facts['env']['HOME'] }}/.ollama"
+    ollama_logs_dir: "{{ ansible_facts['env']['HOME'] }}/.ollama/logs"
+    ollama_cli_default: "/usr/local/bin/ollama"
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_paths
+
+# TODO: verify placement
+- name: Ensure Ollama logs directory exists (for later log collection)
+  ansible.builtin.file:
+    path: "{{ ollama_logs_dir }}"
+    state: directory
+    mode: "0755"
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: ollama_paths
+
+# TODO: verify placement
+# ── macOS: run the ollama server ourselves ──────────────────────────────────
+# Replaces the GUI app's `com.ollama.ollama` agent. That server was a child of
+# launchd (PID 1), so it never inherited a shell and could not be configured
+# from files/zsh/env.zsh — its settings lived in an opaque SQLite database.
+# Owning the agent makes `ollama_server_env` in defaults/main.yaml the single
+# place server config lives: rendered into this plist, and exported to shells by
+# `ollama-role serverenv`.
+- name: "macOS: install the ollama server launchd agent"
+  ansible.builtin.template:
+    src: com.ollama.server.plist.j2
+    dest: "{{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents/com.ollama.server.plist"
+    mode: "0644"
+  register: ollama_server_plist
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: [ollama_service, ollama_env]
+
+- name: "macOS: (re)load the ollama server agent"
+  # A running server keeps the environment it started with, so any change to the
+  # rendered plist needs a bootout/bootstrap cycle — not just a reload. bootout
+  # is expected to fail on first run when nothing is loaded yet.
+  ansible.builtin.shell: |
+    launchctl bootout gui/$(id -u)/com.ollama.server 2>/dev/null || true
+    launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.ollama.server.plist"
+    launchctl enable gui/$(id -u)/com.ollama.server
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when:
+    - ansible_facts['os_family'] == "Darwin"
+    - ollama_server_plist.changed
+  tags: [ollama_service, ollama_env]
+
+- name: "macOS: wait for the server to answer"
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:11434/api/tags"
+    status_code: 200
+  register: ollama_up
+  retries: 15
+  delay: 2
+  until: ollama_up.status is defined and ollama_up.status == 200
+  when: ansible_facts['os_family'] == "Darwin"
+  tags: [ollama_service, ollama_env]
+
+# ── Linux (Debian): install ollama from the official release tarball ───────────
+# This is Ollama's officially-documented "Manual install" (docs.ollama.com/linux),
+# expressed declaratively: no apt repo exists, so we place the tarball ourselves,
+# own the systemd unit, and keep a matching teardown in remove.yaml.
+#
+# Version-driven (NOT a `creates:` guard, which never upgrades): resolve the
+# target version, read the installed one, and re-extract only when they differ —
+# so this same block installs on a fresh box and upgrades on an existing one.
+# All tasks are tagged `upgrade` so `--tags upgrade` performs a real binary bump.
+#
+# GPU is additive + auto-detected (a host may have both vendors):
+#   • NVIDIA — CUDA userspace libs are already bundled in the base tarball; only
+#     the host kernel driver is needed. We verify nvidia-smi and warn if absent;
+#     we do NOT install DKMS drivers (that belongs in system/GPU provisioning).
+#   • AMD    — overlay the separate `-rocm` tarball (amd64 only) and add the
+#     service user to render/video. Override detection per host via ollama_gpu_*.
+
+- name: "ollama (Debian): resolve arch tag"
+  ansible.builtin.set_fact:
+    ollama_linux_arch: "{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'amd64' }}"
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): query GitHub for the latest release tag"
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/ollama/ollama/releases/latest
+    return_content: true
+  register: ollama_release
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - (ollama_linux_version | default('latest')) == 'latest'
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): compute target version (strip leading 'v')"
+  ansible.builtin.set_fact:
+    ollama_target_version: >-
+      {{ ((ollama_release.json.tag_name
+           if (ollama_linux_version | default('latest')) == 'latest'
+           else ollama_linux_version)
+          | regex_replace('^v', '')) | trim }}
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): read installed ollama version (if any)"
+  ansible.builtin.command: ollama --version
+  register: ollama_installed_raw
+  changed_when: false
+  failed_when: false
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): decide whether a (re)install is needed"
+  ansible.builtin.set_fact:
+    ollama_need_install: >-
+      {{ (ollama_installed_raw.rc | default(1)) != 0
+         or ollama_target_version not in (ollama_installed_raw.stdout | default('')) }}
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): probe PCI for an NVIDIA GPU (vendor 0x10de)"
+  # Read /sys to avoid a pciutils dependency; a non-matching/empty glob just
+  # returns non-zero, which we treat as "not present".
+  ansible.builtin.shell: "grep -qil 0x10de /sys/bus/pci/devices/*/vendor"
+  args:
+    executable: /bin/bash
+  register: ollama_nvidia_probe
+  changed_when: false
+  failed_when: false
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_gpu_nvidia is none
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): probe PCI for an AMD GPU (vendor 0x1002)"
+  ansible.builtin.shell: "grep -qil 0x1002 /sys/bus/pci/devices/*/vendor"
+  args:
+    executable: /bin/bash
+  register: ollama_amd_probe
+  changed_when: false
+  failed_when: false
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_gpu_amd is none
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): resolve effective GPU flags (override else detection)"
+  ansible.builtin.set_fact:
+    ollama_gpu_nvidia_on: "{{ ollama_gpu_nvidia if ollama_gpu_nvidia is not none else ((ollama_nvidia_probe.rc | default(1)) == 0) }}"
+    ollama_gpu_amd_on: "{{ ollama_gpu_amd if ollama_gpu_amd is not none else ((ollama_amd_probe.rc | default(1)) == 0) }}"
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): ensure zstd is present (for .tar.zst extraction)"
+  ansible.builtin.apt:
+    name: zstd
+    state: present
+    update_cache: true
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_need_install | bool
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): stop ollama before swapping the binary"
+  ansible.builtin.systemd:
+    name: ollama
+    state: stopped
+  become: true
+  failed_when: false
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_need_install | bool
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): download + extract base tarball into /usr"
+  ansible.builtin.unarchive:
+    src: "https://github.com/ollama/ollama/releases/download/v{{ ollama_target_version }}/ollama-linux-{{ ollama_linux_arch }}.tar.zst"
+    dest: /usr
+    remote_src: true
+    extra_opts: ["--zstd"]
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_need_install | bool
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): create ollama system user"
+  ansible.builtin.user:
+    name: ollama
+    system: true
+    shell: /bin/false
+    home: /usr/share/ollama
+    create_home: true
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [ollama_linux, upgrade]
+
+# ── AMD: ROCm overlay (amd64 only — upstream ships no arm64-rocm asset) ────────
+- name: "ollama (Debian): warn if AMD GPU requested on unsupported arch"
+  ansible.builtin.debug:
+    msg: >
+      WARNING: AMD GPU acceleration was requested but upstream ships no
+      ollama-linux-{{ ollama_linux_arch }}-rocm tarball (ROCm is amd64-only).
+      Continuing CPU-only for the AMD path.
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_gpu_amd_on | bool
+    - ollama_linux_arch != 'amd64'
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): check for existing ROCm libraries"
+  ansible.builtin.stat:
+    path: /usr/lib/ollama/rocm
+  register: ollama_rocm_stat
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_gpu_amd_on | bool
+    - ollama_linux_arch == 'amd64'
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): overlay ROCm tarball for AMD GPU"
+  ansible.builtin.unarchive:
+    src: "https://github.com/ollama/ollama/releases/download/v{{ ollama_target_version }}/ollama-linux-{{ ollama_linux_arch }}-rocm.tar.zst"
+    dest: /usr
+    remote_src: true
+    extra_opts: ["--zstd"]
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_gpu_amd_on | bool
+    - ollama_linux_arch == 'amd64'
+    - (ollama_need_install | bool) or (not ollama_rocm_stat.stat.exists)
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): grant the ollama user GPU device access (AMD)"
+  ansible.builtin.user:
+    name: ollama
+    groups: [render, video]
+    append: true
+  become: true
+  failed_when: false   # render/video may be absent on some kernels — non-fatal
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_gpu_amd_on | bool
+  tags: [ollama_linux, upgrade]
+
+# ── NVIDIA: bundled CUDA libs need only a host kernel driver (detect + warn) ───
+- name: "ollama (Debian): verify NVIDIA host driver (nvidia-smi)"
+  ansible.builtin.command: nvidia-smi -L
+  register: ollama_nvidia_smi
+  changed_when: false
+  failed_when: false
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_gpu_nvidia_on | bool
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): warn when NVIDIA GPU present but driver missing"
+  ansible.builtin.debug:
+    msg: >
+      WARNING: NVIDIA GPU detected but `nvidia-smi` failed. Ollama bundles the
+      CUDA userspace libs, but the host still needs the NVIDIA kernel driver
+      (e.g. `cuda-drivers` / `nvidia-driver`). Install it via system/GPU
+      provisioning and restart the ollama service; the GPU is unused until then.
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_gpu_nvidia_on | bool
+    - (ollama_nvidia_smi.rc | default(1)) != 0
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): install systemd unit"
+  ansible.builtin.template:
+    src: ollama.service.j2
+    dest: /etc/systemd/system/ollama.service
+    mode: "0644"
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): stand down per-GPU instances when the split is off"
+  # Makes the toggle reversible: flipping the flag back to false must actually
+  # free port 11434, or the single service above will fail to bind.
+  ansible.builtin.systemd:
+    name: "ollama-{{ item.name }}"
+    state: stopped
+    enabled: false
+  become: true
+  failed_when: false
+  loop: "{{ ollama_linux_instances | default([]) }}"
+  loop_control:
+    label: "ollama-{{ item.name }}"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - not (ollama_linux_instances_enabled | default(false) | bool)
+  tags: [ollama_linux, ollama_instances, upgrade]
+
+- name: "ollama (Debian): enable + (re)start ollama service"
+  ansible.builtin.systemd:
+    name: ollama
+    daemon_reload: true
+    enabled: true
+    state: "{{ 'restarted' if ollama_need_install | bool else 'started' }}"
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    # Skipped when per-GPU instances are running — they bind the same port.
+    - not (ollama_linux_instances_enabled | default(false) | bool)
+  tags: [ollama_linux, upgrade]
+
+- name: "ollama (Debian): stand down the single service when instances take over"
+  # Not just stopped — disabled, or it races the instances back onto 11434 at
+  # next boot. Runs before the instances start, so the port is free for them.
+  ansible.builtin.systemd:
+    name: ollama
+    state: stopped
+    enabled: false
+  become: true
+  failed_when: false
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_linux_instances_enabled | default(false) | bool
+  tags: [ollama_linux, ollama_instances, upgrade]
+
+# ── Debian: one server per GPU (opt-in) ──────────────────────────────────────
+# Ollama uses a single backend per process, so a mixed CUDA + ROCm box wastes
+# one card under the plain service. One instance per GPU on its own port fixes
+# that and allows two resident models at once. See defaults/main.yaml.
+- name: "ollama (Debian): ensure per-instance model store(s) exist"
+  ansible.builtin.file:
+    path: "{{ ollama_linux_models_root if ollama_linux_instances_share_models else ollama_linux_models_root ~ '-' ~ item.name }}"
+    state: directory
+    owner: ollama
+    group: ollama
+    mode: "0755"
+  become: true
+  loop: "{{ ollama_linux_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_linux_instances_enabled | default(false) | bool
+  tags: [ollama_linux, ollama_instances]
+
+- name: "ollama (Debian): install per-GPU systemd units"
+  ansible.builtin.template:
+    src: ollama-instance.service.j2
+    dest: "/etc/systemd/system/ollama-{{ item.name }}.service"
+    mode: "0644"
+  become: true
+  loop: "{{ ollama_linux_instances }}"
+  loop_control:
+    label: "ollama-{{ item.name }}.service ({{ item.description | default('') }})"
+  register: ollama_instance_units
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_linux_instances_enabled | default(false) | bool
+  tags: [ollama_linux, ollama_instances, upgrade]
+
+- name: "ollama (Debian): enable + (re)start each GPU instance"
+  ansible.builtin.systemd:
+    name: "ollama-{{ item.name }}"
+    daemon_reload: true
+    enabled: true
+    # A running server keeps the environment it started with, so a changed unit
+    # needs a restart, not a reload, for new tuning to take effect.
+    state: "{{ 'restarted' if (ollama_instance_units.changed or ollama_need_install | default(false) | bool) else 'started' }}"
+  become: true
+  loop: "{{ ollama_linux_instances }}"
+  loop_control:
+    label: "ollama-{{ item.name }}"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_linux_instances_enabled | default(false) | bool
+  tags: [ollama_linux, ollama_instances, upgrade]
+
+- name: "ollama (Debian): verify each instance answers on its own port"
+  # Reporting green because systemd started a unit is not proof the server is
+  # serving — on macOS a unit came up while an orphan held the port. Ask it.
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ item.port }}/api/tags"
+    status_code: 200
+  register: ollama_instance_up
+  retries: 15
+  delay: 2
+  until: ollama_instance_up.status is defined and ollama_instance_up.status == 200
+  loop: "{{ ollama_linux_instances }}"
+  loop_control:
+    label: "127.0.0.1:{{ item.port }} ({{ item.name }})"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_linux_instances_enabled | default(false) | bool
+  tags: [ollama_linux, ollama_instances]
+
+- name: "ollama (Debian): confirm each instance bound the GPU it was pinned to"
+  # The pinning env vars are the only thing separating these two servers. If a
+  # unit silently fell back to CPU (missing ROCm for gfx1030, say) it would look
+  # healthy above while delivering a fraction of the throughput. So a fallback
+  # FAILS the task — red, non-fatally (ignore_errors): the instance still
+  # serves and the remaining topics must still apply, but a Vulkan or CPU
+  # binding must never read as success (defaults/main.yaml: investigate,
+  # never accept). The backend is read from the instance's own
+  # inference-compute line (library=cuda|rocm|vulkan|cpu). A MISSING line
+  # stays report-only: a fresh server that has not yet loaded a model
+  # legitimately has none to read, and failing on that would cry wolf on
+  # every restart.
+  ansible.builtin.shell: |
+    set -o pipefail
+    log=$(journalctl -u ollama-{{ item.name }} --since "-2 min" --no-pager 2>/dev/null)
+    line=$(printf '%s\n' "$log" | grep -iE 'inference compute' | tail -1)
+    lib=$(printf '%s' "$line" | sed -nE 's/.*library=([A-Za-z0-9_-]+).*/\1/p')
+    if [ -n "$line" ]; then
+      if [ -z "$lib" ]; then
+        echo "UNREAD: no library= field in: $line"
+        exit 1
+      fi
+      if printf '%s' "$lib" | grep -qiE '^(vulkan|cpu)$'; then
+        echo "FELL BACK: $line"
+        exit 1
+      fi
+      echo "$line"
+      exit 0
+    fi
+    hit=$(printf '%s\n' "$log" | grep -iEm1 'no compatible gpus')
+    if [ -n "$hit" ]; then
+      echo "FELL BACK: $hit"
+      exit 1
+    fi
+    echo "no GPU line in recent logs"
+  args:
+    executable: /bin/bash
+  register: ollama_instance_gpu
+  changed_when: false
+  ignore_errors: true
+  loop: "{{ ollama_linux_instances }}"
+  loop_control:
+    label: "ollama-{{ item.name }}"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_linux_instances_enabled | default(false) | bool
+  tags: [ollama_linux, ollama_instances]
+
+- name: "ollama (Debian): report per-GPU instance state"
+  ansible.builtin.debug:
+    msg: >-
+      ollama-{{ item.item.name }} on 127.0.0.1:{{ item.item.port }}
+      ({{ item.item.description | default('') }}) —
+      {{ item.stdout | default('') | trim }}
+  loop: "{{ ollama_instance_gpu.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name | default('?') }}"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_linux_instances_enabled | default(false) | bool
+  tags: [ollama_linux, ollama_instances]
+
+- name: "ollama (Debian): report install/GPU decision"
+  ansible.builtin.debug:
+    msg: >-
+      ollama {{ ollama_target_version }} on {{ ollama_linux_arch }} —
+      {{ '(re)installed' if ollama_need_install | bool else 'already current' }};
+      GPU nvidia={{ ollama_gpu_nvidia_on }} amd={{ ollama_gpu_amd_on }}.
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [ollama_linux, upgrade]
+
+# ── Linux (Debian): periodic "newer tarball?" check via a systemd timer ────────
+# macOS gets binary upgrades from `brew upgrade` (the cask), so this is Debian
+# only. The timer runs ollama-update-check, which compares the installed binary
+# against the latest upstream tag. Default action is NOTIFY (journal + a marker
+# at /var/lib/ollama/update-available); set ollama_update_check_apply=true to let
+# the timer auto-swap the tarball. Teardown lives in remove.yaml.
+- name: "ollama (Debian): install periodic update-check script"
+  ansible.builtin.copy:
+    src: ollama-update-check
+    dest: /usr/local/bin/ollama-update-check
+    mode: "0755"
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_update_check_enabled | default(true) | bool
+  tags: [ollama_linux, ollama_update_check]
+
+- name: "ollama (Debian): install update-check systemd service + timer"
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0644"
+  become: true
+  loop:
+    - ollama-update-check.service
+    - ollama-update-check.timer
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_update_check_enabled | default(true) | bool
+  tags: [ollama_linux, ollama_update_check]
+
+- name: "ollama (Debian): enable + start the update-check timer"
+  ansible.builtin.systemd:
+    name: ollama-update-check.timer
+    daemon_reload: true
+    enabled: true
+    state: started
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_update_check_enabled | default(true) | bool
+  tags: [ollama_linux, ollama_update_check]
+
+# ── Both OSes: install the ollama-models CLI and sync the manifest ─────────────
+# These two tasks are ALSO tagged `upgrade`: the root playbook's upgrade
+# post_task calls `~/bin/ollama-models sync --refresh`, so the CLI symlink must
+# exist during `--tags upgrade` too — not only after a prior `--tags install`.
+# Both are idempotent (state=directory / state=link force=true), so running them
+# in either phase is safe. Teardown lives in remove.yaml.
+- name: "Ensure ~/bin exists (for the ollama-models CLI)"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/bin"
+    state: directory
+    mode: "0755"
+  tags: [ollama_models, upgrade]
+
+- name: "Symlink the ollama-models CLI onto PATH"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/ollama-models"
+    dest: "{{ ansible_facts['env']['HOME'] }}/bin/ollama-models"
+    state: link
+    force: true
+  tags: [ollama_models, upgrade]
+
+# ── Analysis tooling: installed and scheduled, never run or interpreted ───────
+# Boundary (see README.md "Who decides what"): ansible reconciles the SYSTEM to
+# the manifest. It does not decide what belongs in the manifest. These tools
+# inform that decision and are deliberately kept out of the reconcile path:
+#   ollama-usage  rolls up real usage from the `llm` log + OpenRouter spend
+#   ollama-bench  head-to-head speed/footprint for candidate models
+#   ollama-evals  scores the evals/cases matrix — the quality half of `bench`,
+#                 and the only one of these that also reaches openrouter models
+#   ollama-profile collects the local usage figures on demand. They are NOT
+#                 committed: this topic lives in a public repo and the task-type
+#                 split describes real work. The eval cases point here instead
+# Only `ollama-usage snapshot` is automated (a timer, below) because a time
+# series has to be sampled to exist. `bench` and `evals` are never scheduled —
+# they evict resident models and take minutes, and `evals` can spend money on
+# remote candidates, so both stay things you invoke.
+- name: "Symlink the analysis CLIs onto PATH"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/{{ item }}"
+    dest: "{{ ansible_facts['env']['HOME'] }}/bin/{{ item }}"
+    state: link
+    force: true
+  loop: [ollama-usage, ollama-bench, ollama-role, ollama-evals, ollama-profile]
+  tags: [ollama_models, ollama_usage, upgrade]
+
+- name: "macOS: install the usage-snapshot launchd agent"
+  ansible.builtin.template:
+    src: com.ollama-usage.snapshot.plist.j2
+    dest: "{{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents/com.ollama-usage.snapshot.plist"
+    mode: "0644"
+  when:
+    - ansible_facts['system'] == 'Darwin'
+    - ollama_usage_snapshot_enabled | bool
+  register: ollama_usage_plist
+  tags: [ollama_usage]
+
+- name: "macOS: (re)load the usage-snapshot agent"
+  # bootout is allowed to fail: it errors when nothing is loaded yet, which is
+  # the normal first-run case.
+  ansible.builtin.shell: |
+    launchctl bootout gui/$(id -u)/com.ollama-usage.snapshot 2>/dev/null || true
+    launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.ollama-usage.snapshot.plist"
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when:
+    - ansible_facts['system'] == 'Darwin'
+    - ollama_usage_snapshot_enabled | bool
+    - ollama_usage_plist.changed
+  tags: [ollama_usage]
+
+- name: "Debian: install the usage-snapshot user service + timer"
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/{{ item }}"
+    mode: "0644"
+  loop:
+    - ollama-usage-snapshot.service
+    - ollama-usage-snapshot.timer
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_usage_snapshot_enabled | bool
+  tags: [ollama_usage]
+
+- name: "Debian: enable the usage-snapshot timer (user scope)"
+  # User scope, not system: the data lives under ~/.local/share and the `llm`
+  # log it reads is per-user.
+  ansible.builtin.systemd_service:
+    name: ollama-usage-snapshot.timer
+    scope: user
+    daemon_reload: true
+    enabled: true
+    state: started
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_usage_snapshot_enabled | bool
+  tags: [ollama_usage]
+
+# ── Model drift check: reports, never reconciles ─────────────────────────────
+# Same boundary as the analysis tooling above. `sync` pulls what the manifest
+# declares; deciding the manifest should declare something else is a judgement,
+# because the per-role notes carry measured tok/s and eval results. So this is
+# notify-only: it writes a log and stops. Weekly, because probing every family
+# costs minutes of network and the answer rarely changes day to day.
+- name: "Create the model-check log directory"
+  # launchd refuses to start an agent whose StandardOutPath directory is
+  # missing, so this is a prerequisite rather than housekeeping.
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/share/ollama-models"
+    state: directory
+    mode: "0755"
+  when: ollama_model_check_enabled | bool
+  tags: [ollama_models, ollama_model_check]
+
+- name: "macOS: install the model-check launchd agent"
+  ansible.builtin.template:
+    src: com.ollama-models.check.plist.j2
+    dest: "{{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents/com.ollama-models.check.plist"
+    mode: "0644"
+  when:
+    - ansible_facts['system'] == 'Darwin'
+    - ollama_model_check_enabled | bool
+  register: ollama_model_check_plist
+  tags: [ollama_models, ollama_model_check]
+
+- name: "macOS: (re)load the model-check agent"
+  # bootout is allowed to fail: it errors when nothing is loaded yet, which is
+  # the normal first-run case.
+  ansible.builtin.shell: |
+    launchctl bootout gui/$(id -u)/com.ollama-models.check 2>/dev/null || true
+    launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.ollama-models.check.plist"
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when:
+    - ansible_facts['system'] == 'Darwin'
+    - ollama_model_check_enabled | bool
+    - ollama_model_check_plist.changed
+  tags: [ollama_models, ollama_model_check]
+
+- name: "Debian: install the model-check user service + timer"
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/{{ item }}"
+    mode: "0644"
+  loop:
+    - ollama-models-check.service
+    - ollama-models-check.timer
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_model_check_enabled | bool
+  tags: [ollama_models, ollama_model_check]
+
+- name: "Debian: enable the model-check timer (user scope)"
+  # User scope, matching the usage snapshot: it reads the same per-user
+  # manifest and writes under ~/.local/share.
+  ansible.builtin.systemd_service:
+    name: ollama-models-check.timer
+    scope: user
+    daemon_reload: true
+    enabled: true
+    state: started
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - ollama_model_check_enabled | bool
+  tags: [ollama_models, ollama_model_check]
+
+# ── Restart the server if an upgrade left it on the old binary ───────────────
+# On macOS the binary is upgraded by apps/homebrew, an earlier tier, so this
+# topic never sees the change: on 2026-09-22 brew moved ollama 0.33.3 -> 0.34.3
+# and com.ollama.server ran 0.33.3 until restarted by hand. roles/restart-stale
+# compares the server's start time with the binary's ctime instead. It is last
+# in the file so a plist change reloaded above and an upgrade in the same run
+# cost one restart, not two. Tagged `upgrade` so `--tags upgrade` reaches it.
+#
+# On Debian this topic swaps the tarball itself and restarts the unit when it
+# does, so the check there only catches a swap made some other way — the
+# ollama-update-check timer with _apply=true, or a hand install. Per-GPU
+# instances (ollama_linux_instances_enabled) are not checked: they are the
+# case where the plain unit is stopped, and each instance is restarted by the
+# tasks above whenever this topic changes the binary.
+- name: "Restart the ollama server agent if it predates its binary (macOS)"
+  ansible.builtin.import_role:
+    name: "roles/restart-stale"
+  vars:
+    restart_stale_caller: "apps/ollama"
+    restart_stale_kind: launchd
+    restart_stale_launchd_label: com.ollama.server
+    # The same expression the plist renders as Program, so the file checked is
+    # the file launchd runs.
+    restart_stale_binary: "{{ ollama_bin | default('/opt/homebrew/bin/ollama') }}"
+  when: ansible_facts['os_family'] == 'Darwin'
+  tags: [ollama_service, upgrade]
+
+- name: "Restart the ollama service if it predates its binary (Debian)"
+  ansible.builtin.import_role:
+    name: "roles/restart-stale"
+  vars:
+    restart_stale_caller: "apps/ollama"
+    restart_stale_kind: systemd
+    restart_stale_systemd_unit: ollama
+    restart_stale_systemd_scope: system
+    restart_stale_binary: /usr/bin/ollama
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - not (ollama_linux_instances_enabled | default(false) | bool)
+  tags: [ollama_linux, upgrade]
+
+# NOTE: the actual model pull (`ollama-models sync`) is intentionally NOT here.
+# Models are hundreds of GB, so they must download LAST — after every tier and
+# topic. That runs as a post_tasks step in the root playbook.yaml, gated on
+# ollama being in the run. This task file only sets up the fast binary + CLI.

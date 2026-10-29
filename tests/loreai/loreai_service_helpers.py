@@ -9,10 +9,11 @@ import re
 import shlex
 import subprocess
 
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
 import jinja2
 
-ROOT = Path(__file__).resolve().parents[2]
-TOPIC = ROOT / "dotfiles" / "apps" / "loreai"
+TOPIC = PAYLOAD_ROOT / "dotfiles" / "apps" / "loreai"
 JINJA = jinja2.Environment(undefined=jinja2.StrictUndefined)
 JINJA.tests["match"] = lambda value, pattern: re.match(str(pattern), str(value))
 

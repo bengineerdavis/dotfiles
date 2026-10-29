@@ -1,0 +1,47 @@
+# apps/backlog/tasks/remove.yaml
+# Teardown for everything install.yaml creates, in reverse: the service
+# unit, then the pipx entry. The daemon's runtime state under the user
+# state dir (locks, indexes, logs) is disposable by design; the queue itself
+# is the repo's backlog/ directory, which no topic touches.
+
+- name: "backlog: bootout and remove the daemon unit (Darwin)"
+  ansible.builtin.shell:
+    cmd: launchctl bootout gui/$(id -u)/{{ backlog_daemon_label }} 2>/dev/null || true
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: "backlog: stop and disable the daemon unit (Debian)"
+  ansible.builtin.systemd:
+    name: backlog-daemon
+    enabled: false
+    state: stopped
+    scope: user
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "backlog: remove the unit files"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ backlog_plist_path }}"
+    - "{{ backlog_unit_path }}"
+
+- name: "backlog: probe the mise entry"
+  ansible.builtin.shell:
+    cmd: >-
+      mise ls --global --json
+      | python3 -c "import json,sys; sys.exit(0 if 'pipx:backlog-md-py' in json.load(sys.stdin) else 1)"
+  register: backlog_mise_probe
+  changed_when: false
+  failed_when: false
+
+- name: "backlog: remove the pipx entry (first-party, probe-first)"
+  ansible.builtin.command: mise unuse --global pipx:backlog-md-py
+  when: backlog_mise_probe.rc == 0
+
+- name: "backlog: note what is preserved"
+  ansible.builtin.debug:
+    msg: >-
+      Removed the service unit and the mise entry. Preserved for manual
+      review: the daemon's disposable runtime state
+      (~/.local/state/backlog-py or the platform state dir) and — obviously —
+      the repo's backlog/ directory, which is the queue itself.

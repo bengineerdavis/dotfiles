@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+###############################################################################
+# check-deps.sh
+#
+# A generic, reusable Bash helper for checking required CLI tool dependencies.
+#
+# This script can be:
+#   • Executed directly as a standalone dependency checker
+#   • Sourced by other scripts to reuse the `check_deps` function
+#
+# It checks whether one or more CLI tools are available on the system PATH and
+# exits with a non-zero status if any are missing.
+#
+# -----------------------------------------------------------------------------
+# USAGE (direct execution):
+#
+#   ./check-deps.sh git node docker
+#
+#   ./check-deps.sh --hint "Install via brew install jq" jq
+#
+#   ./check-deps.sh --help
+#
+# -----------------------------------------------------------------------------
+# USAGE (when sourced):
+#
+#   source ./check-deps.sh
+#
+#   check_deps git node
+#
+#   check_deps --hint "Install via mise or brew" node pnpm
+#
+# -----------------------------------------------------------------------------
+# FLAGS:
+#
+#   --hint "<message>"
+#       Optional. Custom installation guidance shown if dependencies are missing.
+#
+#   -h, --help
+#       Show help text and exit.
+#
+# -----------------------------------------------------------------------------
+# EXIT CODES:
+#
+#   0  All dependencies are present
+#   1  One or more dependencies are missing, or invalid usage
+#
+# -----------------------------------------------------------------------------
+# REQUIREMENTS:
+#
+#   • Bash 4+
+#   • No external dependencies
+#
+###############################################################################
+
+DEFAULT_HINT="Please install the missing tool(s) and ensure they are on your PATH."
+
+print_error() {
+  echo "❌ $1" >&2
+}
+
+print_ok() {
+  echo "✅ $1"
+}
+
+print_help() {
+  cat <<'EOF'
+check-deps.sh — CLI dependency checker
+
+Usage:
+  check-deps.sh [--hint "<install hint>"] <tool> [tool...]
+
+Examples:
+  check-deps.sh git node docker
+  check-deps.sh --hint "brew install jq" jq
+  check-deps.sh --help
+
+When sourced:
+  source ./check-deps.sh
+  check_deps git node
+
+Flags:
+  --hint "<message>"   Custom install instructions displayed on failure
+  -h, --help          Show this help message
+
+Exit codes:
+  0  All tools found
+  1  Missing tools or invalid usage
+EOF
+}
+
+check_deps() {
+  local missing=0
+  local hint="$DEFAULT_HINT"
+  local tools=()
+
+  # Argument parsing
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --hint)
+        if [[ $# -lt 2 ]]; then
+          print_error "--hint requires a value"
+          return 1
+        fi
+        hint="$2"
+        shift 2
+        ;;
+      -h|--help)
+        print_help
+        return 0
+        ;;
+      *)
+        tools+=("$1")
+        shift
+        ;;
+    esac
+  done
+
+  if [[ ${#tools[@]} -eq 0 ]]; then
+    print_error "No tools specified."
+    echo
+    print_help
+    return 1
+  fi
+
+  for tool in "${tools[@]}"; do
+    if command -v "$tool" >/dev/null 2>&1; then
+      print_ok "$tool found"
+    else
+      print_error "$tool is not installed"
+      missing=1
+    fi
+  done
+
+  if [[ $missing -ne 0 ]]; then
+    echo
+    echo "ℹ️  $hint"
+    return 1
+  fi
+}
+
+# If executed directly, run check_deps with provided arguments.
+# If sourced, this block is skipped and the function is reusable.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  check_deps "$@"
+fi

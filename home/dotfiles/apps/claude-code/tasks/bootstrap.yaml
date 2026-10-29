@@ -1,0 +1,11 @@
+# apps/claude-code/tasks/bootstrap.yaml
+# First-time setup of a system tool on a fresh machine. Confirmed, never silent.
+#
+# App-tier topics leave this empty — dependencies are expressed via
+# topic_requires in topic.yml and resolved by the parent playbook.
+#
+# Idempotent: safe to re-run. No confirmation needed.
+# Do NOT put install, upgrade, or remove logic here.
+#
+# claude-code has none of its own: both artifacts are brew casks, and brew
+# arrives via topic_requires and is guarded in install.yaml.

@@ -1,0 +1,200 @@
+# apps/loreai/tasks/prompts.yaml
+#
+# First-install questions, saved per machine to loreai_env_file. This file is
+# imported FIRST by install.yaml — before any download or mutation — so a run
+# that needs answers asks while the operator is still watching, and a run
+# that cannot ask fails before changing anything (author requirement,
+# 2026-10-21). Once the env file exists this entire file no-ops: updates are
+# fully unattended.
+
+- name: "loreai: check for saved per-machine answers"
+  ansible.builtin.stat:
+    path: "{{ loreai_env_file }}"
+  register: loreai_env_stat
+
+- name: "loreai: fail fast when answers are needed but cannot be asked"
+  # pause would hang or error on a headless run; name the non-interactive
+  # path instead. Nothing has been installed or changed at this point.
+  ansible.builtin.fail:
+    msg: >-
+      loreai needs first-install answers but loreai_telemetry /
+      loreai_inference were not provided and this run looks non-interactive
+      (TERM unset or dumb). Re-run with:
+      -e loreai_telemetry=0|1 -e loreai_inference=openrouter|local|none
+      [-e loreai_worker_model=<provider/model>] — or run interactively.
+      Nothing has been installed or changed.
+  when: >
+    not loreai_env_stat.stat.exists
+    and (loreai_telemetry is none or loreai_inference is none)
+    and (ansible_facts['env'].get('TERM', 'dumb') in ['', 'dumb'])
+
+# ── Detection for the inference choices (runs before asking) ─────────────────
+# Probes run whenever answers are needed — also when loreai_inference arrived
+# via -e — because the key-resolvability warning below reads them too.
+
+- name: "loreai: probe for a local inference server (ollama)"
+  ansible.builtin.shell:
+    cmd: command -v ollama >/dev/null 2>&1
+  register: loreai_ollama_probe
+  changed_when: false
+  failed_when: false
+  check_mode: false  # read-only probe; keeps --check detection honest
+  when: not loreai_env_stat.stat.exists
+
+- name: "loreai: probe for an OpenRouter key without printing it"
+  # `llm keys get` prints the key on stdout — no_log keeps it out of the run
+  # log; only the exit code (key present or not) is used. The key itself is
+  # resolved at shell start by the env file, never written down here.
+  ansible.builtin.shell:
+    cmd: llm keys get openrouter >/dev/null 2>&1
+  register: loreai_openrouter_probe
+  changed_when: false
+  failed_when: false
+  check_mode: false  # read-only probe; keeps --check detection honest
+  no_log: true
+  when: not loreai_env_stat.stat.exists
+
+- name: "loreai: default the inference choice from what is available"
+  # Author ruling 2026-10-21: a machine with OpenRouter defaults to it;
+  # local inference is the fallback; neither means workers follow the
+  # session provider.
+  ansible.builtin.set_fact:
+    loreai_inference_default: >-
+      {{ 'openrouter'
+         if (loreai_openrouter_probe.rc | default(1) == 0
+             or ansible_facts['env'].get('OPENROUTER_API_KEY', '') | length > 0)
+         else ('local' if loreai_ollama_probe.rc | default(1) == 0
+               else 'none') }}
+  when: not loreai_env_stat.stat.exists and loreai_inference is none
+
+# ── The questions ────────────────────────────────────────────────────────────
+
+- name: "loreai: ask about operational telemetry"
+  ansible.builtin.pause:
+    prompt: >-
+      Lore's production builds send privacy-filtered operational telemetry
+      to Sentry (no prompts, bodies, paths or project names —
+      withlore.ai/docs/install/#operational-telemetry).
+      Enable it? [1 = on (default), 0 = off]
+    echo: true
+  register: loreai_telemetry_answer
+  when: not loreai_env_stat.stat.exists and loreai_telemetry is none
+
+- name: "loreai: ask where background workers should run"
+  ansible.builtin.pause:
+    prompt: >-
+      Lore's background workers (distillation, curation, query expansion)
+      can run via OpenRouter, a local ollama server, or the session's own
+      provider. Detection on this machine:
+      OpenRouter key {{ 'FOUND' if loreai_inference_default == 'openrouter' else 'not found' }},
+      ollama {{ 'FOUND' if loreai_inference_default == 'local' else 'not found' }}.
+      Choose [openrouter / local / none] (default: {{ loreai_inference_default }})
+    echo: true
+  register: loreai_inference_answer
+  when: not loreai_env_stat.stat.exists and loreai_inference is none
+
+# Each answer settles independently — an explicit -e beats the prompt beats
+# the default. Keying the settle on the OTHER answer's presence (an earlier
+# cut) silently inverted an explicit -e opt-out, or discarded a collected
+# prompt answer and failed validation on 'None' (roborev review, PR #70).
+
+- name: "loreai: settle the telemetry answer (-e beats prompt beats default)"
+  ansible.builtin.set_fact:
+    loreai_telemetry_final: >-
+      {{ loreai_telemetry | string
+         if loreai_telemetry is not none
+         else ((loreai_telemetry_answer.user_input | default('') | trim)
+               if (loreai_telemetry_answer.user_input | default('') | trim) in ['0', '1']
+               else '1') }}
+  when: not loreai_env_stat.stat.exists
+
+- name: "loreai: settle the inference answer (-e beats prompt beats detection)"
+  ansible.builtin.set_fact:
+    loreai_inference_final: >-
+      {{ loreai_inference | lower
+         if loreai_inference is not none
+         else ((loreai_inference_answer.user_input | default('') | trim | lower)
+               if (loreai_inference_answer.user_input | default('') | trim | lower)
+                  in ['openrouter', 'local', 'none']
+               else loreai_inference_default) }}
+  when: not loreai_env_stat.stat.exists
+
+- name: "loreai: validate the inference answer"
+  ansible.builtin.fail:
+    msg: >-
+      loreai_inference must be one of openrouter, local, none —
+      got '{{ loreai_inference_final }}'. Nothing has been installed or changed.
+  when: >
+    not loreai_env_stat.stat.exists
+    and loreai_inference_final not in ['openrouter', 'local', 'none']
+
+- name: "loreai: validate the telemetry answer"
+  ansible.builtin.fail:
+    msg: >-
+      loreai_telemetry must be 0 or 1 — got '{{ loreai_telemetry_final }}'.
+      Nothing has been installed or changed.
+  when: >
+    not loreai_env_stat.stat.exists
+    and loreai_telemetry_final | string not in ['0', '1']
+
+- name: "loreai: default the worker model from the inference choice"
+  ansible.builtin.set_fact:
+    loreai_worker_model_final: >-
+      {{ loreai_worker_model
+         if loreai_worker_model is not none
+         else (loreai_worker_model_openrouter_default
+               if loreai_inference_final == 'openrouter'
+               else (loreai_worker_model_local_default
+                     if loreai_inference_final == 'local' else '')) }}
+  when: not loreai_env_stat.stat.exists
+
+- name: "loreai: save the answers per machine"
+  # The directory itself is created in install.yaml, tagged [install,
+  # upgrade] — --tags upgrade skips this import but the fetch still lands
+  # its archive there.
+  ansible.builtin.template:
+    src: loreai-env.zsh.j2
+    dest: "{{ loreai_env_file }}"
+    mode: "0600"
+  when: not loreai_env_stat.stat.exists
+
+- name: "loreai: converge the temporary OpenAI-protocol upstream"
+  # Unlike the first-install template, this also updates existing answer files.
+  # Remove when the OpenCode integration supplies X-Lore-Provider itself.
+  ansible.builtin.lineinfile:
+    path: "{{ loreai_env_file }}"
+    regexp: '^export LORE_UPSTREAM_OPENAI='
+    line: export LORE_UPSTREAM_OPENAI="{{ loreai_openai_upstream }}"
+  register: loreai_env_upstream
+  tags: [loreai, install, upgrade]
+
+- name: "loreai: report the saved answers"
+  ansible.builtin.debug:
+    msg: >-
+      Saved to {{ loreai_env_file }}: telemetry={{ loreai_telemetry_final }},
+      inference={{ loreai_inference_final }}
+      {{ (', worker model ' + loreai_worker_model_final)
+         if loreai_worker_model_final | default('') | length > 0 else '' }}.
+      Edit the file to change; delete it and re-run to be asked again.
+  when: not loreai_env_stat.stat.exists
+
+- name: "loreai: warn loudly when openrouter was chosen without a resolvable key"
+  # Not a fail — the operator may be about to add the key. But a silent
+  # choice here fails later, at worker runtime, with a less obvious error.
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: inference=openrouter but no OpenRouter key was detected
+      (llm keys get openrouter failed; OPENROUTER_API_KEY unset). Workers
+      will fail at runtime until one exists. Fix any of: `llm keys set
+      openrouter`, export OPENROUTER_API_KEY, or fill in the 1Password line
+      in {{ loreai_env_file }}.
+  when: >
+    not loreai_env_stat.stat.exists
+    and loreai_inference_final == 'openrouter'
+    and loreai_openrouter_probe.rc | default(1) != 0
+    and ansible_facts['env'].get('OPENROUTER_API_KEY', '') | length == 0
+
+- name: "loreai: note the saved answers are in force"
+  ansible.builtin.debug:
+    msg: "Using saved answers from {{ loreai_env_file }} (no prompts needed)."
+  when: loreai_env_stat.stat.exists

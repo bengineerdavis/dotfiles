@@ -1,0 +1,76 @@
+# apps/chrome/tasks/upgrade.yaml
+# Topic-level upgrade tasks. Refresh state this topic owns.
+#
+# Most app-tier topics leave this empty — brew/apt refresh their binaries. This
+# one does not, because it owns subordinate state that no package manager knows
+# about: the git clones behind `source: git` extensions.
+#
+# Chrome itself is NOT upgraded here. It is updated by Google Keystone under
+# MDM, which is also what carries the cloud-management enrollment.
+# `source: store` extensions are not upgraded here either — Chrome updates
+# those from the Web Store on its own schedule.
+#
+# Idempotent: safe to re-run. No confirmation needed.
+# Do NOT put install or remove logic here.
+
+# ── Refresh `source: git` extensions to their pinned ref ────────────────────
+# Pinned, so this is not "pull latest": it re-checks out whatever `ref` the
+# manifest names and fetches only if that ref is not already satisfied. Moving
+# to a new version is an edit to the manifest, never a side effect of upgrading.
+
+- name: "Guard pinned refs against upstream tag moves"
+  ansible.builtin.import_tasks: git-refs-guard.yaml
+
+- name: "Fetch and check out each git extension at its pinned ref"
+  ansible.builtin.git:
+    repo: "{{ item.repo }}"
+    dest: "{{ chrome_unpacked_root }}/{{ item.slug }}"
+    version: "{{ item.ref }}"
+    # force only ever set by the explicit chrome_allow_moved_refs opt-in above:
+    # it is what lets git overwrite a tag that moved, and it also discards local
+    # modifications, so it must never be the default.
+    force: "{{ chrome_allow_moved_refs | bool }}"
+    update: true
+  loop: "{{ chrome_extensions | default([]) | selectattr('source', 'eq', 'git') | list }}"
+  loop_control:
+    label: "{{ item.name }} @ {{ item.ref }}"
+  register: chrome_git_upgrade
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: "Rebuild any git extension whose checkout moved"
+  ansible.builtin.shell:
+    cmd: "{{ item.0.build }}"
+    chdir: "{{ chrome_unpacked_root }}/{{ item.0.slug }}"
+  environment:
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
+  loop: >-
+    {{ (chrome_extensions | default([]) | selectattr('source', 'eq', 'git') | list)
+       | zip(chrome_git_upgrade.results | default([]))
+       | list }}
+  loop_control:
+    label: "{{ item.0.name }}"
+  changed_when: true
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - chrome_build_git_extensions | bool
+    - item.0.build is defined
+    - item.1.changed | default(false)
+
+# Chrome does not watch the filesystem for unpacked extensions. A rebuilt dist/
+# is on disk but the running browser still holds the old one until told.
+- name: "Report git extensions that need a reload in chrome://extensions"
+  ansible.builtin.debug:
+    msg: >-
+      [reload] '{{ item.0.name }}' moved to {{ item.0.ref }} and was rebuilt.
+      Chrome does not notice on its own — open chrome://extensions and hit
+      reload on it (or restart Chrome) to pick the new build up. The extension
+      ID is unchanged, so nothing else needs redoing.
+  loop: >-
+    {{ (chrome_extensions | default([]) | selectattr('source', 'eq', 'git') | list)
+       | zip(chrome_git_upgrade.results | default([]))
+       | list }}
+  loop_control:
+    label: "{{ item.0.name }}"
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - item.1.changed | default(false)

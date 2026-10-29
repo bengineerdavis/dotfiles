@@ -1,0 +1,69 @@
+# apps/rancher-desktop/defaults/main.yaml
+
+# ── PATH ownership: this topic, not Rancher's rc-file injection ──────────────
+# Rancher Desktop's `pathManagementStrategy` decides how ~/.rd/bin reaches your
+# PATH. Two values are allowed:
+#
+#   rcfiles  (Rancher's default) — Rancher writes a
+#            "### MANAGED BY RANCHER DESKTOP" block into every shell rc file it
+#            recognises, on app launch and after updates.
+#   manual   — Rancher writes nothing and leaves PATH to you.
+#
+# We want `manual`, because this topic already owns the PATH entry in
+# files/zsh/path.zsh and the two together are a duplicate. More importantly the
+# rc-file strategy is unmanageable: Rancher rewrites those files whenever the app
+# starts, so chezmoi (which owns ~/.zshrc) and Rancher fight forever, and
+# `chezmoi status` shows permanent drift that means nothing.
+#
+# Verified on this machine: the default strategy had injected a block into SIX
+# files — .zshrc, .bashrc, .bash_profile, .cshrc, .tcshrc and
+# .config/fish/config.fish.
+#
+# ⚠ CONSEQUENCE: with `manual`, files/zsh/path.zsh becomes load-bearing rather
+# than a duplicate. Deleting it silently removes `docker` from interactive
+# shells. It self-guards on ~/.rd/bin existing, so it is still a no-op once the
+# cask is gone.
+rancher_path_management_strategy: manual
+
+# Official config, not a file edit: `rdctl set` is Rancher's own CLI and the app
+# persists the change itself. Falls back to patching settings.json directly when
+# the app is not running, since rdctl needs the app's API to talk to.
+rancher_settings_json: >-
+  {{ ansible_facts['env']['HOME'] }}/Library/Preferences/rancher-desktop/settings.json
+rancher_rdctl: "{{ ansible_facts['env']['HOME'] }}/.rd/bin/rdctl"
+
+# Remove the blocks Rancher already injected. This topic is cleaning up state
+# its own install triggered, so it is not reaching into files it does not own —
+# the block is Rancher's output, delimited by Rancher's markers, and nothing
+# else in the repo writes or reads it.
+rancher_strip_rc_blocks: true
+
+# Every rc file Rancher is known to target. Listed explicitly rather than
+# globbed: a glob over $HOME dotfiles would be a blunt instrument pointed at
+# files this topic has no business touching.
+rancher_rc_files:
+  - .zshrc
+  - .bashrc
+  - .bash_profile
+  - .profile
+  - .cshrc
+  - .tcshrc
+  - .config/fish/config.fish
+
+# ── Service mode: the engine is the point, the window is incidental ──────────
+# Rancher Desktop is a GUI app carrying a container engine. We want it the other
+# way round — `docker` and `docker compose` are the interface, and the app is
+# infrastructure nobody opens.
+#
+# Flags verified with `rdctl set --help` rather than recalled:
+#   --application.auto-start
+#   --application.start-in-background
+#   --application.window.quit-on-close
+#
+# ⚠ quit-on-close is the one that is easy to get backwards. `true` terminates
+# the whole app when the window closes, which is precisely what a service must
+# not do. It is already false by default; asserted anyway, because a default
+# that is load-bearing and unstated is one an update may change under you.
+rancher_auto_start: true
+rancher_start_in_background: true
+rancher_quit_on_close: false

@@ -1,0 +1,40 @@
+# {{ ansible_managed }}
+# Rendered from apps/clamav/templates/clamd.conf.j2 — edits here are overwritten.
+# Reference: clamd.conf.sample in this directory, or `man clamd.conf`.
+
+# The socket path is rendered from the same Ansible variable as daily_scan.sh, so the
+# two can no longer disagree. They did in the unmanaged setup, which silently broke the
+# post-scan shutdown. See apps/clamav/README.md.
+LocalSocket {{ clamav_socket }}
+FixStaleSocket yes
+
+MaxConnectionQueueLength 6
+MaxThreads {{ clamav_max_threads }}
+
+# Large, opaque, constantly-rewritten paths. Scanning VM disk images and container
+# stores is expensive and finds nothing useful.
+{% for path in clamav_exclude_paths %}
+ExcludePath {{ path }}
+{% endfor %}
+
+{% if clamav_heuristic_alerts %}
+# Heuristic alerting: anomaly rules, not known-malware signatures. They fire on
+# truncated, encrypted and macro-bearing files. Kept on deliberately — an attachment
+# that is encrypted or carries macros is worth knowing about even when no signature
+# matches. scanfiles.py reports these as warnings rather than as malware.
+HeuristicAlerts yes
+AlertBrokenExecutables yes
+AlertBrokenMedia yes
+AlertEncrypted yes
+AlertEncryptedArchive yes
+AlertEncryptedDoc yes
+AlertOLE2Macros yes
+AlertPhishingSSLMismatch yes
+AlertPhishingCloak yes
+AlertPartitionIntersection yes
+{% endif %}
+
+MaxFileSize 500M
+MaxScanSize 1000M
+MaxRecursion 15
+MaxFiles 15000

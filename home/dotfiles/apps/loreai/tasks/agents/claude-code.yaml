@@ -1,0 +1,15 @@
+# apps/loreai/tasks/agents/claude-code.yaml — extension: claude-code
+# Included by agents.yaml only when claude-code was detected. lore setup is
+# documented idempotent (re-running updates the fields it owns and preserves
+# the rest); it is a converge operation, so changed_when stays false and the
+# output is reported instead of parsed.
+
+- name: "loreai: configure claude-code to route through the gateway"
+  ansible.builtin.command: "{{ loreai_install_dir }}/lore setup claude-code"
+  register: loreai_setup_claude_code
+  changed_when: false
+
+- name: "loreai: report the claude-code setup"
+  ansible.builtin.debug:
+    msg: >-
+      lore setup claude-code: {{ loreai_setup_claude_code.stdout_lines | default([]) | join(' | ') }}

@@ -1,0 +1,7 @@
+# /home/bdavis/dotfiles/apps/bitwarden/tasks/bootstrap.yaml
+# No-op lifecycle file for this marker topic.
+
+- name: "bootstrap: no-op"
+  ansible.builtin.debug:
+    msg: "{{ role_name }}: bootstrap is a no-op; the CLI binary is managed by apps/mise"
+  changed_when: false

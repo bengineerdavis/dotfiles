@@ -1,0 +1,11 @@
+# apps/dotagents/tasks/bootstrap.yaml
+# App-tier topics leave this empty: mise installs the binary at tier 0.
+#
+# `dotagents` arrives as `npm:@sentry/dotagents` in
+# apps/mise/files/config.toml, which mise installs with node. There is no
+# bring-it-into-existence step for this topic to own.
+
+- name: "Bootstrap is covered by the mise topic"
+  ansible.builtin.debug:
+    msg: "dotagents is a mise tool; see apps/mise/files/config.toml."
+    verbosity: 2

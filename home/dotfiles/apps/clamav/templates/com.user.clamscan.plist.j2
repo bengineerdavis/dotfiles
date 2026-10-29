@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- {{ ansible_managed }}
+     Rendered from apps/clamav/templates/com.user.clamscan.plist.j2 — edits are overwritten.
+
+     Two fixes over the hand-rolled predecessor:
+       * The DOCTYPE URL was truncated to "http://apple.com". launchd tolerated it, but
+         it was wrong and broke plist validators.
+       * Output went to /dev/null, which is why two silent failures went unnoticed for
+         weeks. The script now logs to run.log, and launchd's own stdout/stderr is
+         captured to agent.log rather than discarded.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>{{ clamav_agent_label }}</string>
+
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>{{ clamav_scan_script }}</string>
+	</array>
+
+	<!-- launchd jobs inherit no shell profile. The script uses absolute paths for
+	     everything, but a sane PATH is set anyway for anything it shells out to. -->
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>{{ clamav_brew_prefix }}/bin:{{ clamav_brew_prefix }}/sbin:{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:/usr/bin:/bin:/usr/sbin:/sbin</string>
+		<key>HOME</key>
+		<string>{{ ansible_facts['env']['HOME'] }}</string>
+	</dict>
+
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Hour</key>
+		<integer>{{ clamav_scan_hour }}</integer>
+		<key>Minute</key>
+		<integer>{{ clamav_scan_minute }}</integer>
+	</dict>
+
+	<!-- Do not scan on every login; the calendar interval is the only trigger. -->
+	<key>RunAtLoad</key>
+	<false/>
+
+	<!-- Yield CPU and IO to anything interactive. -->
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>LowPriorityIO</key>
+	<true/>
+	<key>Nice</key>
+	<integer>10</integer>
+
+	<key>StandardOutPath</key>
+	<string>{{ clamav_automation_dir }}/agent.log</string>
+	<key>StandardErrorPath</key>
+	<string>{{ clamav_automation_dir }}/agent.log</string>
+</dict>
+</plist>

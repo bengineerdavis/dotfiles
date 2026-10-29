@@ -1,0 +1,69 @@
+# apps/opencode/tasks/remove.yaml
+# Teardown for everything install.yaml creates, per the CRUD ownership
+# invariant in docs/TOPICS.md. The tap is guarded behind a flag (see
+# defaults/main.yaml) because it is shared beyond this topic.
+
+# ── The binary ───────────────────────────────────────────────────────────────
+- name: "Uninstall opencode v2 from the pinned tap"
+  community.general.homebrew:
+    name: "{{ opencode_tap }}/opencode-v2"
+    state: absent
+
+- name: "Untap {{ opencode_tap }}"
+  community.general.homebrew_tap:
+    name: "{{ opencode_tap }}"
+    state: absent
+  # Off by default. The tap is shared infrastructure: any other formula could
+  # come from it later, and removing a tap someone else relies on is not a
+  # surprise a `remove` should spring. Flip opencode_remove_tap deliberately.
+  when: opencode_remove_tap | bool
+
+# Install leaves TWO trust entries, not one. `brew trust --tap` writes the tap
+# entry; `brew install` then writes a formula entry of its own
+# (anomalyco/tap/opencode-v2 since the v2 migration). Measured on Homebrew
+# 7.0.1, 2026-09-14: `brew untrust --tap` removes only the tap entry and leaves
+# the formula one behind, so tearing down trust takes both commands. Both are
+# idempotent — an entry that is already gone reports "Not trusted" and exits 0.
+#
+# Both are gated on the same flag as the untap, because tap, trust and formula
+# trust are one unit: a trusted tap that is no longer tapped is harmless, but
+# revoking trust while the tap is still present would break every other
+# formula installed from it.
+#
+# The v1 formula's trust entry is not cleaned here: machines that ever
+# installed v1 converge at the next install run instead, which untrusts the v1
+# name idempotently (install.yaml's decision-2 cleanup).
+
+- name: "Stop trusting the opencode formula from {{ opencode_tap }}"
+  ansible.builtin.command:
+    cmd: "brew untrust --formula {{ opencode_tap }}/opencode-v2"
+  register: opencode_untrust_formula
+  changed_when: "'Not trusted' not in opencode_untrust_formula.stdout"
+  when: opencode_remove_tap | bool
+
+- name: "Stop trusting the tap: {{ opencode_tap }}"
+  # Last, mirroring the install order (trust → tap → install) in reverse.
+  ansible.builtin.command:
+    cmd: "brew untrust --tap {{ opencode_tap }}"
+  register: opencode_untrust_tap
+  changed_when: "'Not trusted' not in opencode_untrust_tap.stdout"
+  when: opencode_remove_tap | bool
+
+# ── What is intentionally NOT removed here ───────────────────────────────────
+# ~/.config/opencode is chezmoi-managed: opencode.jsonc deploys from
+# dot_config/opencode/ in the chezmoi source, and removing it is a chezmoi
+# source edit + `chezmoi apply`, not an Ansible task.
+#
+# Provider tokens and session history are machine-local state, never versioned
+# and never touched by this topic, on install or on remove. v2 keeps tokens in
+# a sqlite credential store (no auth.json import was found in the v2 source,
+# so plan on a re-auth after remove/reinstall) and migrates v1 sessions in
+# place in the same database on first run.
+- name: "Note what remove leaves in place"
+  ansible.builtin.debug:
+    msg: >-
+      Binary removed. ~/.config/opencode config is chezmoi-owned; v2's sqlite
+      credentials and the session database are machine-local and left
+      untouched — sessions were migrated in place by v2's first run. The skill
+      set is user-global and owned by the global-skills topic, so it is
+      untouched by this teardown; remove it there.

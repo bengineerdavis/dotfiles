@@ -1,0 +1,9 @@
+# Managed by apps/ollama — one usage snapshot. Triggered by the matching timer.
+[Unit]
+Description=Append an ollama usage snapshot
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=PATH=%h/bin:%h/.local/bin:/usr/bin:/bin
+ExecStart=%h/bin/ollama-usage snapshot

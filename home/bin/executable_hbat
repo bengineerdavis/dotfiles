@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# -----------------------------------------------------------------------------
+# Script Name:        hbat
+# Description:        A helper script to display command help pages in a clean, colored, paginated format using bat. Designed to show help text with proper formatting and terminal compatibility.
+#
+# License:            MIT
+# Author:             Ben Davis <bengineerdavis@gmail.com>
+# Credits:            
+# Created:            2026-03-24
+# Last Modified:      2026-03-24
+#
+# Usage:              hbat <command>   # e.g., hbat git, hbat docker
+#
+# Notes:
+#   - Requires the 'bat' command (https://github.com/sharkdp/bat) to be installed and available in PATH.
+#   - Uses 'col' to clean terminal output (handles backspaces and overstrikes).
+#   - The command is executed with --help and stderr redirected to avoid terminal hijacking.
+#   - Output is formatted with color and paging enabled for better readability.
+#   - This script is intended for use with any command that supports a --help flag.
+#
+# -----------------------------------------------------------------------------
+
+hbat() {
+  # If no arguments are provided, don't do anything
+  if [ $# -eq 0 ]; then
+    echo "Usage: hbat <command>"
+    return 1
+  fi
+
+  # 1. ( "$@" --help 2>&1 )   Executes the command + args and redirects stderr.
+  # 2. </dev/null             Prevents the process from hijacking your keyboard.
+  # 3. col -bx                Cleans up backspaces and terminal 'overstrikes'.
+  # 4. bat flags              Preserves color, forces paging, sets help syntax.
+  
+  ( "$@" --help 2>&1 ) </dev/null | col -bx | bat --color=always --paging=always -l help
+}
+
+hbat "$@"

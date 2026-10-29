@@ -1,0 +1,23 @@
+[Unit]
+# {{ ansible_managed }}
+# Rendered from apps/lynis/templates/lynis-audit.timer.j2 — edits are overwritten.
+#
+# Monthly cadence, matching the launchd agent's StartCalendarInterval: day
+# {{ lynis_audit_day }} at {{ '%02d:%02d' | format(lynis_audit_hour, lynis_audit_minute) }}.
+Description=Run the monthly Lynis audit
+Documentation=https://cisofy.com/lynis/
+
+[Timer]
+OnCalendar=*-*-{{ '%02d' | format(lynis_audit_day) }} {{ '%02d:%02d:00' | format(lynis_audit_hour, lynis_audit_minute) }}
+
+# launchd runs a missed StartCalendarInterval job once the machine wakes; Persistent
+# is the systemd equivalent, so a box that was off on the first of the month still
+# gets its audit rather than silently skipping to next month.
+Persistent=true
+
+# Nothing else is competing for this slot, but a small jitter avoids every machine
+# provisioned from these dotfiles auditing at the same instant.
+RandomizedDelaySec=15m
+
+[Install]
+WantedBy=timers.target

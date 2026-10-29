@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # scripts/run-bats.sh
-# Runs BATS suites for staged shell scripts in bin/, scripts/ and,
-# after the .chezmoiroot move, home/bin/.
+# Runs BATS suites for staged shell scripts in home/bin/ and scripts/.
 # Convention: <subdir>/foo.sh → tests/foo.bats
 set -euo pipefail
 

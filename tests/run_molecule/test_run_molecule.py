@@ -113,7 +113,7 @@ def test_molecule_runs_in_the_scenario_parent(
     result = run_wrapper(scenario_repo, "faketopic", cwd=caller_cwd)
     assert result.returncode == 0, result.stderr
     (record,) = molecule_records(scenario_repo)
-    expected = scenario_repo / "dotfiles" / "apps" / "faketopic"
+    expected = scenario_repo / "home" / "dotfiles" / "apps" / "faketopic"
     assert record["cwd"] == [str(expected)]
 
 
@@ -122,7 +122,7 @@ def test_project_directory_is_exported(scenario_repo: pathlib.Path):
     result = run_wrapper(scenario_repo, "faketopic", "converge")
     assert result.returncode == 0, result.stderr
     (record,) = molecule_records(scenario_repo)
-    assert record["env-mpd"] == [str(scenario_repo / "dotfiles")]
+    assert record["env-mpd"] == [str(scenario_repo / "home" / "dotfiles")]
 
 
 def test_collections_path_is_exported(scenario_repo: pathlib.Path):
@@ -145,7 +145,7 @@ def test_collections_are_installed_first(scenario_repo: pathlib.Path):
     galaxy, probe, molecule = (r["arg"] for r in records)
     assert "ansible-galaxy" in galaxy
     assert "collection" in galaxy and "install" in galaxy
-    assert str(scenario_repo / "dotfiles" / "requirements.yml") in galaxy
+    assert str(scenario_repo / "home" / "dotfiles" / "requirements.yml") in galaxy
     assert "python" in probe and "-c" in probe
     assert "molecule" in molecule
 
@@ -168,13 +168,15 @@ def test_ephemeral_directory_is_pinned_into_the_scenario(scenario_repo):
     assert result.returncode == 0, result.stderr
     (record,) = molecule_records(scenario_repo)
     (value,) = record["env-ed"]
-    expected = scenario_repo / "dotfiles" / "apps" / "faketopic"
+    expected = scenario_repo / "home" / "dotfiles" / "apps" / "faketopic"
     expected = expected / "molecule" / "default" / ".molecule"
     assert value == str(expected), value
 
 
 def make_named_scenario(scenario_repo: pathlib.Path, name: str) -> pathlib.Path:
-    scenario = scenario_repo / "dotfiles" / "apps" / "faketopic" / "molecule" / name
+    scenario = (
+        scenario_repo / "home" / "dotfiles" / "apps" / "faketopic" / "molecule" / name
+    )
     scenario.mkdir(parents=True)
     (scenario / "molecule.yml").touch()
     return scenario

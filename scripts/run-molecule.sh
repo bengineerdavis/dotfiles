@@ -20,8 +20,8 @@
 #
 # Contract (docs/research/topic-vm-tests/PLAN.md § Decision 4):
 # - runs from any cwd; molecule's scenario discovery is cwd-relative, so this
-#   chdirs to the scenario's parent (dotfiles/apps/<topic>) itself;
-# - exports MOLECULE_PROJECT_DIRECTORY=dotfiles/ so the role and its guards
+#   chdirs to the scenario's parent (home/dotfiles/apps/<topic>) itself;
+# - exports MOLECULE_PROJECT_DIRECTORY=home/dotfiles/ so the role and its guards
 #   resolve (molecule's Config reads this env var before falling back to
 #   cwd — verified against molecule 26.9.0);
 # - runs molecule through `uv run --frozen --group test-vm` so humans and
@@ -38,7 +38,8 @@ set -euo pipefail
 err() { printf 'run-molecule: ERROR: %s\n' "$*" >&2; }
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DOTFILES="$REPO_ROOT/dotfiles"
+# .chezmoiroot=home moves the payload, not repository-only scripts/tests.
+DOTFILES="$REPO_ROOT/home/dotfiles"
 
 TOPIC="${1:-}"
 if [[ -z "$TOPIC" ]]; then
@@ -49,7 +50,7 @@ fi
 SCENARIO="${MOLECULE_SCENARIO:-default}"
 SCENARIO_PARENT="$DOTFILES/apps/$TOPIC"
 if [[ ! -f "$SCENARIO_PARENT/molecule/$SCENARIO/molecule.yml" ]]; then
-  err "no scenario at dotfiles/apps/$TOPIC/molecule/$SCENARIO/. Scenarios live inside the topic per docs/TOPICS.md; create molecule/$SCENARIO/ there first, or select another with MOLECULE_SCENARIO."
+  err "no scenario at home/dotfiles/apps/$TOPIC/molecule/$SCENARIO/. Scenarios live inside the topic per docs/TOPICS.md; create molecule/$SCENARIO/ there first, or select another with MOLECULE_SCENARIO."
   exit 2
 fi
 

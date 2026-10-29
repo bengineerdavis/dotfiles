@@ -1,0 +1,18 @@
+# apps/uv/tasks/prerequisites.yaml
+#
+# The astral installer shells out to curl. Fail loudly here — with the fix —
+# rather than mid-install.
+- name: "Prerequisites: check that curl is on PATH"
+  ansible.builtin.command: curl --version
+  changed_when: false
+  check_mode: false
+  failed_when: false
+  register: uv_curl_probe
+
+- name: "Prerequisites: fail with the fix if curl is absent"
+  ansible.builtin.fail:
+    msg: >-
+      curl not found, so the astral uv installer cannot run. Install curl
+      (macOS ships it; Debian: the apt topic, `./run-role.sh apt`), then
+      re-run this topic.
+  when: uv_curl_probe.rc != 0
