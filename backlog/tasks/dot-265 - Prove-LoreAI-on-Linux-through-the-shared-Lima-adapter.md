@@ -17,6 +17,7 @@ orchestration:
   lease_owner: opencode-loreai-lima
   lease_expires_at: '2026-10-29T03:23:16.951382Z'
   version: 1
+updated_date: 2026-10-29 02:42
 ---
 
 ## Description
@@ -44,7 +45,7 @@ Use Molecule native path references, not a new Python driver. Start with a minim
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
+2026-10-28: real Debian 12 ARM64 Lima guest passed LoreAI converge, zero-change idempotence, active+enabled systemd user service, local GET /ui with dashboard content, two removals, planted memory preservation, stopped service, and scoped VM teardown. No host credentials, LLM inference, or host service changes. Lima regression and LoreAI explicit-prepare sequential runs also green. Bounded independent parallel probe: both full lifecycles rc=0, elapsed 97s on this 14-core/36GiB host; one run, no general worker-count or speedup claim. New contract tests separate adapter, runtime, preservation and lifecycle ordering; parsed argv/uri replaces fragile command-string matching. QEMU resolver initially failed because literal qemu is not a binary; actual-system probe mapping fixed and both resolution legs pass.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
