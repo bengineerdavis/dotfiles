@@ -6,6 +6,11 @@ status: To Do
 created_date: 2026-10-29 21:46
 references:
 - backlog/decisions/decision-1 - VM-verify-config-and-symlink-deployments-before-apply-merge-and-PR-gates.md
+orchestration:
+  status_key: inprogress
+  lease_owner: opencode-d274
+  lease_expires_at: '2026-10-30T00:39:06.115431Z'
+  version: 1
 ---
 
 ## Description
@@ -37,3 +42,22 @@ Per decision-1 item 3: competing config files are an antipattern even when the t
 ## Definition of Done
 <!-- DOD:BEGIN -->
 <!-- DOD:END -->
+
+## Run History
+<!-- SECTION:RUN_HISTORY:BEGIN -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-be8e89a9b50b49ad9f74810a6c035f72
+type: claim_task
+actor: opencode-d274
+timestamp: '2026-10-29T23:39:06.115503Z'
+result: succeeded
+task_id: DOT-274
+from_status: todo
+to_status: inprogress
+metadata:
+  lease_ttl_seconds: '3600'
+```
+Starting config consolidation per author sequencing: rebase #89, then DOT-274/DOT-242
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- SECTION:RUN_HISTORY:END -->
