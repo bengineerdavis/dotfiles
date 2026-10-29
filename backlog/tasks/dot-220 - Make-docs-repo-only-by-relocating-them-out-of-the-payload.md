@@ -6,7 +6,7 @@ created_date: 2026-10-27 02:59
 labels:
 - planned
 - group:refactor-b-factor-the-ai-llm-tooling-out-of-this-repo
-updated_date: 2026-10-27 22:22
+updated_date: 2026-10-29 03:21
 ---
 
 ## Description
@@ -35,7 +35,7 @@ updated_date: 2026-10-27 22:22
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
+2026-10-28 author approved sequential migration after preserving DOT-265. This session will use branch agent/docs-relocate and worktree .worktrees/docs-relocate, then proceed to DOT-222. The maintained dotfiles/docs content wins on conflicting copies; root docs becomes the only maintained tree. Preserve the Vagrant and Lima branches for later rebase; do not merge or discard them here.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
