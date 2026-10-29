@@ -6,7 +6,12 @@ created_date: 2026-10-27 02:59
 labels:
 - planned
 - group:refactor-b-factor-the-ai-llm-tooling-out-of-this-repo
-updated_date: 2026-10-29 03:15
+updated_date: 2026-10-29 03:37
+orchestration:
+  status_key: inprogress
+  lease_owner: opencode-payload-migration
+  lease_expires_at: '2026-10-29T04:37:08.546180Z'
+  version: 1
 ---
 
 ## Description
@@ -65,6 +70,7 @@ updated_date: 2026-10-29 03:15
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
 2026-10-28 author authorized the move to help isolate VM test state. New motivation: Lima share/doc/lima/templates is a dangling relative symlink after temporary share removal; chezmoi 2.73.3 follows it before consulting .chezmoiignore, so execute-template fails. An ignore glob does not fix this; scoped temporary-home cleanup helps but the structural fix is to remove Ansible/Molecule state from chezmoi source state entirely. Current live branch census (origin/main refreshed): agent/lima-molecule PR #99 and agent/molecule-qemu-loreai PR #98 both merge-tree clean, require rebase-and-green and must be preserved; agent/agent_skills_refresh and agent/gita-worktree-replay also clean, rebase-and-green. agent_loreai-lima (DOT-265, uncommitted) holds a proven shared adapter and requires rebase-and-green. Do not infer disposition for other branches without listing and author review. DOT-220 remains the required first prerequisite; payload seam must be checked before moving anything.
+2026-10-28 documentation boundary confirmed by author: topic-specific docs remain in their topic directories. Project-level docs move to root docs and stay out of the chezmoi payload. The full documented payload, including the Ansible/Molecule tree, moves under home/. This session was authorized to proceed sequentially after preserving the LoreAI checkpoint. Branch agent/docs-relocate (28c9d16) is the parent prerequisite; agent/payload-home builds from it, not from pre-docs main.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
@@ -76,3 +82,21 @@ updated_date: 2026-10-29 03:15
 ## Definition of Done
 <!-- DOD:BEGIN -->
 <!-- DOD:END -->
+
+## Run History
+<!-- SECTION:RUN_HISTORY:BEGIN -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-3695c5868caf476a8506466733c116b6
+type: claim_task
+actor: opencode-payload-migration
+timestamp: '2026-10-29T03:37:08.546247Z'
+result: succeeded
+task_id: DOT-222
+from_status: todo
+to_status: inprogress
+metadata:
+  lease_ttl_seconds: '3600'
+```
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- SECTION:RUN_HISTORY:END -->
