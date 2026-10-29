@@ -1,7 +1,7 @@
 ---
 id: DOT-269
 title: Verify LoreAI OpenCode plugin loading on current main
-status: In Progress
+status: To Do
 created_date: 2026-10-29 08:25
 assignee:
 - opencode
@@ -9,6 +9,12 @@ labels:
 - loreai
 - opencode
 priority: high
+updated_date: 2026-10-29 08:26
+orchestration:
+  status_key: inprogress
+  lease_owner: opencode-loreai-plugin-verify
+  lease_expires_at: '2026-10-29T09:26:31.430962Z'
+  version: 1
 ---
 
 ## Description
@@ -41,3 +47,22 @@ Rebase PR #89 onto current main with the home/ payload layout. Verify that the L
 <!-- DOD:BEGIN -->
 - [ ] #1 Current main and focused plugin verification evidence are recorded on the updated PR; no unsupported claim that the upstream plugin now loads.
 <!-- DOD:END -->
+
+## Run History
+<!-- SECTION:RUN_HISTORY:BEGIN -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-3935245f1c524d37991879fc20a84ee8
+type: claim_task
+actor: opencode-loreai-plugin-verify
+timestamp: '2026-10-29T08:26:31.431032Z'
+result: succeeded
+task_id: DOT-269
+from_status: todo
+to_status: inprogress
+metadata:
+  lease_ttl_seconds: '3600'
+```
+Rebase and verify PR #89 on the current home payload layout
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- SECTION:RUN_HISTORY:END -->
