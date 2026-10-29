@@ -79,7 +79,7 @@ and keep that and its passphrase off the source machine.
 | Target | Recommendation | Why / boundary |
 |---|---|---|
 | Debian/Ubuntu home Linux | `mise` GitHub backend, **Borg 1.4.5**, with explicit Linux asset selection and a checksum recorded for each supported architecture; `uv tool install borgmatic==2.1.8` as the backup user. | Borg's official distribution-package page warns that distro packages can lag releases. APT is acceptable only when the target's candidate is verified to be Borg 1.4.x; no distro-specific candidate was inferred here. The upstream 1.4.5 release publishes Linux binaries and SHA-256 asset digests. `mise github:` supports pinned releases, platform-specific assets and checksums, matching this repo's GitHub-release convention. Borgmatic's current install guide recommends `uv tool`; it deliberately does not install Borg itself. |
-| Personal macOS | Same pinned Borg 1.4.5 release asset targeting macOS 15, plus `uv tool install borgmatic==2.1.8`, after confirming compatibility with the target Mac. The official Homebrew formulas are the fallback when that artifact does not fit. | Homebrew currently bottles Borg **1.4.5** and borgmatic **2.1.8** for Apple Silicon and Intel. Borg's macOS 15 release binaries do not include FUSE, but the approved extract-based restore does not need `borg mount`. `community.general.homebrew` 13.0.1 has no `pinned` state; Homebrew itself has `brew pin`, but using that shell command in a topic needs author approval under [TOPIC-RECIPES](TOPIC-RECIPES.md). |
+| Personal macOS | Same pinned Borg 1.4.5 release asset targeting macOS 15, plus `uv tool install borgmatic==2.1.8`, after confirming compatibility with the target Mac. The official Homebrew formulas are the fallback when that artifact does not fit. | Homebrew currently bottles Borg **1.4.5** and borgmatic **2.1.8** for Apple Silicon and Intel. Borg's macOS 15 release binaries do not include FUSE, but the approved extract-based restore does not need `borg mount`. `community.general.homebrew` 13.0.1 has no `pinned` state; Homebrew itself has `brew pin`, but using that shell command in a topic needs author approval under [TOPIC-RECIPES](../TOPIC-RECIPES.md). |
 
 The pinned versions observed on 2026-09-23 are Borg **1.4.5** (released
 2026-07-18) and borgmatic **2.1.8** (released 2026-09-18). Borg's own 2.0.0b23
@@ -107,7 +107,7 @@ research.
 topic must claim it before adding a Borg entry, and remove its entry on teardown.
 Backup scheduling and capture logic stay in borgmatic; Ansible only installs
 the tools and owns their service/timer state, consistent with
-[TOPICS.md](TOPICS.md) and its CRUD teardown rule.
+[TOPICS.md](../TOPICS.md) and its CRUD teardown rule.
 
 ### Galaxy roles reviewed
 
@@ -234,7 +234,7 @@ provider-account recovery works.
 
 ## Public sources checked 2026-09-23
 
-- **Project scope and topic rules:** [PRD configuration-backup rule](../../PRD.md#configuration-backups), [TOPICS](TOPICS.md), [TOPIC-RECIPES](TOPIC-RECIPES.md).
+- **Project scope and topic rules:** [PRD configuration-backup rule](../../PRD.md#configuration-backups), [TOPICS](../TOPICS.md), [TOPIC-RECIPES](../TOPIC-RECIPES.md).
 - **Borg:** [1.4.5 installation](https://borgbackup.readthedocs.io/en/1.4.5/installation.html), [1.4.5 FAQ](https://borgbackup.readthedocs.io/en/1.4.5/faq.html), [append-only mode](https://borgbackup.readthedocs.io/en/1.4.5/usage/notes.html#append-only-mode-forbid-compaction), [serve](https://borgbackup.readthedocs.io/en/1.4.5/usage/serve.html), [key export](https://borgbackup.readthedocs.io/en/1.4.5/usage/key.html#borg-key-export), [1.4.5 signed release/assets](https://github.com/borgbackup/borg/releases/tag/1.4.5), [release asset SHA-256 data](https://api.github.com/repos/borgbackup/borg/releases/tags/1.4.5), [2.0.0b23 warning](https://github.com/borgbackup/borg/releases/tag/2.0.0b23).
 - **borgmatic:** [releases (2.1.8)](https://projects.torsion.org/borgmatic-collective/borgmatic/releases), [install](https://torsion.org/borgmatic/how-to/install-borgmatic/), [passwords/version thresholds](https://torsion.org/borgmatic/how-to/provide-your-passwords/), [config bootstrap](https://torsion.org/borgmatic/reference/command-line/actions/config-bootstrap/), [1.7.15 changelog entry for bootstrap](https://raw.githubusercontent.com/borgmatic-collective/borgmatic/1.8.0/NEWS), [2.1.8 hook source](https://github.com/borgmatic-collective/borgmatic/blob/2.1.8/borgmatic/hooks/command.py), [2.1.8 action loop source](https://github.com/borgmatic-collective/borgmatic/blob/2.1.8/borgmatic/commands/borgmatic.py), [repository config behavior](https://torsion.org/borgmatic/reference/configuration/repositories/).
 - **Providers:** [BorgBase pricing/features](https://www.borgbase.com/), [BorgBase docs/free tier](https://docs.borgbase.com/), [BorgBase append-only FAQ](https://docs.borgbase.com/faq/#append-only-mode), [BorgBase pricing details](https://docs.borgbase.com/pricing/), [BorgBase SSH keys](https://docs.borgbase.com/faq/ssh/), [rsync.net Borg pricing/features](https://www.rsync.net/products/borg.html), [rsync.net standard pricing](https://www.rsync.net/pricing.html), [Hetzner SSH/Borg/append-only docs](https://docs.hetzner.com/storage/storage-box/access/access-ssh-rsync-borg/), [Hetzner BX11 terms/capacity](https://www.hetzner.com/storage/storage-box/bx11/).
