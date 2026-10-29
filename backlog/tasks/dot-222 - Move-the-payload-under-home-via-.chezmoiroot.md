@@ -6,7 +6,7 @@ created_date: 2026-10-27 02:59
 labels:
 - planned
 - group:refactor-b-factor-the-ai-llm-tooling-out-of-this-repo
-updated_date: 2026-10-27 22:22
+updated_date: 2026-10-29 03:15
 ---
 
 ## Description
@@ -64,7 +64,7 @@ updated_date: 2026-10-27 22:22
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
+2026-10-28 author authorized the move to help isolate VM test state. New motivation: Lima share/doc/lima/templates is a dangling relative symlink after temporary share removal; chezmoi 2.73.3 follows it before consulting .chezmoiignore, so execute-template fails. An ignore glob does not fix this; scoped temporary-home cleanup helps but the structural fix is to remove Ansible/Molecule state from chezmoi source state entirely. Current live branch census (origin/main refreshed): agent/lima-molecule PR #99 and agent/molecule-qemu-loreai PR #98 both merge-tree clean, require rebase-and-green and must be preserved; agent/agent_skills_refresh and agent/gita-worktree-replay also clean, rebase-and-green. agent_loreai-lima (DOT-265, uncommitted) holds a proven shared adapter and requires rebase-and-green. Do not infer disposition for other branches without listing and author review. DOT-220 remains the required first prerequisite; payload seam must be checked before moving anything.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
