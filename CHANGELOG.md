@@ -18,6 +18,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 <!-- scriv-insert-here -->
 
+## PR #105 — 2026-10-29
+
+### Fixed
+
+- Repaired the local documentation links found by the new offline Lychee checks.
+
 ## PR #104 — 2026-10-29
 
 ### Added
