@@ -13,7 +13,7 @@ orchestration:
   lease_owner: opencode
   lease_expires_at: '2026-10-29T00:58:48.670897Z'
   version: 1
-updated_date: 2026-10-29 01:55
+updated_date: 2026-10-29 01:58
 ---
 
 ## Description
@@ -57,6 +57,7 @@ Requested by the author 2026-10-28 as a chore after the Lima rootless handoff. E
 2026-10-28 verify connectivity fix: the delegated driver defaults managed:false, so instance_config (address/port/identity_file) was NOT merged into inventory — Ansible tried to resolve the instance name as a hostname. Set driver.managed: true so Molecule merges instance_config into the SSH inventory. side_effect teardown-safety now passes; this was the last wiring gap before a full green run.
 2026-10-28: managed:true correctly merges instance_config into inventory (confirmed ansible_host/port/private_key_file present in the generated ansible_inventory.yml). A standalone `molecule verify` after destroy fails with empty inventory (expected — no VM). Investigating the full-run verify error separately; it may be SSH-level rather than inventory-level. side_effect reinstalls Lima but must not disturb the running guest.
 2026-10-28 FULL GREEN: MOLECULE_SCENARIO=debian scripts/run-molecule.sh lima test — all 9 actions successful (create, converge, idempotence, side_effect, verify, cleanup, destroy; the 2 "missing" are the optional galaxy dependency action). Rootless Lima 2.2.1 + QEMU 11.1.2 (HVF) booted a real Debian 12 aarch64 guest with user-mode networking, no mounts, no container runtime, no forwarded SSH agent. converge installed the topic into a temporary home; idempotence is a true no-op; side_effect proved removal preserves the sentinel and QEMU; verify SSHed in and confirmed Debian 12/systemd/QEMU (ansible_facts.service_mgr == systemd). 10 static contract tests green (seen failing first). Final verify fact fix: use ansible_facts.service_mgr, not the nonexistent ansible_facts.init.
+2026-10-28 PR #99 opened (agent/lima-molecule → main): https://github.com/bengineerdavis/dotfiles/pull/99. Commit 637c860, 20 files, 742 insertions, purely additive. Merge gates run: skillet validate ok, doc-link tests 42 passed, full suite 1170 passed (2 pre-existing opencode failures unrelated). Requires human review per § Merge gates (new feature + deployed-tree files).
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
