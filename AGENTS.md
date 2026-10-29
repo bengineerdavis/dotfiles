@@ -41,14 +41,14 @@ Read it before your first task. `AGENTS.md` keeps only the rules that bind;
 
 A chezmoi-managed dotfiles repo with an Ansible layer for system state.
 
-**Read `dotfiles/docs/TOPICS.md` first** — topic structure, the `topic.yml`
+**Read `docs/TOPICS.md` first** — topic structure, the `topic.yml`
 schema, tiers, lifecycle tags, dependency resolution, commit granularity and the
 CRUD-ownership invariant. It is the source of truth and the 39 topic files cite it.
-`dotfiles/docs/ARCHITECTURE.md` has the big picture,
+`docs/ARCHITECTURE.md` has the big picture,
 `CONTRIBUTING.md` at the root carries the workflow around it.
 
-The repo-root `docs/` tree is an older copy of the same material, kept but not
-maintained. Edit the `dotfiles/docs/` copies.
+Root `docs/` is the only maintained documentation tree. It is repository-only,
+not part of the chezmoi payload.
 
 The one rule worth repeating here because it is the most common mistake: **one
 concern per layer.** chezmoi owns dotfiles and symlinks, Ansible owns package
@@ -126,7 +126,7 @@ silent block — are a recorded requirement on the enforcement tool in
 land with the tool, or the author decides otherwise.
 
 This policy is a candidate for enforcement by the `topic` CLI
-(`dotfiles/docs/ROADMAP-topic-cli.md`, `ROADMAP.md`) or a future CLI agent
+(`docs/ROADMAP-topic-cli.md`, `ROADMAP.md`) or a future CLI agent
 that abstracts configuration management and updates: a tool that knows what
 each machine should have can also tell an agent what is configuration work —
 its job — versus a build, which is out of scope. Until that tool exists, the
@@ -975,7 +975,7 @@ and watch the property go red, the same as any other test.
 
 Technical docs in this repo use plain language: short sentences, active voice,
 common words, the conclusion first, one idea per paragraph. Write for someone
-deciding what to do. This covers this file, `dotfiles/docs/`, READMEs, changelog
+deciding what to do. This covers this file, `docs/`, READMEs, changelog
 and release prose, anything a tool prints to a user, and **commit messages, pull
 request descriptions and code comments** — the three written most often and
 counted least.

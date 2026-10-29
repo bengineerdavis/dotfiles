@@ -212,7 +212,7 @@ give it a different score. That is a property of the measurement, not the model.
 Every case is **synthesised** — written from general understanding of a problem
 class. None is derived from real work material, and none may be: scrubbing a
 real transcript changes what is recognisable, not where the case came from.
-See `dotfiles/docs/GOALS.md` and the model-fitness skill.
+See `docs/GOALS.md` and the model-fitness skill.
 
 When live use exposes an uncovered class, write a new case describing the class
 from understanding. Do not import the material that revealed it.

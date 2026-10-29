@@ -23,7 +23,7 @@
 #
 # RESOLUTION
 # ethics(1) -> company(2) -> personal(3). First layer to speak wins. A missing,
-# unparseable, or silent rule denies. See dotfiles/docs/GOALS.md.
+# unparseable, or silent rule denies. See docs/GOALS.md.
 #
 # THE PROPERTY THAT SURPRISES PEOPLE: `check` CAN CURRENTLY NEVER RETURN 0.
 #

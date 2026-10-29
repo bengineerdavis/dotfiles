@@ -20,7 +20,7 @@
 # Exit codes: 0 ok | 1 usage/error | 2 cache missing or stale beyond --max-age
 # -----------------------------------------------------------------------------
 #
-# Implements Discover and Triage from dotfiles/docs/MODEL-LIFECYCLE.md. It stops
+# Implements Discover and Triage from docs/MODEL-LIFECYCLE.md. It stops
 # there on purpose:
 #
 #   * It never pulls weights. An 18 GB download is a decision.

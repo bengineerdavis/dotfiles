@@ -3,7 +3,7 @@
 This file records the rules and the measured results for choosing judge models
 when an agent-built artifact (a topic, a test suite) is reviewed by a panel
 rather than by its author. Settled 2026-09-19 with the author, motivated by the
-herdr test program (see `dotfiles/docs/TOPIC-RECIPES.md` § test-first recipe).
+herdr test program (see `docs/TOPIC-RECIPES.md` § test-first recipe).
 It feeds the queued panel-of-judges measurement item in TASKS.md § Planned.
 
 ## The rules (locked by the author 2026-09-19)
@@ -115,6 +115,6 @@ ACCEPTED gap pointed at an existing queued home rather than being dropped.
 
 ## See also
 
-- `dotfiles/docs/TOPIC-RECIPES.md` — the process this methodology sits inside
+- `docs/TOPIC-RECIPES.md` — the process this methodology sits inside
 - `TASKS.md` § Planned — panel-of-judges measurement item this file feeds
 - `bin/model-bench` — the calibration scorer this method reuses

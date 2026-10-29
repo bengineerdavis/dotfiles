@@ -49,6 +49,9 @@ docs/LAYOUT.md
 docs/LANGUAGES.md
 docs/GLOSSARY.md
 docs/WORKTREES.md
+# All documentation is repository-only, including the topic conventions.
+docs/
+docs/**
 # Added after the per-file list above was written. Same rule: repository
 # documentation is for the git checkout, not the home directory.
 docs/BACKLOG-MIGRATION.md

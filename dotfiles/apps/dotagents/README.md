@@ -6,7 +6,7 @@ which sources may put skills on the machine, and the sync that installs them.
 The artifacts are plain directories under `~/.agents/skills`, managed by
 [dotagents](https://github.com/getsentry/dotagents). They are user-global and
 every supported agent runtime loads them. The decision behind the tool choice is
-in [`dotfiles/docs/AGENT-ARTIFACTS.md`](../../docs/AGENT-ARTIFACTS.md).
+in [`docs/AGENT-ARTIFACTS.md`](../../docs/AGENT-ARTIFACTS.md).
 
 ## What it manages
 

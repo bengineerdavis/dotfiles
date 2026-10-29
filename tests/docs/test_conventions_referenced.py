@@ -22,10 +22,24 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 AGENTS = REPO / "AGENTS.md"
 CONVENTIONS = REPO / "docs"
 
-# README.md documents the directory itself rather than being a convention.
-# ARCHITECTURE/USAGE/CONTRIBUTING predate the conventions move and are
-# dotfiles documentation, not repository conventions.
-EXEMPT = {"README.md", "ARCHITECTURE.md", "USAGE.md", "CONTRIBUTING.md"}
+# Reference, research and roadmap documents are linked from the documents
+# that need them. The agent-facing conventions index stays intentionally small.
+EXEMPT = {
+    "AGENT-ARTIFACTS.md",
+    "ARCHITECTURE.md",
+    "CONTRIBUTING.md",
+    "CRUD-AUDIT.md",
+    "GOALS.md",
+    "JUDGE-SELECTION.md",
+    "MODEL-ACCESS.md",
+    "MODEL-LIFECYCLE.md",
+    "MULTI-MACHINE.md",
+    "README.md",
+    "ROADMAP-mpm-importer.md",
+    "ROADMAP-topic-cli.md",
+    "TOPIC-RECIPES.md",
+    "USAGE.md",
+}
 
 
 def convention_files() -> list[pathlib.Path]:
@@ -58,7 +72,7 @@ def test_agents_md_does_not_reference_a_missing_convention():
     import re
 
     text = AGENTS.read_text(encoding="utf-8")
-    # Anchored so it does not also match the tail of `dotfiles/docs/...`,
+    # Anchored so it does not also match the tail of `docs/...`,
     # which is a different tree and legitimately holds other documents.
     referenced = set(re.findall(r"(?<![\w/])docs/([A-Za-z0-9_.-]+\.md)", text))
     assert referenced, "AGENTS.md references no conventions at all"

@@ -28,6 +28,6 @@ The testinfra verifier runs last and asserts the teardown contract: unit,
 binary, listener, and topic-owned state gone; the memory database preserved.
 
 The approved VM harness has no macOS Vagrant-box mechanism
-(`dotfiles/docs/research/topic-vm-tests/PLAN.md`), so this is the Debian leg
+(`docs/research/topic-vm-tests/PLAN.md`), so this is the Debian leg
 only. The Darwin behavior is covered by the service-command pytest seam and
 the live macOS apply, not by a macOS VM run.

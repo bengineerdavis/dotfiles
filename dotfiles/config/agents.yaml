@@ -1,6 +1,6 @@
 # agents.yaml — the shared herdr-agent-integration catalogue.
 #
-# The data half of the shared-catalogue pattern (dotfiles/docs/TOPIC-RECIPES.md,
+# The data half of the shared-catalogue pattern (docs/TOPIC-RECIPES.md,
 # shared-catalogue recipe); the subscriber is the herdr topic, which consumes
 # its slice via an interim role-relative direct read until `topic_subscribes`
 # lands (TASKS.md § Planned). Topics never read topics.

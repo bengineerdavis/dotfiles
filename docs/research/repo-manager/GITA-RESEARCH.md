@@ -439,7 +439,7 @@ performance or end-to-end reliability claim follows from this research. No
 installation, configuration/credential change, commit or push was performed.
 
 Documentation validation: inspected the report diff and checked whitespace with
-`git diff --no-index --check /dev/null dotfiles/docs/GITA-RESEARCH.md`.
+`git diff --no-index --check /dev/null docs/GITA-RESEARCH.md`.
 Executable tests, mutation checks and deployment validators were not run for
 this research-only change. Live documentation and catalogue URLs are snapshots
 of the research date; pinned source links define the code conclusions.

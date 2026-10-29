@@ -8,7 +8,7 @@ implementation must match them:
   claude, cursor; codex a listed candidate, not wired), skip-and-report
   integration loop, raise-when-herdr-missing, gated intersection removal,
   opencode native-restore floor (herdr integration v5+)
-- ``dotfiles/docs/TOPIC-RECIPES.md`` — shared-catalogue recipe (schema shape,
+- ``docs/TOPIC-RECIPES.md`` — shared-catalogue recipe (schema shape,
   explicit ignored list, thin install-and-report loop, gated teardown that
   uninstalls only the claimed∩installed intersection) and the skip-vs-raise
   recipe (absent agent skips and stays green; missing required dependency
@@ -143,7 +143,7 @@ def hc_require_catalogue():
             "integration catalogue does not exist yet (expected at "
             f"{HC_CATALOGUE}). This suite is failing-first: the catalogue + "
             "integration-loop contract cannot be checked without the file. "
-            "Sources: dotfiles/apps/herdr/README.md; dotfiles/docs/"
+            "Sources: dotfiles/apps/herdr/README.md; docs/"
             "TOPIC-RECIPES.md (shared-catalogue recipe)."
         )
     try:

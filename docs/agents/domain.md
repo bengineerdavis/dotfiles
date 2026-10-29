@@ -9,7 +9,7 @@ How the engineering skills consume this repo's domain documentation.
 - `backlog/decisions/` — decisions that touch the area you are about to change,
   once the queue cutover lands.
 
-`dotfiles/docs/` is an older copy of the convention docs. The glossary of
+`docs/` is an older copy of the convention docs. The glossary of
 record is the root `docs/GLOSSARY.md`.
 
 ## Layout

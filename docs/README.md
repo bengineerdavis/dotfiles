@@ -1,4 +1,4 @@
-# conventions/
+# Documentation and conventions
 
 Pluggable conventions for this repository. One file per subject.
 
@@ -14,10 +14,12 @@ instead, so the root holds only the five documents that govern the project.
 | `PYTHON.md` | uv, inline script metadata, pytest, ruff, ty, prek, logging, error handling |
 | `PERMISSIONS.md` | what an agent may run, and the threat model it does not address |
 | `REFERENCES.md` | external standards followed, their versions, when last checked |
-| `TOPICS.md` | index entry for topic conventions, which live in the deployed tree |
+| `TOPICS.md` | topic structure, lifecycle, dependency and ownership conventions |
 | `LAYOUT.md` | the cross-machine directory standard: taxonomy, ownership, migration plan |
 | `LANGUAGES.md` | which languages the repo's scripts use, and the reusable per-language tool profile |
 | `GLOSSARY.md` | project terminology — the words that mean something specific here, linked on first use |
+| `ARCHITECTURE.md` | the chezmoi/Ansible/zsh architecture |
+| `USAGE.md` | provisioning and topic-operation commands |
 | `WORKTREES.md` | the agent-worktree naming contract and lifecycle: `.worktrees/<sid>`, one writer per worktree, ephemeral merge scratch |
 
 ## Adding one
@@ -67,20 +69,14 @@ at the repository root is neutral *and* one of GitHub's three discovery
 locations, so it goes there. A pull request template has no neutral equivalent,
 so it stays in `.github/`.
 
-## Two classes, and why one is only indexed here
+## Repository documentation and conventions
 
-A convention either **ships with the artifact** or **governs the repository**.
+This root `docs/` tree is repository-only. It contains the topic conventions,
+architecture, research, and operating guides. None of it deploys to `$HOME`.
 
-Topic conventions ship: 53 files reference `docs/TOPICS.md` relative to the
-deployed tree, and that file is deployed beside them. The conventions in *this*
-directory are chezmoi-ignored and reach no machine, so content the deployed
-output must carry cannot live here.
-
-That is why **`dotfiles/docs/TOPICS.md`** holds the topic conventions and there
-is no copy here. An index entry pointing at it used to exist and was removed —
-two files named `TOPICS.md` was the ambiguity the rename set out to end.
-
-Everything else here governs the repository and is never deployed.
+The move from `dotfiles/docs/` keeps documentation beside the tooling that
+uses it instead of inside chezmoi's source state. Topics and agents reference
+`docs/TOPICS.md` for the topic contract.
 
 ## Why a directory
 
@@ -108,6 +104,6 @@ placing it by tidiness would have cost it the Contributing tab and the sidebar
 that appears when someone opens a pull request.
 
 
-`dotfiles/docs/` explains how parts of this repository work and is descriptive.
+`docs/` explains how parts of this repository work and is descriptive.
 `spec.md` constrains. Conventions decide between defensible options — which is
 what makes them swappable, and what makes them belong somewhere separate.

@@ -7,7 +7,7 @@ Everything is simulated in Python; no real herdr run, no `chezmoi apply`.
 
 Sources the contract was deduced from (artifacts only, no implementation read):
   - dotfiles/apps/herdr/README.md            — the design record (THE contract)
-  - dotfiles/docs/TOPIC-RECIPES.md           — shared-catalogue recipe (the
+  - docs/TOPIC-RECIPES.md           — shared-catalogue recipe (the
     `*_ignored` drift-report principle), thin install-and-report loop
     (failed_when false per item, one final raise), skip-vs-raise recipe
     (integration absent = skip-and-report; required dependency absent = raise)
@@ -902,7 +902,7 @@ def test_yaml_status_regexes_match_the_measured_wire():
 
 
 # ══ 7. GOLDEN TRANSCRIPT — the contract module against the real binary ══════
-# Judge round 1 (dotfiles/docs/JUDGE-SELECTION.md), gap 2: the contract
+# Judge round 1 (docs/JUDGE-SELECTION.md), gap 2: the contract
 # module was self-consistent but unvalidated against the real herdr binary.
 # The fixture is a REAL captured transcript (herdr 0.9.1, 2026-09-19, this
 # Mac) with the home prefix redacted to /home/testuser — the grammar under

@@ -9,7 +9,7 @@ now. `AGENTS.md` says how to work here. This file holds what is probably next
 and is not scheduled yet — the things that would otherwise sit at the top of the
 queue blocking it, or vanish because nothing was tracking them.
 
-Not to be confused with `dotfiles/docs/ROADMAP-topic-cli.md`, which is a design
+Not to be confused with `docs/ROADMAP-topic-cli.md`, which is a design
 document for one tool. This file is project-level.
 
 ## How to use this
@@ -38,7 +38,7 @@ Anything here that acquires a done-condition should be promoted rather than left
 These are already broken into work items in `TASKS.md`. Listed so this file
 reads as a complete picture, not to duplicate them.
 
-- **The `topic` CLI** (A1–A7). Designed in `dotfiles/docs/ROADMAP-topic-cli.md`.
+- **The `topic` CLI** (A1–A7). Designed in `docs/ROADMAP-topic-cli.md`.
 - **Topic bundles** — data-first grouping with bundle-aware playbook runs;
   three items in `TASKS.md` under § Topic bundles. First use case: an
   AI-strategy bundle per machine.
@@ -303,7 +303,7 @@ rule-outs for far less, so it went first.
 
 **Docs excluded from provisioned files — decided 2026-10-03.** The author
 ruled that documentation is for the git repository only. The two docs copies
-merge into the root `docs/` tree — the maintained `dotfiles/docs/` content
+merge into the root `docs/` tree — the maintained `docs/` content
 wins where the copies differ — and `chezmoi managed` stops listing any docs
 path, so the merge-gate ambiguity between "docs-only" and "deployed-tree"
 diffs disappears by construction. Queued in `TASKS.md` § Planned;

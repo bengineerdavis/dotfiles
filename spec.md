@@ -13,9 +13,9 @@ away — and because the failure is usually the only part a reader believes.
 The documents divide as follows. `PRD.md` says what the project is for and is
 where scope questions are settled. `ROADMAP.md` says what is likely next and is
 where an empty task queue is refilled from. `AGENTS.md` says how to work here and is
-procedural. `dotfiles/docs/` explains and is descriptive. This file constrains.
+procedural. `docs/` explains and is descriptive. This file constrains.
 Where a subject needs instructions of its own the invariant stays here and the
-detail is referenced: `dotfiles/docs/TOPICS.md` for topic structure,
+detail is referenced: `docs/TOPICS.md` for topic structure,
 `MODEL-LIFECYCLE.md` for how models are judged, `GOALS.md` for why the policy
 layers exist. Where this file and a doc disagree, the doc is describing and this
 is constraining — fix the doc.
@@ -40,7 +40,7 @@ is constraining — fix the doc.
 
 chezmoi SHALL own dotfiles and symlinks, Ansible SHALL own package installs and
 system state, and zsh SHALL own shell runtime config. See
-`dotfiles/docs/TOPICS.md`, which is the source of truth and which the topic
+`docs/TOPICS.md`, which is the source of truth and which the topic
 files cite.
 
 #### Scenario: A task would work in either layer
@@ -349,7 +349,7 @@ looked, who does not want to read commits at all.
 
 Message quality still matters, for the same reason it always did — a commit is
 the only record of *why* a change happened. It is simply not a substitute for
-the other document. `dotfiles/docs/TOPICS.md` § Commit granularity is the
+the other document. `docs/TOPICS.md` § Commit granularity is the
 source of truth; `AGENTS.md` § Commits carries the short version.
 
 #### Scenario: Several unrelated changes are ready together
@@ -432,7 +432,7 @@ the resulting commits.
 
 A model SHALL NOT enter a role on a vendor benchmark, a leaderboard, a model
 card, or recall. Those may motivate a candidate; they may not justify one.
-Detail lives in `dotfiles/docs/MODEL-LIFECYCLE.md`.
+Detail lives in `docs/MODEL-LIFECYCLE.md`.
 
 #### Scenario: A release lands and sounds impressive
 
@@ -512,7 +512,7 @@ unreadable resolver is itself a denial.
 
 Technical documentation SHALL be written to a plain-language standard: short
 sentences, active voice, common words, the conclusion first, and one idea per
-paragraph. This covers `AGENTS.md`, `dotfiles/docs/`, READMEs, changelog and
+paragraph. This covers `AGENTS.md`, `docs/`, READMEs, changelog and
 release prose, anything a tool prints to a user, and — the three most often
 written and least often counted — **commit messages, pull request descriptions
 and code comments**. It also binds conversational technical communication:

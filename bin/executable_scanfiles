@@ -65,7 +65,7 @@ _RANK = {CRITICAL: 3, WARNING: 2, NOTE: 1}
 # Exit codes. 127 is the conventional "command not found" status; 5 distinguishes "the
 # signature scan was requested and could not run" from "it ran and found nothing", so a
 # caller can never read a degraded scan as a clean bill of health. See
-# dotfiles/docs/CONVENTIONS.md, "Script dependency guards".
+# docs/CONVENTIONS.md, "Script dependency guards".
 EXIT_CLEAN, EXIT_ERROR, EXIT_USAGE = 0, 1, 2
 EXIT_SUSPICIOUS, EXIT_MALWARE, EXIT_INCOMPLETE = 3, 4, 5
 EXIT_MISSING_DEP = 127

@@ -59,7 +59,7 @@ def test_versioned_layer_grants_nothing(name):
     assert _grants(doc) == [], (
         f"{name} contains permission-granting field(s). The layers are "
         "restrictions-only: a field may forbid or bound, never authorise. "
-        "See dotfiles/docs/GOALS.md."
+        "See docs/GOALS.md."
     )
 
 

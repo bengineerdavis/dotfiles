@@ -39,7 +39,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 **Added**
 
-- `dotfiles/docs/AGENT-ARTIFACTS.md` — the agent-artifact manager decision:
+- `docs/AGENT-ARTIFACTS.md` — the agent-artifact manager decision:
   skills follow the agentskills.io open format, dotagents installs them
   (pinned refs, committed lock, symlinked canonical store), skills.sh is a
   discovery channel only. Records the survey, the rejected candidates with
@@ -55,7 +55,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 **Added**
 
-- `dotfiles/docs/MODEL-ACCESS.md` — the model-gateway and tool-boundary
+- `docs/MODEL-ACCESS.md` — the model-gateway and tool-boundary
   decision, from the author's anti-lock-in brief: the `llm` CLI with provider
   plugins stays as the model layer (it is the only layer the egress policy
   resolver wraps; no surveyed gateway implements that), MCP is the adopted
@@ -64,7 +64,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   rejected for personal use because they move the egress decision off-device.
   LiteLLM is deferred with a named revisit trigger: a second developer
   depending on these workflows. The brief's third vector was already decided
-  in `dotfiles/docs/AGENT-ARTIFACTS.md` the same day.
+  in `docs/AGENT-ARTIFACTS.md` the same day.
 
 **Changed**
 
@@ -75,7 +75,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 **Changed**
 
-- `dotfiles/docs/MODEL-ACCESS.md` — clarified at the top that the decision
+- `docs/MODEL-ACCESS.md` — clarified at the top that the decision
   adopts nothing: today's model layer is unchanged (the `llm` CLI), and an
   employer-boundary paragraph states that no decision here licenses anything
   on a work-governed machine. The LiteLLM revisit is now explicitly gated on
@@ -111,7 +111,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 **Added**
 
-- `dotfiles/docs/MULTI-MACHINE.md` — the multi-machine contribution research
+- `docs/MULTI-MACHINE.md` — the multi-machine contribution research
   record: the requirement is environment-general committed artifacts (no
   machine identification, no obfuscation signaling) under a forced-disclosure
   threat model, with ZDR handover context kept local by default and
@@ -208,11 +208,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - A test-first swarm-built suite (`tests/herdr/`, 108 tests): four independent
   fresh-context authors deduced the contract from written artifacts before the
   topic existed, plus an executable contract module the YAML is pinned against.
-  A measured judge loop (see `dotfiles/docs/JUDGE-SELECTION.md` and
+  A measured judge loop (see `docs/JUDGE-SELECTION.md` and
   `tests/herdr/calibration/`) ran one ITERATE round and a unanimous SHIP panel.
-- Two reusable docs from the same work: `dotfiles/docs/TOPIC-RECIPES.md`
+- Two reusable docs from the same work: `docs/TOPIC-RECIPES.md`
   (install-mechanism chooser, catalogue pattern, skip-vs-raise, service
-  ownership, the test-first recipe) and `dotfiles/docs/JUDGE-SELECTION.md`
+  ownership, the test-first recipe) and `docs/JUDGE-SELECTION.md`
   (the calibrated judge methodology, with the measured pool recommendation).
 
 **Fixed**
@@ -515,7 +515,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - The topic conventions document is now named for what it contains:
-  `dotfiles/docs/TOPICS.md`, not `CONVENTIONS.md`. Every reference across 56
+  `docs/TOPICS.md`, not `CONVENTIONS.md`. Every reference across 56
   files moved with it, including the three in `template_dir/` that every newly
   scaffolded topic inherits.
 

@@ -60,7 +60,7 @@ class TestDocs:
         assert m.buckets_for("README.md", MANAGED) == ("docs",)
 
     def test_nested_markdown(self, m):
-        assert m.buckets_for("dotfiles/docs/TOPICS.md", MANAGED) == ("docs",)
+        assert m.buckets_for("docs/TOPICS.md", MANAGED) == ("docs",)
 
     def test_docs_tree(self, m):
         assert m.buckets_for("docs/deep/note.txt", MANAGED) == ("docs",)

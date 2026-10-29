@@ -7,8 +7,8 @@ restarts and machines. One binary, Apache-2.0, macOS/Linux/Windows; current
 docs version 0.9.1 (checked 2026-09-19).
 
 The design decisions below were settled with the author 2026-09-18/19 and
-generalized into `dotfiles/docs/TOPIC-RECIPES.md` — each decision here links
-to the recipe row it instantiates. Read `dotfiles/docs/TOPICS.md` for the
+generalized into `docs/TOPIC-RECIPES.md` — each decision here links
+to the recipe row it instantiates. Read `docs/TOPICS.md` for the
 binding topic rules this topic follows.
 
 ## Decisions
@@ -17,7 +17,7 @@ binding topic rules this topic follows.
 (`community.general.launchd`, `ansible.builtin.systemd_service`); shell/cmd
 fallbacks exist only for the tool CLIs themselves and probe floors, each
 author-ratified 2026-09-19 under the docs-and-galaxy-first ladder
-(`dotfiles/docs/TOPIC-RECIPES.md`) with its support grade recorded for the
+(`docs/TOPIC-RECIPES.md`) with its support grade recorded for the
 launchd module there; after adoption, topic extensions may add shell
 commands without a fresh ask when no module exists and the extension serves
 durability (the extension-after-adoption clause in that ladder).
@@ -121,7 +121,7 @@ Nothing runs from this repository: chezmoi copies `dotfiles/` into the
 environment and Ansible executes the **deployed** tree, so the static suite
 proves the source and the author's passes prove the deployed copy (after a
 clean `chezmoi status`). Judge round 1 (2026-09-19, see
-`dotfiles/docs/JUDGE-SELECTION.md`) surfaced three accepted gaps with homes:
+`docs/JUDGE-SELECTION.md`) surfaced three accepted gaps with homes:
 
 - no automated converge (molecule/CI) — owned by the repo-queued molecule
   adoption (TASKS.md § Now); herdr is a candidate consumer, not the owner;

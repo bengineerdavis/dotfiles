@@ -1,135 +1,92 @@
-# Dotfiles Architecture
+# Architecture
 
-## The Stack
+Stack overview, topic structure, and the tag hierarchy. For the exact
+per-topic contract (file layout, `topic.yml` schema, dependency resolution,
+the CRUD-ownership invariant) see [TOPICS.md](TOPICS.md).
 
-```
-chezmoi          ← driver: manages dotfiles, triggers Ansible
-  └── Ansible    ← provisioner: installs packages, sets up system state
-        └── zsh  ← runtime: dynamic shell config via topic sourcing
-```
-
-**chezmoi** owns config files and symlinks (`~/.config/*`).  
-**Ansible** owns packages and system state.  
-**zsh** sources topic shell files at runtime — no Ansible involvement in shell setup.
-
-These three never overlap. If you're writing a symlink task in Ansible, it belongs in chezmoi. If you're writing shell config in chezmoi, it belongs in `files/zsh/`.
-
----
-
-## Repository Layout
+## Three tools, three concerns
 
 ```
-dotfiles/
-├── playbook.yaml          # parent playbook — entry point for all provisioning
-├── migrate-to-roles.sh    # migration tool — upgrades topics to role structure
-├── init-config.sh         # scaffolding tool — creates new topics from template_dir
-├── template_dir/          # canonical structure — source of truth for all topics
-├── apps/                  # one subdirectory per topic (app or system role)
-│   ├── homebrew/          # system role
-│   ├── apt/               # system role
-│   ├── docker/            # system role
-│   └── mise/              # topic role (example)
-└── zsh/                   # global zsh config (path, completion, aliases, fpath)
+chezmoi    ← driver: manages dotfiles in $HOME, renders OS-specific templates,
+             and is the entry point for bootstrapping a machine
+Ansible    ← provisioner: installs packages and sets up system state
+zsh        ← runtime: sources each topic's shell fragments dynamically
 ```
 
----
+They do not overlap. chezmoi owns files in `$HOME`; Ansible owns installed
+software and system state; zsh owns interactive-shell wiring. The Ansible tree
+itself is deployed by chezmoi to `~/dotfiles`, which is where playbooks run
+from (`$ZSH="$HOME/dotfiles"`).
 
-## Topic Structure
+## Topics are Ansible roles
 
-Every directory under `apps/` is a self-contained Ansible role:
+Everything under `apps/` is a **topic** — a self-contained Ansible role for one
+tool or concern. Each topic can run standalone (`apps/<topic>/playbook.yaml`) or
+be loaded by the parent `playbook.yaml`. Required files per topic:
 
 ```
 apps/<topic>/
-├── playbook.yaml          # standalone runner — run this topic independently
-├── tasks/
-│   ├── main.yaml          # router — imports subtasks by tag
-│   ├── install.yaml       # package installation, explicit per OS/package manager
-│   └── remove.yaml        # uninstall, mirrors install structure
-├── files/
-│   └── zsh/               # shell config files, sourced dynamically by zsh
-├── defaults/
-│   └── main.yaml          # role default variables (lowest precedence)
-├── vars/
-│   └── main.yaml          # role variables (higher precedence than defaults)
-└── templates/             # Jinja2 templates (if needed)
+├── topic.yml            # metadata (name, provides/requires, os, tier)
+└── tasks/
+    ├── main.yaml        # lifecycle router — imports the five files below by tag
+    ├── bootstrap.yaml   # bring the tool into existence on a fresh machine
+    ├── prerequisites.yaml
+    ├── upgrade.yaml
+    ├── install.yaml
+    └── remove.yaml
 ```
 
-System roles (`homebrew`, `apt`, `docker`) extend this with additional subtasks:
+App-tier topics usually leave `bootstrap`/`prerequisites`/`upgrade` as no-op
+stubs — the package-manager tier covers them.
 
-```
-apps/<system-role>/tasks/
-├── main.yaml              # router — imports all subtasks
-├── bootstrap.yaml         # ensure the package manager exists (confirmed, never silent)
-├── prerequisites.yaml     # core tools required before topic installs
-├── upgrade.yaml           # system-wide upgrade (no topic involvement)
-├── install.yaml           # install this role's own packages
-└── remove.yaml            # remove this role's own packages
-```
+## Discovery, tiers, and OS gating
 
----
+The parent playbook discovers topics dynamically: it finds every `topic.yml`,
+reads its metadata, and orders execution by `topic_tier`:
 
-## Tag Hierarchy
+| Tier              | Purpose                                        | Examples                    |
+|-------------------|------------------------------------------------|-----------------------------|
+| `pkg-manager`     | Foundational system installer                  | `apt`, `homebrew`, `docker` |
+| `runtime-manager` | Manages a set of versioned tools/models        | `mise`, `ollama`            |
+| `app`             | Normal application, no subordinate state       | everything else             |
 
-Tags control which tasks run. They compose:
+Within a tier, topics run alphabetically. Each topic declares the OS families
+it supports via `topic_os` (`Darwin`, `Debian`); the parent playbook skips
+topics that don't apply to the current host. This is how one capability can
+have different providers per OS — e.g. `docker` is provided by `apps/docker`
+(apt engine) on Linux and by `apps/rancher-desktop` (Homebrew cask) on macOS.
 
-| Tag             | What runs                                              |
-|-----------------|--------------------------------------------------------|
-| `provision`     | Full fresh machine: bootstrap → prerequisites → upgrade → install |
-| `bootstrap`     | Ensure package managers exist. Confirmed, never silent |
-| `prerequisites` | Core tools (git, curl, xcode-cli, etc.). Idempotent   |
-| `upgrade`       | System-level upgrades only. No topic installs          |
-| `install`       | All topic package installs. Assumes env is ready       |
-| `remove`        | Explicit uninstall only. Never part of provision       |
+Dependencies between topics are expressed with `topic_provides` /
+`topic_requires` and resolved by the parent playbook before install; see
+[TOPICS.md](TOPICS.md#dependency-resolution).
 
-```
-provision
-└── runs in order:
-    ├── bootstrap      (homebrew/apt/docker)
-    ├── prerequisites  (homebrew/apt)
-    ├── upgrade        (homebrew/apt)
-    └── install        (all topics)
-```
+## Lifecycle tags
 
-`remove` is never implied by any other tag. It must be called explicitly.
+`tasks/main.yaml` is a pure router that imports the five lifecycle files, each
+tagged so a run can target a phase:
 
----
+| Tag             | Runs                                                        |
+|-----------------|-------------------------------------------------------------|
+| `bootstrap`     | first-time setup of a system tool                           |
+| `prerequisites` | core deps before topics install                             |
+| `upgrade`       | refresh installed state                                     |
+| `install`       | install the topic                                           |
+| `provision`     | bootstrap + prerequisites + upgrade + install               |
+| `remove`        | teardown — tagged `never`, runs **only** with `--tags remove` |
 
-## Package Manager Philosophy
+The `never` tag on `remove` makes a bare (untagged) run safe: it does
+`provision` and never tears a topic down. Uninstalling is always a deliberate
+`--tags remove`. New topics inherit this from `template_dir`.
 
-Each topic is explicit about which package manager it uses. No abstraction layer.  
-Use `when:` conditions to guard per OS:
+## zsh runtime
 
-```yaml
-- name: "Install mise via Homebrew (macOS)"
-  community.general.homebrew:
-    name: mise
-    state: present
-  when: ansible_facts['os_family'] == 'Darwin'
+`~/.zshrc` is a thin loader (deployed by chezmoi from a template). It sources
+each topic's canonical shell fragments — `apps/<topic>/files/zsh/*.zsh` plus the
+top-level `zsh/*.zsh` — exactly once, keeping `PATH`/`fpath` deduplicated. A
+topic's runtime shell wiring lives in those fragments; its install/system state
+lives in `tasks/`.
 
-- name: "Install mise via apt (Linux)"
-  ansible.builtin.apt:
-    name: mise
-    state: present
-  become: true
-  when: ansible_facts['os_family'] == 'Debian'
-```
+## See also
 
-This keeps each topic self-contained and makes multi-OS support explicit and auditable.
-
----
-
-## chezmoi as Driver
-
-chezmoi is the entry point on a new machine:
-
-```
-chezmoi apply
-  └── triggers ansible-playbook playbook.yaml --tags provision
-        ├── bootstraps package managers
-        ├── installs prerequisites
-        ├── upgrades existing environment
-        └── installs all topic packages
-```
-
-chezmoi handles its own dotfile state (symlinks, config templates) independently.  
-Ansible handles everything chezmoi cannot: package installation, system state, service setup.
+- [TOPICS.md](TOPICS.md) — the full per-topic contract
+- [USAGE.md](USAGE.md) — day-to-day commands

@@ -102,7 +102,7 @@ Four surfaces hold dependencies; each has its own add/remove rule. The root
    before the playbook runs). Declared but **unpinned** today — no
    `version:` — so a machine installing today may get a different
    collection than the one a support grade was recorded against
-   (`dotfiles/docs/TOPIC-RECIPES.md`, module-vs-shell ladder). Pinning
+   (`docs/TOPIC-RECIPES.md`, module-vs-shell ladder). Pinning
    changes fleet-wide upgrade behavior, so it is queued as an author
    decision rather than done here.
 - **Do not hide or wrap errors.** Swallowing an exception turns a fixable failure

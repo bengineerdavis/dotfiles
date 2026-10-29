@@ -1,115 +1,92 @@
 # Usage
 
-## Fresh Machine
+Day-to-day commands for provisioning, running individual topics, adding
+topics, and maintenance. For how the pieces fit together see
+[ARCHITECTURE.md](ARCHITECTURE.md); for the per-topic contract see
+[TOPICS.md](TOPICS.md).
+
+Ansible is a mise-managed tool, so commands below assume it is on `PATH`
+(via `mise exec` or an activated mise shell). The playbooks run from
+`~/dotfiles`.
+
+## Bootstrap a new machine
 
 ```bash
-# chezmoi will eventually drive this — for now, run directly:
+# chezmoi installs itself, clones the repo, and applies dotfiles:
+sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply git@github.com:bengineerdavis/dotfiles.git
+
+# then provision system state with Ansible:
 ansible-playbook playbook.yaml --tags provision
 ```
 
-This runs in order: bootstrap → prerequisites → upgrade → install.  
-You will be prompted before any package manager is installed.
-
----
-
-## Common Commands
+## Whole-machine runs (parent playbook)
 
 ```bash
-# Upgrade all packages (brew, apt) without reinstalling topics
-ansible-playbook playbook.yaml --tags upgrade
-
-# Install all topic packages (assumes env is already set up)
-ansible-playbook playbook.yaml --tags install
-
-# Run a single topic
-ansible-playbook apps/mise/playbook.yaml
-ansible-playbook apps/mise/playbook.yaml --tags install
-ansible-playbook apps/mise/playbook.yaml --tags remove
-
-# Bootstrap package managers only
-ansible-playbook playbook.yaml --tags bootstrap
-
-# Dry run — see what would change without making changes
-ansible-playbook playbook.yaml --tags provision --check
+ansible-playbook playbook.yaml --tags provision   # bootstrap+prereqs+upgrade+install, all topics
+ansible-playbook playbook.yaml --tags upgrade     # refresh everything
+ansible-playbook playbook.yaml --tags install     # install all topics
+ansible-playbook playbook.yaml                    # no tags → provision (never removes)
+ansible-playbook playbook.yaml --tags remove      # uninstall all topics (deliberate)
 ```
 
----
+Add `--check --diff` to any of these for a no-op dry run that reports what
+*would* change without applying it.
 
-## Adding a New Topic
+## Single-topic runs (standalone)
+
+Each topic has a standalone runner. A bare run does `provision`; `remove` is
+opt-in (tagged `never`):
 
 ```bash
-# 1. Scaffold from template
-./init-config.sh my-app
+ansible-playbook apps/<topic>/playbook.yaml --tags install    # install just this topic
+ansible-playbook apps/<topic>/playbook.yaml                   # provision just this topic
+ansible-playbook apps/<topic>/playbook.yaml --tags remove     # uninstall just this topic
 
-# 2. Edit the generated files
-#    tasks/install.yaml  ← add your package installs
-#    tasks/remove.yaml   ← add your uninstall steps
-#    files/zsh/          ← add any shell config files
-
-# 3. Run it standalone to test
-ansible-playbook apps/my-app/playbook.yaml --tags install
+# convenience wrapper (adds -vv and the inventory):
+./run-role.sh <topic> [tag]
 ```
 
-The scaffold copies `template_dir/` into `apps/my-app/`. All `<topic>` placeholders  
-are replaced with your topic name.
+> Always scope real runs with a tag (`--tags install` is the common one).
+> `remove` never runs unless you ask for it explicitly.
 
----
-
-## Migrating an Existing Topic
-
-If a topic still uses the old flat `tasks.yaml` structure:
+## Adding a topic
 
 ```bash
-# Preview what would change (no LLM calls execute)
-./migrate-to-roles.sh --dry-run my-app
-
-# Migrate a single topic
-./migrate-to-roles.sh my-app
-
-# Migrate all topics
-./migrate-to-roles.sh
-
-# Verbose output
-./migrate-to-roles.sh --verbose my-app
+./init-config.sh my-app          # scaffolds apps/my-app/ from template_dir
+# then fill in:
+#   apps/my-app/topic.yml               (name, provides/requires, os, tier)
+#   apps/my-app/tasks/install.yaml      (install steps)
+#   apps/my-app/tasks/remove.yaml       (matching teardown — required)
 ```
 
-The script uses local LLMs to split tasks, resolve conflicts, and check conformance  
-against `template_dir`. Review `migration-backups/<topic>/migration-report.md`  
-for any decisions that need human verification.
+The scaffold ships all five lifecycle files plus a router that already tags
+`remove` as `[remove, never]`, so a new topic is safe to run standalone
+immediately. See [TOPICS.md](TOPICS.md) for the file/`topic.yml`
+contract and the CRUD-ownership invariant (anything you create must have a
+matching teardown in `remove.yaml`).
+
+## Maintenance
 
 ```bash
-# After reviewing backups:
-rm -rf migration-backups/
+./update.sh              # upgrade pass; prompts for profile on first run
+./update.sh minimal      # apps only
+./update.sh full         # apps + heavy attachments (e.g. Ollama models)
 ```
 
----
+`update.sh` upgrades Ansible out-of-band first (it can't safely swap its own
+venv mid-run), then runs the parent playbook with `--tags upgrade,<profile>`.
+A user crontab (`apps/cron/`) runs this on a schedule.
 
-## Shell Config
-
-Topic shell files live in `apps/<topic>/files/zsh/` and are sourced automatically  
-by zsh at runtime. No Ansible tasks needed for shell setup.
-
-```
-apps/mise/files/zsh/
-├── init.zsh        # sourced on shell init
-├── env.zsh         # environment variables
-├── alias.zsh       # aliases
-└── path.zsh        # PATH additions
-```
-
-Global zsh config (shared across all topics) lives in `zsh/` at the repo root.
-
----
-
-## Dotfile Config
-
-chezmoi manages all dotfile state: symlinks, config file templates, secrets.  
-Do not write symlink or config-file tasks in Ansible — put them in chezmoi instead.
+## Testing
 
 ```bash
-# Apply chezmoi dotfiles
-chezmoi apply
+bats test/               # BATS shell-script suite (also triggered by git hooks)
+```
 
-# See what chezmoi would change
-chezmoi diff
+## Verifying without changing anything
+
+```bash
+ansible-playbook apps/<topic>/playbook.yaml --syntax-check       # structure/imports resolve
+ansible-playbook apps/<topic>/playbook.yaml --list-tasks         # task plan + tag routing
+ansible-playbook apps/<topic>/playbook.yaml --check --tags provision   # dry run, reports would-be changes
 ```

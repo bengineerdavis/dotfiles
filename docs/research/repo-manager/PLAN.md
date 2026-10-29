@@ -62,7 +62,7 @@ sharpen the choice, the author's job is to make it:
 
 ## 4. Directory contract
 
-Everything lives in `dotfiles/docs/research/repo-manager/` on this branch:
+Everything lives in `docs/research/repo-manager/` on this branch:
 
 | File | Role |
 |---|---|

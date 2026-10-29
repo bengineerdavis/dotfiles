@@ -427,7 +427,7 @@ def run_local(model: str, system: str, user: str) -> str:
     # triage only ever sees inbound customer reports, so its prompts are
     # work-tagged by construction — there is no non-work way to invoke it. Ask
     # the policy layers whether bodies may be logged, and pass -n when they do
-    # not say yes. See `policy explain` and dotfiles/docs/GOALS.md.
+    # not say yes. See `policy explain` and docs/GOALS.md.
     if not logging_permitted():
         cmd.insert(1, "-n")
         print(
