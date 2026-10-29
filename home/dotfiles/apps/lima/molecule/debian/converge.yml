@@ -1,0 +1,28 @@
+---
+# Re-run the topic to prove convergence/idempotence, then plant the sentinel
+# that side_effect must preserve. Lima is already installed by create.yml.
+- name: Converge apps/lima and plant the teardown sentinel
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: false
+  vars:
+    lima_test_home: "{{ molecule_ephemeral_directory }}/home"
+    lima_install_prefix: "{{ lima_test_home }}/.local"
+  tasks:
+    - name: Converge the Lima topic
+      ansible.builtin.include_role:
+        name: apps/lima
+
+    - name: Plant a sentinel that teardown must preserve
+      ansible.builtin.copy:
+        dest: "/tmp/lima-{{ molecule_ephemeral_directory | hash('sha1') }}/keep-me.txt"
+        content: "user VM data must survive topic removal\n"
+        mode: "0600"
+
+    - name: Verify the installed CLI
+      ansible.builtin.command:
+        argv: ["{{ lima_install_prefix }}/bin/limactl", "--version"]
+      register: lima_installed_version
+      changed_when: false
+      failed_when: "'limactl version' not in lima_installed_version.stdout"

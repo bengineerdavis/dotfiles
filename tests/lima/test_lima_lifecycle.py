@@ -5,12 +5,13 @@ scenario's public Molecule test is the VM evidence; a missing VM
 must not count as a pass.
 """
 
-from pathlib import Path
-
 import pytest
 import yaml
 
-TOPIC = Path(__file__).parents[2] / "dotfiles" / "apps" / "lima"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+TOPIC = PAYLOAD_ROOT / "dotfiles" / "apps" / "lima"
 SCENARIO = TOPIC / "molecule" / "debian"
 
 
@@ -132,14 +133,37 @@ def test_lima_state_is_scenario_local_and_cleanup_is_scoped():
     """
     for name in ("create.yml", "destroy.yml"):
         text = (SCENARIO / name).read_text()
+        if name == "destroy.yml":
+            destroy = text
+        else:
+            create = text
+        assert "controller/.local" in text
         assert "molecule_ephemeral_directory | hash('sha1')" in text
         assert "item.name" in text
     destroy = (SCENARIO / "destroy.yml").read_text()
     assert "delete" in destroy
     assert "--force" in destroy
     assert "item.name" in destroy
-    assert "lima_home" in destroy
     assert "rancher" not in destroy.lower()
+    assert "rancher" not in destroy.lower()
+
+
+def test_destroy_reaps_processes_before_deleting_their_state():
+    """A delete must not leave a host agent using deleted files."""
+    tasks = load("molecule/debian/destroy.yml")[0]["tasks"]
+    assert tasks[-1]["name"] == "Remove this scenario's temporary Lima home"
+    stop = next(task for task in tasks if "Stop only this scenario" in task["name"])
+    assert stop["ansible.builtin.command"]["argv"][1:3] == ["stop", "--tty=false"]
+    delete = next(task for task in tasks if "Delete only this scenario" in task["name"])
+    assert delete["ansible.builtin.command"]["argv"][1:3] == ["delete", "--force"]
+    reap = next(task for task in tasks if "processes to exit" in task["name"])
+    script = reap["ansible.builtin.shell"]
+    assert "item.stdout_lines" in script
+    assert "kill -0" in script
+    assert "seq 1 60" in script
+    assert "stop --force --tty=false" in script
+    assert "exit 1" in script
+    assert "ansible.builtin.file" not in reap
 
 
 def test_public_scenario_exercises_the_topic_and_preserves_sentinel():
