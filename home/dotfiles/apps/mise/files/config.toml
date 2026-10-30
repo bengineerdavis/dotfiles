@@ -11,8 +11,9 @@ pipx.uvx = true
 # herdr — the agent-runtime server (apps/herdr). The entry is owned by that
 # topic through mise's first-party commands: `mise use -g herdr` on install,
 # `mise unuse --global herdr` on remove, probe-first so both are no-ops once
-# converged. This line is the capture those commands write through the
-# deployed symlink; upgrades come from `mise upgrade`, never `herdr update`.
+# converged. The commands change the deployed copy; capture the entry in this
+# source deliberately before applying over that drift. See DOT-240 for the
+# capture-trigger design. Upgrades use `mise upgrade`, never `herdr update`.
 herdr = "latest"
 # Encryption for bin/quarantine. aqua: resolves upstream's own release binaries
 # rather than a third-party plugin. age is a single static binary with no
@@ -98,8 +99,9 @@ python = "3.14"
 worktrunk = "latest"
 # gita — owned by apps/gita through mise's first-party commands
 # (`mise use -g pipx:gita` on install, `mise unuse --global pipx:gita` on
-# remove), the herdr pattern. This line is the capture those commands write
-# through the deployed symlink; the topic never edits the file directly.
+# remove), the herdr pattern. The commands change the deployed copy; capture
+# the entry in this source deliberately before applying over that drift. The
+# topic never edits this file directly.
 "pipx:gita" = "latest"
 
 # http://llm.datasette.io/en/stable/setup.html
