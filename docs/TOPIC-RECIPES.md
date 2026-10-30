@@ -94,13 +94,15 @@ config is still one topic; the mechanism table decides only the binary.
 **Tool-entry ownership via first-party commands** (settled with herdr): a topic
 may own its own entry in the global mise config by running
 `mise use -g <tool>` on install and `mise unuse --global <tool>` on remove,
-probe-first so the command is a no-op once converged. Consequence to design for
-deliberately: `~/.config/mise/config.toml` is a symlink to the tracked source
-file, so those commands **write into the git tree**. The install run leaves the
-repo dirty by design; the entry change is committed as the capture. This is the
-exception to "topics never write other topics' files" — it works because mise
-itself owns the file format and the topic claims the entry as its own state,
-probe-first. See the mise hazard line in TASKS.md § Cross-session hazards.
+probe-first so the command is a no-op once converged. The global config is a
+regular chezmoi-managed copy: those commands change the deployed file, not the
+tracked source. A subsequent apply can overwrite that drift, so capture the
+entry deliberately before applying. DOT-240 owns the capture-trigger design;
+until then, the owning topic must not treat `mise use -g` as a committed capture.
+This is the exception to "topics never write other topics' files" — it works
+because mise itself owns the file format and the topic claims the entry as its
+own state, probe-first. See the mise hazard line in AGENTS.md § Cross-session
+hazards.
 
 **Never self-update a manager-installed tool.** Some tools ship their own
 updater (`herdr update`) which is valid only for direct installs; brew, mise

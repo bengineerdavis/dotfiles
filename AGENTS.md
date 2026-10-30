@@ -279,9 +279,11 @@ first.
   on 2026-09-11 (`b038cbe` removed two broken pipx tools, `907f3d0` pinned
   skillet). It rebased cleanly because the edits were in different regions, but
   it is a long flat list of tools that everything installs through, so the next
-  pair of edits may not be so lucky. `~/.config/mise/config.toml` is a symlink
-  to this file, so editing the source changes what mise reads immediately —
-  before any `chezmoi apply`.
+  pair of edits may not be so lucky. `~/.config/mise/config.toml` is a regular
+  chezmoi-managed copy, so editing this source does not change what mise reads
+  until the author applies the config. A tool writing the deployed file can
+  drift it from this source; capture that deliberately rather than applying
+  over it unseen.
 
   2026-09-22: seen live again — during an unrelated commit, a mise run
   auto-bumped `github:danielmiessler/fabric` 1.4.478 → 1.4.479 in the working
