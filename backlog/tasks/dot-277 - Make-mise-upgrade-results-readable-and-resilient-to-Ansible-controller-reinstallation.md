@@ -7,6 +7,11 @@ labels:
 - mise
 - ansible
 priority: high
+orchestration:
+  status_key: inprogress
+  lease_owner: opencode-mise-upgrade-result
+  lease_expires_at: '2026-10-30T07:39:41.492441Z'
+  version: 1
 ---
 
 ## Description
@@ -38,3 +43,22 @@ During the 2026-10-29 ./update.sh run, mise upgraded 12 tools, then reinstalled 
 ## Definition of Done
 <!-- DOD:BEGIN -->
 <!-- DOD:END -->
+
+## Run History
+<!-- SECTION:RUN_HISTORY:BEGIN -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-1978a9a2a4a6419bbba960d661ade39b
+type: claim_task
+actor: opencode-mise-upgrade-result
+timestamp: '2026-10-30T06:39:41.492513Z'
+result: succeeded
+task_id: DOT-277
+from_status: todo
+to_status: inprogress
+metadata:
+  lease_ttl_seconds: '3600'
+```
+Implement isolated upgrade-result and readable-output fix
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- SECTION:RUN_HISTORY:END -->
