@@ -32,6 +32,8 @@ Wire each agent runtime to the dotagents-published plugin marketplace.
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
 Machine measurement 2026-10-27: opencode wired (ask-matt, chief-of-staff, claude-handoff etc. -> ../../.agents/plugins/mattpocock-skills/...); claude and copilot store-linked (~/.claude/skills -> ../.agents/skills, ~/.copilot/skills -> ../.agents/skills, no plugin links); cursor and codex hold 11 real entries each, zero links; vscode has no skills dir. dotagents binary 3.3.0 (mise pin), 3.4.0 available. mattpocock/skills approved 2026-10-26 (MIT, gh api verified).
+
+3.4.0 measurement 2026-10-28 (claimed): pin bumped to 3.4.0 in worktree agent/dotagents-340-pin; ran `npx @sentry/dotagents@3.4.0 --user install` (27 skills + 1 plugin, clean). Result: plugin skills still reach opencode ONLY — claude/cursor/codex/copilot measure 0 plugin skills after install. Upstream PR #201 ("Expose Agent Plugin resolution to other hosts") is a LIBRARY API change, not client wiring: "the dotagents CLI continues to own installation, provenance, target selection, and client config" — so no pin-only fix exists. The plugin ships native manifests (.claude-plugin/marketplace.json, .codex-plugin, .cursor-plugin) and dotagents generates a local marketplace (~/.agents/plugins/marketplace.json, "dotagents-local"), but nothing points claude at it; claude's known_marketplaces.json has only claude-plugins-official. vscode explicitly warns "does not support plugin outputs". Side effect: `dotagents sync` adopted 12 orphan skills into ~/.agents/agents.toml (no-ai-slop + roborev-* set) — machine-state change to capture in the topic's defaults/CHANGELOG.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
