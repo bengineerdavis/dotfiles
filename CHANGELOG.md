@@ -18,6 +18,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 <!-- scriv-insert-here -->
 
+## PR #108 — 2026-10-30
+
+**Changed**
+
+- The global mise config is now a regular chezmoi-managed copy rather than a
+  symlink into the source checkout. Source changes no longer change the live
+  config until you apply them. Local `mise use -g` edits need deliberate capture
+  before a later apply; DOT-240 retains that capture-trigger design.
+
 ## PR #89 — 2026-10-30
 
 ### Changed
