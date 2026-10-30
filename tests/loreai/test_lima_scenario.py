@@ -4,9 +4,11 @@ from pathlib import Path
 
 import yaml
 
-ROOT = Path(__file__).parents[2]
-LIMA = ROOT / "dotfiles/apps/lima/molecule"
-LOREAI = ROOT / "dotfiles/apps/loreai/molecule/debian-lima"
+# pyrefly: ignore [missing-import]
+from payload_seam import PAYLOAD_ROOT
+
+LIMA = PAYLOAD_ROOT / "dotfiles/apps/lima/molecule"
+LOREAI = PAYLOAD_ROOT / "dotfiles/apps/loreai/molecule/debian-lima"
 SHARED = LIMA / "shared"
 
 
