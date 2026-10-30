@@ -1,0 +1,21 @@
+# Delete only the unpacked upstream installation. Do not delete or prune VMs,
+# ~/.lima, Rancher Desktop, shared QEMU, or user data.
+- name: "Remove the Lima release files"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ lima_install_dir }}/limactl"
+    - "{{ lima_install_dir }}/lima"
+    - "{{ lima_install_dir }}/nerdctl.lima"
+    - "{{ lima_install_prefix }}/libexec/lima"
+    - "{{ lima_install_prefix }}/share/lima"
+    - "{{ lima_install_prefix }}/share/doc/lima"
+  when: lima_remove_installed_files
+
+- name: "Explain preserved VM state"
+  ansible.builtin.debug:
+    msg: >-
+      Lima release files were removed. Existing VMs, {{ lima_install_prefix | dirname }}/.lima,
+      Rancher Desktop, and QEMU were left untouched. Remove a disposable VM
+      explicitly with limactl delete --force NAME; no blanket prune is performed.

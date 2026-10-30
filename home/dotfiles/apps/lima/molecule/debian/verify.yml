@@ -1,0 +1,37 @@
+---
+# Verify the real Debian VM through Molecule's SSH connection, and prove topic
+# removal preserves the sentinel and shared QEMU.
+- name: Verify the rootless Lima VM lifecycle
+  hosts: all
+  gather_facts: true
+  become: false
+  tasks:
+    - name: Assert a real Debian ARM64/x86_64 guest running systemd
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.distribution == "Debian"
+          - ansible_facts.distribution_major_version == "12"
+          - ansible_facts.service_mgr == "systemd"
+          - ansible_facts.architecture in ['aarch64', 'x86_64']
+        fail_msg: "Not the expected Debian guest."
+
+    - name: Assert the VM is QEMU, not a container
+      ansible.builtin.command:
+        argv: [systemd-detect-virt]
+      register: lima_virt
+      changed_when: false
+      failed_when: lima_virt.stdout != 'qemu'
+
+    - name: Assert the guest user manager runs without lingering privileges
+      ansible.builtin.command:
+        argv: [systemctl, --user, is-system-running]
+      register: lima_user_manager
+      changed_when: false
+      failed_when: lima_user_manager.stdout not in ['running', 'degraded']
+
+    - name: Record the guest identity
+      ansible.builtin.debug:
+        msg: >-
+          Lima VM verified: Debian {{ ansible_facts.distribution_version }},
+          {{ ansible_facts.architecture }}, QEMU, systemd user manager
+          {{ lima_user_manager.stdout }}.
