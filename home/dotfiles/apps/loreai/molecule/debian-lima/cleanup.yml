@@ -1,0 +1,7 @@
+---
+# The guest is disposable. Preserve the in-guest sentinel until side_effect;
+# shared/destroy.yml removes only this scenario's Lima instance and home.
+- name: Complete LoreAI scenario cleanup
+  hosts: localhost
+  gather_facts: false
+  tasks: []

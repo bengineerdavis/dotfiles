@@ -1,0 +1,76 @@
+---
+- name: Destroy rootless Lima guests
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  no_log: "{{ molecule_no_log }}"
+  vars:
+    lima_home: "/tmp/lima-{{ molecule_ephemeral_directory | hash('sha1') }}"
+    lima_install_prefix: "{{ molecule_ephemeral_directory }}/controller/.local"
+    lima_command: "{{ lima_install_prefix }}/bin/limactl"
+    lima_environment:
+      LIMA_HOME: "{{ lima_home }}"
+      PATH: "{{ lima_install_prefix }}/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+  tasks:
+    - name: Record this scenario's process IDs before stopping it
+      ansible.builtin.shell: >-
+        for file in {{ lima_home }}/{{ item.name }}/ha.pid
+        {{ lima_home }}/{{ item.name }}/qemu.pid; do
+          if test -f "$file"; then cat "$file"; fi;
+        done
+      environment: "{{ lima_environment }}"
+      loop: "{{ molecule_yml.platforms }}"
+      register: lima_scenario_pids
+      changed_when: false
+      failed_when: false
+
+    - name: Stop only this scenario's named VMs and host agents
+      ansible.builtin.command:
+        argv: ["{{ lima_command }}", "stop", "--tty=false", "{{ item.name }}"]
+      environment: "{{ lima_environment }}"
+      loop: "{{ molecule_yml.platforms }}"
+      failed_when: false
+      changed_when: true
+
+    # Lima can return from delete while its processes still reference the
+    # removed directory. PIDs were captured before stop deleted the pidfiles.
+    - name: Require this scenario's processes to exit before state removal
+      ansible.builtin.shell: >-
+        for pid in {{ item.stdout_lines | default([]) | join(' ') }}; do
+          case "$pid" in (*[!0-9]*|'') continue;; esac;
+          for attempt in $(seq 1 60); do
+            if ! kill -0 "$pid" 2>/dev/null; then break; fi;
+            sleep 1;
+          done;
+          if kill -0 "$pid" 2>/dev/null; then
+            {{ lima_command }} stop --force --tty=false {{ item.item.name }} || true;
+            for attempt in $(seq 1 60); do
+              if ! kill -0 "$pid" 2>/dev/null; then break; fi;
+              sleep 1;
+            done;
+          fi;
+          if kill -0 "$pid" 2>/dev/null; then
+            printf 'Scenario process %s is still running\n' "$pid" >&2;
+            exit 1;
+          fi;
+        done
+      environment: "{{ lima_environment }}"
+      loop: "{{ lima_scenario_pids.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      register: lima_destroyed
+      changed_when: false
+      failed_when: lima_destroyed.rc != 0
+
+    - name: Delete only this scenario's named VMs
+      ansible.builtin.command:
+        argv: ["{{ lima_command }}", "delete", "--force", "--tty=false", "{{ item.name }}"]
+      environment: "{{ lima_environment }}"
+      loop: "{{ molecule_yml.platforms }}"
+      failed_when: false
+      changed_when: true
+
+    - name: Remove this scenario's temporary Lima home
+      ansible.builtin.file:
+        path: "{{ lima_home }}"
+        state: absent

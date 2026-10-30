@@ -15,6 +15,10 @@ platforms:
     arm64_digest: "sha512:89a752d5c7d8e88bee39a57d88d496cca574f7d1e8df5df7a169825435f99feb11ed13ab27ec7bee96fe1584be4ff9479358fbca6cc859efa109f4aba18724c8"
 provisioner:
   name: ansible
+  playbooks:
+    create: ../../../lima/molecule/shared/create.yml
+    destroy: ../../../lima/molecule/shared/destroy.yml
+    cleanup: ../../../lima/molecule/shared/cleanup.yml
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}"
   inventory:

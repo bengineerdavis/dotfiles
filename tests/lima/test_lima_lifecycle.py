@@ -13,6 +13,7 @@ from payload_seam import PAYLOAD_ROOT
 
 TOPIC = PAYLOAD_ROOT / "dotfiles" / "apps" / "lima"
 SCENARIO = TOPIC / "molecule" / "debian"
+SHARED = TOPIC / "molecule" / "shared"
 
 
 def load(relative: str):
@@ -48,6 +49,19 @@ def test_topic_is_rootless_and_has_complete_lifecycle():
     # the Homebrew bin dir for an existing QEMU binary is allowed.
     assert "brew install" not in install
     assert not any(line.strip().startswith("sudo ") for line in install.splitlines())
+
+
+def test_qemu_dependency_probes_the_real_system_binary():
+    """The dependency token resolves to the real QEMU CLI."""
+    defaults = yaml.safe_load(
+        (
+            TOPIC.parents[1] / "roles" / "topic-resolution" / "defaults" / "main.yaml"
+        ).read_text()
+    )
+    probe = defaults["dependency_probe_binary"]["qemu"]
+    assert "command -v qemu-system-aarch64" in probe
+    assert "qemu-system-x86_64" in probe
+    assert "ansible_facts.architecture" not in probe
 
 
 def test_release_assets_are_pinned_for_supported_platforms():
@@ -99,9 +113,9 @@ def test_molecule_uses_delegated_qemu_without_host_access():
     assert config["provisioner"]["name"] == "ansible"
     assert config["verifier"]["name"] == "ansible"
     for name in ("create.yml", "destroy.yml", "lima.yaml.j2"):
-        assert (SCENARIO / name).is_file(), name
+        assert (SHARED / name).is_file(), name
     lifecycle = "\n".join(
-        (SCENARIO / name).read_text() for name in ("create.yml", "destroy.yml")
+        (SHARED / name).read_text() for name in ("create.yml", "destroy.yml")
     )
     assert "LIMA_HOME" in lifecycle
     assert "limactl" in lifecycle
@@ -109,7 +123,7 @@ def test_molecule_uses_delegated_qemu_without_host_access():
     assert "identity_file" in lifecycle
     assert "sshLocalPort" in lifecycle
     assert "socket_vmnet" not in lifecycle
-    template = (SCENARIO / "lima.yaml.j2").read_text()
+    template = (SHARED / "lima.yaml.j2").read_text()
     assert "vmType: qemu" in template
     assert "containerd:" in template
     assert "system: false" in template
@@ -132,15 +146,11 @@ def test_lima_state_is_scenario_local_and_cleanup_is_scoped():
     ephemeral dir.
     """
     for name in ("create.yml", "destroy.yml"):
-        text = (SCENARIO / name).read_text()
-        if name == "destroy.yml":
-            destroy = text
-        else:
-            create = text
+        text = (SHARED / name).read_text()
         assert "controller/.local" in text
         assert "molecule_ephemeral_directory | hash('sha1')" in text
         assert "item.name" in text
-    destroy = (SCENARIO / "destroy.yml").read_text()
+    destroy = (SHARED / "destroy.yml").read_text()
     assert "delete" in destroy
     assert "--force" in destroy
     assert "item.name" in destroy
@@ -174,7 +184,7 @@ def test_public_scenario_exercises_the_topic_and_preserves_sentinel():
     assert "lima_install_prefix" in converge
     assert "molecule_ephemeral_directory" in converge
     assert (SCENARIO / "verify.yml").is_file()
-    assert (SCENARIO / "cleanup.yml").is_file()
+    assert (SHARED / "cleanup.yml").is_file()
     assert (SCENARIO / "side_effect.yml").is_file()
 
 

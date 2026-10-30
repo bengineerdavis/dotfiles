@@ -117,6 +117,17 @@ mode. Its `LORE_GATEWAY_AUTH_TOKEN` is for remote/hosted clients, not this
 loopback deployment; revisit authentication before binding beyond
 loopback. `LORE_ALLOW_REMOTE_MANAGEMENT` stays off.
 
+## Linux VM test
+
+Run `MOLECULE_SCENARIO=debian-lima scripts/run-molecule.sh loreai test` on a
+host with user-owned Lima and QEMU. It boots a real Debian 12 guest, installs
+this topic with telemetry and inference disabled, and checks idempotence.
+Verification requires an active, enabled user gateway and a local HTTP response
+from `/ui`. Removal runs twice and preserves a planted memory-data sentinel.
+The shared adapter deletes only this scenario's VM and temporary Lima home.
+The existing Vagrant scenario remains separate; this is not LLM-inference,
+Linux-host, or macOS-guest-on-Linux coverage.
+
 ## Throwaway agent-session tests
 
 `tests/loreai/test_opencode_e2e.py` is an opt-in real-model test (`llm_judge`).

@@ -1,0 +1,14 @@
+---
+# Lima's guest already has Python and CA certificates. Add only the external
+# commands the topic actually invokes. No host package or login state changes.
+- name: Prepare the Debian guest for apps/loreai
+  hosts: all
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Install gzip for the verified release archive
+      ansible.builtin.apt:
+        name: gzip
+        state: present
+        update_cache: true
+      become: true
