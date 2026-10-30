@@ -12,6 +12,8 @@ references:
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
 Per decision-1: any change to global config that can destabilize user-level usage is verified by integration/E2E/agent-user-tested checks in a VM matching the target machine environment. Gate 1 of 3: a pre-commit/pre-push hook and CI job that run the VM verification for diffs touching managed global-config sources (opencode, mise, shell). The gate must be mechanically derived from the diff, not from a remembered task-class table. Work includes: choosing the VM harness (the Lima adapter from PR #99 is the candidate), defining which file paths trigger the gate, and wiring prek hooks plus CI. Done when: a diff that touches a managed global-config source cannot reach a PR without the VM check having run and passed, proven by a mutation (a deliberately broken config that the gate rejects).
+
+The VM scenario must cover the eventual two-stage deployment path: run `chezmoi apply` into the VM's target home, then run the parent `dotfiles` Ansible playbook through the same entry point and tags used by `update.sh`. Prove the deployed configuration and Ansible-converged machine state work together; do not substitute a render-only check or an Ansible-only upgrade for this path. Current `update.sh` is Ansible-upgrade-only and does not run `chezmoi apply`, so the test must distinguish that current behavior from the eventual combined pipeline.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
