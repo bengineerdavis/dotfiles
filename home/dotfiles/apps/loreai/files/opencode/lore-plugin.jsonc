@@ -169,7 +169,5 @@
   "compaction": {
     "auto": false
   },
-  "plugin": [
-    "@loreai/opencode"
-  ]
+  "plugin": []
 }

@@ -204,7 +204,7 @@ def test_renders_deep_agent_on_both_oses(hostname, os_name):
 
 def test_loreai_setup_merges_with_model_overrides():
     cfg = render("L37V3P6GQ3", "darwin")
-    assert "@loreai/opencode" in cfg["plugin"]
+    assert "@loreai/opencode" not in cfg["plugin"]
     assert cfg["compaction"]["auto"] is False
     fragment = json.loads(
         (
