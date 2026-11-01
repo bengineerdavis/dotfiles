@@ -1,0 +1,14 @@
+"backlog/tasks/task-244 - loreai-verify-the-opencode-plugin-loads-not-just-registers.md"
+  h_3789f648fd203c 1-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "11828870ae9d3291e6fa2878eb2a4e6da3dd206a",
+  "prompts": {},
+  "humans": {
+    "h_3789f648fd203c": {
+      "author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
