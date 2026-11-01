@@ -29,12 +29,31 @@ Section names come from antsibull-changelog; see `docs/TOPICS.md`
 
 ### known_issues
 
-- **Plugin skills reach opencode only.** `dotagents add` discovers plugins
-  before skills and refuses a named skill from a plugin-marketplace source. The
-  plugin's skills are linked into `~/.config/opencode/skills`; dotagents
-  publishes client marketplaces under `~/.agents/` but does not configure
-  claude, cursor, codex or copilot to consume them. Measured 2026-10-26.
-  Per-client wiring is queued as its own task.
+- **Plugin skills for claude/codex load per-client, registered by this
+  topic.** dotagents publishes the local marketplace
+  (`~/.agents/plugins/marketplace.json`, name `dotagents-local`) but does not
+  register it with any client (measured 2026-10-28 on dotagents 3.4.0; upstream
+  getsentry/dotagents#201 is a library API for embedding hosts, not client
+  wiring). Install now registers the marketplace and installs every declared
+  plugin into claude (`claude plugin marketplace add` + `claude plugin
+  install`) and codex (`codex plugin add`), reading the plugin names from the
+  marketplace file. Both CLIs are idempotent on re-run.
+
+### exclusions
+
+- **cursor** — no plugin registration surface. The cursor CLI exposes no
+  plugin or marketplace subcommand (checked 2026-10-30, cursor 3.27.22), and
+  its `~/.cursor/plugins/` cache is populated only by cursor's own client
+  (the sentry plugin arrived there, not via any CLI). Skills still reach it
+  through `~/.cursor/skills` (dotagents-managed store skills).
+- **copilot** — no plugin system and no CLI on this machine. `~/.copilot/`
+  has no plugins dir; skills reach it through the `~/.copilot/skills →
+  ~/.agents/skills` symlink. The GitHub Copilot CLI (`gh copilot`) is not
+  installed.
+- **vscode** — dotagents itself refuses to target it: sync warns `Plugin
+  "mattpocock-skills" targets "vscode", but "vscode" does not support plugin
+  outputs` (measured 2026-10-28, dotagents 3.4.0). There is no skills dir to
+  link into either.
 - **`dotagents init --force` deletes the skills store.** Measured 2026-10-26 in
   a throwaway HOME: every installed skill directory and every trust entry was
   removed. This is why init runs only when `agents.toml` is absent; changing

@@ -236,6 +236,138 @@
       `dotagents list` reports which skills and plugins that resolved to.
   tags: [dotagents_skills, upgrade]
 
+# ── Claude plugin wiring ─────────────────────────────────────────────────────
+# dotagents publishes the local marketplace in claude's native format
+# (~/.agents/plugins/marketplace.json, name `dotagents-local`) but does not
+# register it — plugin skills reached opencode only (measured 2026-10-28,
+# dotagents 3.4.0; upstream #201 is a library API, not client wiring). The
+# claude CLI accepts the marketplace by path, so this topic drives the CLI
+# rather than templating ~/.claude/settings.json, which is machine-local.
+# `claude` is a mise tool (apps/claude/files/config.toml); the shims PATH is
+# prepended the same way the dotagents calls above do it.
+
+- name: "Find the dotagents plugin marketplace"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.agents/plugins/marketplace.json"
+  register: dotagents_claude_marketplace
+  tags: [dotagents_skills, upgrade]
+
+- name: "Read the marketplace's plugin list for both claude and codex"
+  # One source of truth for every CLI that consumes dotagents-local: the
+  # marketplace file dotagents generated, not a duplicated list in this topic.
+  ansible.builtin.set_fact:
+    dotagents_claude_marketplace_json: >-
+      {{ lookup('file', ansible_facts['env']['HOME'] + '/.agents/plugins/marketplace.json') | from_json }}
+  when: dotagents_claude_marketplace.stat.exists
+  tags: [dotagents_skills, upgrade]
+
+- name: "Register the dotagents marketplace with claude"
+  # Re-running is a no-op that exits 0 with "already on disk", so this
+  # converges on every run. When the marketplace file is absent (no plugin
+  # sources declared, or sync failed above), skipping is the honest state:
+  # claude cannot be pointed at a marketplace that does not exist.
+  ansible.builtin.command:
+    cmd: >-
+      claude plugin marketplace add
+      {{ ansible_facts['env']['HOME'] }}/.agents/plugins/marketplace.json
+  environment:
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
+  register: dotagents_claude_marketplace_add
+  failed_when: false
+  changed_when: "'Successfully added' in dotagents_claude_marketplace_add.stdout"
+  when: dotagents_claude_marketplace.stat.exists
+  tags: [dotagents_skills, upgrade]
+
+- name: "Fail with anything claude's marketplace registration could not explain"
+  vars:
+    dotagents_claude_marketplace_failures: >-
+      {{ [dotagents_claude_marketplace_add] | selectattr('skipped', 'undefined')
+         | rejectattr('rc', 'eq', 0) | list }}
+  ansible.builtin.fail:
+    msg: >-
+      claude could not register the dotagents marketplace
+      (~/.agents/plugins/marketplace.json). What it actually said:
+      {{ dotagents_claude_marketplace_failures
+         | map(attribute='stderr') | map('trim') | select | join(' | ')
+         | default('nothing on stderr; re-run `claude plugin marketplace add` by hand', true) }}
+  when:
+    - dotagents_claude_marketplace.stat.exists
+    - dotagents_claude_marketplace_add.rc | default(0) != 0
+  tags: [dotagents_skills, upgrade]
+
+- name: "Install every declared dotagents plugin into claude"
+  # The plugin name lives in the marketplace entry dotagents generated, so it
+  # is read from that file rather than duplicated here. Re-running exits 0
+  # with "already installed", so this converges.
+  ansible.builtin.command:
+    cmd: claude plugin install {{ item.name }}@dotagents-local
+  environment:
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
+  loop: "{{ dotagents_claude_marketplace_json.plugins }}"
+  loop_control:
+    label: "{{ item.name }}@dotagents-local"
+  register: dotagents_claude_plugin_install
+  failed_when: false
+  changed_when: "'Successfully installed' in dotagents_claude_plugin_install.stdout"
+  when: dotagents_claude_marketplace.stat.exists
+  tags: [dotagents_skills, upgrade]
+
+- name: "Fail with every dotagents plugin claude could not install"
+  vars:
+    dotagents_claude_plugin_failures: >-
+      {{ dotagents_claude_plugin_install.results | default([])
+         | rejectattr('rc', 'eq', 0) | list }}
+  ansible.builtin.fail:
+    msg: >-
+      claude could not install
+      {{ dotagents_claude_plugin_failures | map(attribute='item.name') | join(', ') }}.
+      What it actually said:
+      {{ dotagents_claude_plugin_failures
+         | map(attribute='stderr') | map('trim') | select | join(' | ')
+         | default('nothing on stderr; re-run `claude plugin install <name>@dotagents-local` by hand', true) }}
+  when:
+    - dotagents_claude_marketplace.stat.exists
+    - dotagents_claude_plugin_failures | default([]) | length > 0
+  tags: [dotagents_skills, upgrade]
+
+# ── Codex plugin wiring ──────────────────────────────────────────────────────
+# Same mechanism as claude, a different CLI: dotagents 3.4.0 registers
+# `dotagents-local` in codex's marketplace list (measured 2026-10-28 in
+# `codex plugin list`), but does not install the plugin. `codex plugin add`
+# reads the shared plugin clone in place and is idempotent on re-run.
+
+- name: "Install every declared dotagents plugin into codex"
+  ansible.builtin.command:
+    cmd: codex plugin add {{ item.name }}@dotagents-local
+  environment:
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
+  loop: "{{ dotagents_claude_marketplace_json.plugins }}"
+  loop_control:
+    label: "{{ item.name }}@dotagents-local (codex)"
+  register: dotagents_codex_plugin_install
+  failed_when: false
+  changed_when: "'Added plugin' in dotagents_codex_plugin_install.stdout"
+  when: dotagents_claude_marketplace.stat.exists
+  tags: [dotagents_skills, upgrade]
+
+- name: "Fail with every dotagents plugin codex could not install"
+  vars:
+    dotagents_codex_plugin_failures: >-
+      {{ dotagents_codex_plugin_install.results | default([])
+         | rejectattr('rc', 'eq', 0) | list }}
+  ansible.builtin.fail:
+    msg: >-
+      codex could not install
+      {{ dotagents_codex_plugin_failures | map(attribute='item.name') | join(', ') }}.
+      What it actually said:
+      {{ dotagents_codex_plugin_failures
+         | map(attribute='stderr') | map('trim') | select | join(' | ')
+         | default('nothing on stderr; re-run `codex plugin add <name>@dotagents-local` by hand', true) }}
+  when:
+    - dotagents_claude_marketplace.stat.exists
+    - dotagents_codex_plugin_failures | default([]) | length > 0
+  tags: [dotagents_skills, upgrade]
+
 - name: "Guard that every installed skill came from an approved source"
   # After the sync, not before: the question is what is on the machine now, and
   # an undeclared directory is only visible once the declared ones are in place.
