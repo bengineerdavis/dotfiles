@@ -77,6 +77,14 @@ dotagents_sources:
 # PROVENANCE note in the directory itself. Vendoring is a deliberate act;
 # forgetting to declare something is not, and the guard cannot tell them apart
 # without this.
+#
+# Since dotagents 3.4.0's first `--user sync` (2026-11-01), dotagents itself
+# declares the vendored set in ~/.agents/agents.toml as `[[skills]]` entries
+# with `path:` sources — adoption, not a new approval: the files were already
+# on disk under this list's supervision, and `path:` sources are declarations
+# of what is here, not trust grants (no upstream fetch happens for them). The
+# provenance guard still audits all 28 store skills including this set, so an
+# undeclared directory would still fail the run.
 dotagents_vendored:
   - name: no-ai-slop
     why: >-

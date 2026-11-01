@@ -14,9 +14,9 @@ labels:
 priority: high
 orchestration:
   status_key: inprogress
+  version: 3
   lease_owner: opencode-loreai-lima
-  lease_expires_at: '2026-10-29T03:23:16.951382Z'
-  version: 1
+  lease_expires_at: '2026-10-30T03:48:05.763409Z'
 updated_date: 2026-10-29 02:42
 ---
 
@@ -74,5 +74,33 @@ to_status: inprogress
 metadata:
   lease_ttl_seconds: '3600'
 ```
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-8eb6842ff4d74be49710489a06d900f4
+type: release_task
+actor: opencode-loreai-lima
+timestamp: '2026-10-30T02:48:05.338129Z'
+result: succeeded
+task_id: DOT-265
+from_status: inprogress
+to_status: todo
+```
+Renew the stale verification lease for the rebased home-payload scenario
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-9ad9a45d75ef46939874a805535d175a
+type: claim_task
+actor: opencode-loreai-lima
+timestamp: '2026-10-30T02:48:05.763471Z'
+result: succeeded
+task_id: DOT-265
+from_status: todo
+to_status: inprogress
+metadata:
+  lease_ttl_seconds: '3600'
+```
+Verify the home-payload scenario and record test-residue safeguards
 <!-- RUN_HISTORY_ENTRY:END -->
 <!-- SECTION:RUN_HISTORY:END -->
