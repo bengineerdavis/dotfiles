@@ -18,6 +18,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 <!-- scriv-insert-here -->
 
+## PR #110 — 2026-11-01
+
+**Changed**: Temporarily disable the incompatible Lore V1 OpenCode plugin while retaining the existing gateway provider routes, until the reviewed V2 port is ready.
+
 ## PR #108 — 2026-10-30
 
 **Changed**
