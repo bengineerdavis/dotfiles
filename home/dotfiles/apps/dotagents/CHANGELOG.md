@@ -3,6 +3,19 @@
 Section names come from antsibull-changelog; see `docs/TOPICS.md`
 § "Per-topic changelog and local edge cases".
 
+## 2026-11-01
+
+### minor_changes
+
+- dotagents 3.4.0's first `--user sync` adopted the vendored skill set: the
+  12 directories this topic tolerates undeclared (no-ai-slop + the roborev
+  family) are now declared in `~/.agents/agents.toml` as `[[skills]]` entries
+  with `path:` sources. Adoption, not a new approval — the files were already
+  on disk under `dotagents_vendored`'s supervision, and `path:` sources declare
+  what is here rather than grant trust (no upstream fetch). The provenance
+  guard still audits all 28 store skills, so an undeclared directory would
+  still fail the run. Recorded in `defaults/main.yaml`.
+
 ## 2026-10-26
 
 ### major_changes
