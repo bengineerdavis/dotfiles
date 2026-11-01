@@ -5,11 +5,10 @@ Work for this repo lives in `backlog/` at the repository root, managed by
 the mapping from the old queue, and the verified command surface are in
 `docs/BACKLOG-MIGRATION.md`.
 
-## Status: interim
+## Status: active
 
-The cutover has not landed. Until it does, the queue is `TASKS.md` and this file
-is a forward pointer. Skills that publish or fetch a task use `TASKS.md` under
-its own § Conventions until the cutover commit deletes it.
+The 2026-10-27 cutover is complete. `TASKS.md` and `TASKS-RESOLVED.md` are
+deleted; `backlog/` is the queue of record.
 
 ## Agent surface
 

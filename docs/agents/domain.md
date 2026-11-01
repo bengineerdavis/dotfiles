@@ -6,8 +6,7 @@ How the engineering skills consume this repo's domain documentation.
 
 - `docs/GLOSSARY.md` — project terminology. Use its vocabulary; do not drift to
   synonyms it avoids.
-- `backlog/decisions/` — decisions that touch the area you are about to change,
-  once the queue cutover lands.
+- `backlog/decisions/` — decisions that touch the area you are about to change.
 
 `docs/` is an older copy of the convention docs. The glossary of
 record is the root `docs/GLOSSARY.md`.
