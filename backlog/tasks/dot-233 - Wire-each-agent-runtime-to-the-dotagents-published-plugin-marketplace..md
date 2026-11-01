@@ -22,10 +22,10 @@ Wire each agent runtime to the dotagents-published plugin marketplace.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Every runtime in dotagents_agents reaches plugin-sourced skills (mattpocock/skills) through a defined mechanism, or carries a recorded exclusion with reason; verification: for each agent dir, a link into ~/.agents/plugins or a native plugin registration exists (or its exclusion is in the topic CHANGELOG).
-- [ ] #2 The wiring mechanism is declared in apps/dotagents (defaults/main.yaml or topic config), not hand-created links; verification: grep -r mattpocock apps/dotagents shows the mechanism.
-- [ ] #3 ~/.agents/skills content is unchanged by the wiring (provenance audit still passes); verification: uv run --frozen pytest tests/docs tests/hooks -q passes.
-- [ ] #4 The dotagents CHANGELOG known_issues entry "Plugin skills reach opencode only" is closed or amended to describe what ships; verification: CHANGELOG.md matches the shipped mechanism.
+- [x] #1 Every runtime in dotagents_agents reaches plugin-sourced skills (mattpocock/skills) through a defined mechanism, or carries a recorded exclusion with reason; verification: for each agent dir, a link into ~/.agents/plugins or a native plugin registration exists (or its exclusion is in the topic CHANGELOG).
+- [x] #2 The wiring mechanism is declared in apps/dotagents (defaults/main.yaml or topic config), not hand-created links; verification: grep -r mattpocock apps/dotagents shows the mechanism.
+- [x] #3 ~/.agents/skills content is unchanged by the wiring (provenance audit still passes); verification: uv run --frozen pytest tests/docs tests/hooks -q passes.
+- [x] #4 The dotagents CHANGELOG known_issues entry "Plugin skills reach opencode only" is closed or amended to describe what ships; verification: CHANGELOG.md matches the shipped mechanism.
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -39,7 +39,16 @@ Machine measurement 2026-10-27: opencode wired (ask-matt, chief-of-staff, claude
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Shipped on PR #109 (agent/dotagents-340-pin): mise pin `npm:@sentry/dotagents` 3.3.0 -> 3.4.0 (6c75423), then the topic-level wiring (0b81c02) and the vendored-adoption record (c81aef3).
 
+- claude: `claude plugin marketplace add ~/.agents/plugins/marketplace.json` + `claude plugin install <name>@dotagents-local`, plugin names read from the marketplace file (single source of truth).
+- codex: `codex plugin add <name>@dotagents-local` — dotagents 3.4.0 already registers `dotagents-local` in codex's marketplace list.
+- opencode: already wired natively by dotagents (5 plugin skills).
+- cursor/copilot/vscode: recorded exclusions with measured reasons in the topic CHANGELOG (cursor has no plugin CLI surface; copilot has no plugin system and no CLI installed; vscode is refused by dotagents itself with a warning).
+- Machine measurement 2026-11-01: claude and codex both report mattpocock-skills@dotagents-local 1.3.2 installed+enabled, loading in place from ~/.agents/plugins/mattpocock-skills; topic role run green (ok=18, failed=0); provenance guard green (28/28 store skills accounted); `uv run --frozen pytest tests/docs tests/hooks -q` 44 passed.
+- Side effect captured: dotagents sync adopted the 12 vendored dirs as path: skills entries in ~/.agents/agents.toml — recorded in defaults/main.yaml and CHANGELOG, not a new approval.
+
+AC #1-#4 verified and checked. Upstream note: getsentry/dotagents#201 is a library API for embedding hosts, not client wiring — the topic drives each client CLI instead.
 <!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
