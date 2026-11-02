@@ -1,0 +1,41 @@
+tests/permissions/test_permission_tiers.py
+  s_566cc3694c6f58::t_28835a2b82067a 88
+  s_566cc3694c6f58::t_b9f033c7dd0c52 81-84,90-93
+  s_566cc3694c6f58::t_5744ccc5fd99f0 85-87,89
+.claude/settings.json
+  s_566cc3694c6f58::t_f3466b5ba51798 153
+  s_566cc3694c6f58::t_9e93a569147591 108-119
+  s_566cc3694c6f58::t_20f7b0a3490523 159-164,166
+  s_566cc3694c6f58::t_4c9e40709fd5a4 165
+  s_566cc3694c6f58::t_abd42116f036b9 148-152,154-158
+changelog.d/20261102_160000_docker_limactl_perms.md
+  s_566cc3694c6f58::t_4cdcf8f88dbb44 1-5
+tests/permissions/test_opencode_tiers.py
+  s_566cc3694c6f58::t_76689df792dcdb 97-100,106-109
+  s_566cc3694c6f58::t_c8d86fac7e369a 91-96
+docs/PERMISSIONS.md
+  s_566cc3694c6f58::t_399b4c05f73d22 74-88
+opencode.jsonc
+  s_566cc3694c6f58::t_95fbcb81624d05 119-138,142-154
+  s_566cc3694c6f58::t_e96c54e0cc48fa 396,405-409
+  s_566cc3694c6f58::t_4c9147e59e6998 139-141
+  s_566cc3694c6f58::t_e7afc7465019dd 410-412
+  s_566cc3694c6f58::t_512d59df4c0411 378-395,397-404,418
+  s_566cc3694c6f58::t_f3466b5ba51798 413-417
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5f93fb68504141e7f652489b179a6b293b533990",
+  "prompts": {},
+  "sessions": {
+    "s_566cc3694c6f58": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e66e617d5ffeX1nB88Qu3jRcNU",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
