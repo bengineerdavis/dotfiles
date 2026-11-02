@@ -88,11 +88,25 @@ BOTH = [
     ("git push --force-with-lease origin main", "deny", "spec.md § Change records"),
     ("git push --force origin main", "deny", "spec.md § Change records"),
     ("chezmoi apply ~/dotfiles", "ask", "main-only; the prompt is approval"),
+    ("docker version", "allow", "read-only VM-surface inspection"),
+    ("docker ps -a", "allow", "read-only VM-surface inspection"),
+    ("docker images", "allow", "read-only VM-surface inspection"),
+    ("docker inspect xyz", "allow", "read-only VM-surface inspection"),
+    ("docker logs xyz", "allow", "read-only VM-surface inspection"),
+    ("limactl list", "allow", "read-only VM-surface inspection"),
+    # Deletion loses work even in the widened agent — same line as worktree remove.
+    ("docker rm xyz", "ask", "container destruction asks in BOTH blocks"),
+    ("limactl delete --force foo", "ask", "VM destruction asks in BOTH blocks"),
+    ("limactl prune", "ask", "deletes shared VM state in BOTH blocks"),
 ]
 
 # (command, required tier in the TOP-LEVEL block, why). The autonomous agent
 # allows all of gh by design and is not narrowed here.
 TOP = [
+    ("docker run --rm debian whoami", "ask", "container mutation asks at top level"),
+    ("docker exec xyz whoami", "ask", "container mutation asks at top level"),
+    ("docker compose up -d", "ask", "container mutation asks at top level"),
+    ("limactl start foo", "ask", "VM mutation asks at top level"),
     ("gh pr view 5 --json state", "allow", "read-only"),
     ("gh pr create --fill", "ask", "writes to GitHub"),
     ("gh pr merge 5", "ask", "writes to GitHub"),

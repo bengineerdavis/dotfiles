@@ -116,6 +116,42 @@
       "mise ls *": "allow",
       "mise list *": "allow",
 
+      // Docker and Lima are the throwaway-environment surfaces for agent
+      // experiments (author directive 2026-11-02: experiments run in
+      // containers/VMs, never against main's managed files). Read-only
+      // inspection is free; VM/container mutations ask, same tier as
+      // `git worktree *` — additive but state-bearing. limactl installs
+      // to ~/.local/bin, which PATH resolves, so the bare name matches;
+      // molecule also invokes it by absolute path
+      // ({{ lima_install_prefix }}/bin/limactl), which falls through to
+      // the catch-all ask rather than silently passing.
+      "docker version": "allow",
+      "docker info": "allow",
+      "docker ps": "allow",
+      "docker ps -a": "allow",
+      "docker ps *": "allow",
+      "docker images": "allow",
+      "docker images *": "allow",
+      "docker inspect *": "allow",
+      "docker logs *": "allow",
+      "docker stats": "allow",
+      "docker stats *": "allow",
+      // limactl: broad ask FIRST (last-match-wins), then the inspection
+      // carve-out — the inverse order would let the ask shadow the allow.
+      "limactl *": "ask",
+      "limactl list": "allow",
+      "limactl list *": "allow",
+      "docker run *": "ask",
+      "docker exec *": "ask",
+      "docker stop *": "ask",
+      "docker kill *": "ask",
+      "docker rm *": "ask",
+      "docker rmi *": "ask",
+      "docker build *": "ask",
+      "docker compose *": "ask",
+      "docker cp *": "ask",
+      "docker start *": "ask",
+
       // read-only shell utilities
       "pwd": "allow",
       "pwd *": "allow",
@@ -338,6 +374,47 @@
           "ollama show *": "allow",
           "mise ls *": "allow",
           "mise list *": "allow",
+
+          // Docker/Lima, widened for unattended VM experiments: inspection
+          // free, VM lifecycle (run/exec/stop/kill/rm/build/compose) allowed
+          // since the whole point is throwaway environments. Creation and
+          // deletion of VMs still asks — same shape as the worktree tier,
+          // where add is free and remove asks.
+          "docker version": "allow",
+          "docker info": "allow",
+          "docker ps": "allow",
+          "docker ps -a": "allow",
+          "docker ps *": "allow",
+          "docker images": "allow",
+          "docker images *": "allow",
+          "docker inspect *": "allow",
+          "docker logs *": "allow",
+          "docker stats": "allow",
+          "docker stats *": "allow",
+          "limactl list": "allow",
+          "limactl list *": "allow",
+          // Container lifecycle allowed for unattended experiments...
+          "docker run *": "allow",
+          "docker exec *": "allow",
+          "docker stop *": "allow",
+          "docker kill *": "allow",
+          "docker build *": "allow",
+          "docker compose *": "allow",
+          "docker cp *": "allow",
+          "docker start *": "allow",
+          // ...but destruction loses work even here: rm/rmi sit AFTER the
+          // allows so last-match wins, mirroring the worktree tier where
+          // remove asks in every agent.
+          "docker rm *": "ask",
+          "docker rmi *": "ask",
+          // Broad allows first, then the destructive limactl carves AFTER
+          // them so last-match denies/asks: deletion and prune lose work.
+          "limactl *": "allow",
+          "limactl delete": "ask",
+          "limactl delete *": "ask",
+          "limactl delete --force *": "ask",
+          "limactl prune *": "ask",
+          "limactl prune": "ask",
 
           "pwd": "allow",
           "pwd *": "allow",
