@@ -76,17 +76,32 @@ manifest, and installing it alone does not install or refresh skills.
 ## The config
 
 `~/.config/opencode/opencode.jsonc` deploys from
-`dot_config/opencode/opencode.jsonc` and carries the cross-machine baseline:
-privacy (`share: disabled`), model defaults, and the v2 `permissions` array
-(`update: notify` replaced v1's `autoupdate`). The permission rules are
+`dot_config/opencode/opencode.jsonc.tmpl` and carries the cross-machine
+baseline: privacy (`share: disabled`), model defaults, and the v2 `permissions`
+array (`update: notify` replaced v1's `autoupdate`). The permission rules are
 order-sensitive — v2 takes the LAST matching rule — so they stay literal in
 the template rather than in `.chezmoidata`, whose merge would reorder them.
 The `external_directory` rules carry literal `$HOME/...` globs: v2 expands
 `$HOME` itself when the config loads, so templating the home directory would
 bake one machine's path back in. Per-machine choices (auth, per-project
-overrides) stay out of it. Measured on 2026-09-12: when both `opencode.json`
-and `opencode.jsonc` exist, jsonc wins, so the chezmoi-managed file is
-authoritative.
+overrides) stay out of it.
+
+### One global config; diagnose runtime state separately
+
+Measured on 2026-09-12: when both `opencode.json` and `opencode.jsonc` exist,
+**jsonc wins**, so the chezmoi-managed file is authoritative. This topic does
+not manage `opencode.json`; an unmanaged legacy copy can make a correct edit
+there appear ineffective. Keep the global config in `.jsonc`. Before moving a
+legacy `.json` aside, compare it with the active file and preserve any
+machine-local choices. Check deployment with
+`chezmoi status -- ~/.config/opencode/opencode.jsonc` and review the scoped
+`chezmoi diff` before applying.
+
+Project-level config can still add providers or plugins. A clean global file
+also does not prove that a long-running service has reloaded its config.
+Diagnose plugin registration, package installation, and service runtime state
+separately; see [LoreAI routing and troubleshooting](../loreai/README.md#opencode-routing-and-troubleshooting)
+for the verified provider-routing and stale-service checks.
 
 ## Teardown
 
