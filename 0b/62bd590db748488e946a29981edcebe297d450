@@ -1,0 +1,19 @@
+"backlog/tasks/dot-73 - Close-out-the-12-environmental-suite-failures-the-pii-half-is-now-diagnosed.md"
+  s_566cc3694c6f58::t_2d572ddf6ed60a 9,43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0b62bd590db748488e946a29981edcebe297d450",
+  "prompts": {},
+  "sessions": {
+    "s_566cc3694c6f58": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e66e617d5ffeX1nB88Qu3jRcNU",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
