@@ -1,0 +1,22 @@
+"backlog/tasks/dot-246 - Sessions-with-stale-trees-resurrect-old-task-files-pull-before-write-for-the-queue.md"
+  s_e782e2a56bddfd::t_be62b9ce5203c0 38-43
+  s_e782e2a56bddfd::t_294919ae250ab9 36-37,45-51
+"backlog/tasks/dot-233 - Wire-each-agent-runtime-to-the-dotagents-published-plugin-marketplace..md"
+  s_e782e2a56bddfd::t_8591286782b841 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a5a86fefc3febfa000f3659ab12960d3f967f2a8",
+  "prompts": {},
+  "sessions": {
+    "s_e782e2a56bddfd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f012126fdffePEfisYIYnHjGHg",
+        "model": "~deepseek/deepseek-pro-latest"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
