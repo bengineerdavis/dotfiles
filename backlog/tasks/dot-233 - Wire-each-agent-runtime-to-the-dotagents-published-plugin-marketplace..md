@@ -1,7 +1,7 @@
 ---
 id: DOT-233
 title: Wire each agent runtime to the dotagents-published plugin marketplace.
-status: To Do
+status: Done
 created_date: 2026-10-27 19:41
 labels:
 - dotagents

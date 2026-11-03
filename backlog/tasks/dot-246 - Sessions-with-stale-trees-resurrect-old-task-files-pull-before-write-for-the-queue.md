@@ -33,7 +33,22 @@ Observed 2026-10-27 during the DOT- prefix migration: task files that had been r
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Closed on PR #93. The repo-local half shipped: `tests/backlog` runs as a prek
+hook on `backlog/` commits, so a task file resurrected from a stale tree fails
+the check, and `docs/PROCESS.md` carries the sync-before-first-write duty.
+Live proof the same hour: the next queue commit ran the hook on a
+`backlog/`-only diff instead of skipping it. Re-verified 2026-11-02: copying a
+completed task back in under a different directory makes
+`test_doctor_reports_no_problems` fail with "Duplicate ids need a human";
+removing it goes green again.
 
+The tool-side pull-before-write guard is NOT built. It is routed to
+backlog-md-py upstream as an author decision, recorded in the PR. Until it
+lands, the defence against a stale tree is the hook plus the pull-before-write
+habit, not a guarantee from the tool.
+
+Known limitation, unchanged: a claim or a task written in one worktree is
+invisible to another machine until it is pushed and pulled.
 <!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
