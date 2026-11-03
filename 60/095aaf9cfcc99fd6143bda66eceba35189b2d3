@@ -1,0 +1,14 @@
+"backlog/tasks/dot-284 - Declare-.config-loreai-Ansible-owned-so-chezmoi-stops-reporting-it-unmanaged.md"
+  h_3789f648fd203c 1-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "60095aaf9cfcc99fd6143bda66eceba35189b2d3",
+  "prompts": {},
+  "humans": {
+    "h_3789f648fd203c": {
+      "author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
