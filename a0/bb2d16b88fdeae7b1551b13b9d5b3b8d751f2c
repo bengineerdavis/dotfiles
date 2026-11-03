@@ -1,0 +1,22 @@
+"backlog/tasks/dot-282 - Add-a-rust-topic-that-installs-rustup.md"
+  s_566cc3694c6f58::t_c49ab6109e23fb 1-38
+"backlog/tasks/dot-281 - Switch-lychee-to-cargo-as-primary-with-aqua-fallback.md"
+  s_566cc3694c6f58::t_c49ab6109e23fb 9-11
+  s_566cc3694c6f58::t_186ee021d62cd0 1-8,12-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a0bb2d16b88fdeae7b1551b13b9d5b3b8d751f2c",
+  "prompts": {},
+  "sessions": {
+    "s_566cc3694c6f58": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e66e617d5ffeX1nB88Qu3jRcNU",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
