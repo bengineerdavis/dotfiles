@@ -6,7 +6,7 @@ created_date: 2026-10-27 02:55
 labels:
 - now
 priority: high
-updated_date: 2026-10-27 22:21
+updated_date: 2026-11-03 03:18
 ---
 
 ## Description
@@ -40,9 +40,8 @@ updated_date: 2026-10-27 22:21
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
+2026-11-01 diagnosis, this Debian 12 machine: the clipped failures are NOT TTY/clipboard environment gaps — the fake pbcopy/pbpaste harness is sound and xclip works here (DISPLAY=:1, probe rc=0). The real signature: every failing test hangs until subprocess timeout=60 then reports an empty capture. Reproduced minimally outside pytest: fake pbcopy on PATH, `echo hello | ~/bin/clipped copy` returns rc=0 but the capture file never appears; paste works. Suspect the deployed ~/bin/clipped's copy path on this box (backend selection? xclip stealing stdin?) — diagnose from that minimal repro, not from the suite. Also measured: tests/loreai is green here (23 passed 2026-11-01; the parity test passes — its earlier failure was a stale-collection artifact) and tests/restart_stale has 2 real failures: test_the_defaults_leave_the_role_inert and test_a_missing_kind_fails_before_anything_runs both see a [['systemctl','--version']] call the stubs do not filter — Ansible's service_mgr fact-gathering probes systemctl --version through the stub and the tests assert not machine.calls(). That is a harness gap (the ps stub already filters fact-gathering probes; systemctl needs the same treatment), fold it into this task.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
-
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
