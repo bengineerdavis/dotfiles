@@ -43,13 +43,42 @@ def clip_env(tmp_path, monkeypatch):
     bindir = tmp_path / "mockbin"
     bindir.mkdir()
 
+    # Every backend candidate clipped can pick, not just pbcopy/pbpaste.
+    # clipped's backend tables prefer xclip/xsel/wl-clipboard on Linux, so a
+    # real xclip on the host PATH beats the pbcopy fake and the suite reads
+    # and clobbers the developer's actual clipboard — and real xclip forks a
+    # daemon that holds inherited pipes open, hanging captured runs. Faking
+    # the whole preference chain makes backend selection deterministic on any
+    # box: whichever candidate wins, it is ours.
     (bindir / "pbpaste").write_text(
         f"#!/usr/bin/env bash\nprintf '%s' \"{CLIPBOARD_CONTENT}\"\n"
     )
     (bindir / "pbcopy").write_text(
         f'#!/usr/bin/env bash\ncat > "{tmp_path}/{CAPTURE_NAME}"\n'
     )
-    for tool in ("pbpaste", "pbcopy"):
+    (bindir / "xclip").write_text(
+        "#!/usr/bin/env bash\n"
+        'if [[ "$*" == *-o* ]]; then\n'
+        f"  printf '%s' \"{CLIPBOARD_CONTENT}\"\n"
+        "else\n"
+        f'  cat > "{tmp_path}/{CAPTURE_NAME}"\n'
+        "fi\n"
+    )
+    (bindir / "xsel").write_text(
+        "#!/usr/bin/env bash\n"
+        'if [[ "$*" == *--output* ]]; then\n'
+        f"  printf '%s' \"{CLIPBOARD_CONTENT}\"\n"
+        "else\n"
+        f'  cat > "{tmp_path}/{CAPTURE_NAME}"\n'
+        "fi\n"
+    )
+    (bindir / "wl-copy").write_text(
+        f'#!/usr/bin/env bash\ncat > "{tmp_path}/{CAPTURE_NAME}"\n'
+    )
+    (bindir / "wl-paste").write_text(
+        f"#!/usr/bin/env bash\nprintf '%s' \"{CLIPBOARD_CONTENT}\"\n"
+    )
+    for tool in ("pbpaste", "pbcopy", "xclip", "xsel", "wl-copy", "wl-paste"):
         (bindir / tool).chmod(0o755)
 
     monkeypatch.setenv("PATH", f"{bindir}{os.pathsep}{os.environ['PATH']}")

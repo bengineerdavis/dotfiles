@@ -45,20 +45,24 @@ PROG = "clipped"
 # Unix shell: Cygwin/MSYS/Git-Bash all report their own uname and do have
 # clip.exe on PATH.
 _COPY_BACKENDS = {
-    "Darwin":  [["pbcopy"]],
-    "Linux":   [["xclip", "-selection", "clipboard"],
-                ["xsel", "--clipboard", "--input"],
-                ["wl-copy"],
-                ["pbcopy"]],
+    "Darwin": [["pbcopy"]],
+    "Linux": [
+        ["xclip", "-selection", "clipboard"],
+        ["xsel", "--clipboard", "--input"],
+        ["wl-copy"],
+        ["pbcopy"],
+    ],
     "Windows": [["clip.exe"], ["pbcopy"]],
 }
 
 _PASTE_BACKENDS = {
-    "Darwin":  [["pbpaste"]],
-    "Linux":   [["xclip", "-selection", "clipboard", "-o"],
-                ["xsel", "--clipboard", "--output"],
-                ["wl-paste"],
-                ["pbpaste"]],
+    "Darwin": [["pbpaste"]],
+    "Linux": [
+        ["xclip", "-selection", "clipboard", "-o"],
+        ["xsel", "--clipboard", "--output"],
+        ["wl-paste"],
+        ["pbpaste"],
+    ],
     "Windows": [["powershell.exe", "-command", "Get-Clipboard"], ["pbpaste"]],
 }
 
@@ -198,7 +202,15 @@ def do_copy(files: list[str]) -> None:
         data = sys.stdin.buffer.read()
 
     argv = find_backend("copy")
-    result = subprocess.run(argv, input=data)
+    # stdout/stderr go to DEVNULL, not the inherited pipes: xclip forks a
+    # daemon that serves the X selection and keeps every inherited descriptor
+    # open, so a caller capturing clipped's output (pytest, a CI pipe) never
+    # sees EOF and blocks until its timeout. The copy backend has nothing to
+    # say on stdout — data flows stdin->backend — so closing the door costs
+    # nothing and a fork-holding backend can no longer hang the caller.
+    result = subprocess.run(
+        argv, input=data, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    )
     if result.returncode != 0:
         die(f"{PROG}: {argv[0]} failed with status {result.returncode}")
 

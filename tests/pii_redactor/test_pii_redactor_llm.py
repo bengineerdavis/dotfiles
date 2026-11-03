@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 
 import pytest
 
@@ -28,6 +29,22 @@ pytestmark = pytest.mark.llm_judge
 def real_env():
     if shutil.which("llm") is None:
         pytest.skip("llm not on PATH")
+    # The integration model is a real local Ollama tag. It is absent on
+    # machines that never pulled it (the second machine, DOT-73 2026-09-14),
+    # and `llm -m <absent>` fails inside the test with an error that looks
+    # like a redactor bug. Name the absence and skip instead — a capable
+    # machine still exercises these tests.
+    probe = subprocess.run(
+        ["ollama", "list"], capture_output=True, text=True, check=False
+    )
+    if probe.returncode != 0:
+        pytest.skip("ollama not reachable — cannot confirm the integration model")
+    installed = {line.split()[0] for line in probe.stdout.splitlines() if line.strip()}
+    if INTEGRATION_MODEL not in installed:
+        pytest.skip(
+            f"integration model {INTEGRATION_MODEL} not installed "
+            "— run: ollama pull " + INTEGRATION_MODEL
+        )
     return {**os.environ, "LLM_EXTRA_OPTS": INTEGRATION_LLM_OPTS}
 
 
