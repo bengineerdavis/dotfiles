@@ -1,0 +1,43 @@
+tests/clipped/conftest.py
+  s_566cc3694c6f58::t_17d7129b2c56ac 61
+  s_566cc3694c6f58::t_23fffb7516c538 46-52,59-60,62-81
+tests/restart_stale/conftest.py
+  s_566cc3694c6f58::t_153b1d921b2a67 39-42,45,52-55
+  s_566cc3694c6f58::t_f0ba521bfd558f 43-44,46-51
+  s_566cc3694c6f58::t_1df858d4f39d34 30
+tests/pii_redactor/test_pii_redactor_llm.py
+  s_566cc3694c6f58::t_07ba3107cc4fa0 32-47
+  s_566cc3694c6f58::t_ee9dd795a7bad6 18
+pyproject.toml
+  s_566cc3694c6f58::t_e7cbc51e16ed4d 68-73
+tests/clipped/test_clipped_no_hang.py
+  s_566cc3694c6f58::t_931131db2ecc63 1-12,15-19,21,62-64,66-79
+  s_566cc3694c6f58::t_e78bcddb1e4e12 45
+  s_566cc3694c6f58::t_db75cf3fb0a246 30-39
+  s_566cc3694c6f58::t_3f065311a2d5c6 49-51,54,56-59
+  s_566cc3694c6f58::t_c433153369d2cb 20
+  s_566cc3694c6f58::t_8ff975c0695887 65
+  s_566cc3694c6f58::t_5dd80716067a1e 13-14,22-29,40-44,46-48,52-53,55,60-61
+  s_566cc3694c6f58::t_d7a579ea6705c8 80
+home/bin/executable_clipped
+  s_566cc3694c6f58::t_c5f96c3064d013 205-211
+  s_566cc3694c6f58::t_7bba72ee671140 48-54,59-65,212-213
+changelog.d/20261102_205800_dot73_environmental_failures.md
+  s_566cc3694c6f58::t_858d3426545075 1-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c9d240814f1ceea220a7cd69531cb5453d64fc61",
+  "prompts": {},
+  "sessions": {
+    "s_566cc3694c6f58": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e66e617d5ffeX1nB88Qu3jRcNU",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
