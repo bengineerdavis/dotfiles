@@ -6,7 +6,7 @@ created_date: 2026-10-27 02:55
 labels:
 - now
 priority: high
-updated_date: 2026-11-03 03:18
+updated_date: 2026-11-03 04:58
 orchestration:
   status_key: inprogress
   lease_owner: opencode-chezmoi-73
@@ -40,6 +40,11 @@ orchestration:
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
+- [ ] #1 The full clipped suite passes hermetically on a machine with real clipboard tools installed
+- [ ] #2 clipped copy cannot hang a capturing caller even when the backend forks a lingering child (regression test, mutation-proven)
+- [ ] #3 The restart_stale inert tests pass on a systemd host
+- [ ] #4 The pii_redactor real-model tests skip with a named reason when the integration model is absent, and still run when present
+- [ ] #5 A headless full run reports zero failed with skips named
 <!-- AC:END -->
 
 ## Implementation Notes
