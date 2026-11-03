@@ -1,0 +1,21 @@
+"backlog/tasks/dot-283 - Build-the-slow-loop-that-migrates-topics-onto-a-CLI-secrets-manager.md"
+  s_181305b9710e0f::t_7a3f715996cbdd 6-8,31-54
+  s_181305b9710e0f::t_6e22e05b0eff3f 9
+  s_181305b9710e0f::t_91a22e55cf4218 1-5,10-30,55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dbf4d20e143cbb57a0151630b9609ac9dab6bb8b",
+  "prompts": {},
+  "sessions": {
+    "s_181305b9710e0f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e7fbf1970ffeHTWvyuNRQ662rF",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
