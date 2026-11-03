@@ -7,6 +7,11 @@ labels:
 - now
 priority: high
 updated_date: 2026-11-03 03:18
+orchestration:
+  status_key: inprogress
+  lease_owner: opencode-chezmoi-73
+  lease_expires_at: '2026-11-03T05:14:06.952161Z'
+  version: 1
 ---
 
 ## Description
@@ -51,3 +56,22 @@ updated_date: 2026-11-03 03:18
 ## Definition of Done
 <!-- DOD:BEGIN -->
 <!-- DOD:END -->
+
+## Run History
+<!-- SECTION:RUN_HISTORY:BEGIN -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-3c5ce3c3749a4826a5a6292b4443ca48
+type: claim_task
+actor: opencode-chezmoi-73
+timestamp: '2026-11-03T04:14:06.952217Z'
+result: succeeded
+task_id: DOT-73
+from_status: todo
+to_status: inprogress
+metadata:
+  lease_ttl_seconds: '3600'
+```
+Close out environmental failures: clipped backend-preference + bounded-read fix, systemctl stub filter, pii skip-with-reason
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- SECTION:RUN_HISTORY:END -->
