@@ -6,12 +6,7 @@ created_date: 2026-10-27 02:56
 labels:
 - now
 priority: high
-<<<<<<<< HEAD:backlog/tasks/dot-108 - Add-loreai-topic-Lore.AI-agent-memory-gateway.md
-updated_date: 2026-10-27 22:21
-|||||||| parent of ad920b0 (Complete TASK-108: loreai topic shipped and provisioned):backlog/tasks/task-108 - Add-loreai-topic-Lore.AI-agent-memory-gateway.md
-========
 updated_date: 2026-10-28 00:04
->>>>>>>> ad920b0 (Complete TASK-108: loreai topic shipped and provisioned):backlog/completed/task-108 - Add-loreai-topic-Lore.AI-agent-memory-gateway.md
 ---
 
 ## Description
