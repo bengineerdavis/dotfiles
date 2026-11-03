@@ -1,0 +1,28 @@
+.lore.md
+  s_566cc3694c6f58::t_dbe154d9bdbfc6 21-22,24-25,33-34,36,101,103,137-139,158-160,164-166,209-211,250-255,262-264,286-288,301-303,320,531-532
+  s_181305b9710e0f::t_ec7ac6e8a534d9 8,14,19,37,40,48-50,58,92-93,102,334-336,343-344,415,435-437,471-476,502,514,533-536
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3de5c347851539f22c39a408de6b469c7e44bd17",
+  "prompts": {},
+  "sessions": {
+    "s_181305b9710e0f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e7fbf1970ffeHTWvyuNRQ662rF",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    },
+    "s_566cc3694c6f58": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e66e617d5ffeX1nB88Qu3jRcNU",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
