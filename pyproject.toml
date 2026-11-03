@@ -65,6 +65,12 @@ max-doc-length = 72
 # grandfather when it merges.
 "home/dotfiles/roles/restart-stale/**" = ["E", "W", "D", "W505"]
 "tests/restart_stale/**" = ["E", "W", "D", "W505"]
+# clipped predates the docstring standard (W505 max-doc-length 72, D212
+# summary-on-first-line) by 2026-09-30's corpus pass, which scoped itself to
+# files then touched. Grandfathered until a dedicated cleanup touches the
+# header prose; the DOT-73 no-hang change must not balloon into a
+# docstring rewrite of a deployed script.
+"home/bin/executable_clipped" = ["W505", "D212", "D415"]
 # Trace fixtures are verbatim third-party output - the long lines ARE the
 # data, and an end-of-line noqa would become part of the traced content.
 # Same for embedded Ansible/YAML fixture strings: splitting them changes the
