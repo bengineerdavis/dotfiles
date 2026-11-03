@@ -1,0 +1,30 @@
+tests/topics/test_loreai_registry_answers.py
+  s_64c37cc93e90b2::t_25c6042052ec18 105-110
+  s_64c37cc93e90b2::t_e68899142a26c6 219
+  s_64c37cc93e90b2::t_ddfc0c7009f6e9 65
+  s_64c37cc93e90b2::t_5a2f4953684b01 1-2,16-32,34-39,43-44,46-59,78-79,81-82,102-103,127,129-132,134,136-137,139-142,145,151-152,154-158,164,168,174-175,177-181,183,192,197-198,200-202,206
+  s_64c37cc93e90b2::t_05fe77b4a0de99 3-15,33,45,60-64,66-77,80,84-86,104,111-126,128,133,135,138,143-144,146-150,153,160-163,165-167,169,171-173,176,184-191,193,195-196,199,205,210-218,220-223,226-238,240-246,248-249
+  s_64c37cc93e90b2::t_b06e6cdbd93614 40-42,83,87-101,159,170,182,194,203-204,207-209
+  s_64c37cc93e90b2::t_5c5dd88595c6a4 239
+  s_64c37cc93e90b2::t_0c4512f261dc13 224-225,247,250-251
+home/dotfiles/apps/loreai/tasks/prompts.yaml
+  s_64c37cc93e90b2::t_0112aa522bb97c 15-41
+home/dotfiles/apps/loreai/tasks/registry-answers.yaml
+  s_64c37cc93e90b2::t_e90a06da316f4b 1-110
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "28328ca1659940bea5539611f24427dd97b1b5ed",
+  "prompts": {},
+  "sessions": {
+    "s_64c37cc93e90b2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e810fe670ffeuSppN8tjc9c1Zf",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
