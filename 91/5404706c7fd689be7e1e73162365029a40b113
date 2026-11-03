@@ -1,0 +1,25 @@
+tests/loreai/test_service_environment.py
+  s_181305b9710e0f::t_fe0ad9b34d8b7a 15-20,24,31,39,41
+  s_181305b9710e0f::t_fa6221d00cdf28 23,25-30
+  s_181305b9710e0f::t_81569e6639c619 40
+changelog.d/20261102_204000_loreai_key_capture.md
+  s_181305b9710e0f::t_510bd8db8d76ec 1-12
+home/dotfiles/apps/loreai/templates/loreai-env.zsh.j2
+  s_181305b9710e0f::t_efa425bcd3b4a3 39-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "915404706c7fd689be7e1e73162365029a40b113",
+  "prompts": {},
+  "sessions": {
+    "s_181305b9710e0f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e7fbf1970ffeHTWvyuNRQ662rF",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
