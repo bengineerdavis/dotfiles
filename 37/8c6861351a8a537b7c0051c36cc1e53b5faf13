@@ -1,0 +1,19 @@
+changelog.d/20261101_160000_docker_limactl_perms.md
+  s_566cc3694c6f58::t_e8e52eae647eea 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "378c6861351a8a537b7c0051c36cc1e53b5faf13",
+  "prompts": {},
+  "sessions": {
+    "s_566cc3694c6f58": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e66e617d5ffeX1nB88Qu3jRcNU",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
