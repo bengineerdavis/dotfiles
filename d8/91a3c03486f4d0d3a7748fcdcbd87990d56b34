@@ -1,0 +1,23 @@
+changelog.d/20261102_192500_bengineerdavis_backlog-shadow-guard.md
+  s_77d3b692985a60::t_6cb61fa51e3b48 1-8
+tests/backlog/test_queue_integrity.py
+  s_77d3b692985a60::t_3aaaa7f5d08a78 98
+  s_77d3b692985a60::t_8c19cc8d9c0c34 95-97
+  s_77d3b692985a60::t_bc92072928ac95 99-101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d891a3c03486f4d0d3a7748fcdcbd87990d56b34",
+  "prompts": {},
+  "sessions": {
+    "s_77d3b692985a60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8740494fffeKeLAPc4yoUweyC",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
