@@ -80,3 +80,26 @@ def test_board_renders_every_task_once():
     assert len(ids) == len(set(ids)), (
         f"duplicate task ids: {sorted(i for i in set(ids) if ids.count(i) > 1)}"
     )
+
+
+SHADOW_WARNING = "Duplicate task id"
+
+
+def test_no_shadowed_task_ids():
+    """A shadowed id is a task file invisible everywhere, and only a warning says so.
+
+    `checkActiveBranches` makes the reader also load task files from other local
+    branches. A stale branch holding an older copy of a task therefore competes
+    with the on-disk one: both carry the same id, the newer commit wins, and the
+    loser is skipped silently apart from this warning. `doctor` never scans branch
+    snapshots, so it reports clean while `task` and `board` disagree with it —
+    measured 2026-11-02, when a retired branch shadowed DOT-108 for hours.
+    """
+    for args in (("task", "list", "--plain"), ("board",)):
+        result = _run(*args)
+        assert result.returncode == 0, result.stderr
+        assert SHADOW_WARNING not in result.stderr, (
+            f"`{' '.join(args)}` reports a shadowed task id, so one task file is "
+            f"invisible everywhere. Find the branch holding the older copy and "
+            f"retire it.\n{result.stderr}"
+        )
