@@ -1,0 +1,110 @@
+# apps/loreai/tasks/registry-answers.yaml
+#
+# The provisioning-answers registry loader (decision-1, backlog/decisions/).
+# Reads the committed per-machine registry — machines.yml, two dirnames above
+# this topic, i.e. home/dotfiles/machines.yml in the source tree and
+# ~/dotfiles/machines.yml deployed — and settles the first-install answers
+# from it before prompts.yaml asks anything.
+#
+# Placement is the classification: provisioning.shared.<topic> holds
+# fleet-wide defaults written once; machines.<host>.provisioning.<topic>
+# holds per-host exceptions. Effective answer per variable is
+# machine answer > shared answer, and the full chain is
+# -e > machine answer > shared answer > prompt > probe default — prompts.yaml
+# reads the *_registry facts and skips its questions when both tiers are
+# populated.
+#
+# Absent file = empty merge (a machine without the registry still installs,
+# prompted as before). A malformed registry fails loud naming the file and
+# the fix — a silent empty merge here would re-ask or, worse, re-render the
+# env file from probe defaults while the author believes the registry is in
+# force.
+#
+# Only settled choices live in the registry (telemetry, inference, worker
+# model). Probe-derived facts and the key-resolution chain stay where they
+# were: probed every run, template-owned.
+
+- name: "loreai: resolve the registry directory"
+  # Overridable for tests; the default is the dotfiles root that contains
+  # both this topic and machines.yml.
+  ansible.builtin.set_fact:
+    loreai_registry_dir: "{{ loreai_registry_dir | default(role_path | dirname | dirname, true) }}"
+
+- name: "loreai: locate machines.yml"
+  ansible.builtin.stat:
+    path: "{{ loreai_registry_dir }}/machines.yml"
+  register: loreai_registry_stat
+
+- name: "loreai: load the provisioning-answers registry"
+  # lookup+from_yaml under block/rescue so a malformed file fails with the
+  # fix named instead of a stack trace, and an absent file is just an empty
+  # merge.
+  when: loreai_registry_stat.stat.exists
+  block:
+    - name: "loreai: parse machines.yml"
+      ansible.builtin.set_fact:
+        loreai_registry: "{{ lookup('ansible.builtin.file', loreai_registry_stat.stat.path) | from_yaml }}"
+  rescue:
+    - name: "loreai: fail loud on a malformed registry"
+      ansible.builtin.fail:
+        msg: >-
+          {{ loreai_registry_dir }}/machines.yml is not valid YAML
+          ({{ ansible_failed_result.msg | default('parse error') }}).
+          Fix: validate the file (`python3 -c "import yaml,sys;
+          yaml.safe_load(open(sys.argv[1]))" {{ loreai_registry_dir }}/machines.yml`)
+          and re-run. Nothing has been installed or changed.
+
+- name: "loreai: normalize the registry when the file is absent"
+  ansible.builtin.set_fact:
+    loreai_registry: "{{ {} }}"
+  when: not loreai_registry_stat.stat.exists
+
+- name: "loreai: extract this topic's shared answers"
+  ansible.builtin.set_fact:
+    loreai_registry_shared: >-
+      {{ (loreai_registry.get('provisioning', {}).get('shared', {}).get('loreai', {})) }}
+
+- name: "loreai: extract this machine's answers"
+  ansible.builtin.set_fact:
+    loreai_registry_machine: >-
+      {{ (loreai_registry.get('machines', {}).get(ansible_hostname, {}).get('provisioning', {}).get('loreai', {})) }}
+
+- name: "loreai: settle the registry answers (machine tier wins)"
+  ansible.builtin.set_fact:
+    loreai_registry_telemetry: "{{ loreai_registry_machine.get('telemetry', loreai_registry_shared.get('telemetry', none)) }}"
+    loreai_registry_inference: "{{ loreai_registry_machine.get('inference', loreai_registry_shared.get('inference', none)) }}"
+    loreai_registry_worker_model: "{{ loreai_registry_machine.get('worker_model', loreai_registry_shared.get('worker_model', none)) }}"
+
+- name: "loreai: note whether the registry answers anything"
+  ansible.builtin.set_fact:
+    loreai_registry_has_answers: >-
+      {{ (loreai_registry_telemetry is not none)
+         or (loreai_registry_inference is not none)
+         or (loreai_registry_worker_model is not none) }}
+
+- name: "loreai: report the effective registry answers"
+  ansible.builtin.debug:
+    msg: >-
+      Registry answers in force from {{ loreai_registry_dir }}/machines.yml
+      (host {{ ansible_hostname }}): effective
+      telemetry={{ 'unset' if loreai_registry_telemetry is none else loreai_registry_telemetry }},
+      inference={{ 'unset' if loreai_registry_inference is none else loreai_registry_inference }},
+      worker_model={{ 'unset' if loreai_registry_worker_model is none else loreai_registry_worker_model }}.
+  when: loreai_registry_has_answers
+
+- name: "loreai: report machine answers that diverge from shared answers"
+  # Decision-1: an override survives and is reported loudly, so a promote
+  # that leaves a stale machine override is visible in every run.
+  loop: "{{ loreai_registry_machine | dict2items }}"
+  loop_control:
+    label: "loreai divergence: {{ item.key }}"
+  debug:
+    msg: >-
+      WARNING: machine answer {{ item.key }}={{ item.value }} overrides the
+      shared answer ({{ loreai_registry_shared.get(item.key) }}) from
+      machines.yml. This machine deliberately diverges from the fleet; if it
+      should not, move the value from machines.{{ ansible_hostname }}.provisioning
+      back into provisioning.shared (or delete the override) and re-run.
+  when: >-
+    item.key in loreai_registry_shared
+    and (item.value | string) != (loreai_registry_shared[item.key] | string)

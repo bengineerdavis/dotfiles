@@ -12,6 +12,33 @@
     path: "{{ loreai_env_file }}"
   register: loreai_env_stat
 
+# ── The provisioning-answers registry (decision-1) ───────────────────────────
+# Loaded before anything asks. Shared answers (fleet defaults) plus machine
+# answers (per-host exceptions) settle first; the prompts below skip any
+# variable the registry answers, and the settle chain prefers
+# -e > machine answer > shared answer > prompt > probe default.
+
+- name: "loreai: load the provisioning-answers registry"
+  ansible.builtin.import_tasks: registry-answers.yaml
+
+- name: "loreai: settle telemetry from the registry"
+  # -e still beats the registry: this fires only when no -e was given.
+  # Prompts below fire only when the var is still none, so the registry
+  # slots in exactly between -e and prompt (decision-1 precedence).
+  ansible.builtin.set_fact:
+    loreai_telemetry: "{{ loreai_registry_telemetry }}"
+  when: loreai_telemetry is none and loreai_registry_telemetry is not none
+
+- name: "loreai: settle inference from the registry"
+  ansible.builtin.set_fact:
+    loreai_inference: "{{ loreai_registry_inference }}"
+  when: loreai_inference is none and loreai_registry_inference is not none
+
+- name: "loreai: settle the worker model from the registry"
+  ansible.builtin.set_fact:
+    loreai_worker_model: "{{ loreai_registry_worker_model }}"
+  when: loreai_worker_model is none and loreai_registry_worker_model is not none
+
 - name: "loreai: fail fast when answers are needed but cannot be asked"
   # pause would hang or error on a headless run; name the non-interactive
   # path instead. Nothing has been installed or changed at this point.
