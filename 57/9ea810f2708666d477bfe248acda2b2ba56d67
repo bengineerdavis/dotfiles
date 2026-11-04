@@ -1,0 +1,45 @@
+home/dotfiles/apps/apt/CHANGELOG.md
+  s_181305b9710e0f::t_af2eca1fcf3098 10-14
+home/dotfiles/apps/apt/defaults/main.yaml
+  s_181305b9710e0f::t_d2b2f9c9d956b1 24-26,38-42
+home/dotfiles/apps/apt/tasks/install.yaml
+  s_181305b9710e0f::t_2639355ddff9f7 7-14
+home/dotfiles/apps/docker/CHANGELOG.md
+  s_181305b9710e0f::t_f198f4246e3a7c 1-52
+home/dotfiles/apps/docker/defaults/main.yaml
+  s_181305b9710e0f::t_5b12f06a264c41 1-9
+home/dotfiles/apps/docker/tasks/bootstrap.yaml
+  s_181305b9710e0f::t_084e800854b9e8 6-7,21
+home/dotfiles/apps/docker/tasks/install.yaml
+  s_181305b9710e0f::t_0452d5a9c6d9be 10-61,64-69,72
+home/dotfiles/apps/docker/tasks/prerequisites.yaml
+  s_181305b9710e0f::t_be927967975f75 4-5,16-18
+home/dotfiles/apps/docker/tasks/remove.yaml
+  s_181305b9710e0f::t_c7441e17c38b81 6-11,14-47
+home/dotfiles/apps/docker/vars/main.yaml
+  s_181305b9710e0f::t_37ac7d7d9df30c 1-18
+home/dotfiles/executable_migrate-to-roles.sh
+  s_181305b9710e0f::t_671c8ecfff7137 291,325
+home/dotfiles/managers.yaml
+  s_181305b9710e0f::t_2066d741aca2e0 90,98-101,118-124
+home/dotfiles/policy/personal.yaml
+  s_181305b9710e0f::t_9a8ef8b1ef775c 92-109
+home/dotfiles/requirements.yml
+  s_181305b9710e0f::t_a8093f6ada0925 20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "579ea810f2708666d477bfe248acda2b2ba56d67",
+  "prompts": {},
+  "sessions": {
+    "s_181305b9710e0f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e7fbf1970ffeHTWvyuNRQ662rF",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
