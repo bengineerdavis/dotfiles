@@ -288,7 +288,7 @@ ${preserve_notes}
 Rewrite rules:
 - The file MUST contain exactly one active package manager implementation
 - If preserve_notes names a specific package manager, use that one
-- Otherwise pick the package manager most likely to provide the most recent version. Prefer: homebrew cask > homebrew formula > apt > snap > docker
+- Otherwise pick the package manager most likely to provide the most recent version. Prefer: homebrew cask > homebrew formula > apt > docker. NEVER snap — snap is banned repo-wide (Ubuntu-only store; see managers.yaml)
 - Commented-out alternatives are acceptable scaffolding — include them as comments only
 - Replace all <topic> placeholders with: ${topic}
 - Output ONLY valid YAML. No markdown, no explanation, no code fences.
@@ -322,7 +322,7 @@ ${remove_tpl}
 
 RULES:
 1. install.yaml MUST contain exactly one active package manager implementation — pick the best one
-2. If multiple package managers are present, select the one most likely to provide the most recent version of the package. Prefer: homebrew cask > homebrew formula > apt > snap > docker. Override this order if one option clearly provides a newer or more complete install.
+2. If multiple package managers are present, select the one most likely to provide the most recent version of the package. Prefer: homebrew cask > homebrew formula > apt > docker. Override this order if one option clearly provides a newer or more complete install. NEVER snap — snap is banned repo-wide (Ubuntu-only store; see managers.yaml); if the source uses snap, port it to another manager.
 3. Commented-out alternative package managers are acceptable as scaffolding hints — keep them as comments
 4. remove.yaml — uninstall/cleanup tasks matching whichever package manager was chosen for install
 5. Ambiguous tasks → install.yaml with comment: # TODO: verify placement

@@ -7,6 +7,11 @@ edge cases". Section names follow antsibull-changelog.
 
 ### minor_changes
 
+- 2026-11-02: `apt_keyrings` now covers `download.docker.com` too — the
+  apps/docker topic installs the docker-ce stack from Docker's official repo,
+  so its signing key gets the same repair-before-refresh as the other
+  third-party repos. Key verified 2026-11-02: 8D81803C0EBFCD88 (Docker's CE
+  key, unchanged since 2017).
 - 2026-10-20: the keyring repair's gpg check accepts `apt_gpg_path`
   (default unchanged: `/usr/bin/gpg`). Test-only seam so the task-level
   suite can pin the repair path on machines whose gpg does not live at

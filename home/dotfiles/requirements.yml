@@ -17,7 +17,7 @@
 # queued scheduled-runner service lands and wants a job.
 
 collections:
-  - name: community.general    # homebrew, homebrew_cask, homebrew_tap, snap, launchd modules; bitwarden/onepassword lookups
+  - name: community.general    # homebrew, homebrew_cask, homebrew_tap, launchd modules; bitwarden/onepassword lookups
     version: "13.0.1"
   - name: community.docker     # docker_image module
     version: "5.2.1"
