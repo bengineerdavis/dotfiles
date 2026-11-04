@@ -83,6 +83,92 @@ package is absent; it does not rely on OpenCode's auto-install. Removing the
 topic removes the package with `opencode plugin remove`; its config fragment
 disappears on the next `chezmoi apply` after the topic directory is removed.
 
+## OpenCode routing and troubleshooting
+
+The provider block in `files/opencode/lore-plugin.jsonc` is the client-side
+routing contract. It points `openai`, `openai-compatible`, and `openrouter` at
+the same local OpenAI-compatible gateway endpoint:
+
+```text
+http://127.0.0.1:3207/v1
+```
+
+This is the managed config-file setting. The topic does not export
+`OPENAI_BASE_URL` in `env.zsh`; a separately launched `lore run opencode`
+process may set it, so inspect the process environment before treating that
+variable as absent. Do not change provider
+URLs to `https://api.openai.com/v1` or `https://openrouter.ai/api/v1`: those
+bypass the local gateway and send the wrong credential to the upstream.
+
+The gateway's upstream is separate. `loreai_openai_upstream` in
+`defaults/main.yaml` defaults to `https://openrouter.ai/api`; the
+`loreai-env.zsh.j2` template exports it as `LORE_UPSTREAM_OPENAI` in the
+machine-local `~/.config/loreai/env.zsh`. The gateway, not OpenCode, uses that
+value to forward the OpenAI-protocol route to OpenRouter. The same OpenRouter
+credential can therefore be used by `openai/...` and `openrouter/...` model
+selections without machine-specific keys.
+
+### An OpenAI key error while using an OpenRouter model
+
+An error naming `platform.openai.com` means a request reached OpenAI directly.
+It is not, by itself, evidence of a bad key. Check the effective provider
+configuration, especially the `openrouter` block when the selected model is
+`openrouter/...`:
+
+```bash
+chezmoi status -- ~/.config/opencode/opencode.jsonc
+chezmoi diff --use-builtin-diff -- ~/.config/opencode/opencode.jsonc
+```
+
+The effective provider block needs the gateway `baseURL` above. Check the
+`openai` and `openai-compatible` blocks as well. After a chezmoi change, review
+the diff before applying it; do not apply a whole machine's pending changes to
+fix one route.
+
+Measured 2026-11-01 in a disposable Debian 12 VM with OpenCode 2.2.2 and a
+synthetic local gateway: an `openrouter/...` model with the correct `baseURL`
+made exactly one gateway request. An unreachable gateway did not fall back to
+OpenAI. `OPENAI_BASE_URL` did not override that provider's configured URL, and
+an OpenAI small-model setting produced no secondary request in that minimal
+run. A wrong route in `opencode.jsonc` won over a correct route in
+`opencode.json`. These tests did not use real credentials or provider traffic.
+
+The VM investigation record is
+[linux-provider-routing.md](linux-provider-routing.md).
+
+### Plugin errors after the config says `plugin: []`
+
+Config registration, package installation, and runtime loading are different
+states. A plugin can remain listed by a long-running OpenCode service after its
+config entry is removed. Measured 2026-11-02: both config files had empty
+plugin lists and `opencode plugin remove @loreai/opencode` reported that the
+package was not configured, but an older service still returned it from
+`/api/plugin` and logged fresh V1 loader errors. Two service processes were
+listening on different ports; `opencode service restart` had not cleared that
+state.
+
+Do not respond by editing gateway routes or re-installing the plugin. First
+check the current runtime and the log timestamp:
+
+```bash
+opencode plugin list
+opencode api get /api/plugin
+opencode service status
+lsof -nP -iTCP:49374 -sTCP:LISTEN
+```
+
+The service port is machine-local; use `opencode service status` to discover
+it rather than assuming 49374. Inspect recent loader errors in
+`~/.local/share/opencode/log/opencode.log`. If the config is clean but a stale
+service still reports the plugin, save active work, stop only confirmed
+OpenCode service processes, and start one service before opening a fresh
+session. Do not kill interactive sessions or unrelated agent processes.
+
+The current managed fragment deliberately has `plugin: []` until the reviewed
+V2-compatible plugin is available. Disabling that plugin does not disable the
+gateway provider routes. Do not re-enable the incompatible V1 package as a
+troubleshooting step.
+
 ## Gateway service
 
 The persistent setups point every configured agent at `127.0.0.1:3207`, so
