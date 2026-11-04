@@ -18,6 +18,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 <!-- scriv-insert-here -->
 
+## PR #117 — 2026-11-04
+
+### Changed
+
+- Standardize OpenCode on the chezmoi-managed `opencode.jsonc`. A chezmoi
+  `run_before_before_` script backs up the shadowed `opencode.json` verbatim
+  before removing it and refuses to overwrite an existing backup. LoreAI no
+  longer installs the disabled V1 plugin when the winning config does not
+  register it.
+
 ## PR #111 — 2026-11-03
 
 **Added**
