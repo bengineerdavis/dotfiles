@@ -78,11 +78,18 @@ def _run_state(tmp_path: Path, state: str) -> subprocess.CompletedProcess:
     log = home / ".local" / "share" / "opencode" / "log"
     config.mkdir(parents=True)
     log.mkdir(parents=True)
-    (config / "opencode.jsonc").write_text('{"plugins":["@loreai/opencode"]}\n')
+    (config / "opencode.jsonc").write_text(
+        '{"plugin":[]}\n'
+        if state == "disabled"
+        else '{"plugin":["@loreai/opencode"]}\n'
+    )
     (log / "opencode.log").write_text("")
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    _write_executable(bin_dir / "npm", "#!/bin/sh\nexit 0\n")
+    _write_executable(
+        bin_dir / "npm",
+        '#!/bin/sh\nprintf \'npm %s\\n\' "$*" >>"$TEST_COMMAND_LOG"\nexit 0\n',
+    )
 
     rows = {
         "active": [
@@ -106,6 +113,7 @@ def _run_state(tmp_path: Path, state: str) -> subprocess.CompletedProcess:
     _write_executable(
         bin_dir / "opencode",
         "#!/bin/sh\n"
+        'printf \'opencode %s\\n\' "$*" >>"$TEST_COMMAND_LOG"\n'
         "printf '%s\\n' '"
         + json.dumps({"data": rows.get(state, [])}).replace("'", "'\\''")
         + "'\n",
@@ -113,15 +121,24 @@ def _run_state(tmp_path: Path, state: str) -> subprocess.CompletedProcess:
     if state == "api-error":
         _write_executable(
             bin_dir / "opencode",
-            "#!/bin/sh\nprintf 'server unavailable\\n' >&2\nexit 1\n",
+            "#!/bin/sh\n"
+            'printf \'opencode %s\\n\' "$*" >>"$TEST_COMMAND_LOG"\n'
+            "printf 'server unavailable\\n' >&2\nexit 1\n",
         )
     if state == "api-malformed":
         _write_executable(
             bin_dir / "opencode",
-            "#!/bin/sh\nprintf '{not-json\\n'\n",
+            "#!/bin/sh\n"
+            'printf \'opencode %s\\n\' "$*" >>"$TEST_COMMAND_LOG"\n'
+            "printf '{not-json\\n'\n",
         )
     if state == "api-shape":
-        _write_executable(bin_dir / "opencode", "#!/bin/sh\nprintf '[]\\n'\n")
+        _write_executable(
+            bin_dir / "opencode",
+            "#!/bin/sh\n"
+            'printf \'opencode %s\\n\' "$*" >>"$TEST_COMMAND_LOG"\n'
+            "printf '[]\\n'\n",
+        )
     if state == "install-error":
         (log / "opencode.log").write_text(
             "target=@loreai/opencode NpmInstallFailedError\n"
@@ -152,6 +169,7 @@ def _run_state(tmp_path: Path, state: str) -> subprocess.CompletedProcess:
             "ANSIBLE_FILTER_PLUGINS": FILTER_PATH,
             "PATH": f"{bin_dir}:{os.environ['PATH']}",
             "TEST_EXPECT_LOADED": "1" if state == "active" else "0",
+            "TEST_COMMAND_LOG": str(tmp_path / "commands.log"),
         }
     )
     return subprocess.run(
@@ -186,6 +204,18 @@ def test_task_distinguishes_loaded_rejected_and_unknown_states(tmp_path, state):
         assert "load state could not be determined" in output
     if state == "api-error":
         assert "server unavailable" in output
+
+
+@pytest.mark.skipif(ANSIBLE is None, reason="ansible-playbook not installed")
+def test_task_does_not_install_a_plugin_disabled_in_the_winning_config(tmp_path):
+    result = _run_state(tmp_path, "disabled")
+    output = result.stdout + result.stderr
+    assert output
+    assert result.returncode == 0, output
+    assert "NOT in the deployed" in output
+    commands = (tmp_path / "commands.log").read_text()
+    assert "plugin add" not in commands
+    assert "npm ls" not in commands
 
 
 @pytest.mark.skipif(ANSIBLE is None, reason="ansible-playbook not installed")
