@@ -77,6 +77,19 @@ def test_opencode_resolves_to_v2(host):
     assert version.startswith("2."), f"expected 2.x, got {cmd.stdout!r}"
 
 
+def test_legacy_json_is_retired_with_a_verbatim_backup(host):
+    """Retire the shadowed JSON while preserving its evidence."""
+    config = f"{home(host)}/.config/opencode"
+    assert host.file(f"{config}/opencode.jsonc").exists
+    assert not host.file(f"{config}/opencode.json").exists
+    backup = host.file(f"{config}/opencode.json.pre-jsonc-backup")
+    assert backup.exists
+    assert json.loads(backup.content_string) == {
+        "plugin": [],
+        "model": "openrouter/legacy-shadowed",
+    }
+
+
 def test_migrated_config_loads(host):
     """The migrated config loads clean, with ordered permissions."""
     cmd = host.run(f"{BREW_BIN}/opencode debug config")

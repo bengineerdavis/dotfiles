@@ -7,14 +7,15 @@ Section names come from antsibull-changelog; see `docs/TOPICS.md`
 
 ### known_issues
 
-- **A legacy global `opencode.json` is unmanaged and loses to `.jsonc`.** The
-  topic currently owns only `opencode.jsonc`; a correct route or plugin edit
-  in the other file cannot repair the winning config. DOT-274 still owns
-  consolidation, tentatively preferring `.json` pending verification against
-  OpenCode V2 documentation or code. Until it lands, edit `.jsonc`, preserve
-  machine-local choices before moving a legacy copy aside, and diagnose project
-  overrides and long-running service state separately. The LoreAI README links
-  the verified provider-routing and stale-service checks.
+- **`opencode.jsonc` is the settled global format.** The author selected it
+  on 2026-11-04. Chezmoi's `run_before_before_` script retires the shadowed
+  `.json` only after copying it verbatim to
+  `opencode.json.pre-jsonc-backup`, even when its settings differ (they were
+  never active). A missing `.jsonc`, existing backup, or backup verification
+  failure stops the cleanup before deletion. Ansible does not mutate this
+  chezmoi-owned config. Diagnose project overrides and long-running service
+  state separately. The LoreAI README links the verified provider-routing and
+  stale-service checks.
 
 ## 2026-10-26
 

@@ -89,16 +89,20 @@ overrides) stay out of it.
 ### One global config; diagnose runtime state separately
 
 Measured on 2026-09-12: when both `opencode.json` and `opencode.jsonc` exist,
-**jsonc wins**, so the currently managed file is authoritative. This topic does
-not manage `opencode.json`; an unmanaged legacy copy can make a correct edit
-there appear ineffective. DOT-274, following the proposed `decision-1`, still
-owns consolidation to one file. It tentatively prefers `opencode.json` because
-LoreAI's setup command expects it, but that choice remains unimplemented and
-must be justified against OpenCode V2 documentation or code. Until that work
-lands, keep global edits in `.jsonc`. Before moving a legacy `.json` aside,
-compare it with the active file and preserve any machine-local choices. Check
-deployment with `chezmoi status -- ~/.config/opencode/opencode.jsonc` and
-review the scoped `chezmoi diff` before applying.
+**jsonc wins**. The author selected `opencode.jsonc` as the sole global config
+on 2026-11-04; the earlier tentative `.json` consolidation proposal is
+superseded. `lore setup opencode` writing a lower-precedence `.json` is not a
+reason to retain two files, and the LoreAI topic deliberately does not run it.
+
+Chezmoi owns `~/.config/opencode/opencode.jsonc` from
+`dot_config/opencode/opencode.jsonc.tmpl`. A `run_before_` script beside the
+template retires the unmanaged, shadowed `.json` during `chezmoi apply`: it
+copies it verbatim to `opencode.json.pre-jsonc-backup` before removal, without
+requiring the files to match (the shadowed values were never active). It fails
+before deletion if `.jsonc` is absent or the backup already exists, and never
+overwrites an existing backup. Chezmoi executes the script rather than
+deploying it; no helper is installed under `~/.local`. Review the backup before
+any manual cleanup.
 
 Project-level config can still add providers or plugins. A clean global file
 also does not prove that a long-running service has reloaded its config.

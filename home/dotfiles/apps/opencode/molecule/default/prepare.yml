@@ -111,6 +111,21 @@
       changed_when: false
 
     # ── the migrated config — the real deploy path ──────────────────────────
+    - name: Check for a previous legacy-config backup
+      ansible.builtin.stat:
+        path: "{{ ansible_facts.env.HOME }}/.config/opencode/opencode.json.pre-jsonc-backup"
+      register: opencode_legacy_backup_fixture
+
+    - name: Plant an unmanaged, shadowed OpenCode JSON config
+      # Differing settings prove that convergence preserves the file verbatim
+      # rather than requiring equality with the winning JSONC config. A reused
+      # box keeps its first backup, so this fixture is planted only once.
+      ansible.builtin.copy:
+        dest: "{{ ansible_facts.env.HOME }}/.config/opencode/opencode.json"
+        content: '{"plugin":[],"model":"openrouter/legacy-shadowed"}\n'
+        mode: "0600"
+      when: not opencode_legacy_backup_fixture.stat.exists
+
     - name: Apply the migrated opencode config from the synced repo
       # The targeted apply the v2 plan's author-run step 3 uses, against the
       # synced worktree (PLAN.md § Decision 5). This tests the real path —
