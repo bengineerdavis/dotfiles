@@ -89,13 +89,16 @@ overrides) stay out of it.
 ### One global config; diagnose runtime state separately
 
 Measured on 2026-09-12: when both `opencode.json` and `opencode.jsonc` exist,
-**jsonc wins**, so the chezmoi-managed file is authoritative. This topic does
+**jsonc wins**, so the currently managed file is authoritative. This topic does
 not manage `opencode.json`; an unmanaged legacy copy can make a correct edit
-there appear ineffective. Keep the global config in `.jsonc`. Before moving a
-legacy `.json` aside, compare it with the active file and preserve any
-machine-local choices. Check deployment with
-`chezmoi status -- ~/.config/opencode/opencode.jsonc` and review the scoped
-`chezmoi diff` before applying.
+there appear ineffective. DOT-274, following the proposed `decision-1`, still
+owns consolidation to one file. It tentatively prefers `opencode.json` because
+LoreAI's setup command expects it, but that choice remains unimplemented and
+must be justified against OpenCode V2 documentation or code. Until that work
+lands, keep global edits in `.jsonc`. Before moving a legacy `.json` aside,
+compare it with the active file and preserve any machine-local choices. Check
+deployment with `chezmoi status -- ~/.config/opencode/opencode.jsonc` and
+review the scoped `chezmoi diff` before applying.
 
 Project-level config can still add providers or plugins. A clean global file
 also does not prove that a long-running service has reloaded its config.

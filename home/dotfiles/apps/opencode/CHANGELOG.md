@@ -8,11 +8,13 @@ Section names come from antsibull-changelog; see `docs/TOPICS.md`
 ### known_issues
 
 - **A legacy global `opencode.json` is unmanaged and loses to `.jsonc`.** The
-  topic owns only `opencode.jsonc`; a correct route or plugin edit in the
-  other file cannot repair the winning config. Keep global config in `.jsonc`,
-  preserve machine-local choices before moving a legacy copy aside, and
-  diagnose project overrides and long-running service state separately. The
-  LoreAI README links the verified provider-routing and stale-service checks.
+  topic currently owns only `opencode.jsonc`; a correct route or plugin edit
+  in the other file cannot repair the winning config. DOT-274 still owns
+  consolidation, tentatively preferring `.json` pending verification against
+  OpenCode V2 documentation or code. Until it lands, edit `.jsonc`, preserve
+  machine-local choices before moving a legacy copy aside, and diagnose project
+  overrides and long-running service state separately. The LoreAI README links
+  the verified provider-routing and stale-service checks.
 
 ## 2026-10-26
 

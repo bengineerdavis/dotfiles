@@ -93,8 +93,10 @@ the same local OpenAI-compatible gateway endpoint:
 http://127.0.0.1:3207/v1
 ```
 
-This is a config-file setting, not an `OPENAI_BASE_URL` environment setting.
-The topic does not export that variable for OpenCode. Do not change provider
+This is the managed config-file setting. The topic does not export
+`OPENAI_BASE_URL` in `env.zsh`; a separately launched `lore run opencode`
+process may set it, so inspect the process environment before treating that
+variable as absent. Do not change provider
 URLs to `https://api.openai.com/v1` or `https://openrouter.ai/api/v1`: those
 bypass the local gateway and send the wrong credential to the upstream.
 

@@ -56,6 +56,8 @@ be `http://127.0.0.1:3207/v1` for this integration. Check the other gateway
 provider blocks too, then review scoped chezmoi drift and inspect a fresh log
 around the failure if the route is already correct.
 
-Do not infer a missing `OPENAI_BASE_URL`: the topic does not export it for
-OpenCode. The gateway's `LORE_UPSTREAM_OPENAI` is a different setting and is
-not a substitute for the client provider's `baseURL`.
+Do not assume `OPENAI_BASE_URL` is globally unset: the topic's `env.zsh` does
+not export it for OpenCode, but a separately launched `lore run opencode`
+process may set it. Inspect the actual process environment. The gateway's
+`LORE_UPSTREAM_OPENAI` is a different setting and is not a substitute for the
+client provider's `baseURL`.
