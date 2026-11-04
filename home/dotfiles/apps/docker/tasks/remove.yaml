@@ -3,12 +3,48 @@
 # Only invoked via --tags remove.
 # Mirror the install.yaml structure — one block per package manager.
 
-# ── Linux (apt) ───────────────────────────────────────────────────────────────
-- name: "Remove Docker engine + compose v2 via apt (Linux)"
+# ── Linux (apt, Docker's official repository) ─────────────────────────────────
+# Reverse of install.yaml: packages, then the source, then the keyring.
+# /var/lib/docker (images, containers, volumes) is user data and is
+# deliberately not touched. /etc/apt/keyrings stays — it is shared with
+# other topics (mise).
+- name: "Remove Docker engine + compose plugin via apt (Linux)"
   ansible.builtin.apt:
     name:
-      - docker.io
-      - docker-compose-v2
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+      - docker-ce-rootless-extras
+    state: absent
+    lock_timeout: "{{ docker_apt_lock_timeout }}"
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "Docker (Debian): drop Docker's official apt repository"
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: [deb]
+    uris: "https://download.docker.com/linux/{{ docker_apt_distro }}"
+    suites: ["{{ ansible_facts['distribution_release'] }}"]
+    components: [stable]
+    architectures: "{{ docker_apt_arch }}"
+    signed_by: /etc/apt/keyrings/docker.asc
+    state: absent
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "Docker (Debian): drop legacy one-line source if present"
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/docker.list
+    state: absent
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "Docker (Debian): remove Docker's official signing key"
+  ansible.builtin.file:
+    path: /etc/apt/keyrings/docker.asc
     state: absent
   become: true
   when: ansible_facts['os_family'] == 'Debian'

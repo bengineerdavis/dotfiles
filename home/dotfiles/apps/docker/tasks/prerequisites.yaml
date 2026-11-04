@@ -1,7 +1,8 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # apps/docker/tasks/prerequisites.yaml
 # ──────────────────────────────────────────────────────────────────────────────
-# TODO: ensure Docker Compose and other Docker ecosystem tools are present.
+# Docker Compose arrives with the docker-ce stack in install.yaml
+# (docker-compose-plugin — the `docker compose` v2 plugin, >= 2.32.2).
 
 - name: "Prerequisites: check Docker Compose available"
   ansible.builtin.command:
@@ -12,4 +13,6 @@
 
 - name: "Prerequisites: report Docker Compose status"
   ansible.builtin.debug:
-    msg: "{{ 'Docker Compose available' if docker_compose_check.rc == 0 else 'Docker Compose not found — TODO: install' }}"
+    msg: >-
+      {{ 'Docker Compose available' if docker_compose_check.rc == 0
+         else 'Docker Compose not found — the install phase adds it via apt (docker-compose-plugin).' }}

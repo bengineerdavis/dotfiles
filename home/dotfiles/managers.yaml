@@ -87,7 +87,7 @@ managers:
 
   apt_repository:
     module: ansible.builtin.deb822_repository
-    used_by: 1           # mise
+    used_by: 2           # mise, docker
     playbook_vars: []
     become: true
     upgraded_by: system_role
@@ -95,7 +95,10 @@ managers:
     notes: >-
       For third-party repos with their own signing key. Teardown must remove the
       repo file AND the keyring, or the machine keeps fetching from a source
-      nothing installs from.
+      nothing installs from. Prefer the vendor's official repo over a
+      distro-archive fork when the two diverge (apps/docker: docker-ce from
+      download.docker.com, not Ubuntu's docker.io) — the vendor build is the
+      portable one across the Debian family.
 
   release_artifact:
     module: ansible.builtin.get_url   # + unarchive / file
@@ -112,11 +115,13 @@ managers:
 
 # ── Deliberately absent ──────────────────────────────────────────────────────
 #
-# snap: template_dir scaffolds a commented snap block and ZERO topics use it.
-# Across the repo that boilerplate accounts for 37 commented-out module lines
-# that have been copied forward into topics that never wanted them. A
-# manager-aware scaffold should emit the one block a topic needs rather than
-# every block it might, which deletes this category rather than documenting it.
+# snap: BANNED (2026-11-03). Never add a snap-based install. snap is an
+# Ubuntu-only store, and a solution that cannot leave Ubuntu is not used in
+# this repo — the same standard applied to every other manager here. The
+# commented snap blocks the scaffold used to emit were removed from
+# template_dir and from the topics that had copied them forward; if one
+# reappears, that is a bug. A manager-aware scaffold emits the one block a
+# topic needs, not every block it might.
 #
 # npm / cargo / ubi / github releases: real managers on this machine, but owned
 # by apps/mise through its config.toml rather than by individual topics. A topic

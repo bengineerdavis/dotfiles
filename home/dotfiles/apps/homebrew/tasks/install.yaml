@@ -27,14 +27,6 @@
 #   become: true
 #   when: ansible_facts['os_family'] == 'Debian'
 
-# ── Linux (snap) ─────────────────────────────────────────────────────────────
-# - name: "Install homebrew via snap (Linux)"
-#   community.general.snap:
-#     name: homebrew
-#     state: present
-#   become: true
-#   when: ansible_facts['os_family'] == 'Debian'
-
 # ── Docker ────────────────────────────────────────────────────────────────────
 # - name: "Pull homebrew Docker image"
 #   community.docker.docker_image:

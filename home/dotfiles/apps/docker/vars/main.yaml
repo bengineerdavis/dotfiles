@@ -1,1 +1,18 @@
-# vars/main.yaml
+# apps/docker/vars/main.yaml
+# Derived values, not tunables.
+
+# Docker publishes one apt repo per base distro, and each carries only that
+# distro's suites (verified 2026-11-03: /linux/debian/ has bookworm but 404s
+# on jammy; /linux/ubuntu/ has jammy). Debian proper is the default branch;
+# only the recognized Ubuntu family opts into /ubuntu/ keyed by the Ubuntu
+# codename — on Pop!_OS ansible_facts['distribution_release'] is jammy, the
+# codename the /ubuntu/ repo indexes. This is a requirement of Docker's repo
+# layout, not a preference for Ubuntu's packaging — the packages are
+# Docker's own docker-ce either way. Linux Mint reports Mint codenames and
+# is out of scope for this topic.
+docker_ubuntu_family: [Ubuntu, "Pop!_OS"]
+docker_apt_distro: "{{ 'ubuntu' if ansible_facts['distribution'] in docker_ubuntu_family else 'debian' }}"
+
+# ansible reports the kernel arch (x86_64 / aarch64); apt repo tags are
+# amd64 / arm64.
+docker_apt_arch: "{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'amd64' }}"

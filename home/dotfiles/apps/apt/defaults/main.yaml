@@ -21,6 +21,9 @@ apt_cache_valid_time: 3600
 # Key IDs verified against the upstream URLs on 2026-09-22:
 #   github-cli  5612B36462313325 (added 2026-04; 23F3D4EA75716059 expires 2026-09)
 #   hashicorp   FC9CA96ACA026560 (rotated 2026-09)
+# and on 2026-11-02:
+#   docker      8D81803C0EBFCD88 (Docker's CE signing key, unchanged since 2017;
+#               the same key serves every distro path under download.docker.com)
 apt_keyrings:
   - name: github-cli
     repo_host: cli.github.com
@@ -31,6 +34,11 @@ apt_keyrings:
     repo_host: apt.releases.hashicorp.com
     url: https://apt.releases.hashicorp.com/gpg
     require_keys: [FC9CA96ACA026560]
+
+  - name: docker
+    repo_host: download.docker.com
+    url: https://download.docker.com/linux/ubuntu/gpg
+    require_keys: [8D81803C0EBFCD88]
 
 # Repositories that are gone for good. Each file is commented out in place
 # (kept, not deleted) with a note saying why, so the record survives on disk
