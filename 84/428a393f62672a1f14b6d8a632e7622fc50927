@@ -1,0 +1,30 @@
+.lore.md
+  s_181305b9710e0f::t_accec67f546045 114,138
+  s_181305b9710e0f::t_389e8ce1ed1fd7 8-11,17,22,33-35,40,45-47,49,67,77-79,92-97,115-117,143-148,197-202,209-210,257-259,275-277,305-308,311,319-321,325-330,349-351,388-393,395,419,451,470-472,483-485,489-490,492-493,495-496,499,504-508,510-511,534-535,541,559,580,608-610
+  s_181305b9710e0f::t_66759de5c3d23c 219
+  s_2dbee0ba7e4dcf::t_f3aa01e39e0d0a 101-103,105,110-112,134-136,188-189,192,211-217,245-247,452-454,459-469,543-544,547,549-550,553
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "84428a393f62672a1f14b6d8a632e7622fc50927",
+  "prompts": {},
+  "sessions": {
+    "s_181305b9710e0f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e7fbf1970ffeHTWvyuNRQ662rF",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    },
+    "s_2dbee0ba7e4dcf": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e812a47eaffeDFhdilvVNiffVP",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
