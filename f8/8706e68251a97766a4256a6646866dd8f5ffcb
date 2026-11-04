@@ -1,0 +1,21 @@
+home/.chezmoiignore
+  s_181305b9710e0f::t_9030fdd817ab64 28-41
+tests/chezmoi/test_ansible_owned_paths.py
+  s_181305b9710e0f::t_50726cfc6b89c9 1-84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f88706e68251a97766a4256a6646866dd8f5ffcb",
+  "prompts": {},
+  "sessions": {
+    "s_181305b9710e0f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e7fbf1970ffeHTWvyuNRQ662rF",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
