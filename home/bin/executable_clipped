@@ -31,6 +31,7 @@ import platform
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 VERSION = "1.2.0"
@@ -202,17 +203,26 @@ def do_copy(files: list[str]) -> None:
         data = sys.stdin.buffer.read()
 
     argv = find_backend("copy")
-    # stdout/stderr go to DEVNULL, not the inherited pipes: xclip forks a
+    # stdout goes to DEVNULL, not the inherited pipes: xclip forks a
     # daemon that serves the X selection and keeps every inherited descriptor
     # open, so a caller capturing clipped's output (pytest, a CI pipe) never
     # sees EOF and blocks until its timeout. The copy backend has nothing to
     # say on stdout — data flows stdin->backend — so closing the door costs
     # nothing and a fork-holding backend can no longer hang the caller.
-    result = subprocess.run(
-        argv, input=data, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-    )
-    if result.returncode != 0:
-        die(f"{PROG}: {argv[0]} failed with status {result.returncode}")
+    # stderr goes to a temp FILE, not a pipe: a pipe would reintroduce the
+    # same hang (communicate() blocks on EOF the daemon holds open), but a
+    # plain fd gives the backend somewhere to write its diagnostic without
+    # any EOF semantics — and on failure the text reaches the user, where
+    # DEVNULL would have discarded it ("cannot open display" and friends).
+    with tempfile.TemporaryFile() as err:
+        result = subprocess.run(argv, input=data, stdout=subprocess.DEVNULL, stderr=err)
+        if result.returncode != 0:
+            err.seek(0)
+            diagnostic = err.read().decode("utf-8", "replace").strip()
+            die(
+                f"{PROG}: {argv[0]} failed with status {result.returncode}",
+                diagnostic,
+            )
 
 
 def do_paste() -> None:
