@@ -29,6 +29,10 @@ A line in `TASKS.md` § Claimed saying a session holds a hot file or a global
 resource. Not a lock — a stale claim is checked against `git log` and running
 processes before it is removed.
 
+## configuration trial
+
+An agent-driven disposable candidate environment for a behavior-changing topic or chezmoi change, reviewed before any promotion to a live machine. Doc of record: `backlog/tasks/dot-283 - Define-the-configuration-trial-workflow-for-topics-and-machine-configurations.md`.
+
 ## consumer / provisioner
 
 The two task classes for parallel agent work. Consumers run offline

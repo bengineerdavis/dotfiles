@@ -44,7 +44,7 @@ updated_date: 2026-10-27 22:21
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
+Author request 2026-11-01: investigate scheduled, topic-scoped agent checks of upstream issues and releases, with the Lore OpenCode V2 issue as the first candidate. Prefer an existing supported scheduler/research runner and the established topical CLI or ai-prompt-library home over a new cron-only service. Separate a low-cost deterministic watch from agent judgment and automated PR preparation. Any agent/PR path needs declared repository scope, egress and credential limits, deduplication, one writer per branch, and human review; it must not silently track private machine state or submit upstream without authorization. Extend this existing cadence decision rather than creating a parallel upstream-watch system.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
