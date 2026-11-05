@@ -1,0 +1,97 @@
+name: Tests
+
+# Every other check in this repo runs from a pre-commit hook, which means it
+# runs only on a machine where `prek install` was done. A fresh clone has none
+# of them, and a bypassed hook leaves no trace. This job is the backstop: the
+# same suite `AGENTS.md` § Commands names, on a machine nobody can skip.
+#
+# It runs on pull requests and on main, because a broken main blocks every
+# other branch and the merge is the last point where a reviewer is present.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# A superseded run tells nobody anything; cancel it and free the runner.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # Pin the ref that is being judged. For a pull_request event this is the
+      # merge commit, which is what would land on main; checking out the PR head
+      # would test a tree that never reaches main.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: true
+
+      # `--frozen` so the run uses uv.lock rather than re-resolving, which is
+      # what makes a local pass and a CI pass mean the same thing.
+      - name: Install the locked environment
+        run: uv sync --frozen
+
+      # The interpreter the project declares. Asserting it here means a
+      # requires-python bump that CI cannot satisfy fails loudly, instead of
+      # quietly running everybody's tests on a different Python.
+      - name: Assert the declared interpreter
+        run: |
+          set -euo pipefail
+          declared="$(sed -n 's/^requires-python = ">=\s*\([0-9.]*\)".*/\1/p' pyproject.toml)"
+          actual="$(uv run --frozen python -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
+          echo "declared >=${declared}, running ${actual}"
+          test "${actual}" = "${declared}"
+
+      # Lint only the files this change touches. The repository has pre-existing
+      # ruff debt that the pre-commit hooks never see: hooks lint staged files
+      # (types_or: [python, pyi]) while a whole-tree run also reports the
+      # grandfathered `home/dotfiles/**` and `smartparts/**` paths. A whole-tree
+      # gate would be red on arrival and stay red, which teaches everyone to
+      # ignore it. The suite's own tests own the file classes hooks cannot reach.
+      - name: Lint changed files
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          git diff --name-only --diff-filter=ACMR "$base" HEAD -- '*.py' '*.pyi' \
+            > "$RUNNER_TEMP/changed-python"
+          if [ ! -s "$RUNNER_TEMP/changed-python" ]; then
+            echo "No Python files changed; nothing to lint."
+            exit 0
+          fi
+          xargs -a "$RUNNER_TEMP/changed-python" uv run --frozen ruff check
+          xargs -a "$RUNNER_TEMP/changed-python" uv run --frozen ruff format --check
+
+      - name: Type check
+        run: uv run --frozen pyrefly check
+
+      # pytest's exit status is nonzero for the known failures, so the run is
+      # allowed to finish and the RESULT is judged by which tests failed rather
+      # than by the exit code. See `AGENTS.md` § Known failures: green means the
+      # failure LIST matches. The compare step below is the gate.
+      - name: Tests
+        run: |
+          set -o pipefail
+          uv run --frozen pytest tests tools -q 2>&1 | tee "$RUNNER_TEMP/pytest.log" || true
+
+      - name: Compare failures against the known-failure baseline
+        run: uv run --frozen python scripts/check_suite_baseline.py "$RUNNER_TEMP/pytest.log"
+
+      # Attach the full log either way. A red job whose output is gone sends the
+      # next person back to a laptop to reproduce a failure CI already saw.
+      - name: Keep the test log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4889e4b46c9ffb # v4
+        with:
+          name: pytest-log
+          path: ${{ runner.temp }}/pytest.log
+          if-no-files-found: warn
