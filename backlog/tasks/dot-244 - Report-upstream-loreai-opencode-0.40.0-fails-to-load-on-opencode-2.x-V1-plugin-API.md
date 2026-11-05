@@ -9,6 +9,9 @@ labels:
 - upstream
 priority: high
 updated_date: 2026-10-27 22:22
+orchestration:
+  status_key: todo
+  version: 1
 ---
 
 ## Description
@@ -36,3 +39,23 @@ Verified on this machine 2026-10-27 (opencode v2.1.2): the plugin fails schema v
 ## Definition of Done
 <!-- DOD:BEGIN -->
 <!-- DOD:END -->
+
+## Run History
+<!-- SECTION:RUN_HISTORY:BEGIN -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-9d2eb7dc3cd34c9790281a616d96bbe9
+type: claim_task
+actor: opencode-coordinator
+timestamp: '2026-11-01T16:32:25.447789Z'
+result: succeeded
+task_id: DOT-244
+from_status: todo
+to_status: inprogress
+metadata:
+  lease_ttl_seconds: '3600'
+```
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- SECTION:RUN_HISTORY:END -->
+
+Recovery reconciliation 2026-11-04: removed the expired lease. No upstream report was filed by that claim; reporting remains separate from the V2 port and resilience investigation.
