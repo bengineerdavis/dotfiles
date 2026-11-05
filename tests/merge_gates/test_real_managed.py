@@ -42,7 +42,7 @@ def live_managed() -> frozenset[str] | None:
         out = subprocess.run(
             MANAGED_CMD, capture_output=True, text=True, cwd=REPO, timeout=60
         )
-    except OSError, subprocess.TimeoutExpired:
+    except (OSError, subprocess.TimeoutExpired):
         return None
     if out.returncode != 0:
         return None

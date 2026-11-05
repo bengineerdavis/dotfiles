@@ -4,7 +4,7 @@ title: Define what an incident is via code review or design review
 status: To Do
 created_date: 2026-10-29 23:38
 references:
-- backlog/decisions/decision-1 - VM-verify-config-and-symlink-deployments-before-apply-merge-and-PR-gates.md
+- backlog/decisions/decision-3 - VM-verify-config-and-symlink-deployments-before-apply-merge-and-PR-gates.md
 ---
 
 ## Description

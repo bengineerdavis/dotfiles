@@ -1,5 +1,5 @@
 ---
-id: TASK-243
+id: DOT-243
 title: Add a gateway service to apps/loreai (launchd + systemd user)
 status: Done
 created_date: 2026-10-27 22:13
@@ -8,10 +8,8 @@ labels:
 priority: high
 updated_date: 2026-10-28 20:18
 orchestration:
-  status_key: inprogress
+  status_key: done
   version: 3
-  lease_owner: opencode
-  lease_expires_at: '2026-10-28T18:21:44.960513Z'
 ---
 
 ## Description

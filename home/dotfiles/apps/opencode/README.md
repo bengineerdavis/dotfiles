@@ -76,17 +76,39 @@ manifest, and installing it alone does not install or refresh skills.
 ## The config
 
 `~/.config/opencode/opencode.jsonc` deploys from
-`dot_config/opencode/opencode.jsonc` and carries the cross-machine baseline:
-privacy (`share: disabled`), model defaults, and the v2 `permissions` array
-(`update: notify` replaced v1's `autoupdate`). The permission rules are
+`dot_config/opencode/opencode.jsonc.tmpl` and carries the cross-machine
+baseline: privacy (`share: disabled`), model defaults, and the v2 `permissions`
+array (`update: notify` replaced v1's `autoupdate`). The permission rules are
 order-sensitive — v2 takes the LAST matching rule — so they stay literal in
 the template rather than in `.chezmoidata`, whose merge would reorder them.
 The `external_directory` rules carry literal `$HOME/...` globs: v2 expands
 `$HOME` itself when the config loads, so templating the home directory would
 bake one machine's path back in. Per-machine choices (auth, per-project
-overrides) stay out of it. Measured on 2026-09-12: when both `opencode.json`
-and `opencode.jsonc` exist, jsonc wins, so the chezmoi-managed file is
-authoritative.
+overrides) stay out of it.
+
+### One global config; diagnose runtime state separately
+
+Measured on 2026-09-12: when both `opencode.json` and `opencode.jsonc` exist,
+**jsonc wins**. The author selected `opencode.jsonc` as the sole global config
+on 2026-11-04; the earlier tentative `.json` consolidation proposal is
+superseded. `lore setup opencode` writing a lower-precedence `.json` is not a
+reason to retain two files, and the LoreAI topic deliberately does not run it.
+
+Chezmoi owns `~/.config/opencode/opencode.jsonc` from
+`dot_config/opencode/opencode.jsonc.tmpl`. A `run_before_` script beside the
+template retires the unmanaged, shadowed `.json` during `chezmoi apply`: it
+copies it verbatim to `opencode.json.pre-jsonc-backup` before removal, without
+requiring the files to match (the shadowed values were never active). It fails
+before deletion if `.jsonc` is absent or the backup already exists, and never
+overwrites an existing backup. Chezmoi executes the script rather than
+deploying it; no helper is installed under `~/.local`. Review the backup before
+any manual cleanup.
+
+Project-level config can still add providers or plugins. A clean global file
+also does not prove that a long-running service has reloaded its config.
+Diagnose plugin registration, package installation, and service runtime state
+separately; see [LoreAI routing and troubleshooting](../loreai/README.md#opencode-routing-and-troubleshooting)
+for the verified provider-routing and stale-service checks.
 
 ## Teardown
 

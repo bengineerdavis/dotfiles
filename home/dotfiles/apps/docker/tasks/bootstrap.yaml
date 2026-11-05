@@ -3,8 +3,8 @@
 #
 # This topic is Debian-only (topic.yml); on macOS the `docker` provider is
 # apps/rancher-desktop instead, so there is no macOS logic here. The actual
-# install lives in install.yaml (apt docker.io + docker-compose-v2) — bootstrap
-# only verifies and reports.
+# install lives in install.yaml (apt: Docker's official repo — the docker-ce
+# stack) — bootstrap only verifies and reports.
 
 - name: "Bootstrap: check Docker CLI is available"
   ansible.builtin.shell: command -v docker
@@ -18,4 +18,4 @@
     msg: >-
       {{ '✅ Docker CLI found at ' ~ docker_cli.stdout
          if docker_cli.rc == 0
-         else '⚠️  Docker CLI not found — the install phase adds it via apt (docker.io).' }}
+         else '⚠️  Docker CLI not found — the install phase adds it via apt (docker-ce).' }}

@@ -89,6 +89,24 @@ authoring:
   reject_designs_requiring_hosted_services: true
   document_why_not_just_what: true
 
+# What a solution may be built on. Packaging is not neutral: a mechanism only
+# one vendor's distro supports is a dependency on that distro, whatever the
+# task. The same standard as authoring above, applied to dependencies.
+packaging:
+  # snap is an Ubuntu-only store. If it cannot leave Ubuntu, it is not used.
+  snap: never
+  # Prefer upstream-official packaging over distro forks (Docker's docker-ce,
+  # not Ubuntu's docker.io). Where a vendor publishes per-distro suites, the
+  # base-distro repo path is the portable choice — not a preference for that
+  # distro.
+  prefer_upstream_official: true
+  # Debian-proper mechanisms are the default; anything Ubuntu-specific is the
+  # opt-in, not the baseline.
+  default_to_debian: true
+  # The portability gate: a solution that cannot run outside Ubuntu on other
+  # Linux or Unix systems is rejected outright, not adapted.
+  reject_ubuntu_only: true
+
 # Anything unlisted falls through to the system default, which is refusal.
 resolution:
   fail_closed: true

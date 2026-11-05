@@ -111,6 +111,58 @@ def test_changed_scope_does_not_expand_to_the_whole_repository():
     assert args.files == ["docs/guide.md"]
 
 
+def test_no_executable_backend_fails_loudly_instead_of_skipping(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    """A checker that cannot run must not report success.
+
+    A skip and a pass look identical in a commit log, so returning 0
+    here would let every future docs commit through unchecked.
+    Measured 2026-11-04: the aqua binary could not execute at all, and
+    the commit still needed evidence rather than --no-verify.
+    """
+    monkeypatch.setattr(links, "BACKENDS", ("cargo:lycheeverse/lychee",))
+    monkeypatch.setattr(links, "probe_backend", lambda token: False)
+    code = links.main(["--changed", "docs/TOPIC-RECIPES.md"])
+    assert code == 2
+    err = capsys.readouterr().err
+    assert "No Lychee backend could be executed" in err
+    assert "cargo:lycheeverse/lychee" in err
+
+
+def test_a_backend_that_runs_is_not_replaced_when_it_finds_broken_links(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    """Fall through on failure-to-execute; never on a finding.
+
+    The distinction is the whole safety property. If a broken link
+    caused a retry, the second backend could pass and the finding
+    would vanish.
+    """
+    attempted: list[list[str]] = []
+    (tmp_path / "guide.md").write_text("[broken](missing.md)\n")
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "add", "guide.md"], check=True)
+
+    def record(command, **kwargs):
+        attempted.append(command)
+        if command[:2] == ["git", "-C"]:
+            return subprocess.CompletedProcess(command, 0, stdout=b"guide.md\0")
+        # First backend runs and fails the link; the second would pass.
+        code = 2 if "cargo:lycheeverse/lychee" in " ".join(command) else 0
+        return subprocess.CompletedProcess(command, code, stdout=b"")
+
+    monkeypatch.setattr(links, "CONFIG", tmp_path / "lychee.toml")
+    (tmp_path / "lychee.toml").write_text("offline = true\n")
+    monkeypatch.setattr(links.subprocess, "run", record)
+    monkeypatch.setattr(links, "probe_backend", lambda token: True)
+    code = links.main(["--changed", "guide.md"], repo=tmp_path)
+    assert code == 2, "the broken-link result must stand"
+    link_calls = [cmd for cmd in attempted if "--files-from" in cmd]
+    assert len(link_calls) == 1, f"fell through on a finding: {link_calls}"
+    assert "cargo:lycheeverse/lychee" in link_calls[0]
+
+
 def test_changed_scope_only_checks_selected_tracked_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
@@ -129,8 +181,11 @@ def test_changed_scope_only_checks_selected_tracked_files(
     monkeypatch.setattr(links, "CONFIG", tmp_path / "lychee.toml")
     (tmp_path / "lychee.toml").write_text("offline = true\n")
     monkeypatch.setattr(links.subprocess, "run", record)
+    monkeypatch.setattr(links, "probe_backend", lambda token: True)
     assert links.main(["--changed", "docs/guide.md"], repo=tmp_path) == 0
-    lychee_calls = [(call, kwargs) for call, kwargs in calls if "lychee" in call]
+    # A version probe runs first, so match the link check by its
+    # stdin rather than as "the only subprocess call".
+    lychee_calls = [(cmd, kw) for cmd, kw in calls if "--files-from" in cmd]
     assert len(lychee_calls) == 1
     command, kwargs = lychee_calls[0]
     assert "--offline" in command

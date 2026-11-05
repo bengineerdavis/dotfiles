@@ -7,15 +7,68 @@
 # macOS is intentionally NOT handled here — Rancher Desktop provides `docker`
 # on Darwin (apps/rancher-desktop). This topic is Debian-only (topic.yml).
 
-# ── Linux (apt) ───────────────────────────────────────────────────────────────
-# docker.io = engine + CLI; docker-compose-v2 = the `docker compose` plugin
-# that self-hosted requires (>= 2.32.2).
-- name: "Install Docker engine + compose v2 via apt (Linux)"
+# ── Linux (apt, Docker's official repository) ─────────────────────────────────
+# Install the docker-ce stack from download.docker.com — NOT Ubuntu's docker.io.
+# The two stacks are mutually exclusive: docker.io depends on Ubuntu's
+# `containerd`, which conflicts with Docker's `containerd.io` (and docker.io
+# conflicts with docker-ce). Until 2026-11-02 this task installed docker.io +
+# docker-compose-v2, and on any host already running the official stack apt
+# died with "E: Error, pkgProblemResolver::Resolve generated breaks".
+#
+# docker-compose-plugin is the `docker compose` plugin that self-hosted
+# requires (>= 2.32.2). docker-buildx-plugin ships only from this repo.
+# docker-ce-rootless-extras is only a Recommends of docker-ce — named
+# explicitly so rootless mode is present even with Install-Recommends off.
+- name: "Docker (Debian): ensure apt keyrings dir"
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "Docker (Debian): add Docker's official signing key"
+  ansible.builtin.get_url:
+    url: "https://download.docker.com/linux/{{ docker_apt_distro }}/gpg"
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "Docker (Debian): retire legacy one-line source"
+  # Pre-managed hosts have the repo as a hand-made docker.list. The deb822
+  # source below is the same repo; if both files exist apt warns it is
+  # "configured multiple times". Absent on fresh machines, so a no-op there.
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/docker.list
+    state: absent
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "Docker (Debian): add Docker's official apt repository"
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: [deb]
+    uris: "https://download.docker.com/linux/{{ docker_apt_distro }}"
+    suites: ["{{ ansible_facts['distribution_release'] }}"]
+    components: [stable]
+    architectures: "{{ docker_apt_arch }}"
+    signed_by: /etc/apt/keyrings/docker.asc
+    state: present
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "Install Docker engine + compose plugin via apt (Linux)"
   ansible.builtin.apt:
     name:
-      - docker.io
-      - docker-compose-v2
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+      - docker-ce-rootless-extras
     state: present
     update_cache: true
+    lock_timeout: "{{ docker_apt_lock_timeout }}"
   become: true
   when: ansible_facts['os_family'] == 'Debian'

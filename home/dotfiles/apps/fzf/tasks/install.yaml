@@ -27,14 +27,6 @@
 #   become: true
 #   when: ansible_facts['os_family'] == 'Debian'
 
-# ── Linux (snap) ────────────────────────────────────────────────────────────────
-# - name: "Install fzf via snap (Linux)"
-#   community.general.snap:
-#     name: fzf
-#     state: present
-#   become: true
-#   when: ansible_facts['os_family'] == 'Debian'
-
 # ── Docker ─────────────────────────────────────────────────────────────────────
 # - name: "Pull fzf Docker image"
 #   community.docker.docker_image:

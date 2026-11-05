@@ -27,14 +27,6 @@
 #   become: true
 #   when: ansible_facts['os_family'] == 'Debian'
 
-# ── Linux (snap) ─────────────────────────────────────────────────────────────
-# - name: "Install gnu-tools via snap (Linux)"
-#   community.general.snap:
-#     name: gnu-tools
-#     state: present
-#   become: true
-#   when: ansible_facts['os_family'] == 'Debian'
-
 # ── Docker ────────────────────────────────────────────────────────────────────
 # - name: "Pull gnu-tools Docker image"
 #   community.docker.docker_image:

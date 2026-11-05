@@ -3,6 +3,20 @@
 Section names come from antsibull-changelog; see `docs/TOPICS.md`
 § "Per-topic changelog and local edge cases".
 
+## 2026-11-02
+
+### known_issues
+
+- **`opencode.jsonc` is the settled global format.** The author selected it
+  on 2026-11-04. Chezmoi's `run_before_before_` script retires the shadowed
+  `.json` only after copying it verbatim to
+  `opencode.json.pre-jsonc-backup`, even when its settings differ (they were
+  never active). A missing `.jsonc`, existing backup, or backup verification
+  failure stops the cleanup before deletion. Ansible does not mutate this
+  chezmoi-owned config. Diagnose project overrides and long-running service
+  state separately. The LoreAI README links the verified provider-routing and
+  stale-service checks.
+
 ## 2026-10-26
 
 ### major_changes

@@ -28,6 +28,26 @@ EXCLUDED_FILES = {
     PurePosixPath("home/bin/executable_READMD.archive.md"),
     PurePosixPath("home/bin/READMD.archive.md"),
 }
+
+# Backends tried in order. The cargo build is primary because the aqua release
+# binary is built against a newer glibc than this fleet's Debian 12 (2.35) and
+# cannot execute there — it fails with "GLIBC_2.38 not found" before reading a
+# single file. Measured 2026-11-01 and 2026-11-04; the Lima guest ships glibc
+# 2.36, which is why VM runs never surfaced it.
+#
+# The aqua entry stays as the fallback: it is the one that works on macOS and on
+# any host new enough, so removing it would break the Mac to fix Debian.
+BACKENDS = (
+    "cargo:lycheeverse/lychee",
+    "aqua:lycheeverse/lychee@0.24.2",
+)
+DEFAULT_BACKEND = BACKENDS[0]
+
+# A version probe should be instant. A cold cargo build is not (it compiles
+# ~500 crates), but that build happens during provisioning, not at commit time;
+# if it is missing, the probe times out and the next backend is tried.
+PROBE_TIMEOUT = 120
+
 USAGE = "usage: python3 scripts/check-docs-links.py [--changed] [--external] [FILE ...]"
 
 
@@ -72,11 +92,18 @@ def tracked_markdown(repo: Path) -> list[str]:
     return sorted(path for path in paths if path and is_selected(path))
 
 
-def lychee_command(paths: list[str], external: bool) -> list[str]:
+def lychee_command(
+    paths: list[str], external: bool, backend: str | None = None
+) -> list[str]:
+    """Build the Lychee invocation for one backend.
+
+    `paths` is unused: the files go in on stdin via `--files-from -`, which keeps
+    a long file list off the command line and stays under ARG_MAX.
+    """
     command = [
         "mise",
         "exec",
-        "aqua:lycheeverse/lychee@0.24.2",
+        backend or DEFAULT_BACKEND,
         "--",
         "lychee",
         "--config",
@@ -88,6 +115,34 @@ def lychee_command(paths: list[str], external: bool) -> list[str]:
     else:
         command.append("--offline")
     return [*command, "--files-from", "-"]
+
+
+def probe_backend(token: str) -> bool:
+    """True when Lychee from this backend actually executes.
+
+    A version probe, not a link check. That distinction is load-bearing: a
+    backend that runs and finds a broken link must report the finding, never
+    fall through to the next backend. Falling through on a link failure would
+    turn "the docs have a broken link" into "try another binary".
+    """
+    try:
+        result = subprocess.run(
+            ["mise", "exec", token, "--", "lychee", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=PROBE_TIMEOUT,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return result.returncode == 0
+
+
+def select_backend() -> str | None:
+    """First backend whose binary executes, or None when none do."""
+    for token in BACKENDS:
+        if probe_backend(token):
+            return token
+    return None
 
 
 def main(argv: list[str], repo: Path = REPO) -> int:
@@ -123,7 +178,20 @@ def main(argv: list[str], repo: Path = REPO) -> int:
     if not selected:
         print("No documentation links selected.")
         return 0
-    command = lychee_command(selected, args.external)
+    backend = select_backend()
+    if backend is None:
+        # Fail loudly. A skip and a pass are indistinguishable in a commit log,
+        # so a checker that cannot run must not report success.
+        print(
+            "No Lychee backend could be executed. Tried: " + ", ".join(BACKENDS) + ".\n"
+            "Run the mise topic to install Lychee from cargo "
+            "(`mise install cargo:lycheeverse/lychee`), then retry. "
+            "This check is not optional; fix the install rather than "
+            "committing with --no-verify.",
+            file=sys.stderr,
+        )
+        return 2
+    command = lychee_command(selected, args.external, backend)
     return subprocess.run(
         command,
         cwd=repo,

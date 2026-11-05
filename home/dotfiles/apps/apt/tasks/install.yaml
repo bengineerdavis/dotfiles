@@ -4,6 +4,14 @@
 # Do NOT put upgrade logic here — upgrades are owned by system roles (homebrew, apt).
 # Do NOT put config/symlink tasks here — those are owned by chezmoi.
 
+# apt is the system package manager on Debian-family hosts — there is nothing
+# for this topic to install (the OS provides apt). This intentional no-op keeps
+# the file from tripping Ansible's "empty file had no tasks to include"
+# warning on every provision run.
+- name: "Install: apt is provided by the OS — nothing to install"
+  ansible.builtin.debug:
+    msg: "apt is the system package manager; nothing to install."
+
 # ── macOS (Homebrew) ──────────────────────────────────────────────────────────
 # - name: "Install apt via Homebrew (macOS)"
 #   community.general.homebrew:
@@ -22,14 +30,6 @@
 # ── Linux (apt) ───────────────────────────────────────────────────────────────
 # - name: "Install apt via apt (Linux)"
 #   ansible.builtin.apt:
-#     name: apt
-#     state: present
-#   become: true
-#   when: ansible_facts['os_family'] == 'Debian'
-
-# ── Linux (snap) ─────────────────────────────────────────────────────────────
-# - name: "Install apt via snap (Linux)"
-#   community.general.snap:
 #     name: apt
 #     state: present
 #   become: true

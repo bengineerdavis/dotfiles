@@ -1,1 +1,9 @@
-# defaults/main.yaml
+# apps/docker/defaults/main.yaml
+# Tunables. Override in the parent playbook or with -e.
+
+# Seconds the apt module waits for the dpkg/lists lock. PackageKit (GNOME
+# Software) takes /var/lib/apt/lists/lock for a few seconds at a time on
+# desktop hosts; the module default of 60s lost that race on 2026-09-20 (see
+# apps/apt/CHANGELOG.md). Role defaults do not leak between roles, so this
+# topic needs its own value.
+docker_apt_lock_timeout: 300

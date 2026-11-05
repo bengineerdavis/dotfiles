@@ -133,7 +133,7 @@ def managed_paths(repo: Path) -> frozenset[str] | None:
         out = subprocess.run(
             DEPLOYED_CMD, capture_output=True, text=True, cwd=repo, timeout=60
         )
-    except OSError, subprocess.TimeoutExpired:
+    except (OSError, subprocess.TimeoutExpired):
         return None
     if out.returncode != 0:
         return None
