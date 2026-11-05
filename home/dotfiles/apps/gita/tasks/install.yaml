@@ -129,7 +129,7 @@
 
 - name: "Install: read every registration, including local-only repos and ghosts"
   ansible.builtin.slurp:
-    src: "{{ ansible_facts['env']['HOME'] }}/.config/gita/repos.csv"
+    src: "{{ gita_config_dir }}/repos.csv"
   register: gita_registration_file
   when: gita_work_root_probe.stat.exists
   failed_when: false
@@ -138,16 +138,32 @@
 
 - name: "Install: collect every work-tree registration, regardless of context"
   ansible.builtin.set_fact:
-    gita_work_names: >-
+    gita_work_registrations: >-
       {%- set out = [] -%}
       {%- for line in (gita_registration_file.content | default('', true) | b64decode).splitlines() -%}
       {%-   set fields = line.split(',') -%}
       {%-   if fields | length >= 2 and fields[0].startswith(gita_work_root ~ '/') -%}
-      {%-     set _ = out.append(fields[1]) -%}
+      {%-     set _ = out.append({'name': fields[1], 'path': fields[0]}) -%}
       {%-   endif -%}
       {%- endfor -%}
       {{ out }}
   when: gita_work_root_probe.stat.exists
+
+- name: "Install: keep registrations whose repositories remain on disk"
+  ansible.builtin.stat:
+    path: "{{ item.path }}/.git"
+  loop: "{{ gita_work_registrations }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: gita_work_registration_stats
+  changed_when: false
+
+- name: "Install: collect valid work-tree repository names"
+  ansible.builtin.set_fact:
+    gita_work_names: >-
+      {{ gita_work_registration_stats.results
+         | selectattr('stat.exists', 'equalto', true)
+         | map(attribute='item.name') | list }}
 
 - name: "Install: sweep every work-tree registration into the single work group"
   ansible.builtin.command:
@@ -160,8 +176,8 @@
       - "{{ item }}"
   loop: "{{ gita_work_names }}"
   when: gita_work_root_probe.stat.exists and gita_work_names | length > 0
-  # group add is a set-union: already-grouped members are a no-op, and the
-  # pre-registered repos the walk skips still land in the group here. A loop
-  # preserves each repository name as one argv entry, including spaces.
+  # group add is a set-union: already-grouped members are a no-op. Missing
+  # registrations are filtered above because gita rejects them as invalid
+  # choices; their CSV records remain untouched. Each name is one argv entry.
   changed_when: false
   failed_when: false
