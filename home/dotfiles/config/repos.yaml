@@ -43,8 +43,9 @@ repos:
   # had no consumer and carried a serial-shaped machine key. One shared
   # catalogue is dot-171's contract; gita reports a declared-but-absent repo
   # per machine ("declared but not cloned, skipped") instead of declaring per
-  # machine. These six are on the Mac only — absent here, so pop-os reports
-  # them as skipped, which is accurate.
+  # machine. Five of the six are absent here, so pop-os reports them as
+  # skipped, which is accurate. The sixth, rootimentary, was already in this
+  # catalogue under its on-disk spelling, so it is not a new line below.
   - { path: projects/personal/templates/Best-README-Template, group: personal }
   - { path: projects/personal/ai-prompt-library-escalation-writing, group: personal }
   - { path: projects/personal/bengineerdavis.github.io, group: personal }

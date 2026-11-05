@@ -160,9 +160,14 @@ any phase reverses by moving back.
 1. **Inventory both machines.** Records every divergent tree with its
    destination type. The Linux box is inventoried as of 2026-10-18 (≈47
    repos); the Mac inventory is still queued.
-2. **Write `machines.yml` and the overlay schema.** Committed map for personal
-   sets; machine-local overlay for work names. Done when the parent playbook
-   slurps the map like a `topic.yml`, per the settled bundle design.
+2. **Write the membership files.** *Superseded 2026-11-04.* This phase
+   originally put a committed per-machine repo map in `machines.yml` with a
+   machine-local overlay for work names. That shape was retracted: repo
+   membership now lives in the single shared catalogue `config/repos.yaml`
+   (see § Membership), `machines.yml` carries only provisioning answers, and a
+   machine-local overlay covers hostnames that cannot be committed. Done when
+   the catalogue is the only membership record and the gita topic consumes it
+   — which it already does, so this phase is complete under the new shape.
 3. **The topic creates the type directories.** Owned by the gita topic once
    built; empty types are cheap, so all three and the personal subdirs are
    created. Done when a fresh machine gets the full skeleton from one run.
