@@ -10,7 +10,7 @@ references:
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Per decision-1 item 2: all managed symlinks are tested by default, especially when locations change. The mise breakage came from the .chezmoiroot payload move (e9fe86b) leaving ~/.config/mise/config.toml dangling until the next apply. Work: add a post-render/post-apply verification step that enumerates chezmoi-managed symlinks and asserts each target resolves on the target environment; run it inside the VM gate (DOT-271) and as the post-apply hook (DOT-273). A dangling managed symlink must fail loudly, never warn-and-continue. Done when: the mise failure class reproduces in a test and the check rejects it.
+Per decision-3 item 2: all managed symlinks are tested by default, especially when locations change. The mise breakage came from the .chezmoiroot payload move (e9fe86b) leaving ~/.config/mise/config.toml dangling until the next apply. Work: add a post-render/post-apply verification step that enumerates chezmoi-managed symlinks and asserts each target resolves on the target environment; run it inside the VM gate (DOT-271) and as the post-apply hook (DOT-273). A dangling managed symlink must fail loudly, never warn-and-continue. Done when: the mise failure class reproduces in a test and the check rejects it.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
