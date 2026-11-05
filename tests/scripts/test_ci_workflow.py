@@ -71,3 +71,48 @@ def test_the_baseline_script_exists_where_the_workflow_calls_it():
         "the workflow calls a script that is not in the repo"
     )
     assert pathlib.Path("scripts/check_suite_baseline.py").as_posix() in _runs(job)
+
+
+# Reviewed action pins: every `uses:` in the test workflow.
+# Moving a pin needs the new value confirmed upstream, so it
+# lands here in the same commit. A hallucinated SHA is
+# well-formed, which is why shape is not a check — the VALUE
+# is.
+#
+# Measured 2026-11-05: `upload-artifact` carried
+# `ea165f8d…b4889e4b46c9ffb`, which agrees with the real
+# v4.6.2 commit `ea165f8d…b4886f43607fa02` for 28
+# characters and invents the last twelve. GitHub could not
+# resolve it, and the job failed loading the action after the
+# tests had already run.
+REVIEWED_PINS = {
+    "actions/checkout": "11d5960a326750d5838078e36cf38b85af677262",
+    "astral-sh/setup-uv": "d0cc045d04ccac9d8b7881df0226f9e82c39688e",
+    "actions/upload-artifact": "ea165f8d65b6e75b540449e92b4886f43607fa02",
+}
+
+
+def test_every_action_pin_is_the_reviewed_one():
+    """A pin must be the value someone confirmed, not just a hex string.
+
+    Shape is not evidence: the broken SHA was 40 valid hex
+    characters and passed a shape check unchanged. This
+    compares the value, so an invented pin fails.
+    """
+    job = _workflow()["jobs"]["tests"]
+    uses = [step["uses"] for step in job["steps"] if "uses" in step]
+    assert uses, "the job uses no actions — this guard would pass vacuously"
+
+    for ref in uses:
+        action, _, pinned = ref.partition("@")
+        # `owner/repo/path` is legal for a subdirectory action.
+        owner_repo = "/".join(action.split("/")[:2])
+        assert owner_repo in REVIEWED_PINS, (
+            f"{owner_repo} is pinned but not reviewed; add its SHA to "
+            f"REVIEWED_PINS after confirming it upstream"
+        )
+        expected = REVIEWED_PINS[owner_repo]
+        assert pinned == expected, (
+            f"{owner_repo} is pinned to {pinned}, not the reviewed {expected}. "
+            f"Confirm the new value against the upstream repo before changing it."
+        )
