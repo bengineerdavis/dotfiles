@@ -572,120 +572,34 @@ belongs in the report it already wrote.
 
 ## Trust ladder
 
-An agent earns wider autonomy by track record, **per task class and blast
-radius**, never globally. Task classes: docs, tests, code, policy, deployed.
-An agent may sit at rung 3 for code and rung 1 for policy at the same time.
+Autonomy is earned per task class and blast radius, never globally. The rungs,
+promotion counts, incident classes and ageing rules are in
+`docs/TRUST-LADDER.md` — read it when an item is being promoted, demoted, or
+graded, not while writing code.
 
-### Rungs
+Two rules bind regardless, and live here:
 
-| Rung | What the agent may do |
-|---|---|
-| 0 | Propose only. Every diff is reviewed before it is committed. |
-| 1 | Commit to a branch and open a PR. Nothing reaches main unreviewed. |
-| 2 | Self-merge docs and tests when § Merge gates pass. |
-| 3 | Self-merge code inside a named blast radius when § Merge gates pass. |
-| 4 | Work unattended on a task class and report async. |
-
-A first-time agent starts at **rung 0 in every task class** — propose only —
-until the ledger exists to promote against (queued: § Planned, Build the
-LEDGER).
-
-**Promotion** is a streak of clean items at the current rung: 5 to reach rung 2,
-10 to reach rung 3, 20 to reach rung 4. Clean means merged with no author
-correction of any class below. The counts rise because the cost of a mistake
-rises with what the rung permits.
-
-**Demotion** is by incident class. Rung 0 has no floor below it.
-
-### Incident classes
-
-Defined here, in advance, because a class invented to explain a particular
-failure is not a class — it is an excuse with a name.
-
-**Class A — disclosure or policy bypass. Drops to rung 0, every task class.**
-
-- Work or customer data, employer-identifying strings, or machine-local usage
-  figures committed, sent off-device, or written to a shared store.
-- Egress without consulting the resolver, or treating unknown (2) as permitted.
-
-One occurrence ends autonomy everywhere, not just in the class where it
-happened. The reason is that the harm does not reverse: `spec.md` § Change
-records already records that a history rewrite does not un-publish, so anything
-fetched, forked or indexed is beyond recall. A ladder that let an agent climb
-back after this would be pricing an irreversible harm as a recoverable one.
-Reinstatement is an explicit author decision, not a streak.
-
-**Class B — corrupted evidence. Drops two rungs.**
-
-- A test that passes without exercising what it claims to: a grep over empty
-  output, an `assume()` that filters away every generated input, a fixture too
-  simple to reach the bug.
-- A gate reported as passing that was not actually run — a mutation check
-  claimed in a commit message but never performed.
-- Work reported as done that is not, or a claim that something works without
-  naming what was not checked.
-
-This is worse than a plain bug and is deliberately punished harder. The ladder
-runs on the evidence in the ledger; an agent that can misreport a gate makes the
-whole instrument fiction. Every one of these has already happened here at least
-once, which is why `spec.md` § Verification carries them.
-
-**Class C — process violation. Drops one rung.**
-
-- Editing a file under § Cross-session hazards without a claim, or running
-  `chezmoi apply` at all.
-- A commit whose contents do not match its message, staging not verified, or an
-  intermediate state that leaves the tree broken.
-- Shipping against a stated behavior in `spec.md` — a teardown not updated with
-  the thing it creates, a measured number moved without its conditions.
-
-**Class D — judgment. Drops one rung above rung 2; a recorded warning at or
-below it.**
-
-- Resolving a material ambiguity silently instead of asking.
-- Doing work the task did not define, or quietly narrowing work it did.
-
-Judgment errors are treated more gently at low rungs on purpose. An agent
-learning the repository will misjudge scope, and demoting for it teaches
-caution about *asking*, which is the opposite of what § Start here requires.
-
-### What is not an incident
-
-Stated explicitly, because a ladder that punishes these produces an agent that
-hides things.
-
-- A bug that review caught and the tests could not have caught. That is a
-  coverage gap, and it becomes a test.
-- A refusal that turned out to be unnecessary. Failing closed is the designed
-  behaviour; being wrong about it costs nothing.
-- Asking a question whose answer already existed. **Asking is never an
-  incident.** If questions cost trust, the agent stops asking, and the prime
-  directive dies quietly.
-- An approach tried, reported honestly, and abandoned.
-
-### Ageing
-
-A Class C or D incident stops counting against promotion after five clean items,
-but stays in the ledger permanently. Class B ages out after twenty. Class A does
-not age out. The ledger is a record, not a scoreboard to be reset — its value is
-that a pattern across months stays visible.
+- **This file's § Merge gates decide what must pass.** The ladder decides who
+  may self-merge that class of change at all. Keep the two questions separate.
+- **Asking is never an incident.** A question whose answer already existed costs
+  nothing; making questions expensive teaches silence.
 
 ## Commands
 
 ```bash
-# Tests — pytest is primary. Dependencies are locked in uv.lock; --frozen
-# rebuilds the environment offline from the cache.
-# Model-calling tests are excluded by default (`[tool.pytest]` `addopts` in
-# pyproject.toml); run them
-# on request with -m llm_judge, which overrides the filter.
-uv run --frozen pytest tests tools -q
-
-# Fast loop — same scope, tests spread across CPUs. Measured on this machine
-# 2026-09-23 (32 cores, 641 passed / 2 pre-existing failures): 170s -> 47s.
-# Run one suite at a time. Two at once contend on the uv cache lock and
-# Hypothesis starts reporting deadline failures that are CPU starvation, not
+# Fast loop — the default for iteration. Tests spread across CPUs. Measured on
+# this machine 2026-09-23 (32 cores, 641 passed / 2 pre-existing failures):
+# 170s -> 47s. Run one suite at a time. Two at once contend on the uv cache lock
+# and Hypothesis starts reporting deadline failures that are CPU starvation, not
 # bugs — which is corrupted evidence, worse than a slow run.
 uv run --frozen --with pytest-xdist pytest tests tools -q -n auto --dist worksteal
+
+# Merge gate — the full suite, unsplit, because a merge gate compares the whole
+# failure list. Dependencies are locked in uv.lock; --frozen rebuilds the
+# environment offline from the cache. Model-calling tests are excluded by
+# default (`[tool.pytest]` `addopts` in pyproject.toml); -m llm_judge overrides
+# that filter.
+uv run --frozen pytest tests tools -q
 
 uv run --frozen --group test-llm pytest tests tools -m llm_judge -q   # only real-model tests
 
@@ -828,56 +742,31 @@ lines, recommends Python above 100, and asks a model in the 80–100 band.
 
 ### Conventions
 
-Conventions live in **`docs/`**, one file per subject, so the repository
-root holds only the five documents that govern the project:
+Conventions live in **`docs/`**, one file per subject, so the repository root
+holds only the documents that govern the project. `docs/README.md` is the index
+and carries what each file covers; this list exists because
+`tests/docs/test_conventions_referenced.py` requires every convention reachable
+from here, and an agent that never reads a convention has a file, not a rule.
 
-- **`docs/PROCESS.md`** — how work runs: the work loop, the task queue and
-  its workers, the three roles, observations-as-deliverables, and how a
-  task list is cut. Read before your first task.
-- **`docs/PYTHON.md`** — uv, PEP 723 dependency blocks, pytest, ruff, ty,
-  prek, logging and error handling.
-- **`docs/PERMISSIONS.md`** — what the agent may run, the three tiers in
-  `.claude/settings.json`, and the threat model they do and do not address.
-  Read it before widening a rule.
-- **`docs/REFERENCES.md`** — every external standard this repo follows,
-  the version it follows, and when that was last checked. Add a row before
-  adopting a standard; a convention with no version means whatever its latest
-  revision says.
-- **`docs/LAYOUT.md`** — the cross-machine directory standard: the
-  `~/code` taxonomy, who owns it, and the migration plan. Cite it by name
-  instead of pasting absolute repo paths into queue prose.
-- **`docs/LANGUAGES.md`** — the languages the repo's scripts use, and the
-  reusable per-language tool profile (formatter/linter/typecheck/test/LSP).
-  Points at `docs/PYTHON.md` instead of repeating it.
-- **`docs/GLOSSARY.md`** — project terminology only, not a CS dictionary.
-  General terms get glossed inline on first use; a doc using a glossary term
-  links to its definition on first use (`spec.md` § Writing).
-- **`docs/LINK-CHECKING.md`** — the proposed Lychee cadence and security boundary,
-  pending approval: offline changed-file checks at commit, full local checks
-  before push, and human-reviewed external checks before merge.
-- **`docs/WORKTREES.md`** — the agent-worktree naming contract and lifecycle:
-  flat `.worktrees/<sid>` names, underscores never slashes in branches, one
-  writer per worktree, ephemeral merge scratch, deletion only after
-  `merge-base --is-ancestor`.
-- **`docs/BACKLOG-UPSTREAM-CONFIG.md`** — a draft, not a rule: the evidence
-  that neither Backlog.md nor backlog-md-py can point docs or decisions outside
-  the backlog folder, and the two upstream PRs that would change it.
-- **`docs/BACKLOG-MIGRATION.md`** — the 2026-10-22 decision record for
-  migrating the task queue to backlog-md-py: the rulings, the mapping from
-  `TASKS.md`, the MCP wiring plan, and the cutover procedure. The migration
-  PR folds its outcomes into `docs/PROCESS.md` and this file.
+Read by name when the work touches them:
 
-`CONTRIBUTING.md` is the human entry point and lives there rather than
-here on purpose: GitHub only discovers `CONTRIBUTING.md` in `.github/`, the
-repository root, or `docs/`. In any other directory it never reaches the
-Contributing tab or the sidebar shown when someone opens a pull request — which
-is the one moment it exists to be read.
-
-This file stays general on purpose. How work runs here is reusable across
-projects; conventions are the part that swaps out. A repository that adds another
-language adds `docs/<LANGUAGE>.md` and one bullet above, and changes
-nothing else here. See `docs/README.md` for what belongs there and what
-does not.
+- **`docs/PROCESS.md`** — how work runs. Read before your first task.
+- **`docs/PYTHON.md`** — uv, PEP 723, pytest, ruff, ty, logging.
+- **`docs/PERMISSIONS.md`** — what you may run. Read before widening a rule.
+- **`docs/REFERENCES.md`** — standards followed and their versions. Add a row
+  before adopting one.
+- **`docs/LAYOUT.md`** — the `~/code` taxonomy. Cite it, do not paste absolute
+  paths into queue prose.
+- **`docs/LANGUAGES.md`** — language inventory and per-language tool profile.
+- **`docs/GLOSSARY.md`** — project terminology, linked on first use.
+- **`docs/LINK-CHECKING.md`** — the Lychee cadence and its security boundary.
+- **`docs/WORKTREES.md`** — the worktree naming contract and lifecycle.
+- **`docs/TOPICS.md`** — topic structure, lifecycle, dependency and ownership.
+- **`docs/TRUST-LADDER.md`** — rungs, incident classes, promotion and ageing.
+- **`docs/TESTING.md`** — mutation proving, properties and fuzzing.
+- **`docs/CROSS-PLATFORM.md`** — traps that have bitten on macOS and Debian.
+- **`docs/BACKLOG-MIGRATION.md`** — the queue's migration record.
+- **`docs/BACKLOG-UPSTREAM-CONFIG.md`** — upstream backlog configuration.
 
 ## Tests
 
@@ -904,107 +793,14 @@ in practice only the host platform was ever tested.
 
 ### Prove the test fails
 
-`spec.md` § Verification says a test is not finished until it has been seen to
-fail. This is how: break the code on purpose and watch the suite go red. It is
-mutation testing done by hand, and it is cheap.
+A test is not finished until it has been seen to fail against a deliberately
+broken copy — `spec.md` § Verification makes this a SHALL. Record the evidence
+as commit trailers, `Mutation:` and `Failing-test:`; only trailers are
+greppable.
 
-```bash
-cp home/bin/executable_thing /tmp/thing.good          # keep the original
-# edit the target: invert a guard, neuter a mechanism, make an error
-# path return a positive value instead of "unknown"
-uv run --with pytest pytest tests/thing -q       # MUST fail, and on the right test
-cp /tmp/thing.good home/bin/executable_thing     # restore
-uv run --with pytest pytest tests/thing -q       # green again
-```
-
-Mutations worth trying, in rough order of what has actually bitten here:
-
-- **make the guard unconditional** — `if ordered and not cleared:` -> `if True:`
-- **make it never fire** — the same line -> `if False:`
-- **turn "unknown" into a claim** — `return None` -> `return set()` on an error
-  path. This one skipped every case that declared a requirement and reported a
-  clean run
-- **move a definition below its first use** — bash resolves at call time, so the
-  helper becomes "command not found", returns 127, and a fail-closed guard passes
-  for the wrong reason
-
-Read WHICH tests fail, not just how many. Of four regressions injected across the
-eval harness, three were caught and the fourth was not — and that fourth revealed
-the TEST was wrong: its fixture had no blank line inside the prompt, so
-`rfind("\n\n")` landed on the seam by accident and the assertion passed either
-way. A mutation that survives is either a coverage gap or a broken test, and both
-are worth the two minutes.
-
-Where a mechanism can decline, the mutation that matters is the one that makes it
-decline ALWAYS — because refusing looks identical to not running. Same reason
-`tests/policy/test_policy_callers.py` flips the policy to permit and asserts the
-behaviour changes.
-
-Two harness traps found here, worth checking for in any suite you touch:
-
-- A test path pointing at a file that does not exist. `tests/clipped.bats` used
-  `$BATS_TEST_DIRNAME/../clipped` — the repo root — so every case ran against a
-  missing binary, and the one case that "passed" did so because a nonexistent
-  command also exits nonzero.
-- GNU-only syntax in a portability test. `script -qec` is GNU; BSD `script` has no
-  `-c`, so two TTY tests could never pass on macOS whatever the code did. Use
-  `pty.openpty()`.
-
-Record the evidence on the commit as trailers, not prose: `Mutation: <what was
-broken>` and `Failing-test: <the test that went red>`. `spec.md` § Verification
-makes this a SHALL. The mutation state is never committed, so the proof can only
-live in the trailer, and only trailers are greppable — `git log --grep`
-over the history yields every mutation ever proven; a prose sentence in a body
-yields nothing.
-
-### Properties and fuzzing
-
-Most tests here are examples: a specific input, a specific expected result. Two
-other kinds earn their place in specific situations.
-
-**Write a property test when a rule holds for every input, not just the one you
-thought of.** Pure functions with algebraic structure are the candidates — merge,
-path-set, set-difference, normalisation, formatting. `spec.md` § Verification —
-invariants are tested as properties says when this is required.
-
-The rule is the test. State it without reference to how the code works: if your
-property recomputes the function under test, it only proves the code equals
-itself. Good properties look like "content survives", "the result is a subset of
-what was asked for", "running it twice gives the same answer", "it never
-mutates its input".
-
-House examples: `tests/ollama_evals/test_harness_property.py` and
-`tests/binned/test_binned_property.py`. Add `--with hypothesis` to the run
-command; it is already in the one under § Commands.
-
-Two things to watch:
-
-- **A property that passes immediately may be testing nothing.** An `assume()`
-  that is too tight filters away every generated input and hypothesis still
-  reports a pass. This is the generated-input version of grepping an empty
-  string. Check that the property is seeing real data before you trust it.
-- **When a property fails, keep the counterexample.** Hypothesis shrinks the
-  failure to its smallest form. Commit that as its own example test alongside
-  the fix. It is the cheapest regression test you will ever get for that bug,
-  and the generator is under no obligation to produce it again.
-  `test_set_path_names_the_path_when_a_segment_is_not_a_mapping` is one: the
-  property found that a mis-typed sweep path died with a bare `'int' object does
-  not support item assignment`, naming neither the case nor the field.
-
-**Fuzz where input arrives that you did not produce.** In this repo that means
-model output, hand-edited YAML cases, and policy layer files. Model output is the
-sharpest of the three, because the producer is a sampling process rather than a
-program — empty responses, truncation mid-token, echoed prompts and control
-characters are all normal. A harness that raises on those reports its own defect
-as a model failure, which is the worst thing a discriminator can do.
-
-Fuzz the data, not the code path that executes it. `run_check` runs `exec()` on
-the check source, so the tests generate hostile *responses* and draw broken
-*sources* from a fixed list. Generating source text to `exec()` would be running
-arbitrary generated code.
-
-Properties and fuzzing do not replace the mutation check above. Break the code
-and watch the property go red, the same as any other test.
+`docs/TESTING.md` has the working detail: which mutations have actually bitten
+here, how to read WHICH tests failed, the harness traps, and when a property or
+fuzz test earns its place. Read it when writing or repairing a test.
 
 ## Writing
 
@@ -1069,24 +865,17 @@ point; existing `ubi:` entries migrate to `github:` when touched.
 
 ## Cross-platform
 
-macOS and Debian/Ubuntu are both targets. Guard the package manager in-task rather
-than abstracting it — `CONTRIBUTING.md` rule 2 has the pattern. A topic
+macOS and Debian/Ubuntu are both targets. Guard the package manager in-task
+rather than abstracting it — `CONTRIBUTING.md` rule 2 has the pattern. A topic
 supporting both should not declare `homebrew` in `topic_requires`, or it becomes
 unschedulable on Linux; see `apps/ollama/topic.yml`.
 
 Assume tools installed by uv or mise are identical across platforms. Only system
 binaries need per-OS handling.
 
-Traps that have actually bitten here:
-
-- **A per-user launchd agent maps to a systemd *user* timer, not a system one.**
-  Same ownership, no root. It only fires while the user has a session, so report the
-  `loginctl enable-linger` fix rather than silently changing login behaviour.
-- **`nc -U` needs `netcat-openbsd`.** Debian ships two providers and
-  `netcat-traditional` has no `-U`; probe the `nc` on `PATH`, because alternatives
-  can point at the wrong build.
-- **BSD and GNU flags differ** for `script`, `stat`, `sed -i` and `mktemp`. Prefer
-  Python over a portability shim, or try both forms.
+`docs/CROSS-PLATFORM.md` lists the traps that have actually bitten here — launchd
+versus systemd user timers, `nc -U` providers, BSD and GNU flag differences.
+Read it before writing a task that differs by OS.
 
 ## Verification
 
