@@ -39,6 +39,17 @@ repos:
   - { path: projects/personal/prompt-spec, group: personal }
   - { path: projects/personal/questionable, group: personal }
   - { path: projects/personal/rootimentary, group: personal }
+  # Migrated 2026-11-04 from machines.yml's per-machine `repos:` block, which
+  # had no consumer and carried a serial-shaped machine key. One shared
+  # catalogue is dot-171's contract; gita reports a declared-but-absent repo
+  # per machine ("declared but not cloned, skipped") instead of declaring per
+  # machine. These six are on the Mac only — absent here, so pop-os reports
+  # them as skipped, which is accurate.
+  - { path: projects/personal/templates/Best-README-Template, group: personal }
+  - { path: projects/personal/ai-prompt-library-escalation-writing, group: personal }
+  - { path: projects/personal/bengineerdavis.github.io, group: personal }
+  - { path: projects/personal/llocallabs, group: personal }
+  - { path: projects/personal/topical, group: personal }
   - { path: projects/personal/sawmill, group: personal }
   - { path: projects/personal/fileauthority, group: personal }     # gitlab
   - { path: projects/personal/try/xerror, group: personal }
