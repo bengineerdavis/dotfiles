@@ -16,6 +16,15 @@
   when: gita_remove_registration | bool
   changed_when: true
 
+- name: "Remove: drop the work group (undoes the grouping install sweeps in)"
+  ansible.builtin.command:
+    cmd: gita group rm {{ gita_work_group }}
+  # Absent group on a personal machine is the already-removed case, not a
+  # failure. This runs before unuse removes the gita binary. The registrations
+  # themselves leave only behind the gita_remove_registration gate above.
+  failed_when: false
+  changed_when: true
+
 - name: "Remove: probe whether the global mise config declares pipx:gita"
   ansible.builtin.command:
     cmd: grep -q -e pipx:gita {{ ansible_facts['env']['HOME'] }}/.config/mise/config.toml
@@ -38,11 +47,3 @@
       them. Registration was {{ 'cleared' if gita_remove_registration | bool
          else 'kept (gita_remove_registration is false)' }}; the mise
       pipx:gita entry was removed.
-- name: "Remove: drop the work group (undoes the grouping install sweeps in)"
-  ansible.builtin.command:
-    cmd: gita group rm {{ gita_work_group }}
-  # Absent group on a personal machine is the already-removed case, not a
-  # failure. The registrations themselves leave only behind the
-  # gita_remove_registration gate above.
-  failed_when: false
-  changed_when: true
