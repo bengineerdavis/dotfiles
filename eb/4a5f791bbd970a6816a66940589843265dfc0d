@@ -1,0 +1,24 @@
+tests/clipped/test_clipped_no_hang.py
+  s_566cc3694c6f58::t_b0a3a0071628e1 81-105
+changelog.d/20261102_205800_dot73_environmental_failures.md
+  s_566cc3694c6f58::t_57ac7b5f64c201 5-13
+home/bin/executable_clipped
+  s_566cc3694c6f58::t_e172243c41b8f6 34
+  s_566cc3694c6f58::t_5a0c19d5b7bf38 206,212-225
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eb4a5f791bbd970a6816a66940589843265dfc0d",
+  "prompts": {},
+  "sessions": {
+    "s_566cc3694c6f58": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e66e617d5ffeX1nB88Qu3jRcNU",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
