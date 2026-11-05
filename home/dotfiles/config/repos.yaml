@@ -22,56 +22,65 @@
 #     AryaanSheth/promptlint → `forks`, even though the author contributes;
 #     `bt-import` is not a fork (`fork: false`) → `personal`.
 #
-# Stopgap caveat: paths are the CURRENT (unmigrated) locations under
-# projects/…. When the LAYOUT phase-4 migration moves repos into the type
-# dirs, these paths change and the entries are re-pointed — gita re-registers
-# a repo on move, nothing is deleted.
+# 2026-10-22 re-point (L37V3P6GQ3): the LAYOUT phase-4 migration landed on this
+# machine — the `projects/…` prefixes are gone and repos live in the type dirs
+# (`personal/`, `forks/`, `templates/`, `try/`). Paths below are re-pointed to
+# that layout; the entries are the same set. Entries marked `no remote` or
+# `gitlab` are declarative on this machine — nothing clones them here; the
+# gita topic reports them as declared-but-not-cloned by design. `work` repos
+# are named only in the machine-local overlay at
+# ~/.local/state/layout/machines.local.yaml, never here.
 
 repos:
   # — personal: the author's own projects (incl. local, no remote) —
-  - { path: projects/personal/ai-prompt-library, group: personal }
-  - { path: projects/personal/impromptu, group: personal }
-  - { path: projects/personal/jirassic, group: personal }
-  - { path: projects/personal/magic_touch, group: personal }
-  - { path: projects/personal/mkdb, group: personal }              # no remote
-  - { path: projects/personal/myscripts, group: personal }         # gitlab
-  - { path: projects/personal/pcshopper, group: personal }
-  - { path: projects/personal/prompt-spec, group: personal }
-  - { path: projects/personal/questionable, group: personal }
-  - { path: projects/personal/rootimentary, group: personal }
-  - { path: projects/personal/sawmill, group: personal }
-  - { path: projects/personal/fileauthority, group: personal }     # gitlab
-  - { path: projects/personal/try/xerror, group: personal }
-  - { path: projects/personal/gists/install-spd-piper.sh, group: personal }  # no remote
-  - { path: projects/personal/templates/agentic-project-template, group: personal }
-  - { path: projects/personal/templates/copier-cat, group: personal }
-  - { path: projects/personal/templates/copier-mise-sandbox, group: personal }
-  - { path: projects/personal/templates/copier-template-copier-template, group: personal }
-  - { path: projects/personal/templates/dotfile-topic-copier, group: personal }
-  - { path: projects/personal/templates/python-project-template, group: personal }  # no remote
-  - { path: projects/resources/ansible, group: personal }         # gitlab, own
-  - { path: interviews/braintrust-dev/bt-import, group: personal }  # own, not a fork
-  - { path: interviews/semgrep/senior-technical-support-engineer/bad-python-app, group: personal }
-  - { path: projects/job-hunt, group: personal }
-  - { path: try/git-ai-plugin, group: personal }                  # no remote
-  - { path: try/python/freethreaded, group: personal }            # no remote
+  - { path: personal/ai-prompt-library, group: personal }
+  - { path: personal/impromptu, group: personal }
+  - { path: personal/jirassic, group: personal }
+  - { path: personal/magic_touch, group: personal }               # remote: magic-touch
+  - { path: personal/mkdb, group: personal }                      # no remote
+  - { path: personal/myscripts, group: personal }                 # gitlab
+  - { path: personal/pcshopper, group: personal }
+  - { path: personal/prompt-spec, group: personal }
+  - { path: personal/questionable, group: personal }
+  - { path: personal/rootimentary, group: personal }
+  - { path: personal/sawmill, group: personal }
+  - { path: personal/fileauthority, group: personal }             # gitlab
+  - { path: personal/topical, group: personal }
+  - { path: personal/llocallabs, group: personal }                # no remote (redge-cli PRD)
+  - { path: personal/ai-prompt-library-escalation-writing, group: personal }  # worktree of ai-prompt-library
+  - { path: personal/bengineerdavis.github.io, group: personal }
+  - { path: personal/ansible, group: personal }                   # gitlab, own (was resources/ansible)
+  - { path: personal/bt-import, group: personal }                 # own, not a fork
+  - { path: personal/bad-python-app, group: personal }            # own fork, interviews
+  - { path: personal/job-hunt, group: personal }
+  - { path: personal/gists/install-spd-piper.sh, group: personal }  # no remote
+  - { path: try/xerror, group: personal }                         # own fork
+  - { path: try/git-ai-plugin, group: personal }                   # no remote
+  - { path: try/python/freethreaded, group: personal }             # no remote
   - { path: tutorial/fastapi-graphql, group: personal }           # no remote
+  - { path: templates/agentic-project-template, group: personal }
+  - { path: templates/copier-cat, group: personal }
+  - { path: templates/copier-mise-sandbox, group: personal }
+  - { path: templates/copier-template-copier-template, group: personal }
+  - { path: templates/dotfile-topic-copier, group: personal }
+  - { path: templates/python-project-template, group: personal }  # no remote
 
   # — forks: third-party clones, not owned, not an employer —
-  - { path: interviews/braintrust-dev/WikiSQL, group: forks }     # salesforce
-  - { path: projects/open-source/carbonneutral, group: forks }    # TimDettmers
-  - { path: projects/open-source/PythonDataScienceHandbook, group: forks }  # jakevdp
-  - { path: projects/open-source/void, group: forks }             # voideditor
-  - { path: projects/open-source/forks/rust-cli_clair_book, group: forks }  # rust-cli
-  - { path: projects/open-source/forks/rust-lang-book, group: forks }  # rust-lang
-  - { path: projects/open-source/huggingface/piper-voices, group: forks }  # rhasspy
-  - { path: projects/personal/david-leung/portfolio-webapp, group: forks }  # dleung331d
-  - { path: projects/personal/forks/promptlint, group: forks }    # fork of AryaanSheth/promptlint
-  - { path: projects/personal/scripts/shaka-packager, group: forks }  # shaka-project
-  - { path: projects/personal/scripts/udemy-downloader, group: forks }  # Puyodead1
-  - { path: projects/resources/copes, group: forks }              # corectrl
-  - { path: projects/resources/gitattributes, group: forks }      # alexkaratarakis
-  - { path: projects/resources/git-ignore, group: forks }         # sondr3
-  - { path: projects/resources/gitignore, group: forks }          # github
-  - { path: projects/resources/nerd-dictation, group: forks }     # ideasman42
-  - { path: try/openrouter-tools/open-model-council, group: forks }  # sanky369
+  - { path: forks/WikiSQL, group: forks }             # salesforce
+  - { path: forks/carbonneutral, group: forks }        # TimDettmers
+  - { path: forks/PythonDataScienceHandbook, group: forks }  # jakevdp
+  - { path: forks/void, group: forks }                # voideditor
+  - { path: forks/rust-cli_clair_book, group: forks }  # rust-cli
+  - { path: forks/rust-lang-book, group: forks }      # rust-lang
+  - { path: forks/piper-voices, group: forks }        # rhasspy
+  - { path: forks/portfolio-webapp, group: forks }    # dleung331d
+  - { path: forks/promptlint, group: forks }          # own fork of AryaanSheth/promptlint
+  - { path: forks/shaka-packager, group: forks }      # shaka-project
+  - { path: forks/udemy-downloader, group: forks }     # Puyodead1
+  - { path: forks/copes, group: forks }               # corectrl (gitlab)
+  - { path: forks/gitattributes, group: forks }       # alexkaratarakis
+  - { path: forks/git-ignore, group: forks }          # sondr3
+  - { path: forks/gitignore, group: forks }           # github
+  - { path: forks/nerd-dictation, group: forks }      # ideasman42
+  - { path: forks/open-model-council, group: forks }  # sanky369
+  - { path: templates/Best-README-Template, group: forks }  # fork of othneildrew (registered pre-catalogue)

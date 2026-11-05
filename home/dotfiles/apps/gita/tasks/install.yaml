@@ -87,3 +87,104 @@
     label: "{{ item.item.path }}"
   when: not item.stat.exists
   changed_when: false
+# ── work: reconcile the work tree into one machine-local group ────────────────
+#
+# Work repos never enter the committed catalogue (spec.md § Data: employer
+# strings stay machine-local), so their registration is discovery-driven
+# instead. Every install reconciles gita against the disk under the work
+# root: repos that appeared are registered by the recursive walk, and every
+# work-tree registration is swept into the single group. No repo name is ever
+# committed — gita's own CSVs, written by first-party commands, are the only
+# state.
+#
+# The walk (gita add -r) globs `**/` which does not match dot-directories, so
+# vendored trees inside .venv/node_modules are never registered. Worktree and
+# submodule style `.git` files ARE registered — same as the catalogue path
+# above registers personal worktrees. Read the registration CSV instead of
+# freeze: freeze omits local-only repos, respects context, and filters missing
+# paths. Gita filters those ghosts from its repository operations, but cannot
+# remove them through gita rm, so no unsupported manual pruning is attempted.
+
+- name: "Install: probe whether a work tree exists on this machine"
+  ansible.builtin.stat:
+    path: "{{ gita_work_root }}"
+  register: gita_work_root_probe
+  changed_when: false
+
+- name: "Install: report the skipped work reconciliation on personal machines"
+  ansible.builtin.debug:
+    msg: >-
+      No work tree at {{ gita_work_root }} — work reconciliation is skipped;
+      the group and its registrations exist only where a work tree does.
+  when: not gita_work_root_probe.stat.exists
+  changed_when: false
+
+- name: "Install: register repos that appeared under the work root (recursive walk, new finds land in the group)"
+  ansible.builtin.command:
+    argv:
+      - gita
+      - add
+      - -r
+      - -g
+      - "{{ gita_work_group }}"
+      - "{{ gita_work_root }}"
+  when: gita_work_root_probe.stat.exists
+  # Re-adds of known repos warn harmlessly; discovery is gita's own state.
+  changed_when: false
+  failed_when: false
+
+- name: "Install: read every registration, including local-only repos and ghosts"
+  ansible.builtin.slurp:
+    src: "{{ gita_config_dir }}/repos.csv"
+  register: gita_registration_file
+  when: gita_work_root_probe.stat.exists
+  failed_when: false
+  # Read-only, and required under --check so the set_fact below has its source.
+  check_mode: false
+
+- name: "Install: collect every work-tree registration, regardless of context"
+  ansible.builtin.set_fact:
+    gita_work_registrations: >-
+      {%- set out = [] -%}
+      {%- for line in (gita_registration_file.content | default('', true) | b64decode).splitlines() -%}
+      {%-   set fields = line.split(',') -%}
+      {%-   if fields | length >= 2 and fields[0].startswith(gita_work_root ~ '/') -%}
+      {%-     set _ = out.append({'name': fields[1], 'path': fields[0]}) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ out }}
+  # Define the empty list even without a work root; the slurp's skipped
+  # result defaults to empty content, so downstream loops stay well-defined.
+
+- name: "Install: keep registrations whose repositories remain on disk"
+  ansible.builtin.stat:
+    path: "{{ item.path }}/.git"
+  loop: "{{ gita_work_registrations }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: gita_work_registration_stats
+  changed_when: false
+
+- name: "Install: collect valid work-tree repository names"
+  ansible.builtin.set_fact:
+    gita_work_names: >-
+      {{ gita_work_registration_stats.results
+         | selectattr('stat.exists', 'equalto', true)
+         | map(attribute='item.name') | list }}
+
+- name: "Install: sweep every work-tree registration into the single work group"
+  ansible.builtin.command:
+    argv:
+      - gita
+      - group
+      - add
+      - -n
+      - "{{ gita_work_group }}"
+      - "{{ item }}"
+  loop: "{{ gita_work_names }}"
+  when: gita_work_root_probe.stat.exists and gita_work_names | length > 0
+  # group add is a set-union: already-grouped members are a no-op. Missing
+  # registrations are filtered above because gita rejects them as invalid
+  # choices; their CSV records remain untouched. Each name is one argv entry.
+  changed_when: false
+  failed_when: false
