@@ -27,7 +27,7 @@ from restart_stale_harness import DOTFILES, HARNESS
 STUB = textwrap.dedent('''\
     #!{python}
     """Stub for {name}: answers from $RS_FAKE/state.json, logs to calls.jsonl."""
-    import json, os, sys, time
+    import json, os, shutil, sys, time
     fake = os.environ["RS_FAKE"]
     state = json.load(open(os.path.join(fake, "state.json")))
     args = sys.argv[1:]
@@ -36,6 +36,23 @@ STUB = textwrap.dedent('''\
     if {name!r} == "ps" and "-o" in args and \\
             args[args.index("-o") + 1] not in ("pid=", "pid=,lstart=,comm="):
         os.execv("/bin/ps", ["ps"] + args)
+    # Same carve-out for systemctl: fact gathering probes `systemctl
+    # --version` (service_mgr detection on systemd hosts). The role itself
+    # never asks for --version, so hand probes to the real systemctl and keep
+    # them out of the log — otherwise the inert-defaults test sees a call.
+    # Resolve with THIS stub dir off PATH: shutil.which would find the stub
+    # itself (it is first on PATH) and execv would recurse forever.
+    if {name!r} == "systemctl" and "--version" in args:
+        stub_dir = os.path.dirname(os.path.realpath(__file__))
+        clean = os.pathsep.join(
+            p for p in os.environ.get("PATH", "").split(os.pathsep)
+            if os.path.realpath(p) != stub_dir
+        )
+        os.environ["PATH"] = clean
+        real = shutil.which("systemctl")
+        if real:
+            os.execv(real, ["systemctl"] + args)
+        sys.exit(0)
     with open(os.path.join(fake, "calls.jsonl"), "a") as log:
         log.write(json.dumps([{name!r}] + args) + "\\n")
     quit_sent = os.path.exists(os.path.join(fake, "quit_sent"))
