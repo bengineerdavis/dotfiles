@@ -152,3 +152,36 @@ def test_the_history_a_lint_diff_needs_is_fetched():
         "the lint step does not verify the base commit exists, "
         "so a missing commit surfaces as a generic lint failure"
     )
+
+
+def test_the_install_step_provides_what_the_later_steps_run():
+    """A sync that installs nothing makes every later step unrunnable.
+
+    Measured 2026-11-05: the project declares no runtime
+    dependencies, so a bare `uv sync --frozen` built an
+    empty environment. The job passed install and interpreter
+    checks, then failed at the type check because `pyrefly`
+    was absent — and pytest would have been next.
+
+    The install step must ask for the dependency group that
+    holds pytest, and any tool the workflow invokes with a
+    bare name must come from somewhere the workflow installs.
+    """
+    job = _workflow()["jobs"]["tests"]
+    runs = _runs(job)
+
+    sync = [s.get("run", "") for s in job["steps"] if "uv sync" in s.get("run", "")]
+    assert sync, "no uv sync step — this guard would pass vacuously"
+    assert any("--group test" in line for line in sync), (
+        "uv sync must include the test group; the project has no runtime "
+        "dependencies, so a bare sync installs no test runner"
+    )
+
+    # pyrefly is not a project dependency: it comes from mise
+    # locally, so it must be named where it is used.
+    if "pyrefly check" in runs:
+        assert "uv tool run" in runs or "pyrefly==" in runs, (
+            "the workflow runs pyrefly but never installs it; use "
+            "`uv tool run --from pyrefly==<pin>` "
+            "so the CI command matches the local mise pin"
+        )

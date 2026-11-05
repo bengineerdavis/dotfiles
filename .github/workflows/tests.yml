@@ -31,12 +31,11 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-          # full history for the lint diff
-          fetch-depth: 0
           # The lint step diffs against the base commit. A shallow clone does
           # not contain it, and `git diff` then fails with "bad object" rather
           # than reporting no changes — measured 2026-11-05, where that failure
           # was indistinguishable from a lint finding in the job summary.
+          fetch-depth: 0
 
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
@@ -44,8 +43,13 @@ jobs:
 
       # `--frozen` so the run uses uv.lock rather than re-resolving, which is
       # what makes a local pass and a CI pass mean the same thing.
+      #
+      # `--group test` is required, not optional: the project has no runtime
+      # dependencies, so a bare sync installs nothing and pytest is absent.
+      # Measured 2026-11-05 — the job reached the test step and could not run
+      # it, because the environment it built held no test runner.
       - name: Install the locked environment
-        run: uv sync --frozen
+        run: uv sync --frozen --group test
 
       # The interpreter the project declares. Asserting it here means a
       # requires-python bump that CI cannot satisfy fails loudly, instead of
@@ -84,8 +88,13 @@ jobs:
           xargs -a "$RUNNER_TEMP/changed-python" uv run --frozen ruff check
           xargs -a "$RUNNER_TEMP/changed-python" uv run --frozen ruff format --check
 
+      # pyrefly is not a project dependency: it comes from mise
+      # (`pipx:pyrefly = 1.3.2` in apps/mise/files/config.toml), which CI does
+      # not have. `uv tool run` with the same version pin keeps the check and
+      # the local hook on one version, and `--frozen` is irrelevant here
+      # because no project resolution happens.
       - name: Type check
-        run: uv run --frozen pyrefly check
+        run: uv tool run --from pyrefly==1.3.2 pyrefly check
 
       # pytest's exit status is nonzero for the known failures, so the run is
       # allowed to finish and the RESULT is judged by which tests failed rather
