@@ -1,0 +1,42 @@
+# managed by agentic-project-template
+# GitHub adapter: clean merges only; no PR code, rebases, or force-pushes.
+name: Synchronize pull request branches
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    # Frequent merges need a short pulse; GitHub may delay scheduled runs.
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Report behind PRs without changing them'
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: branch-sync-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  synchronize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: scripts
+
+      - name: Synchronize same-repository PR branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+        run: python3 scripts/sync-pr-branches.py ${{ inputs.dry_run && '--dry-run' || '' }}
