@@ -41,8 +41,6 @@ the committed machine tier and reports divergences loudly. The dead per-machine
 shared catalogue config/repos.yaml, per dot-171's contract.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
-<!-- SECTION:IMPLEMENTATION_NOTES:END -->
-
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->

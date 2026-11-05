@@ -6,7 +6,7 @@ created_date: 2026-10-27 02:58
 labels:
 - planned
 - group:gita-and-machine-file-backup-approved-2026-09-23
-updated_date: 2026-10-27 22:22
+updated_date: 2026-11-04 20:50
 ---
 
 ## Description
@@ -40,7 +40,12 @@ updated_date: 2026-10-27 22:22
   hands the file contract to BK2 and, after the real-data gate, G3.
 <!-- SECTION:DESCRIPTION:END -->
 
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+<!-- AC:END -->
+
 ## Implementation Notes
+
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
 2026-11-04 (TASK-242): two parts of this contract already landed, so the
 remaining scope is narrower than the description above reads.
@@ -58,16 +63,6 @@ remaining scope is narrower than the description above reads.
   under `~/.local/state/machine/` (`machine.yaml` / `private.yaml` /
   `work.yaml`), the agent-read denial for that path (policy PR), and the
   BK2–BK4 real-data gate before seeding.
-<!-- SECTION:IMPLEMENTATION_NOTES:END -->
-
-## Acceptance Criteria
-<!-- AC:BEGIN -->
-<!-- AC:END -->
-
-## Implementation Notes
-
-<!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
