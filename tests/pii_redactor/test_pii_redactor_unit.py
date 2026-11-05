@@ -58,3 +58,30 @@ def test_child_env_respects_an_explicit_setting(pii_module, monkeypatch):
     """setdefault, not overwrite — an operator choosing a destination keeps it."""
     monkeypatch.setenv("PYMUPDF_MESSAGE", "path:/tmp/pymupdf.log")
     assert pii_module.child_env()["PYMUPDF_MESSAGE"] == "path:/tmp/pymupdf.log"
+
+
+def test_the_script_resolves_without_a_deployed_copy(monkeypatch, tmp_path):
+    """The suite must run on a fresh clone, not only on an applied machine.
+
+    Measured 2026-11-05: CI failed 55 pii_redactor tests with
+    `FileNotFoundError: /home/runner/bin/pii-redactor`. `SCRIPT` was
+    `Path.home()/"bin"/"pii-redactor"`, which exists only after
+    `chezmoi apply` — so the suite tested a deployed machine and
+    errored everywhere else.
+
+    The tests need the script's source, which is always in the repo.
+    This pins both branches of the resolver: the deployed copy when
+    it is there, the payload source when it is not.
+    """
+    # pyrefly: ignore [missing-import]
+    from pii_redactor_harness import _resolve_script
+
+    # A home with no ~/bin at all, which is what a runner has.
+    empty_home = tmp_path / "home"
+    empty_home.mkdir()
+    monkeypatch.setenv("HOME", str(empty_home))
+
+    resolved = _resolve_script()
+    assert resolved.is_file(), f"resolved to a missing file: {resolved}"
+    assert resolved.name in {"pii-redactor", "executable_pii-redactor"}
+    assert "home" in resolved.parts or "bin" in resolved.parts
