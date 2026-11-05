@@ -18,6 +18,37 @@ dependencies = ["pyyaml>=6"]
 [project.scripts]
 skill-trust = "skill_trust.cli:main"
 
+# Ruff resolves each file against its NEAREST pyproject that has a
+# [tool.ruff] section — this one had none, so the code was judged by the
+# root repo config, whose target-version is py310 (the Ansible payload's
+# /usr/bin/python3 floor). That flagged this tool's deliberate PEP 758
+# `except A, B:` syntax as invalid-syntax (measured 2026-11-04). A floor the
+# linter rewrites against is not a floor: this section mirrors the root lint
+# settings but pins the target to what actually runs here.
+[tool.ruff]
+line-length = 88
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "W", "D"]
+ignore = [
+  # Conflicts with ruff format (Black style). W503 does not exist in ruff.
+  "E203",
+  "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.pycodestyle]
+max-doc-length = 72
+
+[tool.ruff.lint.per-file-ignores]
+# Doc-line campaign grandfather: each entry shrinks as the file is next
+# edited to the standard.
+"skill_trust/**" = ["W505", "D205"]
+"tests/**" = ["E402", "W505", "D205"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

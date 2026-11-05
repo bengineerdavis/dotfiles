@@ -115,8 +115,8 @@ max-doc-length = 72
 "tests/trace_public/**" = ["E501", "W505", "D205"]
 "tests/uv/**" = ["W505", "D205"]
 "tests/triage/**" = ["W505", "D205"]
-"tools/skill-trust/skill_trust/**" = ["W505", "D205"]
-"tools/skill-trust/tests/**" = ["W505", "D205"]
+# tools/skill-trust resolves against its own pyproject's [tool.ruff]
+# (nearest-config wins over the root config), so its grandfathers moved there.
 
 
 [tool.pytest]
