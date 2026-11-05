@@ -16,7 +16,7 @@ orchestration:
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Per decision-1 item 3: competing config files are an antipattern even when the tool resolves precedence. The author settled the surviving format as **opencode.jsonc** on 2026-11-04; the earlier tentative .json preference is superseded. Keep exactly one chezmoi-managed source of truth, retire the unmanaged shadowed .json with a verbatim backup, and sweep the apps/loreai and apps/opencode topics so migrations never leave a second file behind. The gateway-unavailable route is separate DOT-242 scope.
+Per decision-3 item 3: competing config files are an antipattern even when the tool resolves precedence. The author settled the surviving format as **opencode.jsonc** on 2026-11-04; the earlier tentative .json preference is superseded. Keep exactly one chezmoi-managed source of truth, retire the unmanaged shadowed .json with a verbatim backup, and sweep the apps/loreai and apps/opencode topics so migrations never leave a second file behind. The gateway-unavailable route is separate DOT-242 scope.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria

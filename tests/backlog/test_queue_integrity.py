@@ -85,6 +85,45 @@ def test_board_renders_every_task_once():
 SHADOW_WARNING = "Duplicate task id"
 
 
+def test_decision_ids_are_unique():
+    """Two decision files sharing an id make every citation ambiguous.
+
+    Task ids are guarded above, and `doctor` catches a duplicated task id. No
+    equivalent exists for `backlog/decisions/`: nothing scans it, and
+    `backlog-py decision create` cannot notice either, because `_next_decision_id`
+    takes `max(id) + 1` over ids it can parse — two files both reading
+    `decision-1` still yield `decision-2` for the next allocation.
+
+    Measured 2026-11-04: two files declared `id: decision-1`, and five task files
+    cite that id in `references:`. A reader following any of those citations
+    cannot tell which record it means. `doctor` reported "No problems found".
+
+    The cost of the collision outlives the fix: a `references:` entry names a
+    path, but prose that writes "decision-1 §3" keeps pointing at both files
+    until it is rewritten.
+    """
+    decisions = sorted((REPO_ROOT / "backlog" / "decisions").glob("*.md"))
+    assert decisions, "no decision files found — the scan is looking in the wrong place"
+
+    ids: dict[str, list[str]] = {}
+    for path in decisions:
+        front_matter = path.read_text(encoding="utf-8").split("---")[1]
+        declared = yaml.safe_load(front_matter).get("id")
+        assert declared, f"{path.name} declares no id"
+        ids.setdefault(declared, []).append(path.name)
+
+    collisions = {i: names for i, names in ids.items() if len(names) > 1}
+    assert not collisions, (
+        "Two decision files share an id, so every citation of it is ambiguous.\n"
+        + "\n".join(
+            f"  {decision_id}:\n" + "\n".join(f"    {n}" for n in names)
+            for decision_id, names in sorted(collisions.items())
+        )
+        + "\nRenumber one file and its `id:` together (`backlog-py decision` has "
+        "no renumber command; edit the file and move the id in the same commit)."
+    )
+
+
 def test_no_shadowed_task_ids():
     """A shadowed id is a task file invisible everywhere, and only a warning says so.
 

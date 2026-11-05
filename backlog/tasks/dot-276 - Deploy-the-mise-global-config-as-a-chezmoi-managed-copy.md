@@ -11,7 +11,7 @@ labels:
 - config
 priority: high
 references:
-- decision-1
+- backlog/decisions/decision-3 - VM-verify-config-and-symlink-deployments-before-apply-merge-and-PR-gates.md
 orchestration:
   status_key: inprogress
   lease_owner: opencode-mise-copy
@@ -23,7 +23,7 @@ updated_date: 2026-10-30 05:09
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Per decision-1 item 5, replace the global mise config symlink with a regular chezmoi-managed copy. git pull and source edits must not change the live config; only a scoped chezmoi apply deploys it. Keep one topic-owned source of truth, preserve the separate source-tree copy, and replace PR #90 rather than rebasing its superseded symlink/ignore design. The branch must be reviewed and merged before the author applies the deployed config from main; no unmerged-branch apply to the real home. Keep DOT-240 as the separate design decision for deliberate tool-edit capture; no new watcher or automation in this task.
+Per decision-3 item 5, replace the global mise config symlink with a regular chezmoi-managed copy. git pull and source edits must not change the live config; only a scoped chezmoi apply deploys it. Keep one topic-owned source of truth, preserve the separate source-tree copy, and replace PR #90 rather than rebasing its superseded symlink/ignore design. The branch must be reviewed and merged before the author applies the deployed config from main; no unmerged-branch apply to the real home. Keep DOT-240 as the separate design decision for deliberate tool-edit capture; no new watcher or automation in this task.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
