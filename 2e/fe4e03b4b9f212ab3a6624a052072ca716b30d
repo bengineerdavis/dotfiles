@@ -1,0 +1,19 @@
+"backlog/tasks/dot-281 - Switch-lychee-to-cargo-as-primary-with-aqua-fallback.md"
+  s_77d3b692985a60::t_58c13d0445b2d7 17-32,38,40-41,47-58,60-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2efe4e03b4b9f212ab3a6624a052072ca716b30d",
+  "prompts": {},
+  "sessions": {
+    "s_77d3b692985a60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8740494fffeKeLAPc4yoUweyC",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
