@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import pathlib
 import subprocess
+import sys
 
 import pytest
 
@@ -64,7 +65,7 @@ def test_copy_survives_a_daemonizing_backend(clip_env):
 
     try:
         result = subprocess.run(
-            [str(SOURCE), "copy"],
+            [sys.executable, str(SOURCE), "copy"],
             input="hello clipboard",
             capture_output=True,
             text=True,
@@ -104,7 +105,7 @@ def test_copy_failure_keeps_the_backend_diagnostic(clip_env):
         hostile.chmod(0o755)
 
     result = subprocess.run(
-        [str(SOURCE), "copy"],
+        [sys.executable, str(SOURCE), "copy"],
         input="hello clipboard",
         capture_output=True,
         text=True,
