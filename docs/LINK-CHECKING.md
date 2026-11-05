@@ -120,10 +120,42 @@ result.
 
 ## Ownership and delivery
 
-Install Lychee with mise using the `aqua:lycheeverse/lychee` backend. The
-repository pins **0.24.2** in its mise configuration and records the verified
-reference in `docs/REFERENCES.md`. Do not introduce a separate Brew, Cargo, or
-unowned binary channel.
+Install Lychee with mise. The repository pins **0.24.2** and records the
+verified reference in `docs/REFERENCES.md`.
+
+The checker tries two backends, in this order:
+
+| Backend | Why |
+|---|---|
+| `cargo:lycheeverse/lychee` | Primary. Compiles against the host's own glibc, so it runs on Debian 12. |
+| `aqua:lycheeverse/lychee@0.24.2` | Fallback. The aqua release binary is what works on macOS. |
+
+**The glibc trap.** The aqua release binary for 0.24.2 is built against
+GLIBC 2.38/2.39. This fleet's Debian 12 host has GLIBC 2.35, so that binary does
+not execute at all — it fails with `GLIBC_2.38 not found` before it reads a
+single file. Both installed aqua builds (`0.24/` and `0.24.2/`) fail the same
+way, and the failure reproduces on an unmodified checkout, so it is the machine
+and not the change. Measured 2026-11-01 and again 2026-11-04.
+
+VM tests never caught it: the Debian 12 Lima/genericcloud guest ships GLIBC
+2.36, which is new enough for the aqua binary. The bug only appears on the real
+host that runs the hooks, which is the argument for checking glibc rather than
+trusting a green VM run.
+
+**Fall-through is only for failure-to-execute.** The probe runs `lychee
+--version` first and moves to the next backend only if that fails. A backend
+that executes and finds a broken link reports it and stops — retrying would let
+the second backend pass and erase the finding.
+
+**No backend means failure, not a skip.** If neither backend executes, the
+checker exits 2 and names the install command. A skip and a pass are
+indistinguishable in a commit log, so a check that cannot run must not report
+success. Do not bypass it with `--no-verify`; fix the install.
+
+Both backends come from mise, so neither is a separate Brew or unowned binary
+channel. There is no second `lychee` entry in the mise config: two entries
+providing one binary is the shadowing hazard `docs/TOPIC-RECIPES.md` records for
+roborev. The script selects the backend, not the config.
 
 The implementation adds the offline pre-commit hook, the full local pre-push
 hook, the reviewed external-check command, configuration, and focused tests for
