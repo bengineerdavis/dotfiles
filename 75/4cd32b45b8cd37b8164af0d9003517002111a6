@@ -1,0 +1,21 @@
+"backlog/decisions/decision-2 - codex-routes-through-the-Lore-gateway-DOT-104-premise-retired.md"
+  s_e782e2a56bddfd::t_48315351824e7d 1-96
+"backlog/tasks/dot-104 - Give-codex-an-authenticated-provider-Darwin-only-for-now.md"
+  s_e782e2a56bddfd::t_1be86d45c40de7 3,7,9,15-36,41-42,48-72,74-76,87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "754cd32b45b8cd37b8164af0d9003517002111a6",
+  "prompts": {},
+  "sessions": {
+    "s_e782e2a56bddfd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f012126fdffePEfisYIYnHjGHg",
+        "model": "~deepseek/deepseek-pro-latest"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
