@@ -27,9 +27,34 @@ no system role reaches a GitHub-release binary, so this topic owns upgrades
 
 ## First install asks; later installs don't
 
-The first install prompts — **before touching anything** — for two answers
-saved per machine to `~/.config/loreai/env.zsh` (sourced by
-`files/zsh/env.zsh`):
+Answers come from the **provisioning-answers registry** in
+`dotfiles/machines.yml`, which the topic loads before asking anything:
+
+```yaml
+provisioning:
+  shared:            # fleet defaults, written once
+    loreai: { telemetry: 1, inference: openrouter, worker_model: … }
+machines:
+  pop-os:            # per-host exceptions, keyed by ansible_hostname
+    provisioning: { loreai: {} }    # empty = pure inherit
+```
+
+Placement is the classification: where a value sits decides its scope.
+Precedence is `-e` > machine answer > shared answer > prompt > probe
+default. A registry entry at either tier suppresses the prompt.
+
+**The key rule.** A machine key is its `ansible_hostname`, and only where
+that hostname passes `spec.md` § Data's string test — "could I have found or
+used this without being part of a company?" A default OS hostname passes; a
+hardware serial does not. A machine whose hostname fails the test carries no
+committed key and puts its machine tier in `~/.config/loreai/answers.yaml`
+instead (unversioned, machine-local, same per-topic shape). The committed
+registry stays authoritative where it speaks; the overlay fills only what the
+registry cannot answer.
+
+The first install prompts — **before touching anything** — for anything the
+registry has not settled, and saves the result to
+`~/.config/loreai/env.zsh` (sourced by `files/zsh/env.zsh`):
 
 1. **Telemetry** — production builds send privacy-filtered operational
    telemetry to Sentry by default
@@ -38,10 +63,21 @@ saved per machine to `~/.config/loreai/env.zsh` (sourced by
    (default when a key is detectable), `local` (ollama, when found), or
    `none` (workers follow the session provider).
 
-Delete the file and re-run to re-answer. Non-interactive runs pass
+**`env.zsh` is an artifact, not a source of truth.** Direct edits are
+overwritten by the next run; to change an answer, edit the registry (or the
+local overlay) and re-run. A re-run re-renders the file byte-identically when
+nothing changed. Non-interactive runs on an unregistered machine pass
 `-e loreai_telemetry=0|1 -e loreai_inference=openrouter|local|none`
 (optionally `-e loreai_worker_model=<provider/model>`) or fail fast before
 changing anything.
+
+**Promote and demote.** *Promote* (machine → shared) makes machines without
+an override inherit the value; the propagation is visible as the commit diff,
+and machines with conflicting overrides keep theirs while the run reports the
+divergence. *Demote* (shared → machine) removes the shared default, so future
+machines re-answer instead of inheriting a choice that is no longer
+universal. Reverting a machine to fleet behaviour is deleting its override.
+
 
 ## Agent extensions
 

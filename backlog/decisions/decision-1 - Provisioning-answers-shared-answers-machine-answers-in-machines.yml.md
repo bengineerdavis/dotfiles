@@ -70,7 +70,27 @@ until the flow recurs).
   registry.
 - Future topics with first-install answers inherit the pattern without new
   schema — the section is generic by topic slug.
-- The registry keys must match `ansible_hostname` on each machine; adding a
-  machine to the registry is part of adopting its answers.
+- The registry keys must match `ansible_hostname` on each machine **where
+  that hostname passes `spec.md` § Data's string test** ("could I have found
+  or used this without being part of a company?"). A default OS hostname
+  passes. A hardware serial does not: it traces to one physical device and
+  its owner, and committing it is a leak-class violation regardless of how
+  the file is shaped. A machine whose hostname fails the test carries **no
+  committed key**; it inherits the shared answers, and if it must diverge it
+  keeps its machine tier in an unversioned local overlay
+  (`~/.config/<topic>/answers.yaml`), which the topic merges below the
+  committed machine tier. Adding a machine to the registry is part of
+  adopting its answers, when its hostname is committable.
+
+  *Corrected 2026-11-04.* The original clause said "keys must match
+  `ansible_hostname`" with no test applied, which contradicted
+  `docs/MULTI-MACHINE.md:37-38` ("hostnames appear nowhere in git data") and
+  the repo-manager audit's finding 2a (the existing key is a hardware serial,
+  judged a genuine leak). The correction is by author ruling after a grilling
+  round: the employer test governs, so `pop-os` is a legal key and the serial
+  is not. The local overlay exists because the Mac's hostname *is* the
+  serial and cannot be changed — without the overlay the ceiling of this
+  decision would be "the Mac can never hold a machine answer", a silent
+  dangling edge case.
 - The glossary gains "provisioning answers", "shared answers", and "machine
   answers" (docs/GLOSSARY.md, via the wiring PR).

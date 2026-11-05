@@ -91,11 +91,50 @@ over it, never a second physical copy. Re-open then.
 Promotion between types is a move plus a gita re-registration, never a copy —
 repos are managed by git, not duplicated.
 
-**Membership.** `machines.yml` — committed, plain data — declares which repos
-a machine gets, and gita consumes it. Personal repo names are committed; work
-repos are named only in a machine-local overlay, because employer-identifying
-strings must not be committed (`spec.md` § Data). Membership lists cite paths
-relative to the type dir, not bare names — names collide across orgs.
+**Membership.** Repo membership lives in `config/repos.yaml` — one shared
+catalogue of personal repos, read by the gita topic. A repo declared there but
+absent on a machine is reported as "declared but not cloned, skipped"; the
+catalogue does not declare different sets per machine. (This replaced
+`machines.yml`'s per-machine `repos:` block on 2026-11-04: the block had no
+consumer, and its key was a hardware serial.) Work repos are named only in a
+machine-local overlay, because employer-identifying strings must not be
+committed (`spec.md` § Data). Paths are relative to the type dir, not bare
+names — names collide across orgs.
+
+**Provisioning answers.** `machines.yml` carries first-install answers a topic
+would otherwise prompt for, in two tiers:
+
+```yaml
+provisioning:
+  shared:                       # fleet defaults, written once
+    <topic>: { <answer>: <value> }
+machines:
+  <ansible_hostname>:           # per-host exceptions
+    provisioning:
+      <topic>: { <answer>: <value> }
+```
+
+Placement is the classification: where a value sits decides its scope. The
+effective answer is machine > shared; the full chain is `-e` > machine answer
+> shared answer > prompt > probe default. The topic self-loads the file, so
+resolution is identical under a parent-driven fleet run and a standalone
+`run-role.sh` run.
+
+**The key rule.** A machine key is its `ansible_hostname`, and only where that
+hostname passes `spec.md` § Data's string test — "could I have found or used
+this without being part of a company?" A default OS hostname (`pop-os`) passes;
+a hardware serial does not. A machine whose hostname fails the test carries no
+committed key and keeps its machine tier in an unversioned local overlay
+(`~/.config/<topic>/answers.yaml`), which the topic merges below the committed
+machine tier. An unregistered machine inherits the shared answers and the run
+says so by name.
+
+The rendered env file for such a topic is an **artifact** of this registry, not
+a source of truth: direct edits are overwritten, and re-answering means editing
+the registry (or overlay) and re-running. Promote (machine → shared) propagates
+as a visible commit diff; demote (shared → machine) removes the shared default
+so future machines re-ask.
+
 
 **New repos.** The type is declared at clone time. No default pile, no
 post-hoc sorting pass.
