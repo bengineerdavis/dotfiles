@@ -12,7 +12,7 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).parents[2]
-TOPIC = REPO_ROOT / "dotfiles" / "apps" / "gita"
+TOPIC = REPO_ROOT / "home" / "dotfiles" / "apps" / "gita"
 ANSIBLE_PLAYBOOK = shutil.which("ansible-playbook")
 if ANSIBLE_PLAYBOOK is None:
     pytest.skip("ansible-playbook not available", allow_module_level=True)
@@ -106,7 +106,7 @@ def run_isolated_install(
         command.append("--check")
     return subprocess.run(
         command,
-        cwd=REPO_ROOT / "dotfiles",
+        cwd=REPO_ROOT / "home" / "dotfiles",
         env=env,
         capture_output=True,
         text=True,
@@ -254,7 +254,7 @@ def test_teardown_removes_work_group_before_fake_mise_unuse(tmp_path):
             "--tags",
             "remove",
         ],
-        cwd=REPO_ROOT / "dotfiles",
+        cwd=REPO_ROOT / "home" / "dotfiles",
         env=env,
         capture_output=True,
         text=True,
