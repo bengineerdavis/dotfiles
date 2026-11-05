@@ -132,7 +132,7 @@ def probe_backend(token: str) -> bool:
             text=True,
             timeout=PROBE_TIMEOUT,
         )
-    except OSError, subprocess.SubprocessError:
+    except (OSError, subprocess.SubprocessError):
         return False
     return result.returncode == 0
 

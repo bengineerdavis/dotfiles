@@ -31,6 +31,22 @@ required-version = ">=0.12.17"
 
 [tool.ruff]
 line-length = 88
+# The syntax level ruff may assume. Left unset it inherits requires-python
+# (>=3.14), and ruff-format then rewrites `except (A, B):` to the bare
+# `except A, B:` form that PEP 758 legalised in 3.14 only.
+#
+# This is the OLDEST interpreter that executes repo Python, not the newest we
+# prefer to run. Runtime policy is latest stable (3.14 today, free-threaded
+# from 3.15); formatter policy is the floor, because a formatter must emit code
+# the oldest executors accept. Two files here are run by interpreters we do not
+# choose: `scripts/*.py` go through pre-commit's `language: system` on the
+# host's python3, and the Ansible payload calls `/usr/bin/python3` directly
+# (apps/apt/tasks/keyrings.yaml:15), which is 3.10.12 on Debian 12.
+#
+# tests/test_python_floors.py is the guard: it parses every file at its
+# declared floor, so a file that drifts below this value fails loudly rather
+# than silently. Raise this only when that test reports no file beneath it.
+target-version = "py310"
 # Vendored application bundle, not repo Python.
 extend-exclude = [
     # Vendored application bundles - not repo Python.

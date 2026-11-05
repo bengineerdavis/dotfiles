@@ -108,7 +108,7 @@ def run_interactive_check(item: CheckItem, console: Console) -> bool:
             )
             try:
                 input()
-            except EOFError, KeyboardInterrupt:
+            except (EOFError, KeyboardInterrupt):
                 pass
         elif raw in ("s", "skip"):
             if not item.optional:
@@ -199,7 +199,7 @@ def run_tutorial(pages: list[tuple[str, str]], console: Console) -> None:
         if i < total:
             try:
                 console.input("[dim]  Press Enter for next…[/dim]  ")
-            except EOFError, KeyboardInterrupt:
+            except (EOFError, KeyboardInterrupt):
                 console.print()
                 break
         else:
@@ -242,7 +242,7 @@ def run_setup_wizard(
                 .strip()
                 .lower()
             )
-        except EOFError, KeyboardInterrupt:
+        except (EOFError, KeyboardInterrupt):
             ans = "n"
             console.print()
 
