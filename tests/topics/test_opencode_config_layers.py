@@ -188,7 +188,7 @@ def _chezmoidata_common() -> dict:
 
 
 @pytest.mark.parametrize(
-    "hostname,os_name", [("L37V3P6GQ3", "darwin"), ("unlisted-box", "linux")]
+    "hostname,os_name", [("test-mac", "darwin"), ("unlisted-box", "linux")]
 )
 def test_renders_deep_agent_on_both_oses(hostname, os_name):
     cfg = render(hostname, os_name)
@@ -203,7 +203,7 @@ def test_renders_deep_agent_on_both_oses(hostname, os_name):
 
 
 def test_loreai_setup_merges_with_model_overrides():
-    cfg = render("L37V3P6GQ3", "darwin")
+    cfg = render("test-mac", "darwin")
     assert "@loreai/opencode" not in cfg["plugin"]
     assert cfg["compaction"]["auto"] is False
     fragment = json.loads(
@@ -264,7 +264,7 @@ def test_permissions_array_replaces_map():
     Headline answers 1). `$schema` and `share` are unchanged by the migration
     and pinned here so the rewrite cannot quietly alter them.
     """
-    cfg = render("L37V3P6GQ3", "darwin")
+    cfg = render("test-mac", "darwin")
     perms = _permissions(cfg)
     assert "permission" not in cfg, (
         "the v1 'permission' map is still emitted alongside 'permissions' — "
@@ -283,7 +283,7 @@ def test_permissions_array_replaces_map():
 
 def test_update_replaces_autoupdate():
     """`autoupdate` is a legacy key; v2's native key is `update`."""
-    cfg = render("L37V3P6GQ3", "darwin")
+    cfg = render("test-mac", "darwin")
     assert cfg.get("update") == "notify", (
         f"rendered 'update' is {cfg.get('update')!r}, expected 'notify' — "
         "v2 renames autoupdate to update (enum disable|notify|auto); 'notify' "
@@ -303,7 +303,7 @@ def test_shell_catch_all_stays_first():
     appear exactly once: a second, trailing `*` rule shadows every allow
     again — the exact bug this block's 2026-09-16 comment describes.
     """
-    cfg = render("L37V3P6GQ3", "darwin")
+    cfg = render("test-mac", "darwin")
     shell = _rules(cfg, "shell")
     first = (shell[0].get("resource"), shell[0].get("effect"))
     assert first == ("*", "ask"), (
@@ -325,7 +325,7 @@ def test_shell_allows_follow_catch_all_and_find_carveouts_come_last():
     the catch-all (last-match), and the destructive-find denies must come
     AFTER the broad `find *` allow or they never fire.
     """
-    cfg = render("L37V3P6GQ3", "darwin")
+    cfg = render("test-mac", "darwin")
     shell = _rules(cfg, "shell")
     pairs = [(r.get("resource"), r.get("effect")) for r in shell]
     allow_at = {}
@@ -374,7 +374,7 @@ def test_read_allow_then_env_ask_comes_after():
     whatever v2's base policy actually uses on implementation day (PLAN.md
     author ruling 2).
     """
-    cfg = render("L37V3P6GQ3", "darwin")
+    cfg = render("test-mac", "darwin")
     read_rules = _rules(cfg, "read")
     allow_at = next(
         (
@@ -423,7 +423,7 @@ def test_external_directory_deny_first_allows_last_literal_home():
     (2026-10-16): agent-installed skills are readable even when the runtime's
     own per-skill auto-allow has not fired.
     """
-    cfg = render_with_home_sentinel("L37V3P6GQ3", "darwin")
+    cfg = render_with_home_sentinel("test-mac", "darwin")
     perms = _permissions(cfg)
     for rule in perms:
         resource = str(rule.get("resource", ""))
@@ -469,7 +469,7 @@ def test_permissions_identical_across_os_legs():
     """The permissions array is literal in the template and identical on
     every OS — the data merge must never touch it.
     """
-    darwin = _permissions(render("L37V3P6GQ3", "darwin"))
+    darwin = _permissions(render("test-mac", "darwin"))
     linux = _permissions(render("unlisted-box", "linux"))
     assert darwin == linux, (
         "the permissions array differs between the darwin and linux legs — "
@@ -509,7 +509,7 @@ def test_chezmoidata_pins_qwen35_for_trivial_roles():
 
 def test_ruling3_small_model_and_trivial_agents_render():
     """The ruling-3 chezmoidata values survive the merge and render."""
-    cfg = render("L37V3P6GQ3", "darwin")
+    cfg = render("test-mac", "darwin")
     assert cfg.get("small_model") == SMALL_MODEL, (
         f"rendered small_model is {cfg.get('small_model')!r}, expected "
         f"{SMALL_MODEL!r} — the chezmoidata pin did not survive the merge"
