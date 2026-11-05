@@ -82,4 +82,10 @@ opencode:
     darwin: {}
     linux: {}
   hosts:
-    L37V3P6GQ3: {}
+    # Keyed by chezmoi.hostname, and only where that hostname passes
+    # spec.md § Data's string test. The Mac's hostname is a hardware
+    # serial, so it carries no key here: its merges come from common and
+    # os.darwin. An unmatched hostname renders empty by design (the
+    # template's `| default dict` guard), so absent == no overrides.
+    # `{}` keeps the key typed as a map; a bare `hosts:` would be interface{}.
+    {}
