@@ -121,7 +121,13 @@
 
 - name: "Install: register repos that appeared under the work root (recursive walk, new finds land in the group)"
   ansible.builtin.command:
-    cmd: gita add -r -g {{ gita_work_group }} {{ gita_work_root }}
+    argv:
+      - gita
+      - add
+      - -r
+      - -g
+      - "{{ gita_work_group }}"
+      - "{{ gita_work_root }}"
   when: gita_work_root_probe.stat.exists
   # Re-adds of known repos warn harmlessly; discovery is gita's own state.
   changed_when: false
@@ -147,7 +153,8 @@
       {%-   endif -%}
       {%- endfor -%}
       {{ out }}
-  when: gita_work_root_probe.stat.exists
+  # Define the empty list even without a work root; the slurp's skipped
+  # result defaults to empty content, so downstream loops stay well-defined.
 
 - name: "Install: keep registrations whose repositories remain on disk"
   ansible.builtin.stat:

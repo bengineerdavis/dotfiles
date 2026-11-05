@@ -14,7 +14,9 @@ import yaml
 REPO_ROOT = Path(__file__).parents[2]
 TOPIC = REPO_ROOT / "dotfiles" / "apps" / "gita"
 ANSIBLE_PLAYBOOK = shutil.which("ansible-playbook")
-assert ANSIBLE_PLAYBOOK is not None, "run the suite with --with ansible-core"
+if ANSIBLE_PLAYBOOK is None:
+    pytest.skip("ansible-playbook not available", allow_module_level=True)
+assert ANSIBLE_PLAYBOOK is not None  # narrow the optional for pyrefly
 
 
 def load_tasks(name):
@@ -56,15 +58,18 @@ def run_isolated_install(
     fake_bin: Path | None = None,
     seed_repo: bool = True,
     config_env: str | None = "XDG_CONFIG_HOME",
+    work_root: bool = True,
+    work_root_name: str = "work",
 ):
     code = home / "code"
-    work = code / "work"
+    work = code / work_root_name
     repo = work / "local-only"
-    repo.mkdir(parents=True, exist_ok=True)
-    if seed_repo:
+    if work_root:
+        repo.mkdir(parents=True, exist_ok=True)
+    if seed_repo and work_root:
         subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)
     catalogue = code / "config" / "repos.yaml"
-    catalogue.parent.mkdir()
+    catalogue.parent.mkdir(parents=True)
     catalogue.write_text("repos: []\n")
     (home / ".config" / "mise").mkdir(parents=True)
     (home / ".config" / "gita").mkdir(exist_ok=True)
@@ -93,7 +98,9 @@ def run_isolated_install(
         "--tags",
         "install",
         "-e",
-        f"gita_catalogue_path={catalogue}",
+        json.dumps(
+            {"gita_catalogue_path": str(catalogue), "gita_work_root": str(work)}
+        ),
     ]
     if check:
         command.append("--check")
@@ -143,6 +150,14 @@ def test_registration_includes_local_only_repos_and_preserves_ghosts(
     assert {repo, ghost} == {Path(row[0]) for row in registrations}
 
 
+def test_missing_work_root_skips_reconciliation_without_failing(tmp_path):
+    result = run_isolated_install(tmp_path, work_root=False)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "No work tree at" in result.stdout
+    assert read_isolated_groups(tmp_path) == {"unrelated": []}
+    assert not (tmp_path / "xdg_config_home" / "gita" / "repos.csv").exists()
+
+
 def test_check_mode_writes_no_registration_state(tmp_path):
     check = run_isolated_install(tmp_path, check=True)
     assert check.returncode == 0, check.stdout + check.stderr
@@ -163,15 +178,19 @@ def test_spaced_repo_name_reaches_gita_as_one_argument(tmp_path):
     )
     script.chmod(0o755)
     home = tmp_path / "home"
-    repo = home / "code" / "work" / "local only"
+    repo = home / "code" / "work root" / "local only"
     repo.mkdir(parents=True)
     subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)
     (home / ".config" / "gita").mkdir(parents=True)
     (home / ".config" / "gita" / "repos.csv").write_text(f"{repo},local only,,\n")
     assert (repo / ".git").is_dir()
-    proc = run_isolated_install(home, fake_bin=fake_bin, seed_repo=False)
+    proc = run_isolated_install(
+        home, fake_bin=fake_bin, seed_repo=False, work_root_name="work root"
+    )
     assert proc.returncode == 0, proc.stdout + proc.stderr
     calls = [json.loads(line) for line in log.read_text().splitlines()]
+    walk = next(call for call in calls if call[:2] == ["add", "-r"])
+    assert walk == ["add", "-r", "-g", "work", str(home / "code" / "work root")]
     group_add = next(call for call in calls if call[:2] == ["group", "add"])
     assert group_add == ["group", "add", "-n", "work", "local only"], calls
 
