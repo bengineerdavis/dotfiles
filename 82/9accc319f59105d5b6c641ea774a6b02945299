@@ -1,0 +1,19 @@
+"backlog/tasks/dot-282 - Add-a-rust-topic-that-installs-rustup.md"
+  s_77d3b692985a60::t_f75f94e836af45 14-35,40-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "829accc319f59105d5b6c641ea774a6b02945299",
+  "prompts": {},
+  "sessions": {
+    "s_77d3b692985a60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8740494fffeKeLAPc4yoUweyC",
+        "model": "unknown"
+      },
+      "human_author": "Ben Davis <bengineerdavis@gmail.com>"
+    }
+  }
+}
