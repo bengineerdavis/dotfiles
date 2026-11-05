@@ -60,3 +60,22 @@ tasks created with `orchestration_split_task`; declare blockers with
   `orchestration_split_task` when it is not.
 - `autoCommit` is false: commit task files yourself under the house commit
   discipline.
+
+## The `--notes` trap
+
+`task --notes` and `task --append-notes` do not apply the flag. They print the
+description and drop into an interactive editor:
+
+```
+Actions: [E]dit in editor  [Q]uit
+```
+
+In a non-interactive run — an agent session, a worker, a subagent — that prompt
+gets no answer, the command aborts, and the note is discarded **without an error
+and without a non-zero exit**. Measured 2026-11-04 on two task updates; both
+looked like they had written and neither had.
+
+What works in an automated run: edit the task file directly, frontmatter
+included (`status:`, `updated_date:`), then verify with `backlog-py doctor`.
+Hand-editing is normally forbidden here — this is the documented exception, and
+it applies only to `--notes`, not to ids, statuses the tool owns, or leases.

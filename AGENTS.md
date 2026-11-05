@@ -697,6 +697,33 @@ bash home/dotfiles/executable_run-role.sh <topic> remove   # tear it down
 A bare `pytest tests` reports "24 passed, 89 skipped" and looks green while testing
 almost nothing — the `binned_module` fixture skips without `typer`/`questionary`.
 
+### Known failures
+
+Two suites fail on a clean checkout, for reasons outside the code. Expect these
+in every full run, and do not spend a session proving they are not yours:
+
+| Suite | Count | Why |
+|---|---|---|
+| `tests/clipped` | ~10 | Drives the real clipboard through subprocesses; needs a live `wl-copy`/`wl-paste` and a TTY. |
+| `tests/restart_stale` | 2 | Exercises launchd/systemd role behaviour that the test host does not have. |
+
+A full run on the reference host reads **12 failed, 1093 passed, 20 skipped**.
+Compared against a stashed baseline on the same machine, this count is the
+expected one rather than a regression signal. Tracked in DOT-73.
+
+Two ways to keep this cheap, in order of preference:
+
+```bash
+# Preferred: run the suites that can actually pass, in parallel.
+uv run --frozen --with pytest-xdist pytest tests tools -q -n auto --dist worksteal \
+  --ignore=tests/clipped --ignore=tests/restart_stale
+```
+
+`--ignore` is a deliberate choice for a fast loop and a bad habit for a merge
+gate: it would hide a real regression in those two directories. For a merge
+gate, run the full suite and compare the failure list against the table above —
+a change is green when the failure LIST matches, not when the count does.
+
 Without `pyyaml`, `tests/policy` drops from 22 tests to 15 passed / 1 skipped, and
 the skipped module is the one asserting the policy layers grant no permissions —
 so the check that matters most is the one that disappears quietest.
