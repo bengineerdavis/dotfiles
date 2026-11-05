@@ -22,6 +22,9 @@ instead, so the root holds only the five documents that govern the project.
 | `USAGE.md` | provisioning and topic-operation commands |
 | `WORKTREES.md` | the agent-worktree naming contract and lifecycle: `.worktrees/<sid>`, one writer per worktree, ephemeral merge scratch |
 | `LINK-CHECKING.md` | Lychee's offline commit checks and reviewed external-link validation |
+| `TRUST-LADDER.md` | the autonomy rungs, promotion and demotion counts, incident classes, ageing |
+| `TESTING.md` | mutation proving, property tests and fuzzing: the working detail behind `AGENTS.md` § Tests |
+| `CROSS-PLATFORM.md` | traps that have bitten on both macOS and Debian |
 
 ## Adding one
 
