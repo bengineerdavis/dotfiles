@@ -3,7 +3,18 @@ topic_name: mise
 # ffmpeg is not a mise tool — it is a system package this topic installs in
 # prerequisites.yaml because the llm-video-frames plugin shells out to it. It is
 # advertised here so other topics can depend on it via topic_requires: [ffmpeg].
-topic_provides: [mise, python, ffmpeg, node]
+#
+# rust is advertised because the `rust = "latest"` entry in config.toml does not
+# merely install a compiler — mise's core:rust backend downloads rustup-init and
+# runs it, so this topic owns the rustup channel. Verified on a clean HOME
+# 2026-11-04: `mise exec rust -- cargo --version` fetched rustup-init, set the
+# default toolchain, and returned cargo 1.99.1 with no other setup. rustup keeps
+# the toolchain in ~/.rustup and its shims in ~/.cargo/bin; mise symlinks
+# installs/rust/<version> at that directory rather than copying it, which is why
+# there is no `mise sync rust` subcommand (mise sync offers python/node/ruby
+# only — the linking is inside the backend). Do not add a rust topic that runs
+# rustup-init: that would be a second installer for the same channel.
+topic_provides: [mise, python, ffmpeg, node, rust, rustup, cargo]
 topic_requires: []                   # pkg-manager is OS-specific, guarded in-task (brew on Darwin, apt on Debian)
 topic_os: [Darwin, Debian]
 topic_tier: runtime-manager
