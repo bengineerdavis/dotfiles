@@ -30,6 +30,15 @@
   ansible.builtin.set_fact:
     loreai_registry_dir: "{{ loreai_registry_dir | default(role_path | dirname | dirname, true) }}"
 
+- name: "loreai: default the local overlay path"
+  # The loader is importable without role defaults (tests do exactly that),
+  # so its own inputs carry a fallback mirroring defaults/main.yaml. A
+  # separate task, because default()'s argument evaluates eagerly and
+  # ansible_env is absent in a facts-less harness.
+  ansible.builtin.set_fact:
+    loreai_local_overlay_file: "{{ ansible_facts['env']['HOME'] }}/.config/loreai/answers.yaml"
+  when: loreai_local_overlay_file is not defined
+
 - name: "loreai: locate machines.yml"
   ansible.builtin.stat:
     path: "{{ loreai_registry_dir }}/machines.yml"
@@ -69,11 +78,49 @@
     loreai_registry_machine: >-
       {{ (loreai_registry.get('machines', {}).get(ansible_hostname, {}).get('provisioning', {}).get('loreai', {})) }}
 
+# ── The local overlay (machine tier for hosts whose hostname cannot be committed) ──
+# A machine whose ansible_hostname fails spec.md § Data's string test (a
+# hardware serial, say) carries no committed key. Its machine tier lives here
+# instead: an unversioned file on that machine, same per-topic shape. The
+# committed registry stays authoritative where it speaks — the overlay fills
+# only what the registry cannot answer.
+
+- name: "loreai: locate the local overlay"
+  ansible.builtin.stat:
+    path: "{{ loreai_local_overlay_file }}"
+  register: loreai_overlay_stat
+
+- name: "loreai: load the local overlay"
+  when: loreai_overlay_stat.stat.exists
+  block:
+    - name: "loreai: parse the local overlay"
+      ansible.builtin.set_fact:
+        loreai_overlay: "{{ lookup('ansible.builtin.file', loreai_local_overlay_file) | from_yaml }}"
+  rescue:
+    - name: "loreai: fail loud on a malformed local overlay"
+      ansible.builtin.fail:
+        msg: >-
+          {{ loreai_local_overlay_file }} is not valid YAML
+          ({{ ansible_failed_result.msg | default('parse error') }}).
+          Fix: validate it, or delete it to inherit the shared answers.
+          Nothing has been installed or changed.
+
+- name: "loreai: normalize the overlay when absent"
+  ansible.builtin.set_fact:
+    loreai_overlay: "{{ {} }}"
+  when: not loreai_overlay_stat.stat.exists
+
+- name: "loreai: extract the overlay's machine answers"
+  ansible.builtin.set_fact:
+    loreai_overlay_machine: >-
+      {{ (loreai_overlay.get('provisioning', {}).get('loreai', {})) }}
+
 - name: "loreai: settle the registry answers (machine tier wins)"
   ansible.builtin.set_fact:
-    loreai_registry_telemetry: "{{ loreai_registry_machine.get('telemetry', loreai_registry_shared.get('telemetry', none)) }}"
-    loreai_registry_inference: "{{ loreai_registry_machine.get('inference', loreai_registry_shared.get('inference', none)) }}"
-    loreai_registry_worker_model: "{{ loreai_registry_machine.get('worker_model', loreai_registry_shared.get('worker_model', none)) }}"
+    loreai_registry_telemetry: "{{ loreai_registry_machine.get('telemetry', loreai_overlay_machine.get('telemetry', loreai_registry_shared.get('telemetry', none))) }}"
+    loreai_registry_inference: "{{ loreai_registry_machine.get('inference', loreai_overlay_machine.get('inference', loreai_registry_shared.get('inference', none))) }}"
+    loreai_registry_worker_model: "{{ loreai_registry_machine.get('worker_model', loreai_overlay_machine.get('worker_model', loreai_registry_shared.get('worker_model', none))) }}"
+
 
 - name: "loreai: note whether the registry answers anything"
   ansible.builtin.set_fact:
@@ -92,10 +139,25 @@
       worker_model={{ 'unset' if loreai_registry_worker_model is none else loreai_registry_worker_model }}.
   when: loreai_registry_has_answers
 
+- name: "loreai: report when no machine entry matches this host"
+  # Normal, not an error: a machine absent from the registry inherits the
+  # shared tier. Said out loud every run so an expecting-an-override author
+  # is never left guessing. A hostname that cannot be committed lives here
+  # permanently and uses the local overlay for its machine tier.
+  ansible.builtin.debug:
+    msg: >-
+      No machine entry in {{ loreai_registry_dir }}/machines.yml matches this
+      host ({{ ansible_hostname }}): shared answers apply.
+      {{ ('Local overlay in force: ' + loreai_local_overlay_file + '.')
+         if loreai_overlay_machine | length > 0
+         else ('If this machine must diverge, put its answers in '
+               + loreai_local_overlay_file + ' (unversioned, machine-local).') }}
+  when: loreai_registry_machine | length == 0
+
 - name: "loreai: report machine answers that diverge from shared answers"
   # Decision-1: an override survives and is reported loudly, so a promote
   # that leaves a stale machine override is visible in every run.
-  loop: "{{ loreai_registry_machine | dict2items }}"
+  loop: "{{ (loreai_registry_machine | combine(loreai_overlay_machine)) | dict2items }}"
   loop_control:
     label: "loreai divergence: {{ item.key }}"
   debug:

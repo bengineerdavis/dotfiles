@@ -133,7 +133,10 @@
          else ((loreai_telemetry_answer.user_input | default('') | trim)
                if (loreai_telemetry_answer.user_input | default('') | trim) in ['0', '1']
                else '1') }}
-  when: not loreai_env_stat.stat.exists
+  # Also when the registry answers: the env file is an artifact of the
+  # registry, so a registry-driven run re-renders it (byte-identical when
+  # nothing changed).
+  when: not loreai_env_stat.stat.exists or loreai_registry_has_answers | bool
 
 - name: "loreai: settle the inference answer (-e beats prompt beats detection)"
   ansible.builtin.set_fact:
@@ -144,15 +147,17 @@
                if (loreai_inference_answer.user_input | default('') | trim | lower)
                   in ['openrouter', 'local', 'none']
                else loreai_inference_default) }}
-  when: not loreai_env_stat.stat.exists
+  when: not loreai_env_stat.stat.exists or loreai_registry_has_answers | bool
 
 - name: "loreai: validate the inference answer"
   ansible.builtin.fail:
     msg: >-
       loreai_inference must be one of openrouter, local, none —
       got '{{ loreai_inference_final }}'. Nothing has been installed or changed.
+  # Also when the registry answers: a bad committed value must fail loud
+  # rather than render into the artifact.
   when: >
-    not loreai_env_stat.stat.exists
+    (not loreai_env_stat.stat.exists or loreai_registry_has_answers | bool)
     and loreai_inference_final not in ['openrouter', 'local', 'none']
 
 - name: "loreai: validate the telemetry answer"
@@ -161,7 +166,7 @@
       loreai_telemetry must be 0 or 1 — got '{{ loreai_telemetry_final }}'.
       Nothing has been installed or changed.
   when: >
-    not loreai_env_stat.stat.exists
+    (not loreai_env_stat.stat.exists or loreai_registry_has_answers | bool)
     and loreai_telemetry_final | string not in ['0', '1']
 
 - name: "loreai: default the worker model from the inference choice"
@@ -173,7 +178,7 @@
                if loreai_inference_final == 'openrouter'
                else (loreai_worker_model_local_default
                      if loreai_inference_final == 'local' else '')) }}
-  when: not loreai_env_stat.stat.exists
+  when: not loreai_env_stat.stat.exists or loreai_registry_has_answers | bool
 
 - name: "loreai: save the answers per machine"
   # The directory itself is created in install.yaml, tagged [install,
@@ -183,7 +188,7 @@
     src: loreai-env.zsh.j2
     dest: "{{ loreai_env_file }}"
     mode: "0600"
-  when: not loreai_env_stat.stat.exists
+  when: not loreai_env_stat.stat.exists or loreai_registry_has_answers | bool
 
 - name: "loreai: converge the temporary OpenAI-protocol upstream"
   # Unlike the first-install template, this also updates existing answer files.
