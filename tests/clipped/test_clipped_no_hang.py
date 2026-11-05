@@ -78,3 +78,28 @@ def test_copy_survives_a_daemonizing_backend(clip_env):
     assert result.returncode == 0
     captured = (clip_env / "daemon-capture").read_text()
     assert captured == "hello clipboard"
+
+
+def test_copy_failure_keeps_the_backend_diagnostic(clip_env):
+    """A failing backend's own stderr text reaches the user: it goes to a
+    temp file, not DEVNULL, and rides along in the die() message.
+    """
+    _skip_if_source_missing()
+
+    # A copy backend that fails with a diagnostic on stderr, the shape a
+    # user actually hits when the backend is broken (xclip with no display).
+    hostile = clip_env / "mockbin" / "xclip"
+    hostile.write_text(
+        "#!/usr/bin/env bash\necho 'xclip: cannot open display (fake)' >&2\nexit 1\n"
+    )
+    hostile.chmod(0o755)
+
+    result = subprocess.run(
+        [str(SOURCE), "copy"],
+        input="hello clipboard",
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    assert result.returncode != 0
+    assert "xclip: cannot open display (fake)" in result.stderr
