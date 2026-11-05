@@ -12,9 +12,23 @@ import yaml
 from loreai_service_helpers import JINJA, TOPIC, render_env_file
 
 
+FITZ_NOTICE = (
+    "warning: The `fitz` API is deprecated and will be removed in future. "
+    "Use `import pymupdf` instead."
+)
+
+
 @pytest.mark.parametrize("shell", ["bash", "dash"])
 def test_env_file_resolves_openrouter_key_in_service_shells(tmp_path, shell):
-    """One env file works in launchd and Debian service shells."""
+    r"""One env file works in launchd and Debian service shells.
+
+    The `llm` stub prints a decoy line before the key, because the real
+    tool does: its PyMuPDF plugin writes that notice to STDOUT, so a
+    plain capture takes two lines. A stub printing only the key would
+    pass against the broken template. Measured 2026-11-02, the gateway
+    ran with a 98-byte `warning: ...\nsk-or-v1-...` key and lost every
+    background worker.
+    """
     shell_path = shutil.which(shell)
     if shell_path is None:
         pytest.skip(f"{shell} is not installed on this host")
@@ -22,7 +36,9 @@ def test_env_file_resolves_openrouter_key_in_service_shells(tmp_path, shell):
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     llm = bin_dir / "llm"
-    llm.write_text("#!/bin/sh\nprintf 'dummy-openrouter-key\\n'\n")
+    llm.write_text(
+        f"#!/bin/sh\nprintf '%s\\n' '{FITZ_NOTICE}'\nprintf 'dummy-openrouter-key\\n'\n"
+    )
     llm.chmod(0o755)
     env_file = tmp_path / "env.zsh"
     env_file.write_text(render_env_file())
