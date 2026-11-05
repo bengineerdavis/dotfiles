@@ -4,13 +4,14 @@ inherited descriptors open must not hang clipped's caller.
 Bought by DOT-73 on 2026-11-01: real xclip forks a daemon to serve the X
 selection, and the child keeps every inherited stdout/stderr open. When a
 caller captures clipped's output (pytest, a CI pipe) it never sees EOF and
-blocks until its timeout. The fix sends the copy backend's stdout/stderr to
-DEVNULL, so there is no inherited pipe for the daemon to hold.
+blocks until its timeout. The fix sends the copy backend's stdout to DEVNULL
+and its stderr to a temp file — a pipe on either would reintroduce the hang,
+since the daemon holds the write-end open — so no inherited pipe is left for
+the daemon to hold and a failing backend's diagnostic still reaches the user.
 """
 
 from __future__ import annotations
 
-import hashlib
 import pathlib
 import subprocess
 
@@ -88,11 +89,19 @@ def test_copy_failure_keeps_the_backend_diagnostic(clip_env):
 
     # A copy backend that fails with a diagnostic on stderr, the shape a
     # user actually hits when the backend is broken (xclip with no display).
-    hostile = clip_env / "mockbin" / "xclip"
-    hostile.write_text(
-        "#!/usr/bin/env bash\necho 'xclip: cannot open display (fake)' >&2\nexit 1\n"
-    )
-    hostile.chmod(0o755)
+    # Both first candidates go hostile — xclip on Linux, pbcopy on Darwin —
+    # so whichever table the host platform picks, the failing backend is
+    # chosen. Replacing only xclip lets a Darwin host fall through to the
+    # well-behaved pbcopy fake, where the copy succeeds and the
+    # nonzero-returncode assertion below fails for the wrong reason.
+    for tool in ("xclip", "pbcopy"):
+        hostile = clip_env / "mockbin" / tool
+        hostile.write_text(
+            "#!/usr/bin/env bash\n"
+            f"echo '{tool}: cannot open display (fake)' >&2\n"
+            "exit 1\n"
+        )
+        hostile.chmod(0o755)
 
     result = subprocess.run(
         [str(SOURCE), "copy"],
@@ -102,4 +111,6 @@ def test_copy_failure_keeps_the_backend_diagnostic(clip_env):
         timeout=20,
     )
     assert result.returncode != 0
-    assert "xclip: cannot open display (fake)" in result.stderr
+    # Backend name in the diagnostic varies by platform (xclip on Linux,
+    # pbcopy on Darwin); the message body is what both fakes share.
+    assert "cannot open display (fake)" in result.stderr
