@@ -21,7 +21,33 @@ Measurement that settles the mechanism (2026-11-04): mise's `rust` key resolves 
 - `mise registry` → `rust core:rust asdf:code-lever/asdf-rust`
 - `mise exec rust -- cargo --version` → `cargo 1.99.0`, rc=0
 
-So rustup and mise are not competing channels; they are one channel with the toolchain living in `~/.rustup` and mise symlinking into it. The real gap is ownership: **no topic installs rustup.** On this machine it arrived by hand in March 2025 and survives because `home/dot_zshrc.tmpl:335-336` sources the untracked rustup-generated `~/.cargo/env`. A fresh or half-applied box has no documented install story — `dotfiles/bootstrap/bootstrap.sh` installs no rust, and `~/.cargo/env` does not exist until something creates it. `cargo` is not on a bare PATH either (verified with `env -i`).
+So rustup and mise already share one toolchain — but not through `mise sync`. Note
+that `mise sync` has only `python`, `node`, and `rust` is absent:
+
+```
+mise sync --help
+  node    Symlink node versions installed by nvm, nodenv, or Homebrew into mise
+  python  Symlink python versions installed by pyenv or uv into mise
+  ruby    Symlink ruby versions installed by Homebrew into mise
+```
+
+For rust the linking is built into the `core:rust` backend itself — that is why
+`installs/rust/<version>` is a symlink into `~/.cargo/bin` rather than a private
+toolchain copy. Any task or README written for this topic must say that, so nobody
+adds a `mise sync rust` call that does not exist, and nobody "fixes" the symlink
+into a real install and thereby creates the second channel this ruling forbids.
+
+Precedent for the ownership model: DOT-113 (Shift Python ownership from mise to uv,
+mise syncing) and DOT-112 (mise declares `topic_requires: [uv]`, plus an idempotent
+`mise reshim`). This task is the same shape for rust, with the difference above:
+rust needs no `mise sync` subcommand because its backend already symlinks.
+
+The real gap is ownership: **no topic installs rustup.** On this machine it arrived
+by hand in March 2025 and survives because `home/dot_zshrc.tmpl:335-336` sources the
+untracked rustup-generated `~/.cargo/env`. A fresh or half-applied box has no
+documented install story — `dotfiles/bootstrap/bootstrap.sh` installs no rust, and
+`~/.cargo/env` does not exist until something creates it. `cargo` is not on a bare
+PATH either (verified with `env -i`).
 
 Scope of the topic:
 
