@@ -1,11 +1,12 @@
 ---
 id: DOT-282
 title: Add a rust topic that installs rustup
-status: To Do
+status: Done
 created_date: 2026-11-03 03:17
 labels:
 - now
 priority: high
+updated_date: 2026-11-05 03:51
 ---
 
 ## Description
@@ -80,7 +81,24 @@ DOT-281 (lychee cargo fallback) depends on this: its cargo backend needs cargo t
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Landed as PR #118. Investigation showed mise already installs rustup: its `rust`
+key resolves to the `core:rust` backend, which downloads and runs rustup-init.
+Proven on a clean HOME with empty .cargo/.rustup/MISE_DATA_DIR —
+`mise exec rust -- cargo --version` fetched rustup-init, set the default
+toolchain, and returned cargo 1.99.1.
 
+So no rust topic was created. A topic running rustup-init would have been a
+second installer for a channel mise already owns, which is the duplicate-channel
+hazard AGENTS.md records for roborev.
+
+What was actually missing was the declaration. `apps/mise/topic_provides` gained
+rust, rustup, and cargo, so a topic declaring `topic_requires: [cargo]` resolves
+instead of failing with TOPIC_NOT_RUN. Four tests in
+tests/topics/test_rust_ownership.py hold it, each mutation-proven.
+
+Not done: macOS was not run. The same backend would be used and rustup-init
+publishes an aarch64-apple-darwin build, but nothing executed on L37V3P6GQ3.
+That machine's real gap is Xcode Command Line Tools, which no topic installs.
 <!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done

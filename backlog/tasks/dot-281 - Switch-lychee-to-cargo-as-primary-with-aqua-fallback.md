@@ -1,13 +1,14 @@
 ---
 id: DOT-281
 title: Switch lychee to cargo as primary with aqua fallback
-status: To Do
+status: Done
 created_date: 2026-11-03 03:17
 labels:
 - now
 priority: high
 dependencies:
 - DOT-282
+updated_date: 2026-11-05 03:51
 updated_date: 2026-11-03 03:17
 ---
 
@@ -65,7 +66,27 @@ aqua builds (`0.24/`, `0.24.2/`) fail identically.
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Landed as PR #120. scripts/check-docs-links.py now tries
+`cargo:lycheeverse/lychee` first and falls back to `aqua:lycheeverse/lychee@0.24.2`.
 
+The aqua 0.24.2 binary needs GLIBC 2.38/2.39 and this machine has 2.35, so it
+could not execute at all. The condition was pre-existing and reproducible on a
+clean checkout, and it blocked two commits.
+
+Two properties are enforced by tests, each proven by mutation:
+
+- Fall-through happens only on failure-to-execute. A backend that runs and finds
+  a broken link reports it and stops, because retrying would let the second
+  backend pass and erase the finding.
+- When no backend executes, the script exits 2 and names the install command. A
+  skipped check and a passing check look identical in a commit log.
+
+Verified in place: the hook that failed twice now passes, and the docs commit it
+had blocked went through. The suite's pre-existing lychee failure is fixed.
+
+The mise config deliberately keeps a single lychee entry. Two entries providing
+one binary is the shadowing hazard TOPIC-RECIPES.md records, so the script
+chooses the backend rather than the config.
 <!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
