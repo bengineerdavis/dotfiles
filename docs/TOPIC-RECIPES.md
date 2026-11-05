@@ -88,6 +88,20 @@ Two questions decide it: **which machines run it** and **who upgrades it**.
 | Release artifact | Full topic control; no manager carries it | The topic itself, `[install, upgrade]`-tagged with checksums | Verify checksums are actually published before choosing; v0.x churn means frequent bumps |
 | npm/pipx/cargo | Part of an existing mise-managed family | `mise upgrade` | Belongs in `apps/mise/files/config.toml`, not a private install; declare the dependency, do not install directly |
 
+**Rust is a mise entry, not a toolchain topic.** `rust = "latest"` in
+`apps/mise/files/config.toml` installs rustup itself — the `core:rust` backend
+downloads `rustup-init` and runs it (measured on a clean `HOME`, 2026-11-04:
+`mise exec rust -- cargo --version` fetched rustup-init and returned cargo
+1.99.1). rustup then owns the toolchain in `~/.rustup`, and mise symlinks
+`installs/rust/<version>` at `~/.cargo/bin` rather than copying it. So `apps/mise`
+advertises `rust`, `rustup`, and `cargo` in `topic_provides`, and a consumer
+declares `topic_requires: [cargo]` instead of installing a compiler.
+
+Do not add a rust topic that runs `rustup-init`: it would be a second installer
+for a channel this topic already owns. There is also no `mise sync rust` to call
+— `mise sync` covers `python`, `node`, and `ruby` only, because rust's linking
+lives inside its backend.
+
 **Runtime+config bundles.** A tool that is a binary *plus* a service *plus*
 config is still one topic; the mechanism table decides only the binary.
 
