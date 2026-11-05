@@ -470,6 +470,20 @@ permission is `ask`; the prompt is the approval step, not a formality. Read-only
 never checks drift is how twenty days of uncaptured work accumulated in
 `aliases.zsh`.
 
+**Use `czd`, not `chezmoi diff`, to read drift.** `chezmoi diff` honours
+`[diff] command` from `~/.config/chezmoi/chezmoi.toml`, which on this fleet is
+meld: a GUI that writes nothing to stdout and exits 0. A piped or agent-driven
+`chezmoi diff` therefore reads as "no differences" on a machine that differs —
+measured 2026-11-02, where a drifted `opencode.jsonc` produced empty output and
+exit 0. `czd` calls `chezmoi diff --use-builtin-diff`, which bypasses the
+graphical command and writes a unified diff to stdout. The meld config stays as
+the author's interactive preference; `--use-builtin-diff` is the per-call
+override, so nothing is changed for the human running it by hand.
+
+`czd` also exits **1 when drift exists and 2 on error**, because `chezmoi diff`
+exits 0 either way. A drift check that cannot fail is indistinguishable from one
+that passed, so a caller can branch on `$?` rather than parse output.
+
 The reason for the ordering is structural: there is one deployed tree and it
 cannot be branched. `~/dotfiles` is a single set of files no matter how many
 branches hold versions of them, so two agents applying from two branches

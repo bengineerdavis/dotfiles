@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+#
+# czd — chezmoi drift, as text.
+#
+# `chezmoi diff` honours `[diff] command` from the user's config, which on this
+# machine is meld: a GUI that prints nothing to stdout and exits 0. An agent (or
+# a piped shell) therefore reads "no differences" from a file that may differ.
+# `--use-builtin-diff` bypasses `diff.command` and writes a unified diff to
+# stdout, which is what a non-graphical caller needs. The graphical config is
+# left alone: it is the author's interactive preference and not this script's
+# business to change.
+#
+# Usage:
+#   czd                     drift for every managed target
+#   czd ~/.config/opencode  drift for one target (chezmoi resolves the path)
+#   czd --stat              one line per drifted target, no hunks
+#
+# Exit status:
+#   0  no drift (or --stat always 0 once the listing is printed)
+#   1  drift found
+#   2  chezmoi is not installed, or the target does not exist
+#
+# The exit status is the point. A checker that cannot fail is indistinguishable
+# from a checker that passed, so a caller can branch on $? instead of parsing
+# output.
+#
+# Dependencies: chezmoi (mise or Homebrew; `chezmoi --version`).
+
+# bash strict mode
+set -euo pipefail
+IFS=$'\n\t'
+
+require() {
+    command -v "$1" >/dev/null 2>&1 && return 0
+    printf 'czd: %s is not on PATH. Install the topics: %s\n' "$1" \
+        './update.sh (chezmoi comes from the mise or Homebrew topic)' >&2
+    exit 2
+}
+
+require chezmoi
+
+mode=full
+case "${1:-}" in
+    --stat) mode=stat; shift ;;
+    -h|--help)
+        sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'
+        exit 0
+        ;;
+esac
+
+# chezmoi owns the target-path resolution (templates, absolute and relative
+# forms, `~`). Passing the arguments through keeps this script from
+# reimplementing it and disagreeing with the tool.
+targets=("$@")
+
+set +e
+case "$mode" in
+    stat)
+        # The second column of `chezmoi status` is empty for a clean target.
+        # Everything with content in it either differs now or will after apply.
+        out=$(chezmoi status "${targets[@]+"${targets[@]}"}" 2>&1)
+        rc=$?
+        if [ "$rc" -ne 0 ]; then
+            printf '%s\n' "$out" >&2
+            exit 2
+        fi
+        drift=0
+        while IFS= read -r line; do
+            [ -n "$line" ] || continue
+            col2=${line:1:1}
+            [ "$col2" = " " ] && continue
+            drift=1
+            printf '%s\n' "$line"
+        done <<< "$out"
+        exit $drift
+        ;;
+    full)
+        # stdout and stderr are captured apart on purpose. `chezmoi diff`
+        # exits 0 whether or not targets differ, so ANY nonzero status is a
+        # failure, not "drift found" — folding stderr into the diff would
+        # turn "not managed" into a phantom hunk.
+        errfile=$(mktemp)
+        trap 'rm -f "$errfile"' EXIT
+        out=$(chezmoi diff --use-builtin-diff "${targets[@]+"${targets[@]}"}" 2>"$errfile")
+        rc=$?
+        err=$(cat "$errfile")
+        ;;
+esac
+set -e
+
+if [ "$rc" -ne 0 ]; then
+    printf 'czd: chezmoi diff failed (exit %s): %s\n' "$rc" "$err" >&2
+    exit 2
+fi
+
+if [ -z "$out" ]; then
+    exit 0
+fi
+
+printf '%s\n' "$out"
+exit 1
