@@ -8,10 +8,8 @@ labels:
 priority: high
 updated_date: 2026-10-28 20:18
 orchestration:
-  status_key: inprogress
+  status_key: done
   version: 3
-  lease_owner: opencode
-  lease_expires_at: '2026-10-28T18:21:44.960513Z'
 ---
 
 ## Description
