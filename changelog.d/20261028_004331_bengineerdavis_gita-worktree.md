@@ -1,11 +1,11 @@
 ### Added
 
 - **`apps/gita` now owns the work-tree registration.** Every install
-  reconciles `~/code/work` into a single `work` group: registrations whose
-  repos left the machine are pruned, repos that appeared are registered by
-  the recursive walk (which skips vendored dot-directories), and every
-  work-tree repo lands in the group — so `gita fetch` / `gita pull` cover
-  the whole tree. Work repo names still never enter the committed catalogue
+  reconciles `~/code/work` into a single `work` group: new repos are registered
+  by the recursive walk (which skips vendored dot-directories), and the
+  complete registration index includes local-only repos independently of the
+  active context. Gita filters missing paths from its own reads; its CLI cannot
+  prune those ghosts. Work repo names still never enter the committed catalogue
   (spec.md § Data); discovery, not declaration, is their source of truth.
 
 ### Changed

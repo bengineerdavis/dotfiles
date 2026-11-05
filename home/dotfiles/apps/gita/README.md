@@ -72,6 +72,10 @@ declarative mise module/role (call mise like apt/homebrew) is queued in
 - **Duplicate basenames.** `github/gitignore` was cloned twice; gita names
   repos by basename, so only one copy is in the catalogue. Two git repos with
   the same basename still collide in gita.
+- **Spaces in repository names.** The topic passes each name to `gita` as one
+  argument. Gita's own `groups.csv` separates members with spaces, so such a
+  name cannot round-trip through its group storage. This is a gita limitation,
+  not something the topic can repair by quoting or editing gita's state.
 - **Stay out of `gita`'s file.** `repos.csv`/`groups.csv` are gita's own
   state; the topic writes them via gita's first-party `add`, never by editing
   the CSV directly.
@@ -82,15 +86,19 @@ employer-identifying strings never enter the committed repo). Their
 registration is discovery-driven instead — every `--tags install` reconciles
 gita against the disk under `gita_work_root` (`~/code/work`):
 
-1. **Prune** registrations whose repo left the machine (`gita rm` — also
-   removes them from the group).
-2. **Register** what appeared: a recursive `gita add -r` walk; new finds land
+1. **Register** what appeared: a recursive `gita add -r` walk; new finds land
    straight in the group. The walk globs `**/` which never matches
    dot-directories, so vendored trees (`.venv`, `node_modules`) are never
    registered.
-3. **Sweep**: every work-tree registration into the single `gita_work_group`
+2. **Sweep**: every work-tree registration into the single `gita_work_group`
    (`work` — generic name; the group name is committed, repo names never are).
+   The complete registration CSV is read, never edited: unlike `gita freeze`,
+   it includes local-only repos and ignores the active context.
 
-`gita fetch` / `gita pull` then cover the whole tree through the group.
+`gita fetch` / `gita pull` then cover every registered repository with a
+remote. Local-only repositories remain registered and grouped but have nothing
+to fetch or pull. Gita's own reads filter registrations whose paths disappear;
+the first-party `gita rm` cannot remove those ghosts, so this topic does not
+pretend to prune them.
 `--tags remove` drops the group (the registrations themselves leave only
 behind the `gita_remove_registration` gate, same as personal repos).
