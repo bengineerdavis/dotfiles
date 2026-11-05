@@ -7,7 +7,6 @@ created_date: 2026-11-05 00:24
 labels:
 - queue-integrity
 ordinal: 1
-updated_date: 2026-11-05 00:41
 ---
 
 ## Description
@@ -23,7 +22,7 @@ Mechanism (source-read, backlog-py 2.2.0): with checkActiveBranches: true (activ
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-Author ruling 2026-11-04: do NOT disable checkActiveBranches — the feature stays. Repair must go through branch hygiene (retire merged branches) and/or the upstream fix (auto-skip refs merged into main). Flag-off is off the table.
+
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary

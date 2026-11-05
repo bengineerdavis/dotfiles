@@ -5,7 +5,7 @@ title: Consolidate opencode.json and opencode.jsonc to one config file, defaulti
 status: To Do
 created_date: 2026-10-29 21:46
 references:
-- backlog/decisions/decision-1 - VM-verify-config-and-symlink-deployments-before-apply-merge-and-PR-gates.md
+- backlog/decisions/decision-3 - VM-verify-config-and-symlink-deployments-before-apply-merge-and-PR-gates.md
 orchestration:
   status_key: inprogress
   lease_owner: opencode-d274

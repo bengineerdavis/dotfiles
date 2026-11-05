@@ -1,5 +1,5 @@
 ---
-id: decision-1
+id: decision-3
 title: VM-verify config and symlink deployments before apply, merge, and PR gates
 date: 2026-10-29 21:46
 status: proposed

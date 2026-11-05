@@ -5,7 +5,7 @@ title: 'Build the VM-verified config gate: pre-PR and CI enforcement for destabi
 status: To Do
 created_date: 2026-10-29 21:46
 references:
-- backlog/decisions/decision-1 - VM-verify-config-and-symlink-deployments-before-apply-merge-and-PR-gates.md
+- backlog/decisions/decision-3 - VM-verify-config-and-symlink-deployments-before-apply-merge-and-PR-gates.md
 ---
 
 ## Description
