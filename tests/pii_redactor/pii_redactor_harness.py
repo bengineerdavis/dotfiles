@@ -11,7 +11,28 @@ from __future__ import annotations
 
 import pathlib
 
-SCRIPT = pathlib.Path.home() / "bin" / "pii-redactor"
+
+def _resolve_script() -> pathlib.Path:
+    """The pii-redactor source, whether or not it has been deployed.
+
+    The suite used to hardcode `~/bin/pii-redactor`. That file exists only
+    after `chezmoi apply`, so on a fresh clone — and in CI — the whole suite
+    silently skipped or failed on `FileNotFoundError`, depending on whether
+    the fixture or the process runner got there first.
+
+    The tests need the script's SOURCE, which is always present in the repo;
+    running it from the source path exercises the same code. Prefer the
+    deployed copy when it exists, because that is what a user runs.
+    """
+    deployed = pathlib.Path.home() / "bin" / "pii-redactor"
+    if deployed.is_file():
+        return deployed
+    # tests/pii_redactor/pii_redactor_harness.py -> repo root
+    repo = pathlib.Path(__file__).resolve().parents[2]
+    return repo / "home" / "bin" / "executable_pii-redactor"
+
+
+SCRIPT = _resolve_script()
 
 # Small local model with thinking disabled, so the real-model tests stay quick.
 INTEGRATION_MODEL = "qwen3.5:4b-mlx-bf16"
