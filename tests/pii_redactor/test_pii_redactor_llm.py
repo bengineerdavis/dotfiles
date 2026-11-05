@@ -34,9 +34,17 @@ def real_env():
     # and `llm -m <absent>` fails inside the test with an error that looks
     # like a redactor bug. Name the absence and skip instead — a capable
     # machine still exercises these tests.
-    probe = subprocess.run(
-        ["ollama", "list"], capture_output=True, text=True, check=False
-    )
+    if shutil.which("ollama") is None:
+        # Guard the binary before probing it: without this a missing ollama
+        # raises FileNotFoundError from subprocess.run instead of skipping
+        # with a reason — the environmental-failure shape DOT-73 closes out.
+        pytest.skip("ollama not on PATH — cannot confirm the integration model")
+    try:
+        probe = subprocess.run(
+            ["ollama", "list"], capture_output=True, text=True, check=False
+        )
+    except FileNotFoundError:
+        pytest.skip("ollama not on PATH — cannot confirm the integration model")
     if probe.returncode != 0:
         pytest.skip("ollama not reachable — cannot confirm the integration model")
     installed = {line.split()[0] for line in probe.stdout.splitlines() if line.strip()}
