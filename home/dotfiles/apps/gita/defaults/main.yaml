@@ -29,6 +29,12 @@ gita_remove_registration: false
 # (fresh, personal-only) skip the whole reconciliation.
 gita_work_root: "{{ ansible_facts['env']['HOME'] }}/code/work"
 
+# Match gita's config directory precedence (gita/common.py get_config_dir).
+gita_config_dir: >-
+  {{ (ansible_facts['env']['GITA_PROJECT_HOME'] | default('')
+      or ansible_facts['env']['XDG_CONFIG_HOME'] | default('')
+      or ansible_facts['env']['HOME'] ~ '/.config') ~ '/gita' }}
+
 # The single group every work-root registration lands in. Generic on
 # purpose — the name travels in this committed file.
 gita_work_group: work

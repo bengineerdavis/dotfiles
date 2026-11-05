@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 import subprocess
 
+import pytest
 import yaml
 
 
@@ -54,11 +55,12 @@ def run_isolated_install(
     check: bool = False,
     fake_bin: Path | None = None,
     seed_repo: bool = True,
+    config_env: str | None = "XDG_CONFIG_HOME",
 ):
     code = home / "code"
     work = code / "work"
     repo = work / "local-only"
-    repo.mkdir(parents=True)
+    repo.mkdir(parents=True, exist_ok=True)
     if seed_repo:
         subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)
     catalogue = code / "config" / "repos.yaml"
@@ -74,7 +76,14 @@ def run_isolated_install(
 
     env = os.environ.copy()
     env["HOME"] = str(home)
-    env["XDG_CONFIG_HOME"] = str(home / ".config")
+    config_root = (
+        home / config_env.lower() if config_env is not None else home / ".config"
+    )
+    if config_env is not None:
+        env[config_env] = str(config_root)
+    gita_dir = home / ".config" / "gita"
+    if gita_dir.exists() and gita_dir != config_root / "gita":
+        shutil.move(str(gita_dir), str(config_root / "gita"))
     env["MISE_TRUSTED_CONFIG_PATHS"] = str(home / ".config" / "mise" / "config.toml")
     if fake_bin is not None:
         env["PATH"] = f"{fake_bin}:{env['PATH']}"
@@ -97,15 +106,21 @@ def run_isolated_install(
     )
 
 
-def read_isolated_groups(home: Path):
-    with (home / ".config" / "gita" / "groups.csv").open(newline="") as stream:
+def read_isolated_groups(home: Path, config_env: str | None = "XDG_CONFIG_HOME"):
+    config_root = (
+        home / config_env.lower() if config_env is not None else home / ".config"
+    )
+    with (config_root / "gita" / "groups.csv").open(newline="") as stream:
         return {
             row["name"]: row["repos"].split()
             for row in csv.DictReader(stream, ["name", "repos", "path"], delimiter=":")
         }
 
 
-def test_registration_includes_local_only_repos_and_preserves_ghosts(tmp_path):
+@pytest.mark.parametrize("config_env", [None, "XDG_CONFIG_HOME", "GITA_PROJECT_HOME"])
+def test_registration_includes_local_only_repos_and_preserves_ghosts(
+    tmp_path, config_env
+):
     work = tmp_path / "code" / "work"
     repo = work / "local-only"
     ghost = work / "removed-repo"
@@ -114,11 +129,16 @@ def test_registration_includes_local_only_repos_and_preserves_ghosts(tmp_path):
         writer = csv.writer(stream)
         writer.writerow([str(ghost), "removed-repo", "", ""])
         writer.writerow([str(repo), "local-only", "", ""])
-    proc = run_isolated_install(tmp_path)
+    proc = run_isolated_install(tmp_path, config_env=config_env)
     assert proc.returncode == 0, proc.stdout + proc.stderr
-    assert "local-only" in read_isolated_groups(tmp_path)["work"]
+    assert "local-only" in read_isolated_groups(tmp_path, config_env)["work"]
     assert "gita rm" not in proc.stdout
-    with (tmp_path / ".config" / "gita" / "repos.csv").open(newline="") as stream:
+    config_root = (
+        tmp_path / config_env.lower()
+        if config_env is not None
+        else tmp_path / ".config"
+    )
+    with (config_root / "gita" / "repos.csv").open(newline="") as stream:
         registrations = list(csv.reader(stream))
     assert {repo, ghost} == {Path(row[0]) for row in registrations}
 
@@ -156,6 +176,37 @@ def test_spaced_repo_name_reaches_gita_as_one_argument(tmp_path):
     assert group_add == ["group", "add", "-n", "work", "local only"], calls
 
 
+def test_ghost_registration_is_not_passed_to_group_add(tmp_path):
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    log = tmp_path / "gita-arguments.json"
+    script = fake_bin / "gita"
+    script.write_text(
+        "#!/usr/bin/env python3\n"
+        "import json, sys\n"
+        f"with open({str(log)!r}, 'a') as stream:\n"
+        "    stream.write(json.dumps(sys.argv[1:]) + '\\n')\n"
+    )
+    script.chmod(0o755)
+    home = tmp_path / "home"
+    repo = home / "code" / "work" / "local-only"
+    repo.mkdir(parents=True)
+    subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)
+    ghost = repo.with_name("removed-repo")
+    (home / ".config" / "gita").mkdir(parents=True)
+    with (home / ".config" / "gita" / "repos.csv").open("w", newline="") as stream:
+        writer = csv.writer(stream)
+        writer.writerow([str(repo), "local-only", "", ""])
+        writer.writerow([str(ghost), "removed-repo", "", ""])
+    proc = run_isolated_install(home, fake_bin=fake_bin, seed_repo=False)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    calls = [json.loads(line) for line in log.read_text().splitlines()]
+    group_adds = [call for call in calls if call[:2] == ["group", "add"]]
+    assert group_adds == [["group", "add", "-n", "work", "local-only"]]
+    ghost_csv = home / "xdg_config_home" / "gita" / "repos.csv"
+    assert "removed-repo" in ghost_csv.read_text()
+
+
 def test_teardown_removes_work_group_before_fake_mise_unuse(tmp_path):
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
@@ -191,7 +242,7 @@ def test_teardown_removes_work_group_before_fake_mise_unuse(tmp_path):
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert marker.exists()
-    assert "work" not in read_isolated_groups(tmp_path)
+    assert "work" not in read_isolated_groups(tmp_path, None)
 
 
 def test_group_add_passes_each_name_as_one_argument():
