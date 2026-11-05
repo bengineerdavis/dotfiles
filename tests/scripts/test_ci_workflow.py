@@ -116,3 +116,39 @@ def test_every_action_pin_is_the_reviewed_one():
             f"{owner_repo} is pinned to {pinned}, not the reviewed {expected}. "
             f"Confirm the new value against the upstream repo before changing it."
         )
+
+
+def test_the_history_a_lint_diff_needs_is_fetched():
+    """A lint step that diffs against the base needs that commit.
+
+    Measured 2026-11-05: the checkout defaulted to depth 1,
+    the lint step ran `git diff "$base" HEAD`, and git
+    answered `fatal: bad object <base>`. The job summary
+    showed a failed lint step, which reads as a lint finding
+    and sends the reader to the wrong cause.
+
+    Two things must hold: the checkout fetches enough
+    history, and the step refuses to run when the commit is
+    absent rather than letting git's own error stand in for a
+    lint result.
+    """
+    job = _workflow()["jobs"]["tests"]
+
+    checkout = [
+        step
+        for step in job["steps"]
+        if step.get("uses", "").startswith("actions/checkout@")
+    ]
+    assert checkout, "no checkout step — this guard would pass vacuously"
+    for step in checkout:
+        depth = step.get("with", {}).get("fetch-depth")
+        assert depth == 0, (
+            "checkout must fetch full history; the lint step "
+            "diffs against a base commit a shallow clone lacks"
+        )
+
+    runs = _runs(job)
+    assert "cat-file -e" in runs, (
+        "the lint step does not verify the base commit exists, "
+        "so a missing commit surfaces as a generic lint failure"
+    )

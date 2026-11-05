@@ -31,6 +31,12 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+          # full history for the lint diff
+          fetch-depth: 0
+          # The lint step diffs against the base commit. A shallow clone does
+          # not contain it, and `git diff` then fails with "bad object" rather
+          # than reporting no changes — measured 2026-11-05, where that failure
+          # was indistinguishable from a lint finding in the job summary.
 
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
@@ -62,6 +68,13 @@ jobs:
         run: |
           set -euo pipefail
           base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          # A base that is not in the clone must fail loudly. `git diff` exiting
+          # nonzero here reads as a lint failure, which sends the reader to the
+          # wrong cause.
+          if ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            echo "::error::Base commit ${base} is not in this clone; cannot compute the changed-file list."
+            exit 1
+          fi
           git diff --name-only --diff-filter=ACMR "$base" HEAD -- '*.py' '*.pyi' \
             > "$RUNNER_TEMP/changed-python"
           if [ ! -s "$RUNNER_TEMP/changed-python" ]; then
