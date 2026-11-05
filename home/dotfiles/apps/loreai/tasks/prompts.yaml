@@ -12,6 +12,46 @@
     path: "{{ loreai_env_file }}"
   register: loreai_env_stat
 
+- name: "loreai: read the saved answers"
+  # An existing env file is the fallback tier for a re-render: a key that
+  # neither -e nor the registry settles keeps its saved value instead of
+  # falling through to a prompt default. Without this, a partial registry
+  # answer set flips an answered privacy setting (SENTRY_ENABLED=0 back to 1)
+  # with no warning, because the prompts and probes are skipped on a re-run.
+  when: loreai_env_stat.stat.exists
+  block:
+    - name: "loreai: slurp the saved answers"
+      ansible.builtin.slurp:
+        src: "{{ loreai_env_file }}"
+      register: loreai_env_slurp
+
+    - name: "loreai: extract the answered values"
+      ansible.builtin.set_fact:
+        loreai_saved_telemetry: >-
+          {{ (loreai_env_slurp.content | b64decode
+              | regex_findall('(?m)^export SENTRY_ENABLED=(\S+)$')
+              | first | default('', true)) }}
+        loreai_saved_worker_model: >-
+          {{ (loreai_env_slurp.content | b64decode
+              | regex_findall('(?m)^export LORE_WORKER_MODEL="([^"]*)"$')
+              | first | default('', true)) }}
+
+    # The worker-model line records the inference choice that produced the
+    # artifact: the template only emits LORE_WORKER_MODEL when a worker model
+    # is set, and the per-choice default is openrouter/… for 'openrouter', a
+    # local ollama tag for 'local', and empty for 'none'. (The upstream
+    # markers cannot serve here: the OpenRouter upstream is emitted whenever
+    # any worker model is set, whatever the choice.) A separate task, because
+    # set_fact values are not visible to each other within one task.
+    - name: "loreai: infer the saved inference choice from the artifact"
+      ansible.builtin.set_fact:
+        loreai_saved_inference: >-
+          {{ ('local'
+              if loreai_saved_worker_model is search('^ollama/')
+              else ('openrouter'
+                    if loreai_saved_worker_model is search('^openrouter/')
+                    else 'none')) }}
+
 # ── The provisioning-answers registry (decision-1) ───────────────────────────
 # Loaded before anything asks. Shared answers (fleet defaults) plus machine
 # answers (per-host exceptions) settle first; the prompts below skip any
@@ -132,7 +172,9 @@
          if loreai_telemetry is not none
          else ((loreai_telemetry_answer.user_input | default('') | trim)
                if (loreai_telemetry_answer.user_input | default('') | trim) in ['0', '1']
-               else '1') }}
+               else (loreai_saved_telemetry
+                     if loreai_saved_telemetry in ['0', '1']
+                     else '1')) }}
   # Also when the registry answers: the env file is an artifact of the
   # registry, so a registry-driven run re-renders it (byte-identical when
   # nothing changed).
@@ -146,7 +188,9 @@
          else ((loreai_inference_answer.user_input | default('') | trim | lower)
                if (loreai_inference_answer.user_input | default('') | trim | lower)
                   in ['openrouter', 'local', 'none']
-               else loreai_inference_default) }}
+               else (loreai_saved_inference
+                     if loreai_saved_inference in ['openrouter', 'local', 'none']
+                     else (loreai_inference_default | default('none')))) }}
   when: not loreai_env_stat.stat.exists or loreai_registry_has_answers | bool
 
 - name: "loreai: validate the inference answer"
@@ -174,10 +218,12 @@
     loreai_worker_model_final: >-
       {{ loreai_worker_model
          if loreai_worker_model is not none
-         else (loreai_worker_model_openrouter_default
-               if loreai_inference_final == 'openrouter'
-               else (loreai_worker_model_local_default
-                     if loreai_inference_final == 'local' else '')) }}
+         else (loreai_saved_worker_model
+               if loreai_saved_worker_model | length > 0
+               else (loreai_worker_model_openrouter_default
+                     if loreai_inference_final == 'openrouter'
+                     else (loreai_worker_model_local_default
+                           if loreai_inference_final == 'local' else ''))) }}
   when: not loreai_env_stat.stat.exists or loreai_registry_has_answers | bool
 
 - name: "loreai: save the answers per machine"
@@ -207,7 +253,9 @@
       inference={{ loreai_inference_final }}
       {{ (', worker model ' + loreai_worker_model_final)
          if loreai_worker_model_final | default('') | length > 0 else '' }}.
-      Edit the file to change; delete it and re-run to be asked again.
+      This file is an artifact: direct edits are overwritten. To change an
+      answer, edit machines.yml's provisioning registry (or the machine-local
+      overlay {{ loreai_local_overlay_file }}) and re-run.
   when: not loreai_env_stat.stat.exists
 
 - name: "loreai: warn loudly when openrouter was chosen without a resolvable key"

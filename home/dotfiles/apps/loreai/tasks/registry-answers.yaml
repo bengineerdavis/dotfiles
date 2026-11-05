@@ -52,7 +52,9 @@
   block:
     - name: "loreai: parse machines.yml"
       ansible.builtin.set_fact:
-        loreai_registry: "{{ lookup('ansible.builtin.file', loreai_registry_stat.stat.path) | from_yaml }}"
+        loreai_registry: >-
+          {{ (lookup('ansible.builtin.file', loreai_registry_stat.stat.path)
+              | from_yaml | default({}, true)) }}
   rescue:
     - name: "loreai: fail loud on a malformed registry"
       ansible.builtin.fail:
@@ -71,12 +73,15 @@
 - name: "loreai: extract this topic's shared answers"
   ansible.builtin.set_fact:
     loreai_registry_shared: >-
-      {{ (loreai_registry.get('provisioning', {}).get('shared', {}).get('loreai', {})) }}
+      {{ ((((loreai_registry | default({}, true)).get('provisioning') or {}
+             ).get('shared') or {}).get('loreai') or {}) }}
 
 - name: "loreai: extract this machine's answers"
   ansible.builtin.set_fact:
     loreai_registry_machine: >-
-      {{ (loreai_registry.get('machines', {}).get(ansible_hostname, {}).get('provisioning', {}).get('loreai', {})) }}
+      {{ (((((loreai_registry | default({}, true)).get('machines') or {}
+              ).get(ansible_hostname) or {}).get('provisioning') or {}
+           ).get('loreai') or {}) }}
 
 # ── The local overlay (machine tier for hosts whose hostname cannot be committed) ──
 # A machine whose ansible_hostname fails spec.md § Data's string test (a
@@ -95,7 +100,7 @@
   block:
     - name: "loreai: parse the local overlay"
       ansible.builtin.set_fact:
-        loreai_overlay: "{{ lookup('ansible.builtin.file', loreai_local_overlay_file) | from_yaml }}"
+        loreai_overlay: "{{ lookup('ansible.builtin.file', loreai_local_overlay_file) | from_yaml | default({}, true) }}"
   rescue:
     - name: "loreai: fail loud on a malformed local overlay"
       ansible.builtin.fail:
@@ -113,7 +118,8 @@
 - name: "loreai: extract the overlay's machine answers"
   ansible.builtin.set_fact:
     loreai_overlay_machine: >-
-      {{ (loreai_overlay.get('provisioning', {}).get('loreai', {})) }}
+      {{ (((loreai_overlay | default({}, true)).get('provisioning') or {}
+          ).get('loreai') or {}) }}
 
 - name: "loreai: settle the registry answers (machine tier wins)"
   ansible.builtin.set_fact:
@@ -163,10 +169,15 @@
   debug:
     msg: >-
       WARNING: machine answer {{ item.key }}={{ item.value }} overrides the
-      shared answer ({{ loreai_registry_shared.get(item.key) }}) from
-      machines.yml. This machine deliberately diverges from the fleet; if it
-      should not, move the value from machines.{{ ansible_hostname }}.provisioning
-      back into provisioning.shared (or delete the override) and re-run.
+      shared answer ({{ loreai_registry_shared.get(item.key) }}). This machine
+      deliberately diverges from the fleet; if it should not, edit
+      {% if item.key in loreai_overlay_machine and item.key not in loreai_registry_machine -%}
+      {{ loreai_local_overlay_file }} (the local overlay holds this answer;
+      machines.yml has no machine entry for {{ ansible_hostname }})
+      {%- else -%}
+      machines.{{ ansible_hostname }}.provisioning and move the value back into
+      provisioning.shared (or delete the override)
+      {%- endif %} and re-run.
   when: >-
     item.key in loreai_registry_shared
     and (item.value | string) != (loreai_registry_shared[item.key] | string)

@@ -413,3 +413,138 @@ def test_no_committed_machine_key_fails_the_employer_string_test() -> None:
             "that fails spec.md § Data's string test must not be committed "
             "(use the local overlay instead)"
         )
+
+
+# ── Partial registry answers must not silently rewrite a saved artifact ─────
+
+
+def test_partial_registry_preserves_the_saved_answers(tmp_path) -> None:
+    """A registry answering only some keys keeps the saved values for the rest.
+
+    The re-render gate fires on ANY registry answer, but on a re-run the
+    prompts and probes are skipped, so an unanswered key would otherwise fall
+    through to a hardcoded prompt default — silently flipping a saved privacy
+    answer (SENTRY_ENABLED=0 back to 1). The saved artifact is the fallback
+    tier for keys neither -e nor the registry settles.
+    """
+    root = tmp_path / "registry-root"
+    write_registry(
+        root,
+        """\
+    provisioning:
+      shared:
+        loreai:
+          inference: openrouter
+          worker_model: openrouter/z-ai/glm-5.3-flash
+""",
+    )
+    env_file = tmp_path / "home" / "env.zsh"
+    env_file.parent.mkdir(parents=True, exist_ok=True)
+    env_file.write_text("export SENTRY_ENABLED=0\n")
+
+    result = run(tmp_path, chain_play(root, env_file))
+    assert result.returncode == 0, result.stdout + result.stderr
+    rendered = env_file.read_text()
+    assert "SENTRY_ENABLED=0" in rendered, (
+        "the saved telemetry opt-out was flipped by the re-render"
+    )
+    assert 'LORE_WORKER_MODEL="openrouter/z-ai/glm-5.3-flash"' in rendered
+
+
+def test_unanswered_inference_comes_from_the_artifact_not_a_crash(tmp_path) -> None:
+    """A key the registry does not answer resolves from the artifact, not a crash.
+
+    Before the fix the re-render path reached for `loreai_inference_default`,
+    which only the first-install probe sets — a re-run aborted on an undefined
+    variable. The artifact records the choice in its upstream marker, so an
+    artifact without one means workers follow the session provider ('none'),
+    which is a stable fixpoint: re-rendering it reproduces the same marker.
+    """
+    root = tmp_path / "registry-root"
+    write_registry(
+        root,
+        """\
+    provisioning:
+      shared:
+        loreai:
+          telemetry: 1
+""",
+    )
+    env_file = tmp_path / "home" / "env.zsh"
+    env_file.parent.mkdir(parents=True, exist_ok=True)
+    env_file.write_text("export SENTRY_ENABLED=1\n")
+
+    result = run(tmp_path, chain_play(root, env_file))
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "loreai_inference_default" not in (result.stdout + result.stderr), (
+        "the run reached for a first-install-only variable"
+    )
+    rendered = env_file.read_text()
+    assert "SENTRY_ENABLED=1" in rendered
+    # 'none' inference leaves no worker model, so the worker block is absent.
+    # (LORE_UPSTREAM_OPENAI is not a marker here: a separate task converges
+    # that upstream on every run, whatever the inference choice.)
+    assert "export LORE_WORKER_MODEL" not in rendered
+    assert "LORE_UPSTREAM_OLLAMA" not in rendered
+
+
+def test_null_registry_merges_empty_instead_of_crashing(tmp_path) -> None:
+    """A file that parses to null is an empty registry, not a traceback.
+
+    A placeholder machines.yml (empty, or comments only) parses to None. The
+    absent-file path already merges empty, so a null file must too — otherwise
+    the run dies naming neither the file nor a fix, which is the opposite of
+    this loader's fail-loud design.
+    """
+    root = tmp_path / "registry-root"
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "machines.yml").write_text("# placeholder: no answers yet\n")
+
+    result = run(tmp_path, loader_play(root))
+    assert result.returncode == 0, result.stdout + result.stderr
+    # Same shape as the absent-file path: no answers, no crash, and the facts
+    # are empty dicts rather than None (which is what crashed before).
+    combined = result.stdout + result.stderr
+    assert "NoneType" not in combined
+    assert "telemetry=" not in combined
+
+
+def test_null_machine_tier_in_the_overlay_merges_empty(tmp_path) -> None:
+    """A null interior node is empty too, not an anonymous NoneType crash."""
+    root = tmp_path / "registry-root"
+    write_registry(root, SHARED_REGISTRY)
+    (root / "answers.yaml").write_text("provisioning:\n  loreai:\n")
+
+    result = run(tmp_path, loader_play(root))
+    assert result.returncode == 0, result.stdout + result.stderr
+    # The shared tier still applies; the null overlay block contributes nothing.
+    assert "worker_model=openrouter/z-ai/glm-5.3-flash" in effective(result.stdout)
+
+
+def test_no_serial_shaped_host_key_anywhere_it_is_committed() -> None:
+    """Every committed hostname-keyed surface passes the string test.
+
+    machines.yml is not the only committed file keyed by hostname: the two
+    .chezmoidata files were also carrying the Mac's hardware serial until
+    2026-11-04. A guard that watches only machines.yml would let the next
+    session re-add the serial to either of them and republish it silently.
+    """
+    import re  # noqa: PLC0415
+
+    import yaml  # noqa: PLC0415
+
+    serial_shape = re.compile(r"^[A-Z0-9]{10,}$")
+    surfaces = {
+        ".chezmoidata/opencode.yaml": lambda d: (
+            (d.get("opencode") or {}).get("hosts") or {}
+        ),
+        ".chezmoidata/uv.yaml": lambda d: (d.get("uv") or {}).get("hosts") or {},
+    }
+    for rel, hosts_of in surfaces.items():
+        data = yaml.safe_load((PAYLOAD_ROOT / rel).read_text())
+        for key in hosts_of(data):
+            assert not serial_shape.match(key), (
+                f"{rel} is keyed by {key!r}, which looks like a hardware "
+                "serial; a hostname that fails spec.md § Data's string test "
+                "must not be committed"
+            )
