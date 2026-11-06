@@ -1,7 +1,13 @@
-# Machine-local Lore.AI environment — apps/loreai, written {{ ansible_date_time.date }}.
+# Machine-local Lore.AI environment — apps/loreai.
 # Sourced by ~/dotfiles/apps/loreai/files/zsh/env.zsh at shell start.
-# Each machine answers for itself: delete this file and re-run the topic to
-# re-answer the first-install prompts, or edit directly.
+#
+# This file is an ARTIFACT of the provisioning-answers registry, not a source
+# of truth. Answers come from machines.yml (provisioning.shared.loreai, plus
+# this machine's entry when it has one) or, for a host whose hostname cannot
+# be committed, from ~/.config/loreai/answers.yaml. Direct edits here are
+# overwritten by the next run: to change an answer, edit the registry (or the
+# local overlay) and re-run the topic. Answers nobody has settled are asked at
+# first install.
 
 # ── Telemetry ────────────────────────────────────────────────────────────────
 # Production builds send privacy-filtered operational telemetry to Sentry
@@ -36,7 +42,15 @@ export LORE_UPSTREAM_OPENAI="{{ loreai_openai_upstream }}"
 # uncomment); `llm keys` is the fallback, NOT the source of truth.
 if [ -z "${OPENROUTER_API_KEY:-}" ]; then
   # export OPENROUTER_API_KEY="$(op read 'op://<vault>/<item>/credential' 2>/dev/null)"
-  export OPENROUTER_API_KEY="$(llm keys get openrouter 2>/dev/null)"
+  # `llm` writes its PyMuPDF deprecation notice to STDOUT, not stderr, so
+  # 2>/dev/null does not filter it: the capture became two lines, the notice
+  # then the key (98 bytes instead of 73). The gateway held that value and
+  # every background worker failed "Headers.append: ... is an invalid header
+  # value" until the service was restarted. PYMUPDF_MESSAGE=fd:2 moves the
+  # notice to stderr at the source, and `tail -n1` keeps the key alone for the
+  # llm builds that predate it — neither alone suffices in a service shell,
+  # where the mise fragment that exports PYMUPDF_MESSAGE is never sourced.
+  export OPENROUTER_API_KEY="$(PYMUPDF_MESSAGE=fd:2 llm keys get openrouter 2>/dev/null | tail -n1)"
 fi
 # Sessions may authenticate to Anthropic/OpenAI while workers use OpenRouter.
 # Give workers their own credential: the gateway otherwise looks in the

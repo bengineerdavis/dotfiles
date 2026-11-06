@@ -18,6 +18,76 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 <!-- scriv-insert-here -->
 
+## PR #130 — 2026-11-06
+
+### Added
+
+- Provisioning answers for the loreai topic now live in `machines.yml`'s
+  `provisioning` registry (shared fleet defaults plus per-host exceptions),
+  so a machine answers once and later runs are unattended. A machine whose
+  hostname cannot be committed (a hardware serial) keeps its machine tier in
+  an unversioned local overlay.
+
+### Changed
+
+- `env.zsh` is an artifact of the registry rather than a source of truth; a
+  registry-driven re-run re-renders it byte-identically.
+- Repo membership moved from `machines.yml`'s per-machine block to the single
+  shared catalogue `config/repos.yaml`; the per-machine block had no consumer.
+- Machine keys are hostnames only where the hostname passes the employer
+  string test. The committed hardware-serial keys in `.chezmoidata/uv.yaml`
+  and `.chezmoidata/opencode.yaml` are removed (both were no-ops on the Mac).
+
+## PR #113 — 2026-11-05
+
+### Fixed
+
+- loreai: keep the fitz deprecation notice out of the OpenRouter key the
+  gateway captures. `llm keys get` writes PyMuPDF's notice to STDOUT, so
+  `2>/dev/null` filtered nothing and the captured value was two lines —
+  notice, then key (98 bytes instead of 73). The service held that value
+  and every background worker failed `Headers.append: ... is an invalid
+  header value`, losing distillation and curation for the whole session
+  (measured 2026-11-02: 43 minutes, zero distillations). The env template
+  now sets `PYMUPDF_MESSAGE=fd:2` for that one call and keeps only the last
+  line, which holds even in a systemd service shell that never sources the
+  mise fragment exporting the same variable.
+
+## PR #114 — 2026-11-05
+
+### Fixed
+
+- Close out the environmental suite failures (DOT-73). `clipped copy` no
+  longer hangs callers on a daemonizing backend (xclip): the copy subprocess
+  writes stdout to DEVNULL so a fork-holding child cannot hold the caller's
+  capture pipes open, and stderr to a temp file — a pipe would reintroduce
+  the hang — so a failing backend's diagnostic still reaches the user. The
+  clipped harness now fakes the full Linux backend chain
+  (xclip/xsel/wl-clipboard alongside pbcopy/pbpaste), so the suite is
+  hermetic on machines that have real clipboard tools instead of reading and
+  clobbering the developer's actual clipboard. The restart-stale harness
+  passes Ansible's `systemctl --version` fact-gathering probe to the real
+  systemctl unlogged, like its existing `ps` carve-out. The pii-redactor
+  real-model tests skip with a named reason when the integration Ollama model
+  is absent rather than failing as if the redactor were broken.
+
+## PR #112 — 2026-11-05
+
+### Added
+
+- `czd` — read chezmoi drift as text and as an exit status. `chezmoi diff`
+  honours the meld `[diff] command`, so a piped or agent-driven call prints
+  nothing and exits 0 even when a managed file differs; `czd` calls
+  `chezmoi diff --use-builtin-diff` instead, leaving the graphical config
+  untouched for interactive use. It exits 1 on drift and 2 on error, so a
+  checker can branch on `$?` rather than parse output.
+
+### Fixed
+
+- Agent guidance now names `czd` for drift reads. An empty `chezmoi diff` had
+  been read as "no drift" on a machine with a real difference in
+  `~/.config/opencode/opencode.jsonc` (measured 2026-11-02).
+
 ## PR #122 — 2026-11-05
 
 ### Changed

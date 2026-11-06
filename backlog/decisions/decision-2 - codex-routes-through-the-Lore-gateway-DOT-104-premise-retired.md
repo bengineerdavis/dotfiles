@@ -24,7 +24,7 @@ Every part of that premise measured false on 2026-11-02/04:
 2. **The file is owned by three writers, not one.** It carries Lore's
    `openai_base_url`, three git-ai hooks with trusted sha256 hashes, and 22
    project trust entries. A chezmoi-managed `config.toml` would clobber all of
-   it on every apply — the exact failure decision-1 §3 calls a same-purpose
+   it on every apply — the exact failure decision-3 §3 calls a same-purpose
    duplicate, arrived at from the other direction.
 3. **The 401 is an authentication defect, not a missing provider.** Codex sends
    no credential; the gateway's `/v1/responses` requires one. Measured: `POST`
@@ -91,6 +91,6 @@ Not working:
   (`-p/--profile`, `$CODEX_HOME/<name>.config.toml` layered over the base
   config) is the seam — a profile file can be chezmoi-managed without
   competing with Lore or git-ai for the base file.
-- The single-config rule (decision-1 §3) is why this decision exists at all:
+- The single-config rule (decision-3 §3) is why this decision exists at all:
   the original task's shape would have created exactly the duplicate the rule
   forbids.

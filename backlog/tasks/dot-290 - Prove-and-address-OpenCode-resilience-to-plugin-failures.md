@@ -92,7 +92,7 @@ Lease expired 17:46Z; re-claimed under a machine-qualified actor
 ```yaml
 event_id: run-62c99a2ab6cd4bada413878e252faca9
 type: claim_task
-actor: ben@L37V3P6GQ3
+actor: ben@the-mac
 timestamp: '2026-11-01T19:04:56.455358Z'
 result: succeeded
 task_id: DOT-290

@@ -25,3 +25,17 @@ bin/READMD.archive.md
 {{ if ne .chezmoi.os "linux" }}
 .config/user-tmpfiles.d/tmp.conf
 {{ end }}
+
+# Ansible-owned destinations. These paths are written by a topic's own tasks
+# at install time, so chezmoi must never deploy them — a rendered template
+# would land on top of state a provisioning run owns. Declaring them here is
+# the difference between a decision and an accident: "chezmoi does not manage
+# this" is also true of a path nobody has considered yet. Asserted in
+# tests/chezmoi/test_ansible_owned_paths.py.
+#
+# apps/loreai writes the per-machine answers (telemetry, worker inference) to
+# ~/.config/loreai/env.zsh at first install (tasks/prompts.yaml); the file
+# holds the OpenRouter key at mode 0600, and re-answering means deleting it
+# and re-running the topic. See apps/loreai/README.md and decision-1.
+.config/loreai
+.config/loreai/**
