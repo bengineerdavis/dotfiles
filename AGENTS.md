@@ -652,6 +652,25 @@ gate: it would hide a real regression in those two directories. For a merge
 gate, run the full suite and compare the failure list against the table above —
 a change is green when the failure LIST matches, not when the count does.
 
+**CI applies that rule mechanically.** `.github/workflows/tests.yml` runs the
+full suite on every pull request and every push to `main`, then feeds the
+captured log to `scripts/check_suite_baseline.py`. That script compares the
+failure node IDs against the table above and fails on anything outside it, so a
+count that stays at 12 while one suite is fixed and another regresses is caught.
+It also refuses to pass when the log holds no pytest summary — a run that died
+before reporting has an unknown result, not a green one.
+
+The baseline is a list of exact node IDs, never of directories. An earlier
+version matched `tests/clipped/` as a prefix, so a brand-new regression beside a
+known clipboard failure passed silently — the same silent-pass shape the script
+exists to prevent. `ERROR` outcomes are parsed too: a collection or fixture error
+does not appear in the summary's failed count, so a run reporting "1 passed, 1
+error" was green under a failures-only check.
+
+The workflow lints only the files a change touches. A whole-tree `ruff check`
+reports pre-existing debt the hooks never see, and a gate that is red on arrival
+teaches everyone to ignore it.
+
 Without `pyyaml`, `tests/policy` drops from 22 tests to 15 passed / 1 skipped, and
 the skipped module is the one asserting the policy layers grant no permissions —
 so the check that matters most is the one that disappears quietest.

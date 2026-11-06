@@ -62,10 +62,20 @@ EXCLUDED_PARTS = {
 
 
 def _python_files() -> list[pathlib.Path]:
+    """Every Python file, judged by its path relative to the repo.
+
+    The exclusion list must match relative parts, not absolute
+    ones. This repo is routinely worked in via worktrees under
+    ``.worktrees/<sid>``, and an absolute path then excludes the
+    whole tree: the sweep found 0 files and the suite reported one
+    failure instead of checking 144. Measured 2026-11-04 — worktrees
+    are where agents are required to work, so the vacuous case was
+    the normal case.
+    """
     return [
         path
         for path in sorted(REPO.rglob("*.py"))
-        if not EXCLUDED_PARTS & set(path.parts)
+        if not EXCLUDED_PARTS & set(path.relative_to(REPO).parts)
     ]
 
 

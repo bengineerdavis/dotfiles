@@ -9,6 +9,8 @@ extension, and a dotfile must not lose its name.
 
 from __future__ import annotations
 
+import os
+
 import pytest
 
 
@@ -58,3 +60,40 @@ def test_child_env_respects_an_explicit_setting(pii_module, monkeypatch):
     """setdefault, not overwrite — an operator choosing a destination keeps it."""
     monkeypatch.setenv("PYMUPDF_MESSAGE", "path:/tmp/pymupdf.log")
     assert pii_module.child_env()["PYMUPDF_MESSAGE"] == "path:/tmp/pymupdf.log"
+
+
+def test_the_script_resolves_without_a_deployed_copy(monkeypatch, tmp_path):
+    """The suite must run on a fresh clone, not only on an applied machine.
+
+    Measured 2026-11-05: CI failed 55 pii_redactor tests with
+    `FileNotFoundError: /home/runner/bin/pii-redactor`. `SCRIPT` was
+    `Path.home()/"bin"/"pii-redactor"`, which exists only after
+    `chezmoi apply` — so the suite tested a deployed machine and
+    errored everywhere else.
+
+    The tests need the script's source, which is always in the repo.
+    This pins the property that matters: with no deployed copy, the
+    resolver returns something that exists and can actually run. An
+    earlier version of this test asserted a path shape (`home` or
+    `bin` in the parts), which broke as soon as the resolver staged
+    an executable copy into a temp directory — the shape was never
+    the property, the runnability is.
+    """
+    # pyrefly: ignore [missing-import]
+    from pii_redactor_harness import _resolve_script
+
+    # A home with no ~/bin at all, which is what a runner has.
+    empty_home = tmp_path / "home"
+    empty_home.mkdir()
+    monkeypatch.setenv("HOME", str(empty_home))
+
+    resolved = _resolve_script()
+    assert resolved.is_file(), f"resolved to a missing file: {resolved}"
+    assert resolved.name == "pii-redactor", (
+        f"resolved to {resolved}, which is not the pii-redactor script"
+    )
+    assert os.access(resolved, os.X_OK), (
+        f"{resolved} is not executable — chezmoi stores the source mode 644 "
+        "and applies the bit at deploy time, so the fallback must stage a "
+        "runnable copy"
+    )
