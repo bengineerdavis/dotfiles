@@ -15,7 +15,7 @@ updated_date: 2026-10-27 22:21
 <!-- SECTION:DESCRIPTION:BEGIN -->
 **uv work-machine capture — flag this Mac and capture the private index.**
   [blocked on author inputs, 2026-10-03] The uv topic provisioned cleanly on
-  L37V3P6GQ3 (ok=10 changed=0 failed=0; version assert 0.12.21 >= 0.12.17;
+  the Mac (ok=10 changed=0 failed=0; version assert 0.12.21 >= 0.12.17;
   self-update no-op; capture skipped with the designed personal-machine
   message; ~/.localrc untouched). The work-machine half has two blockers,
   both author-side: (1) op CLI has no signed-in account here — 1Password.app
