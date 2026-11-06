@@ -9,7 +9,10 @@ binary without raising. See tests/guards/guard_harness.py.
 
 from __future__ import annotations
 
+import atexit
 import pathlib
+import shutil
+import tempfile
 
 
 def _resolve_script() -> pathlib.Path:
@@ -17,19 +20,30 @@ def _resolve_script() -> pathlib.Path:
 
     The suite used to hardcode `~/bin/pii-redactor`. That file exists only
     after `chezmoi apply`, so on a fresh clone — and in CI — the whole suite
-    silently skipped or failed on `FileNotFoundError`, depending on whether
-    the fixture or the process runner got there first.
+    failed on `FileNotFoundError`, which was 55 of CI's 64 failures.
 
-    The tests need the script's SOURCE, which is always present in the repo;
-    running it from the source path exercises the same code. Prefer the
-    deployed copy when it exists, because that is what a user runs.
+    The tests need the script's SOURCE, which is always present in the repo.
+    Prefer the deployed copy when it exists, because that is what a user runs.
+
+    The source is stored mode 644: chezmoi records `executable_` in the name
+    and applies the bit at deploy time. Running it in place therefore fails
+    with `PermissionError`, so the fallback copies it to a temp directory and
+    marks that copy executable rather than chmod-ing a tracked file (which
+    would dirty the working tree and fight the chezmoi state).
     """
     deployed = pathlib.Path.home() / "bin" / "pii-redactor"
     if deployed.is_file():
         return deployed
+
     # tests/pii_redactor/pii_redactor_harness.py -> repo root
     repo = pathlib.Path(__file__).resolve().parents[2]
-    return repo / "home" / "bin" / "executable_pii-redactor"
+    source = repo / "home" / "bin" / "executable_pii-redactor"
+    staging = pathlib.Path(tempfile.mkdtemp(prefix="pii-redactor-source-"))
+    atexit.register(shutil.rmtree, staging, ignore_errors=True)
+    runnable = staging / "pii-redactor"
+    shutil.copyfile(source, runnable)
+    runnable.chmod(0o755)
+    return runnable
 
 
 SCRIPT = _resolve_script()
