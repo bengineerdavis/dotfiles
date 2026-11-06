@@ -37,7 +37,7 @@ def test_flag_missing_argument_exits_nonzero(run_script, flag):
     assert "requires an argument" in r.stderr
 
 
-def test_missing_input_file_exits_nonzero(run_script):
+def test_missing_input_file_exits_nonzero(mock_llm, run_script):
     r = run_script("-i", "/nonexistent/path/file.txt")
     assert r.returncode != 0
     assert "not found" in r.stderr
@@ -46,7 +46,7 @@ def test_missing_input_file_exits_nonzero(run_script):
 # ── dry run and verbosity ─────────────────────────────────────────────────────
 
 
-def test_dry_run_with_input_file(run_script, tmp_path):
+def test_dry_run_with_input_file(mock_llm, run_script, tmp_path):
     src = tmp_path / "in.md"
     src.write_text("Hello John Doe\n")
     r = run_script("--dry-run", "-i", str(src))
@@ -54,13 +54,13 @@ def test_dry_run_with_input_file(run_script, tmp_path):
     assert "Would process" in r.stderr
 
 
-def test_dry_run_stdin(run_script):
+def test_dry_run_stdin(mock_llm, run_script):
     r = run_script("--dry-run", stdin="test\n")
     assert r.returncode == 0
     assert "Would process stdin" in r.stderr
 
 
-def test_verbose_emits_debug_output(run_script, tmp_path):
+def test_verbose_emits_debug_output(mock_llm, run_script, tmp_path):
     src = tmp_path / "in.md"
     src.write_text("content\n")
     r = run_script("-v", "--dry-run", "-i", str(src))
