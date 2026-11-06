@@ -42,7 +42,10 @@
     },
     "openrouter": {
       "options": {
-        "baseURL": "http://127.0.0.1:3207/v1"
+        "baseURL": "http://127.0.0.1:3207/v1",
+        "headers": {
+          "X-Lore-Provider": "openrouter"
+        }
       }
     },
     "xai": {
