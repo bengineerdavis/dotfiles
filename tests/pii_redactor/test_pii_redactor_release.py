@@ -43,9 +43,24 @@ DIRTY_INPUT = "Dear Jane Doe, your ticket is closed. jane@acme.example\n"
 
 
 def test_script_is_the_pii_redactor_binary():
-    assert SCRIPT.name == "pii-redactor", (
+    """SCRIPT must be pii-redactor, not another suite's binary.
+
+    The failure this guards against is a cross-suite constant collision:
+    `tests/clipped` defines its own SCRIPT, and every conftest imports as a
+    top-level module named `conftest`, so a wrong import silently points this
+    suite at the wrong tool.
+
+    Both accepted names are the same script. `pii-redactor` is the deployed
+    name; `executable_pii-redactor` is the chezmoi source name, used when no
+    deployed copy exists (a fresh clone, and CI). Matching only the deployed
+    name made the fallback look like a collision.
+    """
+    assert SCRIPT.name in {"pii-redactor", "executable_pii-redactor"}, (
         f"SCRIPT resolved to {SCRIPT} — the pii-redactor suite is importing "
         "another suite's constant. Import from pii_redactor_harness, not conftest."
+    )
+    assert "pii-redactor" in SCRIPT.name, (
+        f"SCRIPT resolved to {SCRIPT}, which is not the pii-redactor script"
     )
 
 
