@@ -126,7 +126,7 @@ def test_bypass_still_requires_verification_to_pass(run_script, mock_llm, tmp_pa
     assert "verification failed" in r.stderr or "Refusing to write" in r.stderr
 
 
-def test_dry_run_is_unaffected_by_the_gate(run_script, tmp_path):
+def test_dry_run_is_unaffected_by_the_gate(mock_llm, run_script, tmp_path):
     """--dry-run produces nothing to review, so it must not prompt."""
     src = tmp_path / "in.md"
     src.write_text(DIRTY_INPUT)
