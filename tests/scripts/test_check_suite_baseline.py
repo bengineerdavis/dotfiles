@@ -2,12 +2,15 @@
 
 The script exists because a CI job cannot assert "12 failed" — that
 number stays 12 while one suite is fixed and another regresses.
-These tests pin the two properties that make it worth running:
+These tests pin the properties that make it worth running:
 
-1. A failure outside the known-failure baseline is reported.
-2. A run with no summary line is an error, not a pass. That is the
-   shape this repo has been bitten by repeatedly: a check that
-   silently matches nothing looks exactly like a check that passed.
+1. A node ID outside the baseline is reported, whichever suite it
+   lives in. The first version matched whole directories, so a new
+   failure inside `tests/clipped/` passed silently.
+2. An ERROR is reported. Collection and fixture errors do not appear
+   in the summary's "N failed" count, so a run can report
+   "1 passed, 1 error" and be green under a failures-only check.
+3. A run with no summary line is an error, not a pass.
 """
 
 from __future__ import annotations
@@ -25,26 +28,52 @@ check = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(check)
 
 
-CLEAN = """
-FAILED tests/clipped/test_clipped_cli.py::test_copy_multiple_files - AssertionError: x
-FAILED tests/restart_stale/test_role.py::test_a_missing_kind - AssertionError: y
-13 failed, 1206 passed, 21 skipped in 646.24s
-"""
+KNOWN = sorted(check.EXPECTED_FAILURES)
+
+
+def _report(failed: list[str], total: int = 13) -> str:
+    lines = [f"FAILED {nodeid} - AssertionError: x" for nodeid in failed]
+    lines.append(f"{total} failed, 1206 passed, 21 skipped in 646.24s")
+    return "\n".join(lines) + "\n"
 
 
 def test_known_failures_alone_pass():
-    unexpected, _, saw = check.judge(CLEAN)
+    unexpected, absent, saw = check.judge(_report(KNOWN))
     assert saw
     assert unexpected == set()
+    assert absent == set()
 
 
 def test_a_failure_outside_the_baseline_is_reported():
-    report = (
-        CLEAN + "FAILED tests/chezmoi/test_czd.py::test_something - AssertionError\n"
-    )
+    report = _report([*KNOWN, "tests/chezmoi/test_czd.py::test_something"])
     unexpected, _, saw = check.judge(report)
     assert saw
     assert unexpected == {"tests/chezmoi/test_czd.py::test_something"}
+
+
+def test_a_new_failure_inside_a_known_suite_is_reported():
+    """Matching directories hid a regression beside a known failure."""
+    report = _report([*KNOWN, "tests/clipped/test_new.py::test_regression"])
+    unexpected, _, _ = check.judge(report)
+    assert unexpected == {"tests/clipped/test_new.py::test_regression"}
+
+
+def test_an_error_is_reported():
+    """An ERROR is not a failed count, so failures-only checks miss."""
+    report = (
+        "1 passed, 1 error in 2.0s\nERROR tests/x/test_y.py::test_z - RuntimeError\n"
+    )
+    unexpected, _, saw = check.judge(report)
+    assert saw
+    assert unexpected == {"tests/x/test_y.py::test_z"}
+
+
+def test_a_stale_baseline_entry_is_reported_but_not_fatal(tmp_path, capsys):
+    partial = KNOWN[:-1]
+    report = tmp_path / "r.txt"
+    report.write_text(_report(partial, total=12))
+    assert check.main([str(report)]) == 0
+    assert KNOWN[-1] in capsys.readouterr().err
 
 
 def test_no_summary_line_is_not_a_pass():
@@ -62,12 +91,6 @@ def test_a_missing_report_file_is_an_error(tmp_path, capsys):
     code = check.main([str(tmp_path / "absent.txt")])
     assert code == 2
     assert "no test ever ran" in capsys.readouterr().err
-
-
-def test_the_summary_line_alone_is_enough(tmp_path, capsys):
-    report = tmp_path / "r.txt"
-    report.write_text("13 failed, 1206 passed in 1s\n")
-    assert check.main([str(report)]) == 0
 
 
 def test_a_regression_exits_one(tmp_path, capsys):

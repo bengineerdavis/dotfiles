@@ -660,6 +660,13 @@ count that stays at 12 while one suite is fixed and another regresses is caught.
 It also refuses to pass when the log holds no pytest summary — a run that died
 before reporting has an unknown result, not a green one.
 
+The baseline is a list of exact node IDs, never of directories. An earlier
+version matched `tests/clipped/` as a prefix, so a brand-new regression beside a
+known clipboard failure passed silently — the same silent-pass shape the script
+exists to prevent. `ERROR` outcomes are parsed too: a collection or fixture error
+does not appear in the summary's failed count, so a run reporting "1 passed, 1
+error" was green under a failures-only check.
+
 The workflow lints only the files a change touches. A whole-tree `ruff check`
 reports pre-existing debt the hooks never see, and a gate that is red on arrival
 teaches everyone to ignore it.
