@@ -6,7 +6,7 @@ created_date: 2026-10-27 02:58
 labels:
 - planned
 - group:gita-and-machine-file-backup-approved-2026-09-23
-updated_date: 2026-10-27 22:22
+updated_date: 2026-11-06 09:00
 ---
 
 ## Description
@@ -47,7 +47,21 @@ updated_date: 2026-10-27 22:22
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
+2026-11-04 (TASK-242): two parts of this contract already landed, so the
+remaining scope is narrower than the description above reads.
+- `dotfiles/machines.yml` no longer carries hostnames: its per-machine
+  `repos:` block (keyed by a hardware serial, no consumer) is deleted, and the
+  six Mac-only entries it held were migrated into `config/repos.yaml`. The file
+  is now solely the provisioning-answers registry, keyed by `ansible_hostname`
+  only where the hostname passes spec.md § Data's string test.
+- The "never a committed hostname" goal is now met repo-wide. `machines.yml`,
+  `.chezmoidata/uv.yaml` and `.chezmoidata/opencode.yaml` no longer carry the
+  serial key (PR #128), and a guard rejects the serial shape in every committed
+  host map, so the next session cannot republish it silently.
+- Still open here, unchanged: the named-set model, the unversioned local pick
+  under `~/.local/state/machine/` (`machine.yaml` / `private.yaml` /
+  `work.yaml`), the agent-read denial for that path (policy PR), and the
+  BK2-BK4 real-data gate before seeding.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
