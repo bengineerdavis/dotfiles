@@ -136,6 +136,26 @@ variable as absent. Do not change provider
 URLs to `https://api.openai.com/v1` or `https://openrouter.ai/api/v1`: those
 bypass the local gateway and send the wrong credential to the upstream.
 
+OpenCode 2.2.2 strips its provider prefix before calling the gateway. A bare
+`deepseek/deepseek-v4.1-flash` therefore arrives with no provider identity, and
+the gateway falls through to whichever upstream matches that model name — in
+practice NVIDIA, which answers 404 even when OpenRouter is the configured
+upstream. The `openrouter` provider therefore sends one extra header:
+
+```text
+X-Lore-Provider: openrouter
+```
+
+The header is set in `files/opencode/lore-plugin.jsonc` and is the
+maintainer-agreed interim workaround (DOT-242.1). It routes exactly those
+stripped requests back to OpenRouter. It is not a general routing control, and
+it does not restore plugin tools or per-project attribution. The V2 plugin port
+remains the durable fix that makes the header unnecessary.
+
+Symptom this explains: a provider-specific model 404s while an alias such as
+`~deepseek/deepseek-pro-latest` works. The alias resolves without provider
+identity, so it was never routed by the stripped name.
+
 The gateway's upstream is separate. `loreai_openai_upstream` in
 `defaults/main.yaml` defaults to `https://openrouter.ai/api`; the
 `loreai-env.zsh.j2` template exports it as `LORE_UPSTREAM_OPENAI` in the
