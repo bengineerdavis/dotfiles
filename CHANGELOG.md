@@ -18,6 +18,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 <!-- scriv-insert-here -->
 
+## PR #106 — 2026-10-30
+
+### Added
+
+- Test LoreAI in a rootless Debian 12 Lima VM. Verify its systemd user
+  gateway and local dashboard, idempotent removal, and memory preservation.
+  Share the Lima VM adapter between the Lima and LoreAI Molecule scenarios.
+
 ## PR #130 — 2026-11-06
 
 ### Added
