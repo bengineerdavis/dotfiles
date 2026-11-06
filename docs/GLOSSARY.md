@@ -105,6 +105,26 @@ The Ansible role (`roles/topic-resolution`) that derives the topic dependency
 maps — `provides_map_all`, `provides_map_run`, `requires_map` — from the
 `topic_requires` / `topic_provides` declarations across the topic files.
 
+## provisioning answer
+
+A first-install choice a topic would otherwise prompt for, recorded instead so
+the machine answers it once and every later run is unattended. Lives in the
+provisioning-answers registry or, for a machine that cannot be committed, in a
+machine-local overlay. Doc of record: `docs/LAYOUT.md` § Provisioning answers.
+
+## shared answer
+
+A `provisioning answer` in the registry's fleet tier
+(`provisioning.shared.<topic>`): written once, inherited by every machine that
+does not override it.
+
+## machine answer
+
+A `provisioning answer` in one machine's tier
+(`machines.<ansible_hostname>.provisioning.<topic>` in the registry, or the
+matching block of the machine-local overlay). Overrides the shared answer for
+that machine only; a machine answer that diverges is reported on every run.
+
 ## rung
 
 A level on the trust ladder (0–4), held per task class, never globally. What

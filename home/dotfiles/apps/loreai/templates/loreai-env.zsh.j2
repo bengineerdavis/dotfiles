@@ -1,7 +1,13 @@
-# Machine-local Lore.AI environment — apps/loreai, written {{ ansible_date_time.date }}.
+# Machine-local Lore.AI environment — apps/loreai.
 # Sourced by ~/dotfiles/apps/loreai/files/zsh/env.zsh at shell start.
-# Each machine answers for itself: delete this file and re-run the topic to
-# re-answer the first-install prompts, or edit directly.
+#
+# This file is an ARTIFACT of the provisioning-answers registry, not a source
+# of truth. Answers come from machines.yml (provisioning.shared.loreai, plus
+# this machine's entry when it has one) or, for a host whose hostname cannot
+# be committed, from ~/.config/loreai/answers.yaml. Direct edits here are
+# overwritten by the next run: to change an answer, edit the registry (or the
+# local overlay) and re-run the topic. Answers nobody has settled are asked at
+# first install.
 
 # ── Telemetry ────────────────────────────────────────────────────────────────
 # Production builds send privacy-filtered operational telemetry to Sentry

@@ -40,6 +40,12 @@ loreai_install_dir: "{{ ansible_env.HOME }}/.local/bin"
 loreai_config_dir: "{{ ansible_env.HOME }}/.config/loreai"
 loreai_env_file: "{{ loreai_config_dir }}/env.zsh"
 
+# Machine tier for hosts whose hostname cannot be committed (spec.md § Data's
+# string test — a hardware serial fails it). Unversioned, machine-local, same
+# per-topic shape as machines.yml's machines.<host>.provisioning.<topic>.
+# Absent file = inherit the committed answers; malformed = fail loud.
+loreai_local_overlay_file: "{{ loreai_config_dir }}/answers.yaml"
+
 # ── Gateway service (TASK-243) ───────────────────────────────────────────────
 # The persistent agent setups point at 127.0.0.1:3207, so the topic owns a
 # per-user unit that keeps the gateway alive (TOPIC-RECIPES.md § service
