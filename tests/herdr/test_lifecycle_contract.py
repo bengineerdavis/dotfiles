@@ -720,6 +720,35 @@ def test_playbook_passes_ansible_syntax_check():
         "ansible-playbook unavailable via `uv run --with ansible-core` — the "
         "syntax check cannot run; run the suite with --with ansible-core"
     )
+
+    # Install the collections the playbook imports. Without them the syntax
+    # check fails on `community.general.launchd` with "couldn't resolve
+    # module/action", which reads as a playbook defect rather than a missing
+    # dependency — measured in CI 2026-11-05. versions come from the repo's
+    # requirements.yml, so this checks against the pins the topics are graded
+    # on rather than whatever happens to be installed.
+    install = subprocess.run(
+        [
+            "uv",
+            "run",
+            "--frozen",
+            "--with",
+            "ansible-core",
+            "ansible-galaxy",
+            "collection",
+            "install",
+            "-r",
+            "requirements.yml",
+        ],
+        cwd=PAYLOAD_ROOT / "dotfiles",
+        capture_output=True,
+        text=True,
+    )
+    assert install.returncode == 0, (
+        f"ansible-galaxy could not install requirements.yml "
+        f"(rc={install.returncode}): {install.stderr.strip()}"
+    )
+
     proc = subprocess.run(
         [
             "uv",

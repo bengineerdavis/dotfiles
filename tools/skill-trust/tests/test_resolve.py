@@ -62,7 +62,26 @@ def _answers(monkeypatch, *answers: str):
     monkeypatch.setattr("builtins.input", _input)
 
 
+def _inventory_default(extra: tuple[str, ...]) -> tuple[str, ...]:
+    """Add `--no-inventory` unless the test supplies its own inventory flag."""
+    if any(flag in extra for flag in ("--inventory-cmd", "--declared-json")):
+        return extra
+    if "--no-inventory" in extra:
+        return extra
+    return ("--no-inventory", *extra)
+
+
 def _resolve(tmp_path, *extra: str):
+    """Run resolve with no manager inventory unless a test asks for one.
+
+    `resolve` fetches the manager's inventory by default, and the default
+    command is `npx -y @sentry/dotagents@latest --user list --json` — a
+    network install. A machine that has npx answers it; CI has neither, so
+    these tests passed locally and failed there with `inventory command
+    output is not JSON`. The tests that care about inventory pass
+    `--inventory-cmd` with a local stub, so defaulting to `--no-inventory`
+    keeps every case honest and hermetic.
+    """
     return main(
         [
             "--offline",
@@ -73,7 +92,7 @@ def _resolve(tmp_path, *extra: str):
             "resolve",
             "--skills-dir",
             str(tmp_path),
-            *extra,
+            *_inventory_default(extra),
         ]
     )
 
@@ -234,6 +253,8 @@ def test_already_decided_findings_are_reported_not_asked(tmp_path, monkeypatch, 
             "resolve",
             "--skills-dir",
             str(tmp_path),
+            # No manager inventory: it is a network install, absent in CI.
+            "--no-inventory",
         ]
     )
     assert code == DENIED
