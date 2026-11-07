@@ -8,11 +8,12 @@ shape, deep-merged ahead of the model overrides.
 
 The parity test runs the real command in an isolated HOME with
 --no-plugin (so no npm mutation and no gateway needed) and compares its
-generated provider routes with the fragment. The only deliberate
-difference is the disabled V1 plugin until the reviewed V2 port lands
-(2026-11-01).
-A future Lore release that changes setup output fails here rather than
-silently drifting.
+generated provider routes with the fragment. Two deliberate differences
+exist: the disabled V1 plugin (until the reviewed V2 port lands,
+2026-11-01), and the OpenRouter X-Lore-Provider header that restores
+provider identity stripped by OpenCode 2.2.2 (DOT-242.1, the
+maintainer-agreed interim fix). A future Lore release that changes
+setup output fails here instead of drifting silently.
 """
 
 from __future__ import annotations
@@ -57,10 +58,17 @@ def test_fragment_matches_lore_setup_opencode(tmp_path):
     fragment = json.loads(FRAGMENT.read_text())
 
     assert fragment["plugin"] == []
-    assert {**fragment, "plugin": generated["plugin"]} == generated, (
-        "Only the plugin registration may differ from setup. Review new "
-        "provider routes deliberately: setup routes these providers, not "
-        "local providers it does not declare (including Ollama). "
+    # The X-Lore-Provider header is the one deliberate provider-route
+    # divergence (DOT-242.1): setup does not emit it, the fragment does.
+    fragment_without_header = json.loads(json.dumps(fragment))
+    openrouter = fragment_without_header["provider"].get("openrouter", {})
+    openrouter_options = openrouter.get("options", {})
+    openrouter_options.pop("headers", None)
+    assert {**fragment_without_header, "plugin": generated["plugin"]} == generated, (
+        "Only the plugin registration and the OpenRouter X-Lore-Provider "
+        "header may differ from setup. Review new provider routes "
+        "deliberately: setup routes these providers, not local providers it "
+        "does not declare (including Ollama). "
         f"Generated: {json.dumps(generated, sort_keys=True)}; "
         f"fragment: {json.dumps(fragment, sort_keys=True)}"
     )

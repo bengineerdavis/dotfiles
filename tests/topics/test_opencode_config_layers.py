@@ -225,6 +225,10 @@ def test_loreai_setup_merges_with_model_overrides():
             assert cfg["provider"][name] == provider
     openrouter = cfg["provider"]["openrouter"]
     assert openrouter["options"]["baseURL"] == "http://127.0.0.1:3207/v1"
+    # OpenCode strips its provider prefix before the gateway; the surviving
+    # header restores the OpenRouter identity so provider-specific models
+    # (DeepSeek) route to OpenRouter instead of a wrong upstream (DOT-242.1).
+    assert openrouter["options"]["headers"] == {"X-Lore-Provider": "openrouter"}
     variants = openrouter["models"]["anthropic/claude-opus-5"]["variants"]
     assert variants["max"] == {"reasoning": {"effort": "max"}}
 
