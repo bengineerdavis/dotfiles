@@ -4,6 +4,15 @@ on:
   pull_request:
     types: [closed]
     branches: [main]
+  # A failed collection leaves its fragment on main with no entry. Re-running
+  # the PR's own collection is the only way back, so the trigger exists even
+  # though the normal path never needs it. See "Collect and push" below.
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number whose changelog fragments to collect"
+        required: true
+        type: string
 
 # A failed collection must not race another merge's collection.
 concurrency:
@@ -12,7 +21,9 @@ concurrency:
 
 jobs:
   collect:
-    if: github.event.pull_request.merged == true
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -20,9 +31,16 @@ jobs:
     steps:
       # Check out the merged main commit, never the untrusted PR head. The
       # workflow itself comes from the default branch, not from the PR.
+      #
+      # Full history: the retry below rebases onto the latest main, which
+      # needs the merge base between this checkout and the new tip. A shallow
+      # clone cannot find it.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          # On a merge: that merge's commit. On a manual dispatch: current main,
+          # because the fragment is already on main and the run is a recovery.
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
           persist-credentials: true
 
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
@@ -34,7 +52,7 @@ jobs:
       - name: Collect only this PR's fragments
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.pr_number || github.event.pull_request.number }}
         run: |
           set -euo pipefail
           work="$(mktemp -d)"
@@ -77,4 +95,34 @@ jobs:
             -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
             commit -m "changelog: collect PR #${PR_NUMBER}"
           git show --stat --oneline HEAD
-          git push origin HEAD:main
+
+          # This commit sits on the merge commit checked out above. Another
+          # merge can land on main before the push runs, moving the base and
+          # turning the push into a non-fast-forward rejection. Measured
+          # 2026-10-30: PR #106's collection commit was built at 03:07:44 and
+          # rejected at 03:07:45 because PR #107 merged at 03:07:33. The
+          # fragment stayed on main for a week with no entry.
+          #
+          # Replay the commit onto the new main and retry. A bounded count,
+          # because a retry loop that never gives up hides a real failure
+          # behind a red run that looks like a transient.
+          attempts=0
+          while :; do
+            if git push origin HEAD:main; then
+              echo "pushed the changelog collection"
+              exit 0
+            fi
+            attempts=$((attempts + 1))
+            if [ "$attempts" -ge 3 ]; then
+              echo "::error::push rejected 3 times; PR #${PR_NUMBER}'s fragment is still uncollected. Re-run this workflow from the Actions tab."
+              exit 1
+            fi
+            echo "push rejected on attempt ${attempts}; rebasing onto current main"
+            git fetch origin main
+            git rebase origin/main
+            # The guard still holds after the replay: a rebase may not smuggle
+            # in a change outside the changelog and its fragments.
+            git diff --exit-code HEAD^ HEAD -- . ':(exclude)CHANGELOG.md' ':(exclude)changelog.d/*.md'
+            git diff --check HEAD^ HEAD
+            sleep $((attempts * 2))
+          done
