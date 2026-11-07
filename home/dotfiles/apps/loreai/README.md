@@ -335,6 +335,26 @@ Prices are volatile; re-check the catalog before switching. These are
 
 ## Existing conversations
 
+### `lore help`, never `--help`
+
+`--help` works only at the top level (`lore --help`, `lore -h`). On a
+subcommand it is not parsed as help at all — it falls through to the normal
+argument parser, and what happens next depends on the command:
+
+| Command | Behaviour |
+| --- | --- |
+| `lore help` | **The real help.** Every subcommand is documented here |
+| `lore setup --help` | **Runs `setup`** — rewrites agent configs |
+| `lore data export --help` | **Runs the export** — rewrites `.lore.md` |
+| `lore data list --help` | `Unknown type "(none)"`, then runs |
+| `lore recall --help` | `Unknown command "recall --help"` — **exit 0** |
+
+Measured against lore 0.40.0 on 2026-11-07. The last row is the dangerous
+shape: a failed invocation reports success, so a script that checks the exit
+status sees a clean run that did nothing. Use `lore help`, `lore doctor`, and
+`lore setup status` to inspect behaviour. `lore setup status` is the
+read-only inventory of what setup has touched.
+
 Report-only at install (author ruling 2026-10-21): the install prints what
 `lore import --dry-run` would pick up for the checkout it runs from, and
 names the per-project command. `lore import` is idempotent and
