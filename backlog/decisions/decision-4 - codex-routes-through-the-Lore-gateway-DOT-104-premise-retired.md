@@ -1,5 +1,5 @@
 ---
-id: decision-2
+id: decision-4
 title: codex routes through the Lore gateway; DOT-104's premise is retired
 date: 2026-11-05 02:00
 status: accepted

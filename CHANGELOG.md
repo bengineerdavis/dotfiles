@@ -25,6 +25,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Test LoreAI in a rootless Debian 12 Lima VM. Verify its systemd user
   gateway and local dashboard, idempotent removal, and memory preservation.
   Share the Lima VM adapter between the Lima and LoreAI Molecule scenarios.
+## PR #126 — 2026-11-07
+
+Added a CI job that runs the full suite and judges it by the known-failure
+baseline rather than the count. Every other check in this repo was a
+pre-commit hook, so a fresh clone — or a bypassed hook — reached `main`
+untested.
 
 ## PR #130 — 2026-11-06
 

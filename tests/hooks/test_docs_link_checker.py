@@ -92,6 +92,20 @@ def test_unapproved_external_run_does_not_invoke_lychee(
 
 
 def test_real_lychee_detects_broken_local_link(tmp_path: Path):
+    """The one test that needs an actual Lychee binary.
+
+    Skipped rather than failed when no backend can run. This is the
+    honest form of "cannot run here": the suite still asserts the
+    selection logic in the tests above, and this one states plainly
+    that the binary was absent instead of reporting a false failure.
+    CI has neither mise nor a Lychee backend, which is why this is
+    skipped there — measured 2026-11-05.
+    """
+    if links.select_backend() is None:
+        pytest.skip(
+            "no Lychee backend available — install it with "
+            "`mise install cargo:lycheeverse/lychee`"
+        )
     document = tmp_path / "broken.md"
     document.write_text("[missing](missing.md)\n")
     result = subprocess.run(
@@ -121,6 +135,11 @@ def test_no_executable_backend_fails_loudly_instead_of_skipping(
     Measured 2026-11-04: the aqua binary could not execute at all, and
     the commit still needed evidence rather than --no-verify.
     """
+    # The subject is the backend probe, not whether this host has
+    # mise. CI has neither mise nor a backend, and `main` checks
+    # for mise first — which returns 2 for the wrong reason and
+    # passes the test without exercising the message under test.
+    monkeypatch.setattr(links.shutil, "which", lambda _: "/usr/bin/mise")
     monkeypatch.setattr(links, "BACKENDS", ("cargo:lycheeverse/lychee",))
     monkeypatch.setattr(links, "probe_backend", lambda token: False)
     code = links.main(["--changed", "docs/TOPIC-RECIPES.md"])
@@ -154,6 +173,7 @@ def test_a_backend_that_runs_is_not_replaced_when_it_finds_broken_links(
 
     monkeypatch.setattr(links, "CONFIG", tmp_path / "lychee.toml")
     (tmp_path / "lychee.toml").write_text("offline = true\n")
+    monkeypatch.setattr(links.shutil, "which", lambda _: "/usr/bin/mise")
     monkeypatch.setattr(links.subprocess, "run", record)
     monkeypatch.setattr(links, "probe_backend", lambda token: True)
     code = links.main(["--changed", "guide.md"], repo=tmp_path)
@@ -180,6 +200,7 @@ def test_changed_scope_only_checks_selected_tracked_files(
 
     monkeypatch.setattr(links, "CONFIG", tmp_path / "lychee.toml")
     (tmp_path / "lychee.toml").write_text("offline = true\n")
+    monkeypatch.setattr(links.shutil, "which", lambda _: "/usr/bin/mise")
     monkeypatch.setattr(links.subprocess, "run", record)
     monkeypatch.setattr(links, "probe_backend", lambda token: True)
     assert links.main(["--changed", "docs/guide.md"], repo=tmp_path) == 0
