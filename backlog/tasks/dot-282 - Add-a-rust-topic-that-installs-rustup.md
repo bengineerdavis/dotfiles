@@ -97,7 +97,7 @@ instead of failing with TOPIC_NOT_RUN. Four tests in
 tests/topics/test_rust_ownership.py hold it, each mutation-proven.
 
 Not done: macOS was not run. The same backend would be used and rustup-init
-publishes an aarch64-apple-darwin build, but nothing executed on L37V3P6GQ3.
+publishes an aarch64-apple-darwin build, but nothing executed on the Mac.
 That machine's real gap is Xcode Command Line Tools, which no topic installs.
 <!-- SECTION:FINAL_SUMMARY:END -->
 

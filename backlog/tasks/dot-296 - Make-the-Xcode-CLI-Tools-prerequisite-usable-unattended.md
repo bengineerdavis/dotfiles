@@ -64,7 +64,7 @@ correct one if a second topic ever needs a compiler.
 
 - Whether a macOS host is available to test on, and how. `AGENTS.md` §
   Verification forbids reporting work as verified on a platform it has not run
-  on, and L37V3P6GQ3 is not reachable from this session.
+  on, and the Mac is not reachable from this session.
 - Whether unattended `xcode-select` installation is possible at all. Candidates
   worth checking against Apple's documentation rather than assuming:
   `softwareupdate --install` for the CLT package, the `com.apple.dt.CommandLineTools` label

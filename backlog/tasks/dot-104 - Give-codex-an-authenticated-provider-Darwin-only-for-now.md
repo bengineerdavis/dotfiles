@@ -16,7 +16,7 @@ updated_date: 2026-11-05 02:00
   2026-11-05. The author ruled 2026-11-04 that codex routes through the Lore
   gateway; the earlier "Darwin only, chezmoi-managed config.toml" shape is
   retired. The full ruling and its evidence are in
-  `backlog/decisions/decision-2`.
+  `backlog/decisions/decision-4`.
 
 The original premise measured false three ways:
 

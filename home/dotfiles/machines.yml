@@ -1,51 +1,37 @@
-# machines.yml — per-machine data: repo membership by layout type.
+# machines.yml — per-machine provisioning answers, in two tiers.
 #
-# Standard: docs/LAYOUT.md (settled 2026-09-15). Plain data, slurped by the
-# parent playbook the same way topic.yml files are; gita consumes `repos`.
+# Standard: docs/LAYOUT.md § "Provisioning answers" (settled 2026-11-04;
+# decision-1 in backlog/decisions/). Plain data, self-loaded by each topic
+# that has first-install answers — the same resolution path under a
+# parent-driven fleet run and a standalone `run-role.sh` run.
 #
-# Work repos are NOT named here — spec.md § Data forbids committing
-# employer-identifying strings. They live in the machine-local overlay at
-# ~/.local/state/layout/machines.local.yaml (same schema, owner: the layout
-# standard; retention: until the machine is decommissioned).
+# THE KEY RULE (2026-11-04, correcting decision-1's original clause): a
+# machine key is its `ansible_hostname`, and only where that hostname passes
+# spec.md § Data's string test — "could I have found or used this without
+# being part of a company?" A default OS hostname (pop-os) passes: anyone's
+# box could be called that. A hardware serial does not: it traces to one
+# physical device and its owner. A machine whose hostname fails the test
+# carries NO committed key and puts its machine tier in the local overlay
+# (~/.config/<topic>/answers.yaml, unversioned) instead.
 #
-# Bundle-group membership (hostname → groups) lands here with the topic
-# bundles work; only `repos` is settled today.
+# Repo membership is NOT here. It lives in config/repos.yaml (one shared
+# catalogue, dot-171's contract); gita reports a declared-but-absent repo per
+# machine rather than declaring different sets per machine.
 #
-# 2026-10-22: membership refreshed after pulling in the catalogue repos
-# (config/repos.yaml re-pointed to the type dirs; missing own repos cloned).
-# Non-repo dirs (aihero course) and the worktree trial
-# (try/worktrunk-isolation-trial, local remote into work/) stay out of the
-# membership until they earn a place.
+# Work repos are NOT named anywhere in this repo — spec.md § Data forbids
+# committing employer-identifying strings.
+provisioning:
+  shared:
+    # Fleet defaults, written once. A machine inherits these unless it
+    # overrides them in the machine tier below or in its local overlay.
+    loreai:
+      telemetry: 1
+      inference: openrouter
+      worker_model: openrouter/z-ai/glm-5.3-flash
 machines:
-  L37V3P6GQ3:  # this Mac
-    repos:
-      personal:
-        - ai-prompt-library
-        - ai-prompt-library-escalation-writing
-        - bad-python-app
-        - bt-import
-        - bengineerdavis.github.io
-        - impromptu
-        - jirassic
-        - job-hunt
-        - llocallabs
-        - magic_touch
-        - pcshopper
-        - prompt-spec
-        - questionable
-        - rootiminary
-        - sawmill
-        - topical
-      templates:
-        - Best-README-Template
-        - agentic-project-template
-        - copier-cat
-        - copier-mise-sandbox
-        - copier-template-copier-template
-        - dotfile-topic-copier
-      try:
-        - xerror
-      captures: []
-      forks:
-        - promptlint
-      archive: []
+  # Keyed by ansible_hostname, per the key rule above.
+  pop-os:
+    provisioning:
+      # Inherits every shared answer above. An entry here documents that the
+      # machine is registered; add overrides only when it must diverge.
+      loreai: {}

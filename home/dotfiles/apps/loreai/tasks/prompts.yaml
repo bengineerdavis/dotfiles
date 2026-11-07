@@ -12,6 +12,73 @@
     path: "{{ loreai_env_file }}"
   register: loreai_env_stat
 
+- name: "loreai: read the saved answers"
+  # An existing env file is the fallback tier for a re-render: a key that
+  # neither -e nor the registry settles keeps its saved value instead of
+  # falling through to a prompt default. Without this, a partial registry
+  # answer set flips an answered privacy setting (SENTRY_ENABLED=0 back to 1)
+  # with no warning, because the prompts and probes are skipped on a re-run.
+  when: loreai_env_stat.stat.exists
+  block:
+    - name: "loreai: slurp the saved answers"
+      ansible.builtin.slurp:
+        src: "{{ loreai_env_file }}"
+      register: loreai_env_slurp
+
+    - name: "loreai: extract the answered values"
+      ansible.builtin.set_fact:
+        loreai_saved_telemetry: >-
+          {{ (loreai_env_slurp.content | b64decode
+              | regex_findall('(?m)^export SENTRY_ENABLED=(\S+)$')
+              | first | default('', true)) }}
+        loreai_saved_worker_model: >-
+          {{ (loreai_env_slurp.content | b64decode
+              | regex_findall('(?m)^export LORE_WORKER_MODEL="([^"]*)"$')
+              | first | default('', true)) }}
+
+    # The worker-model line records the inference choice that produced the
+    # artifact: the template only emits LORE_WORKER_MODEL when a worker model
+    # is set, and the per-choice default is openrouter/… for 'openrouter', a
+    # local ollama tag for 'local', and empty for 'none'. (The upstream
+    # markers cannot serve here: the OpenRouter upstream is emitted whenever
+    # any worker model is set, whatever the choice.) A separate task, because
+    # set_fact values are not visible to each other within one task.
+    - name: "loreai: infer the saved inference choice from the artifact"
+      ansible.builtin.set_fact:
+        loreai_saved_inference: >-
+          {{ ('local'
+              if loreai_saved_worker_model is search('^ollama/')
+              else ('openrouter'
+                    if loreai_saved_worker_model is search('^openrouter/')
+                    else 'none')) }}
+
+# ── The provisioning-answers registry (decision-1) ───────────────────────────
+# Loaded before anything asks. Shared answers (fleet defaults) plus machine
+# answers (per-host exceptions) settle first; the prompts below skip any
+# variable the registry answers, and the settle chain prefers
+# -e > machine answer > shared answer > prompt > probe default.
+
+- name: "loreai: load the provisioning-answers registry"
+  ansible.builtin.import_tasks: registry-answers.yaml
+
+- name: "loreai: settle telemetry from the registry"
+  # -e still beats the registry: this fires only when no -e was given.
+  # Prompts below fire only when the var is still none, so the registry
+  # slots in exactly between -e and prompt (decision-1 precedence).
+  ansible.builtin.set_fact:
+    loreai_telemetry: "{{ loreai_registry_telemetry }}"
+  when: loreai_telemetry is none and loreai_registry_telemetry is not none
+
+- name: "loreai: settle inference from the registry"
+  ansible.builtin.set_fact:
+    loreai_inference: "{{ loreai_registry_inference }}"
+  when: loreai_inference is none and loreai_registry_inference is not none
+
+- name: "loreai: settle the worker model from the registry"
+  ansible.builtin.set_fact:
+    loreai_worker_model: "{{ loreai_registry_worker_model }}"
+  when: loreai_worker_model is none and loreai_registry_worker_model is not none
+
 - name: "loreai: fail fast when answers are needed but cannot be asked"
   # pause would hang or error on a headless run; name the non-interactive
   # path instead. Nothing has been installed or changed at this point.
@@ -105,8 +172,13 @@
          if loreai_telemetry is not none
          else ((loreai_telemetry_answer.user_input | default('') | trim)
                if (loreai_telemetry_answer.user_input | default('') | trim) in ['0', '1']
-               else '1') }}
-  when: not loreai_env_stat.stat.exists
+               else (loreai_saved_telemetry
+                     if loreai_saved_telemetry in ['0', '1']
+                     else '1')) }}
+  # Also when the registry answers: the env file is an artifact of the
+  # registry, so a registry-driven run re-renders it (byte-identical when
+  # nothing changed).
+  when: not loreai_env_stat.stat.exists or loreai_registry_has_answers | bool
 
 - name: "loreai: settle the inference answer (-e beats prompt beats detection)"
   ansible.builtin.set_fact:
@@ -116,16 +188,20 @@
          else ((loreai_inference_answer.user_input | default('') | trim | lower)
                if (loreai_inference_answer.user_input | default('') | trim | lower)
                   in ['openrouter', 'local', 'none']
-               else loreai_inference_default) }}
-  when: not loreai_env_stat.stat.exists
+               else (loreai_saved_inference
+                     if loreai_saved_inference in ['openrouter', 'local', 'none']
+                     else (loreai_inference_default | default('none')))) }}
+  when: not loreai_env_stat.stat.exists or loreai_registry_has_answers | bool
 
 - name: "loreai: validate the inference answer"
   ansible.builtin.fail:
     msg: >-
       loreai_inference must be one of openrouter, local, none —
       got '{{ loreai_inference_final }}'. Nothing has been installed or changed.
+  # Also when the registry answers: a bad committed value must fail loud
+  # rather than render into the artifact.
   when: >
-    not loreai_env_stat.stat.exists
+    (not loreai_env_stat.stat.exists or loreai_registry_has_answers | bool)
     and loreai_inference_final not in ['openrouter', 'local', 'none']
 
 - name: "loreai: validate the telemetry answer"
@@ -134,7 +210,7 @@
       loreai_telemetry must be 0 or 1 — got '{{ loreai_telemetry_final }}'.
       Nothing has been installed or changed.
   when: >
-    not loreai_env_stat.stat.exists
+    (not loreai_env_stat.stat.exists or loreai_registry_has_answers | bool)
     and loreai_telemetry_final | string not in ['0', '1']
 
 - name: "loreai: default the worker model from the inference choice"
@@ -142,11 +218,13 @@
     loreai_worker_model_final: >-
       {{ loreai_worker_model
          if loreai_worker_model is not none
-         else (loreai_worker_model_openrouter_default
-               if loreai_inference_final == 'openrouter'
-               else (loreai_worker_model_local_default
-                     if loreai_inference_final == 'local' else '')) }}
-  when: not loreai_env_stat.stat.exists
+         else (loreai_saved_worker_model
+               if loreai_saved_worker_model | length > 0
+               else (loreai_worker_model_openrouter_default
+                     if loreai_inference_final == 'openrouter'
+                     else (loreai_worker_model_local_default
+                           if loreai_inference_final == 'local' else ''))) }}
+  when: not loreai_env_stat.stat.exists or loreai_registry_has_answers | bool
 
 - name: "loreai: save the answers per machine"
   # The directory itself is created in install.yaml, tagged [install,
@@ -156,7 +234,7 @@
     src: loreai-env.zsh.j2
     dest: "{{ loreai_env_file }}"
     mode: "0600"
-  when: not loreai_env_stat.stat.exists
+  when: not loreai_env_stat.stat.exists or loreai_registry_has_answers | bool
 
 - name: "loreai: converge the temporary OpenAI-protocol upstream"
   # Unlike the first-install template, this also updates existing answer files.
@@ -175,7 +253,9 @@
       inference={{ loreai_inference_final }}
       {{ (', worker model ' + loreai_worker_model_final)
          if loreai_worker_model_final | default('') | length > 0 else '' }}.
-      Edit the file to change; delete it and re-run to be asked again.
+      This file is an artifact: direct edits are overwritten. To change an
+      answer, edit machines.yml's provisioning registry (or the machine-local
+      overlay {{ loreai_local_overlay_file }}) and re-run.
   when: not loreai_env_stat.stat.exists
 
 - name: "loreai: warn loudly when openrouter was chosen without a resolvable key"
