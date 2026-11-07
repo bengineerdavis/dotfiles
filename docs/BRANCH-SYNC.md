@@ -57,6 +57,45 @@ gh api -X PATCH repos/OWNER/REPO -f allow_update_branch=true
 A future centralized coordinator may provide more scheduling and stack-aware
 updates, but removing it must leave these repository-local mechanisms usable.
 
+## The pre-push check
+
+`scripts/check-branch-sync.py` runs as the `branch-sync` prek hook at
+`pre-push`. It does two things:
+
+1. Fast-forwards the local `main` checkout to `origin/main`.
+2. Simulates merging `main` into the branch being pushed, using
+   `git merge-tree --write-tree` (git 2.38+).
+
+The merge simulation runs against the object database. It never touches the
+working tree or the index, so a conflict does not leave residue that nobody
+reviewed.
+
+A clean simulation passes silently. A conflict stops the push and names the
+conflicting paths:
+
+```text
+branch sync: main needs to be resolved with feature before it can merge.
+Conflicting paths:
+  shared.txt
+```
+
+**The hook does not merge for you.** It reports; the reconciliation is a
+decision. That is deliberate: an automatic merge of `main` into a feature
+branch during a push is a write the author did not ask for, on a branch they
+may not be looking at.
+
+### Dirty main checkouts
+
+The check lets git decide, rather than refusing on any uncommitted file. A
+background process rewrites `.lore.md` in the main checkout continuously, and
+concurrent sessions share that checkout, so a blanket "refuse if dirty" would
+gate every push on another session's working state.
+
+Git fast-forwards around edits it does not need to touch and refuses when an
+incoming commit would overwrite one. The hook reports git's answer either way.
+A diverged local `main` — local commits that `origin/main` lacks — is refused
+outright and never rebound by the hook; reconciling it is the author's call.
+
 ## Decision record
 
 Adopted 2026-11-05 after checking Worktrunk 0.81.0's `--help`, GitHub's REST
