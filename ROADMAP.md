@@ -49,6 +49,19 @@ reads as a complete picture, not to duplicate them.
 
 ## Not yet scheduled
 
+### Migrating this repo onto the project templates
+
+Ancillary fixes landed here before the migration lands are at risk of being
+overwritten, or conflicting, when this repo is restamped onto its templates.
+Expect it and plan for it rather than discovering it mid-migration: the
+migration is a deliberate reconciliation of what this repo carries against
+what a stamped project would carry, and anything added in the interim is
+candidate material for that reconciliation, not an automatic casualty of it.
+
+Recorded 2026-11-07 while making small enforcement fixes here (a worktree
+guard, a stamp test). The instruction is to anticipate the conflict, not to
+defer the fixes.
+
 ### Over-arching policy and where it lives
 
 The author's open internal debate, recorded 2026-09-12 rather than resolved.
