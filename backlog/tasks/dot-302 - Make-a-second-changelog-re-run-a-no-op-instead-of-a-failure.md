@@ -57,6 +57,38 @@ body.
 The mutation to record: restore `test -f "$fragment"` in place of the guard.
 A test that greps for "already collected" survives this mutation, because the
 same message appears in the nothing-left-to-move block further down.
+**Implemented 2026-11-07 — PR #138, branch `agent/dot-302`, commit `a9df7a2`.**
+
+Three changes to `.github/workflows/changelog.yml`:
+
+1. The collect loop skips a missing fragment and `continue`s, so a partially
+   collected PR still collects its remainder.
+2. An empty-fragments check exits 0 before `scriv collect`, so a fully
+   collected re-run does not reach scriv (exit 2) or the push-retry loop.
+3. The cleanup loop guards `git rm` the same way — it failed on an
+   already-deleted fragment for the same reason.
+
+Three mutations, each caught by a distinct test:
+
+- restore `test -f "$fragment"` → three tests fail
+  (`test_a_repeated_collection_is_a_no_op`,
+  `test_a_fully_collected_rerun_exits_clean`,
+  `test_a_partially_collected_pr_still_collects_the_rest`)
+- drop the empty-directory exit → `test_a_fully_collected_rerun_exits_clean`
+- make the cleanup loop unconditional →
+  `test_a_partially_collected_pr_still_collects_the_rest`
+
+The first test asserts the loop's branch (`! -f`, `continue`), not the message.
+The first draft grepped for "already collected" and stayed green against the
+unfixed loop; the mutation caught it.
+
+**Environment note.** A full local run reports 4 failures in `tests/chezmoi/`
+that are not from this change and are not in the CI baseline: a broken symlink
+in a leftover Molecule controller directory
+(`home/dotfiles/apps/lima/molecule/debian/.molecule/controller/.local/share/doc/lima/templates`,
+created 2026-10-03, target missing). `.molecule/` is gitignored and CI has no
+such directory, which is why `main` is green in CI and red on this host. Not
+deleted; it belongs to whoever owns that VM state.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary

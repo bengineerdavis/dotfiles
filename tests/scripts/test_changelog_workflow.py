@@ -180,6 +180,79 @@ def test_a_fragment_less_pr_still_exits_clean():
     )
 
 
+def _loop_body(runs: str, marker: str) -> str:
+    """The body of the first while-loop containing `marker`."""
+    start = runs.index(marker)
+    loop_start = runs.rindex("while IFS= read -r fragment; do", 0, start)
+    return runs[loop_start : runs.index("done <", loop_start)]
+
+
+def test_a_repeated_collection_is_a_no_op():
+    """A second manual re-run must not fail on a deleted fragment.
+
+    Pressing Re-run twice is the natural response to not knowing
+    whether the first one worked. Under `set -euo pipefail` a bare
+    `test -f` on the already-deleted fragment exits 1, so the second
+    press reports failure for a PR whose entry is already correct —
+    which teaches that a red collection run is noise.
+
+    Assert the branch, not the message: "already collected" also
+    appears in the nothing-left-to-move block below the loop, so a
+    grep for it stays green against the unfixed loop.
+    """
+    body = _loop_body(_runs(), 'mv -- "$fragment"')
+
+    assert "! -f" in body, (
+        "the fragment loop assumes every fragment still exists; a re-run after "
+        "a successful collection finds it deleted and exits 1"
+    )
+    assert "continue" in body, (
+        "a missing fragment must skip to the next one, not abort the loop"
+    )
+
+
+def test_a_fully_collected_rerun_exits_clean():
+    """Nothing left to move must end green, not fall through.
+
+    Falling through would reach `scriv collect` with an empty
+    directory, which exits 2, and then the retry loop, which would
+    report a rejected push for a collection it never had to make.
+    """
+    runs = _runs()
+    body = _loop_body(runs, 'mv -- "$fragment"')
+    after_loop = runs[runs.index("done <", runs.index('mv -- "$fragment"')) :]
+
+    assert "already collected" in body, (
+        "a re-run with nothing left to collect must say so inside the loop"
+    )
+    assert "ls -A" in after_loop and "exit 0" in after_loop, (
+        "the empty-directory check must exit 0 before scriv runs; falling "
+        "through collects nothing and reports a failure for a finished PR"
+    )
+
+
+def test_a_partially_collected_pr_still_collects_the_rest():
+    """One fragment already gone must not stop the remaining ones.
+
+    Skipping per fragment rather than aborting the loop is what
+    keeps a PR with two fragments converging when only one was
+    collected.
+    """
+    runs = _runs()
+    body = _loop_body(runs, 'mv -- "$fragment"')
+
+    assert "continue" in body, (
+        "a missing fragment must not abort the loop; a partially-collected PR "
+        "would never collect its remaining fragments"
+    )
+
+    rm_loop = _loop_body(runs, 'git rm -- "$fragment"')
+    assert "if [[ -f" in rm_loop, (
+        "the cleanup loop removes every listed fragment unconditionally, which "
+        "fails on one that a previous run already deleted"
+    )
+
+
 def test_every_action_pin_is_the_reviewed_one():
     workflow = _workflow()
     uses = [

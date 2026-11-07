@@ -72,10 +72,23 @@ jobs:
             exit 0
           fi
 
+          # A re-run after a successful collection finds the fragment gone.
+          # That is the finished state, not an error: `test -f` would exit 1
+          # under `set -e` and report failure for a PR whose entry is already
+          # correct. Skipping per fragment rather than aborting keeps a
+          # partially-collected PR converging.
           while IFS= read -r fragment; do
-            test -f "$fragment"
+            if [[ ! -f "$fragment" ]]; then
+              echo "already collected: ${fragment}"
+              continue
+            fi
             mv -- "$fragment" "$work/fragments/"
           done < "$work/fragments-to-collect"
+
+          if [[ -z "$(ls -A "$work/fragments")" ]]; then
+            echo "PR #${PR_NUMBER}'s fragments are already collected; nothing to do."
+            exit 0
+          fi
 
           cp changelog.d/scriv.ini "$work/scriv.ini"
           printf '\nfragment_directory = %s\n' "$work/fragments" >> "$work/scriv.ini"
@@ -87,8 +100,12 @@ jobs:
           git diff --exit-code -- . ':(exclude)CHANGELOG.md' ':(exclude)changelog.d/*.md'
           git diff --check
           git add -- CHANGELOG.md
+          # Only remove the fragments this run actually collected; the rest
+          # were already gone before it started.
           while IFS= read -r fragment; do
-            git rm -- "$fragment"
+            if [[ -f "$fragment" ]]; then
+              git rm -- "$fragment"
+            fi
           done < "$work/fragments-to-collect"
 
           git -c user.name='github-actions[bot]' \
