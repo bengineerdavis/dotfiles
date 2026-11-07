@@ -66,7 +66,12 @@ inspection:
 1. **Spawn** — `git worktree add .worktrees/<sid> -b agent/<sid>`.
 2. **Fan-out** — sub-worktrees off the parent branch, named as above.
 3. **Provision** — venvs with `UV_LINK_MODE=copy`; consumers offline
-   (`UV_OFFLINE=1 --frozen`), provisioners serialised.
+   (`UV_OFFLINE=1 --frozen`), provisioners serialised. Before a rebase,
+   commit `.lore.md` as a lore-sync commit (7b16160 and d346429 are
+   this): a background process owns its content, `git stash` moves it
+   out from under that process, and a stash that pops mid-rebase
+   collides. `git rebase --autostash` is a stash too — it does not make
+   the rule moot.
 4. **Bucket** — when finished work needs more reviewable merges than the task
    planned, split it into buckets before publishing. See § Bucketing below.
 5. **Collect** — merge serially, suite after each, ordered inert → behaviour →
