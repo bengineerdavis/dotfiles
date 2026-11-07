@@ -1,17 +1,15 @@
 ---
 id: DOT-73
 title: Close out the 12 environmental suite failures — the pii half is now diagnosed
-status: To Do
+status: Done
 created_date: 2026-10-27 02:55
 labels:
 - now
 priority: high
-updated_date: 2026-11-03 04:58
+updated_date: 2026-11-07 21:22
 orchestration:
-  status_key: inprogress
-  lease_owner: opencode-chezmoi-73
-  lease_expires_at: '2026-11-03T05:14:06.952161Z'
-  version: 1
+  status_key: todo
+  version: 4
 ---
 
 ## Description
@@ -50,7 +48,7 @@ orchestration:
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-2026-11-01 diagnosis, this Debian 12 machine: the clipped failures are NOT TTY/clipboard environment gaps — the fake pbcopy/pbpaste harness is sound and xclip works here (DISPLAY=:1, probe rc=0). The real signature: every failing test hangs until subprocess timeout=60 then reports an empty capture. Reproduced minimally outside pytest: fake pbcopy on PATH, `echo hello | ~/bin/clipped copy` returns rc=0 but the capture file never appears; paste works. Suspect the deployed ~/bin/clipped's copy path on this box (backend selection? xclip stealing stdin?) — diagnose from that minimal repro, not from the suite. Also measured: tests/loreai is green here (23 passed 2026-11-01; the parity test passes — its earlier failure was a stale-collection artifact) and tests/restart_stale has 2 real failures: test_the_defaults_leave_the_role_inert and test_a_missing_kind_fails_before_anything_runs both see a [['systemctl','--version']] call the stubs do not filter — Ansible's service_mgr fact-gathering probes systemctl --version through the stub and the tests assert not machine.calls(). That is a harness gap (the ps stub already filters fact-gathering probes; systemctl needs the same treatment), fold it into this task.
+Closed via PR #114 (merged 2026-11-05, merge 721a8b3): 10 clipped harness fakes + clipped DEVNULL/temp-file copy fix; restart_stale systemctl --version stub filter; pii_redactor named skip when integration model absent; regression tests mutation-proven. VM-verified 2026-11-07 in lima-mol (Debian 12, real xclip 0.13, headless): clipped suite 42 passed, captured-caller copy completes without hang, failing-backend diagnostic preserved. Full suite 1219 passed / 21 skipped on rebased branch; all roborev reviews closed (248/320/321 findings resolved; 330/331/373 pass). hooks/lychee moved to DOT-281 (landed on main). Lease released on close-out.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 ## Final Summary
 
@@ -78,5 +76,44 @@ metadata:
   lease_ttl_seconds: '3600'
 ```
 Close out environmental failures: clipped backend-preference + bounded-read fix, systemctl stub filter, pii skip-with-reason
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-122435914512431aa2c3ced414a02783
+type: transition_task
+actor: opencode-chezmoi-73
+timestamp: '2026-11-07T21:22:16.526862Z'
+result: succeeded
+task_id: DOT-73
+from_status: inprogress
+to_status: review
+```
+all roborev reviews closed (248/320/321/330/331/373 resolved or pass); merge quiz passed 3/3; full suite 1219 passed 21 skipped; VM-verified in lima-mol (clipped 42 passed, no hang)
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-6689d12be4794669becdf87da0980438
+type: transition_task
+actor: opencode-chezmoi-73
+timestamp: '2026-11-07T21:22:22.427724Z'
+result: succeeded
+task_id: DOT-73
+from_status: review
+to_status: complete
+```
+PR #114 merged (merge 721a8b3); VM-verified; work closed out
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-4b52e6c65aba4e53a155dcc2710dbed7
+type: release_task
+actor: opencode-chezmoi-73
+timestamp: '2026-11-07T21:22:25.791032Z'
+result: succeeded
+task_id: DOT-73
+from_status: complete
+to_status: todo
+```
+work merged as PR #114; lease was stale since 2026-11-03; released on close-out
 <!-- RUN_HISTORY_ENTRY:END -->
 <!-- SECTION:RUN_HISTORY:END -->
