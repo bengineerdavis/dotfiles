@@ -154,15 +154,61 @@ def test_local_main_is_fast_forwarded_to_origin(repo: Path) -> None:
     assert (repo / "shared.txt").read_text() == "advanced\n"
 
 
-def test_a_dirty_main_checkout_refuses(repo: Path) -> None:
-    """Refusing beats discarding work nobody asked it to touch."""
-    write(repo / "shared.txt", "uncommitted\n")
-    task = repo.parent / "task"
+def test_a_dirty_main_checkout_with_unrelated_edits_still_syncs(
+    repo: Path,
+) -> None:
+    """Concurrent sessions share main; uncommitted work must not block.
 
+    This is the common case here: a background process rewrites
+    `.lore.md` in the main checkout while a session pushes from its
+    worktree. Refusing on any dirt would make every push depend on
+    another session's working state.
+    """
+    write(repo / "unrelated.txt", "work in progress\n")
+    upstream = repo.parent / "upstream"
+    git(
+        repo.parent,
+        "clone",
+        "-q",
+        str(repo / ".." / "origin.git"),
+        str(upstream),
+    )
+    write(upstream / "shared.txt", "advanced\n")
+    commit(upstream, "advance main")
+    git(upstream, "push", "-q", "origin", "main")
+
+    task = repo.parent / "task"
+    result = run(cwd=task)
+
+    assert result.returncode == 0, result.stderr
+    assert (repo / "shared.txt").read_text() == "advanced\n"
+    # The unrelated edit survives untouched.
+    assert (repo / "unrelated.txt").read_text() == "work in progress\n"
+
+
+def test_a_dirty_main_checkout_overlapping_the_update_refuses(
+    repo: Path,
+) -> None:
+    """Refusing beats discarding work nobody asked it to touch."""
+    # Dirty exactly the file the incoming commit changes.
+    write(repo / "shared.txt", "uncommitted\n")
+    upstream = repo.parent / "upstream"
+    git(
+        repo.parent,
+        "clone",
+        "-q",
+        str(repo / ".." / "origin.git"),
+        str(upstream),
+    )
+    write(upstream / "shared.txt", "advanced\n")
+    commit(upstream, "advance main")
+    git(upstream, "push", "-q", "origin", "main")
+
+    task = repo.parent / "task"
     result = run(cwd=task)
 
     assert result.returncode == 1
-    assert "dirty" in result.stderr
+    assert "fast-forward" in result.stderr
     assert (repo / "shared.txt").read_text() == "uncommitted\n"
 
 

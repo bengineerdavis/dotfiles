@@ -57,13 +57,16 @@ def find_checkout(repo: Path, branch: str) -> Path:
 
 
 def fast_forward(base: Path, branch: str) -> None:
-    """Bring the local base branch up to origin, refusing anything lossy."""
-    if require(git(base, "status", "--porcelain")):
-        raise RuntimeError(
-            f"{branch} checkout is dirty at {base}. Commit, stash, or discard "
-            f"its changes deliberately before pushing."
-        )
+    """Bring the local base branch up to origin, refusing anything lossy.
 
+    A dirty checkout is only a problem when the incoming commits touch a file
+    that is already modified — git can fast-forward around unrelated local
+    edits, and it does. Refusing on *any* dirt is wrong for this repository:
+    the main checkout is shared by concurrent sessions, so one session's
+    uncommitted work would block every other session's push. The check below
+    therefore asks git to attempt the fast-forward and treats its refusal as
+    the signal, rather than guessing from `status` output.
+    """
     require(git(base, "fetch", "origin", branch))
 
     # A diverged base means local commits exist that origin does not have.
@@ -78,7 +81,17 @@ def fast_forward(base: Path, branch: str) -> None:
             f"Reconcile them deliberately; this hook will not rewrite them."
         )
 
-    require(git(base, "merge", "--ff-only", f"origin/{branch}"))
+    if behind == 0:
+        return
+
+    result = git(base, "merge", "--ff-only", f"origin/{branch}")
+    if result.returncode:
+        detail = (result.stderr or result.stdout).strip()
+        raise RuntimeError(
+            f"{branch} at {base} could not fast-forward to origin/{branch}. "
+            f"Uncommitted changes there probably overlap the incoming "
+            f"commits. {detail}"
+        )
 
 
 def conflicting_files(repo: Path, base_branch: str) -> list[str]:
