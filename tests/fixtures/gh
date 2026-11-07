@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+"""Fixture-backed gh api for branch-sync command tests."""
+
+import json
+import os
+import sys
+from pathlib import Path
+
+fixture = json.loads(Path(os.environ["BRANCH_SYNC_FIXTURE"]).read_text())
+args = sys.argv[1:]
+endpoint = next(arg for arg in args if arg.startswith("repos/"))
+if endpoint == f"repos/{os.environ['GH_REPOSITORY']}":
+    result = fixture["settings"]
+elif "/compare/" in endpoint:
+    result = fixture["details"][endpoint]
+elif endpoint.endswith("/pulls/" + endpoint.rsplit("/", 1)[-1]):
+    result = fixture["details"][endpoint]
+elif endpoint.endswith("/pulls"):
+    page = next(
+        (int(arg.split("=", 1)[1]) for arg in args if arg.startswith("page=")),
+        1,
+    )
+    result = fixture["pages"][page - 1] if page <= len(fixture["pages"]) else []
+elif endpoint.endswith("/update-branch"):
+    number = endpoint.split("/pulls/")[1].split("/")[0]
+    calls_file = Path(os.environ["BRANCH_SYNC_FIXTURE"]).parent / "calls.json"
+    calls = json.loads(calls_file.read_text()) if calls_file.exists() else []
+    expected = next(arg for arg in args if arg.startswith("expected_head_sha="))
+    calls.append({"endpoint": endpoint, "expected_head_sha": expected.split("=", 1)[1]})
+    calls_file.write_text(json.dumps(calls))
+    failure = fixture["failures"].get(number)
+    if failure:
+        print(json.dumps(failure), file=sys.stderr)
+        raise SystemExit(1)
+    result = {"message": "Updating pull request branch."}
+else:
+    result = fixture["details"][endpoint]
+print(json.dumps(result))
