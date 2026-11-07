@@ -43,9 +43,24 @@ DIRTY_INPUT = "Dear Jane Doe, your ticket is closed. jane@acme.example\n"
 
 
 def test_script_is_the_pii_redactor_binary():
-    assert SCRIPT.name == "pii-redactor", (
+    """SCRIPT must be pii-redactor, not another suite's binary.
+
+    The failure this guards against is a cross-suite constant collision:
+    `tests/clipped` defines its own SCRIPT, and every conftest imports as a
+    top-level module named `conftest`, so a wrong import silently points this
+    suite at the wrong tool.
+
+    Both accepted names are the same script. `pii-redactor` is the deployed
+    name; `executable_pii-redactor` is the chezmoi source name, used when no
+    deployed copy exists (a fresh clone, and CI). Matching only the deployed
+    name made the fallback look like a collision.
+    """
+    assert SCRIPT.name in {"pii-redactor", "executable_pii-redactor"}, (
         f"SCRIPT resolved to {SCRIPT} — the pii-redactor suite is importing "
         "another suite's constant. Import from pii_redactor_harness, not conftest."
+    )
+    assert "pii-redactor" in SCRIPT.name, (
+        f"SCRIPT resolved to {SCRIPT}, which is not the pii-redactor script"
     )
 
 
@@ -111,7 +126,7 @@ def test_bypass_still_requires_verification_to_pass(run_script, mock_llm, tmp_pa
     assert "verification failed" in r.stderr or "Refusing to write" in r.stderr
 
 
-def test_dry_run_is_unaffected_by_the_gate(run_script, tmp_path):
+def test_dry_run_is_unaffected_by_the_gate(mock_llm, run_script, tmp_path):
     """--dry-run produces nothing to review, so it must not prompt."""
     src = tmp_path / "in.md"
     src.write_text(DIRTY_INPUT)

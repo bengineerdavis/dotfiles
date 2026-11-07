@@ -32,6 +32,16 @@ from topic_resolution_harness import DEFAULTS
 @pytest.mark.parametrize("os_family", ["Darwin", "Debian"], ids=["darwin", "debian"])
 def test_opencode_resolves(run_real, os_family):
     result = run_real(os_family)
+    # A NO_TOPIC refusal about a tool this host does not have is the resolver
+    # working correctly. Narrow on purpose: only skip when the failure names a
+    # missing tool, never on any nonzero exit, because a swallowed resolver
+    # defect is exactly what this test exists to catch.
+    missing = "No topic provides" in result.stdout and "not on PATH" in result.stdout
+    if missing and result.returncode != 0:
+        pytest.skip(
+            "host lacks a tool this run requires (the resolver said so):\n"
+            + result.stdout
+        )
     assert result.returncode == 0, (
         f"opencode should resolve on {os_family} against the real topic "
         f"metadata, but the run failed:\n{result.stdout}"
