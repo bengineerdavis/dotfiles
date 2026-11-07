@@ -23,6 +23,17 @@ Add a pytest hook to pre-commit, or decide deliberately not to. The suite
   run by deliberate manual invocation, never in an automatic gate. This
   replaces the earlier "pre-commit fast / pre-push full" framing — pre-push is
   not the gate; the merge is.
+
+  **[update 2026-11-07: the merge-gate half of this has landed. PR #126 added
+  `.github/workflows/tests.yml`, which runs the full suite on every PR and
+  every push to `main` and judges it with `scripts/check_suite_baseline.py`
+  against a baseline of exact failing node IDs (`acb3333`). That is the
+  "explicit merge-gate step" this task designed, in CI rather than as a
+  pre-push hook — which is what the research pointed at.
+
+  What remains is the commit-stage half: whether a *fast* subset earns a
+  pre-commit hook at all. Re-scope this task to that question, and record that
+  the merge-gate decision is settled rather than re-litigating it.]**
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
