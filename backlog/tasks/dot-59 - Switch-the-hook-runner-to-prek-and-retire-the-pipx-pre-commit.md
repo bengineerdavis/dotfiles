@@ -37,12 +37,48 @@ updated_date: 2026-10-27 22:21
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
+1. The repo config names `prek` as the sole hook runner: a root `prek.toml`
+   carries all nine hooks previously in `.pre-commit-config.yaml`, and the
+   YAML is deleted. (`branch-sync` and `roborev-flush` from the unmerged
+   PR #131 stay on that branch, which migrates its own two hooks when it
+   rebases onto merged DOT-59.)
+2. `default_install_hook_types` in `prek.toml` declares every stage the hooks
+   use (`pre-commit`, `pre-push`, `commit-msg`), so `prek install` emits all
+   needed shims.
+3. The pipx `pre-commit` entry is removed from the mise config
+   (`home/dotfiles/apps/mise/files/config.toml`); only `prek = "latest"`
+   remains as the runner.
+4. A run against a tree with unstaged edits prints prek's "Temporarily saving
+   them to" line and leaves `git stash list` unchanged — the patch-to-cache
+   confirmation re-verified under a native `prek.toml`, not the YAML drop-in.
+5. Docs stop naming the pre-commit *tool*: `docs/PYTHON.md`,
+   `docs/REFERENCES.md`, `pyproject.toml`, `.github/workflows/tests.yml`, and
+   `home/dotfiles/config/editors.yaml` reference `prek` (the git `pre-commit`
+   stage name is kept where it means the stage).
+6. Tests that read the config file are repointed to parse `prek.toml`
+   (`tests/hooks/test_bats_hook_payload_root.py`,
+   `tests/hooks/test_docs_link_checker.py`).
+7. DOT-164 ("Reconcile prek and pre-commit") is folded here as superseded —
+   its "pick one runner and say so in AGENTS.md § Commands" is this item's
+   outcome.
 <!-- AC:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
+Author ruling 2026-11-08: the migration targets a native `prek.toml` (not the
+`.pre-commit-config.yaml` drop-in), and a feature request + handoff is filed
+against `python-project-template` for a general pre-commit↔prek migration
+recipe (docs/research/prek-migration-strategy-handoff.md). Follow-up to file
+against `copier-template-copier-template`: ask about `.github` issue templates
+and labels when stamping new or updated templates (DOT-315).
+PR #131 reconciliation (author ruling 2026-11-08, revised): migrating main's
+nine hooks to prek.toml drops nothing, because branch-sync and roborev-flush
+were never in main's config — they are PR #131's own additions to its own YAML
+copy. Carrying them here without their script (scripts/check-branch-sync.py,
+which lives only on PR #131) made this branch un-pushable, so DOT-59 stays at
+nine self-contained hooks and PR #131 migrates its two when it rebases onto
+merged DOT-59.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
