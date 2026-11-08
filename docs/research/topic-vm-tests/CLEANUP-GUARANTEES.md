@@ -96,12 +96,60 @@ Vagrant path: domains live in libvirt; `vagrant global-status --prune` clears st
 
 ## Available timeout / TTL / lease mechanisms
 
-- **Molecule:** none. No `--timeout`, no lease, no TTL.
-- **Lima:** none. `limactl` has no auto-reap; `limactl delete --force` is manual only.
+- **Molecule:** no `--timeout`, no lease, no TTL. `molecule reset` looks like a
+  candidate but is not one: `command/reset.py:51` is `# pragma: no cover`, and the
+  driver hook it relies on (`driver/base.py:394-400`) has an empty body. Only the
+  docker (`driver.py:264`) and podman (`driver.py:252`) drivers implement it, so it
+  is a no-op for both drivers this repo uses.
+- **Lima:** no auto-reap. `limactl delete --force` is manual. `limactl prune` prunes
+  *unreferenced objects* only — an orphaned instance still refers to its own disk, so
+  prune keeps it. Useful for cache size, not for orphans.
 - **Vagrant:** none. `global-status --prune` is record hygiene, not reaping.
-- **The OS:** no help. `/usr/lib/tmpfiles.d/tmp.conf:11` is `D /tmp 1777 root root -` — a *create* rule, not an age rule. `/tmp` is on rootfs, so it is not the memory-backed tmpfs that would clear on reboot.
+- **Upgrading molecule does not help.** Checked upstream `main` (newer than the
+  current 26.11.0 release): `command/base.py:377` is still `except
+  ScenarioFailureError`, and there is still no `signal` import or handler anywhere in
+  it. The gap is upstream and unfixed.
+- **`/usr/lib/tmpfiles.d/tmp.conf:11`** is `D /tmp 1777 root root -` — a *create*
+  rule, not an age rule, and `/tmp` is on rootfs (not the tmpfs that would clear on
+  reboot). So the distro does not reap it.
 
-The only cleanup that exists is the one the `except` clause triggers.
+### But the aging mechanism already exists and is deployed here
+
+`systemd-tmpfiles` supports age-based cleanup with the `e` type plus an age argument,
+and **this repo already uses it**: `home/dot_config/user-tmpfiles.d/tmp.conf` carries
+`e /tmp/opencode - - - 30d`, and `systemd-tmpfiles-clean.timer` is enabled with a
+daily fire (verified active: next fire scheduled, last fire 21 h ago). That file is
+already excluded from non-Linux targets by `.chezmoiignore:26`.
+
+Measured behaviour, with an isolated `XDG_CONFIG_HOME` and a glob rule:
+
+```
+Running clean action for entry e /…/.scratch/tf3/lima-*
+Cleanup threshold for directory "/…/lima-old" is Sat 2026-11-07 14:45:01.199149 PST
+  age-by: abcmABM
+```
+
+Two properties, both measured rather than assumed:
+
+1. **The age basis is the newest of access/birth/change/modify — and it includes
+   ctime.** `touch -d` cannot forge ctime, so the check cannot be gamed by a process
+   touching its own files. A file aged to 5 days with `touch -d` was still rejected:
+   "change time … is too new".
+2. **That fits this case closely.** A *running* VM writes its disk continuously, so
+   its timestamps stay fresh and it is not reaped. A *stopped* orphan accumulates age
+   and is collected.
+
+Glob support is real: a `lima-*` rule matched two directories and evaluated each one
+separately. `e` cleans a directory's *contents*; it neither creates nor removes the
+directory, so a live run's root is untouched.
+
+### And a watchdog is available
+
+`systemd-run --on-active` works for transient timers — verified live (unit created,
+`EXIT=0`, next fire scheduled). `timeout` is present at `/usr/bin/timeout`.
+
+So the only cleanup that exists *by default* is the one the `except` clause triggers.
+The machinery to bound and age it is already installed.
 
 ## What a guarantee would have to look like
 
@@ -115,16 +163,52 @@ No single mechanism closes every failure mode. Each candidate, with its blind sp
 
 **M4 — lease + reaper.** Write a lease (run id, pid, created-at) at start, delete it on successful teardown, and sweep expired leases at wrapper start. Covers every failure mode that leaves state behind, because the *next* run cleans up the previous one. Misses: a machine that never runs a test again never reaps.
 
-### The combination that actually guarantees
+### The decision: use the existing mechanism, do not write a reaper
 
-Layer them, because the failure classes are disjoint:
+Reviewed against what already exists (see § Available timeout / TTL / lease
+mechanisms). The aging half is **already deployed in this repo** — a two-line
+addition to machinery that is installed, scheduled, and version-controlled beats a
+bespoke reaper that duplicates it and rots when `tmpfiles` semantics change.
 
-1. **Relocate** the ephemeral dir outside `home/` (fixes DOT-303's class), with a one-time sweep of old `/tmp/lima-<oldhash>` paths.
-2. **Bound the run** — a timeout in the wrapper, so a hang becomes a failure with an exit code.
-3. **Lease + reaper** — a lease per run, swept at wrapper start. This is the mechanism that satisfies "no VM artifact outlives its run", including after SIGKILL and reboot.
-4. **Fail loudly on a dirty start** — if the reaper finds an artifact it cannot attribute to a live lease, report it and exit nonzero rather than continuing. A silently adopted orphan is how the current leak stayed invisible.
+1. **Relocate** the ephemeral dir outside `home/` (fixes DOT-303's class), with a
+   one-time sweep of old `/tmp/lima-<oldhash>` paths.
+2. **Bound the run** with `timeout` in `scripts/run-molecule.sh`, so a hang becomes a
+   failure with an exit code rather than a process that never ends.
+3. **Age the `/tmp` remnants** by adding `e /tmp/lima-* - - - 1d` to the existing
+   `home/dot_config/user-tmpfiles.d/tmp.conf`. Age 1 d against a measured ~4.6 min run
+   is a 300× margin, so a live run cannot be reaped, while a stopped orphan ages out.
+4. **Make leftovers loud** at run start. A reaper that removes quietly is the current
+   failure with a different trigger. This is the only part needing new code, and it is
+   a report, not a cleanup.
+
+Rejected, with reasons:
+
+- **A hand-rolled reaper script** — duplicates a deployed mechanism, adds its own test
+  burden, and is a bespoke solution to a solved problem.
+- **`molecule reset`** — a no-op for both drivers this repo uses (see above).
+- **`limactl prune`** — an orphan still refers to its own disk, so prune keeps it.
+- **Upgrading molecule** — upstream `main` carries the same gap.
+- **`systemd-tmpfiles` type `d` or `q`** — `e` is correct because it cleans contents
+  without creating or removing the directory.
+- **Age `0`** — unconditional delete on every clean run would reap a live VM.
 
 M1 stays as the fast path; it is just not the guarantee.
+
+### Limits of this answer, stated
+
+- **macOS has no systemd.** `tmp.conf` is excluded from non-Linux targets by the
+  existing `.chezmoiignore:26` conditional. Points 2 and 4 still apply on Darwin; the
+  aging reaper does not. Do not claim cross-platform coverage.
+- **`e` empties the directory, it does not remove it.** An emptied `/tmp/lima-<sha1>`
+  remains. Harmless, but say so rather than implying full removal.
+- **A live but idle VM older than the threshold would be reaped mid-run.** At 1 d
+  against runs of minutes this is unreachable today; point 2 keeps it that way.
+- **Nothing here reaps a VM whose `/tmp` root is unreachable** because the ephemeral
+  directory moved. That needs the one-time sweep in point 1.
+- **Every run uses the same platform name.** `home/dotfiles/apps/lima/molecule/debian/molecule.yml:10`
+  fixes it at `lima-mol` (deliberately — the SSH socket path must stay under
+  `UNIX_PATH_MAX=104`), so two concurrent runs collide and a leftover cannot be
+  attributed to a run. Point 4 can only report what it can name.
 
 ## Sources
 
