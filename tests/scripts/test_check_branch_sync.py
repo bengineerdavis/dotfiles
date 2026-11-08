@@ -78,10 +78,14 @@ def repo(tmp_path: Path) -> Path:
     in the branch it is checking.
     """
     origin = tmp_path / "origin.git"
-    subprocess.check_call(["git", "init", "--bare", "-q", str(origin)])
+    subprocess.check_call(
+        ["git", "-c", "init.templateDir=", "init", "--bare", "-q", str(origin)]
+    )
 
     main = tmp_path / "main"
-    subprocess.check_call(["git", "init", "-q", "-b", "main", str(main)])
+    subprocess.check_call(
+        ["git", "-c", "init.templateDir=", "init", "-q", "-b", "main", str(main)]
+    )
     write(main / "shared.txt", "base\n")
     commit(main, "base")
     git(main, "remote", "add", "origin", str(origin))
@@ -139,6 +143,8 @@ def test_local_main_is_fast_forwarded_to_origin(repo: Path) -> None:
     upstream = repo.parent / "upstream"
     git(
         repo.parent,
+        "-c",
+        "init.templateDir=",
         "clone",
         "-q",
         str(repo / ".." / "origin.git"),
@@ -168,6 +174,8 @@ def test_a_dirty_main_checkout_with_unrelated_edits_still_syncs(
     upstream = repo.parent / "upstream"
     git(
         repo.parent,
+        "-c",
+        "init.templateDir=",
         "clone",
         "-q",
         str(repo / ".." / "origin.git"),
@@ -195,6 +203,8 @@ def test_a_dirty_main_checkout_overlapping_the_update_refuses(
     upstream = repo.parent / "upstream"
     git(
         repo.parent,
+        "-c",
+        "init.templateDir=",
         "clone",
         "-q",
         str(repo / ".." / "origin.git"),
@@ -240,6 +250,8 @@ def test_a_true_divergence_refuses(repo: Path) -> None:
     upstream = repo.parent / "upstream"
     git(
         repo.parent,
+        "-c",
+        "init.templateDir=",
         "clone",
         "-q",
         str(repo / ".." / "origin.git"),
@@ -260,7 +272,9 @@ def test_a_true_divergence_refuses(repo: Path) -> None:
 def test_a_missing_main_checkout_refuses(tmp_path: Path) -> None:
     """No main checkout means no way to fast-forward; say so."""
     lonely = tmp_path / "lonely"
-    subprocess.check_call(["git", "init", "-q", "-b", "feature", str(lonely)])
+    subprocess.check_call(
+        ["git", "-c", "init.templateDir=", "init", "-q", "-b", "feature", str(lonely)]
+    )
     write(lonely / "f.txt", "x\n")
     commit(lonely, "only branch")
 
