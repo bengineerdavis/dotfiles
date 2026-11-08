@@ -430,6 +430,13 @@
           // and `ssh` subcommands do not exist.
           "limactl sudoers": "allow",
           "limactl sudoers *": "allow",
+          // `sudoers --check` is not read-only: on a configured macOS host it
+          // reaches VerifySudoAccess's fallback and runs `sudo -k` (and
+          // `sudo --user root --non-interactive true` when socket_vmnet is
+          // installed) — cached-credential invalidation and a root probe the
+          // ask tier must gate (job 555). Generation itself only writes
+          // stdout and bootstraps ~/.lima/_config/networks.yaml when absent.
+          "limactl sudoers *--check*": "ask",
           "limactl show-ssh *": "allow",
 
           "pwd": "allow",

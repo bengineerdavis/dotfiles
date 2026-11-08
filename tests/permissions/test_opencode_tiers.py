@@ -210,8 +210,15 @@ AUTONOMOUS = [
         "ask",
         "host-dir sync (= form) cannot bypass",
     ),
-    # v2.2.1 real spellings — allowed for SSH inspection (job 526).
-    ("limactl sudoers", "allow", "sudoers content is read-only inspection"),
+    # v2.2.1 real spellings — allowed for SSH inspection (job 526), except
+    # `sudoers --check`, which probes sudo/root on a configured macOS host
+    # (job 555: VerifySudoAccess fallback runs `sudo -k` and a root probe).
+    (
+        "limactl sudoers --check /etc/sudoers.d/lima",
+        "ask",
+        "sudo/root probe cannot run unattended (job 555)",
+    ),
+    ("limactl sudoers", "allow", "generation writes stdout only"),
     ("limactl show-ssh default", "allow", "SSH command line is read-only inspection"),
 ]
 
