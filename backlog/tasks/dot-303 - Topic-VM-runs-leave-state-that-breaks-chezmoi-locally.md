@@ -100,6 +100,16 @@ Full mechanism, from the tool sources and the repo's own playbooks:
 shows which failure modes leak which artifacts is
 `docs/research/topic-vm-tests/prototype-cleanup-model.html`.
 
+**Where this sits in the wider answer (2026-11-08).** This task is the
+source-corruption half. The VM-leak half is DOT-309, and the aging mechanism
+for it is already deployed (`home/dot_config/user-tmpfiles.d/tmp.conf` +
+`systemd-tmpfiles-clean.timer`), so DOT-309 adds a rule rather than writing a
+reaper. This task's relocation is a prerequisite for DOT-309's leftover report:
+the report needs a stable location to look in, and the relocation is what moves
+the ephemeral dir out of the chezmoi source.
+
+Do not choose a second ephemeral-dir location here — agree it with DOT-309.
+
 The stale directory was present and not deleted: it is VM state, and deleting
 it only clears the symptom on this host.
 

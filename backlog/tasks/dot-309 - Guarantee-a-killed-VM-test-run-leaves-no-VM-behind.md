@@ -55,18 +55,53 @@ task's reaper must not assume every orphan is reachable by the current hash.
 kind of condition and/or timeout that guarantees VM artifacts for test
 environments are cleaned up entirely." No single mechanism delivers that; the
 state model at `docs/research/topic-vm-tests/prototype-cleanup-model.html`
-shows why. Relocation alone fixes the source breakage and leaves the VM
-leaking. A timeout alone turns a hang into a failure but still leaks on
-SIGKILL. The combination that closes every failure mode is:
+shows why. A timeout alone turns a hang into a failure but still leaks on
+SIGKILL.
 
-1. a wall-clock timeout in `scripts/run-molecule.sh`, so a hang becomes a
-   failure with an exit code;
-2. a lease file per run (run id, pid, created-at), written at start and
-   removed on successful teardown;
-3. a reaper at wrapper start that treats expired leases as dead and removes
-   their artifacts;
-4. a loud failure when the reaper finds an artifact it cannot attribute to a
-   live lease — a silently adopted orphan is how this leak stayed invisible.
+**Reviewed 2026-11-08 against what already exists — do NOT write a reaper.**
+The aging mechanism is already deployed in this repo:
+`home/dot_config/user-tmpfiles.d/tmp.conf` already carries
+`e /tmp/opencode - - - 30d`, and `systemd-tmpfiles-clean.timer` is enabled with
+a daily fire (verified active). The work is a two-line addition to existing,
+scheduled, version-controlled machinery — not a new component.
+
+The design, in four parts:
+
+1. **Bound the run** with `timeout` in `scripts/run-molecule.sh`, so a hang
+   becomes a failure with an exit code rather than a process that never ends.
+2. **Age the `/tmp` remnants** by adding `e /tmp/lima-* - - - 1d` to the
+   existing `tmp.conf`. Measured: the `e` type's age basis is the newest of
+   access/birth/change/modify and includes ctime, so a running VM writing its
+   disk stays fresh and is never reaped, while a stopped orphan ages out. Age
+   1 d against a measured ~4.6 min run is a 300x margin.
+3. **Make leftovers loud** at run start — a report, not a cleanup. A reaper
+   that removes quietly is the current failure with a different trigger.
+4. **Relocation is DOT-303's**, and is a prerequisite for a stable lease/report
+   location; agree the ephemeral-dir location with that task rather than
+   choosing a second one here.
+
+Rejected after verification, so they are not re-litigated:
+
+- **`molecule reset`** — `command/reset.py:51` is `# pragma: no cover`, and the
+  driver hook (`driver/base.py:394-400`) has an empty body. Only the docker
+  (`driver.py:264`) and podman (`driver.py:252`) drivers implement it, so it is
+  a no-op for both drivers this repo uses.
+- **`limactl prune`** — prunes unreferenced objects; an orphaned instance still
+  refers to its own disk, so prune keeps it.
+- **Upgrading molecule** — checked upstream `main` (newer than the current
+  26.11.0): `command/base.py:377` is still `except ScenarioFailureError` and
+  there is still no `signal` handling. The gap is upstream and unfixed. Worth
+  reporting upstream; not a fix here.
+- **A hand-rolled reaper** — duplicates a deployed mechanism and carries a
+  test burden nobody budgeted for.
+
+Known limits, stated so they are not claimed away: macOS has no systemd (the
+existing `.chezmoiignore:26` conditional already excludes `tmp.conf` from
+non-Linux, so points 1 and 3 apply there and the aging reaper does not); `e`
+empties the directory rather than removing it; and every run currently uses the
+fixed platform name `lima-mol` (molecule.yml:10, deliberate for the SSH socket
+path budget), so two concurrent runs collide and a leftover cannot be
+attributed to a run.
 
 Evidence and the per-mechanism coverage table:
 `docs/research/topic-vm-tests/CLEANUP-GUARANTEES.md`.
@@ -81,8 +116,9 @@ this may belong there).
 - [ ] #1 A run killed with SIGKILL mid-create leaves no Lima instance, no `/tmp/lima-*` root and no disk image behind
 - [ ] #2 A run that hangs indefinitely is terminated by a timeout, and its artifacts are then removed
 - [ ] #3 The cleanup is proven for both an injected kill and a deliberate hang, with the mechanism named in the test
-- [ ] #4 A reaper at wrapper start collects artifacts from a previous dead run, and the next run proceeds without manual cleanup
-- [ ] #5 An unattributable leftover makes the wrapper fail loudly rather than continue silently
+- [ ] #4 An aged-out `/tmp/lima-*` remnant is collected by the existing `systemd-tmpfiles` timer, with the rule proven against both an old and a fresh directory
+- [ ] #5 An unattributable leftover makes the wrapper report it rather than continue silently
+- [ ] #6 The macOS gap is stated in the owning doc rather than left implicit — the aging reaper is Linux-only
 - [ ] #6 `scripts/run-molecule.sh` still passes its existing contract tests, and `bash -n` is clean
 <!-- AC:END -->
 
