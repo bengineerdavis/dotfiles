@@ -115,6 +115,12 @@ tree broken so the next one can fix it is worse than a slightly coarse one: it b
 `git bisect`, and it makes every intermediate state a lie. Atomic means *self-contained*,
 not *small*.
 
+One mechanical trap after a rename: `git commit -o <new-path>` commits the new path and
+silently leaves the old path's staged deletion uncommitted, so the branch tip carries two
+copies of one change (measured 2026-11-02 on the docker-limactl-perms fragment). After any
+rename committed with `-o`, check `git status` for the old path's staged deletion and land
+it in the same change.
+
 #### Commit messages
 
 Subject: `scope: imperative statement`, lower case after the colon, no trailing period,
