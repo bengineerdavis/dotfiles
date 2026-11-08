@@ -69,19 +69,17 @@ def fast_forward(base: Path, branch: str) -> None:
     """
     require(git(base, "fetch", "origin", branch))
 
-    # A diverged base means local commits exist that origin does not have.
-    # Rebasing or resetting them is the author's decision, not a hook's.
     counts = require(
         git(base, "rev-list", "--left-right", "--count", f"origin/{branch}...HEAD")
     ).split()
     behind, ahead = (int(counts[0]), int(counts[1])) if len(counts) == 2 else (0, 0)
-    if ahead:
-        raise RuntimeError(
-            f"{branch} has {ahead} local commit(s) that origin does not. "
-            f"Reconcile them deliberately; this hook will not rewrite them."
-        )
 
-    if behind == 0:
+    # Local commits that origin lacks are normal here: sessions commit to
+    # local main and the author pushes later. That is ahead-of-origin, not
+    # divergence, and with nothing behind it the fast-forward is a no-op.
+    # Only ahead *and* behind blocks one, and then rebasing or resetting is
+    # the author's decision rather than a hook's.
+    if not behind:
         return
 
     result = git(base, "merge", "--ff-only", f"origin/{branch}")

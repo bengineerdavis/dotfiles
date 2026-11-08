@@ -212,17 +212,49 @@ def test_a_dirty_main_checkout_overlapping_the_update_refuses(
     assert (repo / "shared.txt").read_text() == "uncommitted\n"
 
 
-def test_a_diverged_main_refuses_instead_of_rewriting(repo: Path) -> None:
-    """Local commits that origin lacks are the author's to reconcile."""
-    write(repo / "local-only.txt", "local work\n")
-    commit(repo, "local only commit")
-    task = repo.parent / "task"
+def test_local_commits_ahead_of_origin_do_not_block(repo: Path) -> None:
+    """Committing to local main without pushing is normal here.
 
+    Sessions commit to local main; the author pushes later. Ahead of
+    origin with nothing behind it, the fast-forward is a no-op, so
+    refusing would gate every push on a push that has not happened yet.
+    """
+    write(repo / "local-work.txt", "unpushed session work\n")
+    commit(repo, "a session's commit, not yet pushed")
+
+    task = repo.parent / "task"
+    result = run(cwd=task)
+
+    assert result.returncode == 0, result.stderr
+    assert "merges cleanly" in result.stdout
+
+
+def test_a_true_divergence_refuses(repo: Path) -> None:
+    """Ahead and behind is real divergence: no fast-forward exists.
+
+    This is the case the refusal exists for, and it must still fire.
+    """
+    write(repo / "local-work.txt", "unpushed\n")
+    commit(repo, "local commit")
+
+    upstream = repo.parent / "upstream"
+    git(
+        repo.parent,
+        "clone",
+        "-q",
+        str(repo / ".." / "origin.git"),
+        str(upstream),
+    )
+    write(upstream / "upstream.txt", "origin moved on\n")
+    commit(upstream, "origin advances")
+    git(upstream, "push", "-q", "origin", "main")
+
+    task = repo.parent / "task"
     result = run(cwd=task)
 
     assert result.returncode == 1
-    assert "local commit" in result.stderr
-    assert (repo / "local-only.txt").exists()
+    assert "could not fast-forward" in result.stderr
+    assert (repo / "local-work.txt").exists()
 
 
 def test_a_missing_main_checkout_refuses(tmp_path: Path) -> None:
