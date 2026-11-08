@@ -219,7 +219,7 @@
       {{ loreai_worker_model
          if loreai_worker_model is not none
          else (loreai_saved_worker_model
-               if loreai_saved_worker_model | length > 0
+               if (loreai_saved_worker_model | default('')) | length > 0
                else (loreai_worker_model_openrouter_default
                      if loreai_inference_final == 'openrouter'
                      else (loreai_worker_model_local_default
