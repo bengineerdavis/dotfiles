@@ -88,7 +88,7 @@ editor_extensions:
 
   - id: meta.pyrefly
     why: Pyrefly type checking and its language server - the house typechecker
-         (pyproject [tool.pyrefly], pre-commit pyrefly-check); verified on the
+         (pyproject [tool.pyrefly], prek pyrefly-check); verified on the
          VS Code marketplace and Open VSX by the on-save researcher
     verdicts:
       visual-studio-code: {status: ok, checked: "2026-09-30"}

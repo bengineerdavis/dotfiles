@@ -32,20 +32,20 @@ groups; the repo is never built or installed (`package = false`).
   style), pycodestyle E/W, docstrings under the Google convention with their
   lines wrapped at 72 (W505; missing-docstring rules are deliberately
   unselected — that is a content campaign, not a fix). The ruff and
-  ruff-format pre-commit hooks run on every commit. Paths still failing the
+  ruff-format prek hooks run on every commit. Paths still failing the
   doc-line rules carry per-path grandfathers in the config; each entry
   shrinks as the file is next edited and is deleted when its directory is
   clean. pycodestyle is retired — ruff implements it.
 - **pyrefly typechecks, enforced on commit.** `[tool.pyrefly]` in
   `pyproject.toml` (full checking via `pyrefly init`). Installed once by mise
   (`pipx:pyrefly`, pinned) so the CLI, the IDE language server and the
-  pre-commit hook run the same version. The baseline of 69 suppressions
+  prek hook run the same version. The baseline of 69 suppressions
   (`# pyrefly: ignore`, from `pyrefly suppress`) shrinks over time; the
-  official pre-commit hook fails the commit on new type errors. `pyrefly lsp`
+  official prek hook fails the commit on new type errors. `pyrefly lsp`
   is the language server the editor configs wire.
-- **prek runs the hooks.** Both `prek` and `pre-commit` are installed and both
-  read `.pre-commit-config.yaml`; which one is authoritative is unsettled and
-  queued.
+- **prek runs the hooks.** `prek` is the sole hook runner; its config is
+  `prek.toml` at the repo root (retired the pipx `pre-commit` install alongside
+  `.pre-commit-config.yaml` in DOT-59).
 - **Log, do not print,** for anything an agent may need to read back while
   debugging.
 

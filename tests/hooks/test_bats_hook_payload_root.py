@@ -4,7 +4,7 @@ The payload moves from the repo root (`bin/`) under `home/` via
 `.chezmoiroot` (TASKS.md § Planned, payload move, step 3). Both gate
 surfaces must accept the script root in either layout, or a staged
 script silently skips its tests in whichever layout the regex misses:
-the bats hook's `files` pattern in .pre-commit-config.yaml, and the
+the bats hook's `files` pattern in prek.toml, and the
 staged-file grep in scripts/run-bats.sh.
 """
 
@@ -12,12 +12,12 @@ from __future__ import annotations
 
 import pathlib
 import re
+import tomllib
 
 import pytest
-import yaml
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
-PRE_COMMIT = REPO / ".pre-commit-config.yaml"
+PREK = REPO / "prek.toml"
 RUN_BATS = REPO / "scripts" / "run-bats.sh"
 
 # A staged script at the script root in today's layout, in the post-move
@@ -27,9 +27,9 @@ FIRES = ["bin/triage.sh", "home/bin/triage.sh", "scripts/check.sh"]
 
 def pre_commit_files_pattern() -> re.Pattern[str]:
     """The bats hook's `files` regex, parsed from the real config."""
-    config = yaml.safe_load(PRE_COMMIT.read_text(encoding="utf-8"))
+    config = tomllib.loads(PREK.read_text(encoding="utf-8"))
     hooks = [h for repo in config["repos"] for h in repo.get("hooks", [])]
-    assert hooks, "no hooks parsed from .pre-commit-config.yaml"
+    assert hooks, "no hooks parsed from prek.toml"
     bats = [h for h in hooks if h.get("id") == "bats"]
     assert len(bats) == 1, "expected exactly one bats hook"
     assert "files" in bats[0], "bats hook lost its files pattern"

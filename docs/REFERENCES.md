@@ -27,9 +27,9 @@ nothing changed — a stale date is the signal, not the version number.
 | [mise Python cookbook](https://mise.jdx.dev/mise-cookbook/python.html) | living docs | the uv ↔ mise split (`mise sync python --uv`, `python.uv_venv_auto`); **we deviate** — uv is astral-installed at the system level, not `[tools] uv = "latest"`, so `mise upgrade` never churns the uvx that builds `pipx:ansible` | 2026-09-28 |
 | [GitHub community health files](https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/setting-guidelines-for-repository-contributors) | current docs | `CONTRIBUTING.md` placement | 2026-09-11 |
 | [no-ai-slop](https://github.com/petergyang/no-ai-slop) | vendored MIT @ 2026-09-02 | `~/.claude/skills/no-ai-slop/` | 2026-09-11 |
-| [shellcheck-py](https://github.com/shellcheck-py/shellcheck-py) | `v0.10.0.1` in `.pre-commit-config.yaml` | pre-commit hook | 2026-09-11 |
-| [prek](https://github.com/j178/prek) | 0.5.0 | hook runner; writes `.git/hooks/` | 2026-09-11 |
-| [Lychee](https://github.com/lycheeverse/lychee) | **0.24.2** through `aqua:lycheeverse/lychee` | local documentation links in pre-commit; reviewed external checks via `scripts/check-docs-links.py` | 2026-10-29 |
+| [shellcheck-py](https://github.com/shellcheck-py/shellcheck-py) | `v0.10.0.1` in `prek.toml` | prek hook | 2026-09-11 |
+| [prek](https://github.com/j178/prek) | 0.5.7 | hook runner; writes `.git/hooks/` | 2026-09-11 |
+| [Lychee](https://github.com/lycheeverse/lychee) | **0.24.2** through `aqua:lycheeverse/lychee` | local documentation links in prek; reviewed external checks via `scripts/check-docs-links.py` | 2026-10-29 |
 | [scriv](https://scriv.readthedocs.io/) | **1.8.0** pinned in the merge workflow; run locally via `uv run --with scriv` | `changelog.d/` fragments → `CHANGELOG.md` after each merged PR; no semantic versions or GitHub Releases | 2026-10-28 |
 | [backlog-md-py](https://github.com/rmusser01/backlog-md-py) 2.2.0 | pipx via mise (`pipx:backlog-md-py`) | the task queue: `backlog/` at repo root, `backlog-py --cwd .` — Python compatibility clone of Backlog.md | 2026-10-23 |
 | [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) | **1.1.0** | category names in `changelog.d/scriv.ini` | 2026-09-11 |
@@ -128,5 +128,5 @@ There is no automation. Open each link, compare the version column, and update
 ```bash
 skillet --version; copier --version; prek --version; ruff --version
 grep -o 'skillet-version: [0-9.]*' spec.md
-grep -A1 shellcheck-py .pre-commit-config.yaml | grep rev
+grep -A1 shellcheck-py prek.toml | grep rev
 ```

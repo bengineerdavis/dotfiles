@@ -3,7 +3,7 @@
 A workflow file is easy to edit into silence. These tests hold the
 properties that decide whether it catches anything:
 
-1. A test job exists at all. The repo's other checks are pre-commit
+1. A test job exists at all. The repo's other checks are prek
    hooks, which run only on a machine where `prek install` was done.
    Without a CI job a contributor with no hooks, or one who bypassed
    them, merges untested.
@@ -36,7 +36,7 @@ def _runs(job: dict) -> str:
 def test_a_test_job_exists():
     workflow = _workflow()
     assert "tests" in workflow["jobs"], (
-        "no test job in CI: every check is a local pre-commit hook, so a "
+        "no test job in CI: every check is a local prek hook, so a "
         "fresh clone has none of them"
     )
 

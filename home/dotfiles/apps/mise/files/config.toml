@@ -30,7 +30,7 @@ age = "latest"
 fd = "latest"
 fzf = "latest"
 
-# Documentation link checker; owned by the repository's pre-commit hooks.
+# Documentation link checker; owned by the repository's prek hooks.
 "aqua:lycheeverse/lychee" = "0.24.2"
 
 # go tooling
@@ -87,7 +87,6 @@ node = "lts"
 # upgrade` never churns — which is what previously caused ansible to self-upgrade
 # mid-playbook-run.
 python = "3.14"
-"pipx:pre-commit" = "latest"
 "pipx:git-filter-repo" = "latest"
 # backlog-md-py — the task-queue CLI for backlog/ (docs/BACKLOG-MIGRATION.md).
 # The 2026-10-27 cutover installed it straight into pipx outside any topic
@@ -134,8 +133,8 @@ worktrunk = "latest"
 # https://aider.chat/docs/install.html
 "pipx:aider-chat" = { version = "latest", uvx_args = "--python 3.12 --force" }
 # pyrefly is the repo's type checker (pyproject.toml [tool.pyrefly]); pinned
-# so the CLI, the IDE LSP and the pre-commit hook run one version. The
-# pre-commit hook (facebook/pyrefly-pre-commit) uses the system install.
+# so the CLI, the IDE LSP and the prek hook run one version. The
+# prek hook (facebook/pyrefly-pre-commit) uses the system install.
 "pipx:pyrefly" = { version = "1.3.2" }
 prek = "latest"
 "pipx:trash-cli" = "latest"
