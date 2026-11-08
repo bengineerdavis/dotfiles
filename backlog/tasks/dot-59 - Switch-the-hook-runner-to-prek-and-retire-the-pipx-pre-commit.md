@@ -1,12 +1,12 @@
 ---
 id: DOT-59
 title: Switch the hook runner to prek and retire the pipx pre-commit
-status: To Do
+status: Done
 created_date: 2026-10-27 02:55
 labels:
 - now
 priority: high
-updated_date: 2026-10-27 22:21
+updated_date: 2026-11-08
 ---
 
 ## Description
