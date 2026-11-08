@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VM cleanup model — does any artifact outlive the run?</title>
+<style>
+  :root {
+    --ink: #1a1c1e; --muted: #5c6469; --line: #d8dcdf; --bg: #fbfbfa;
+    --card: #fff; --accent: #1f5f8b; --leak: #a3282b; --safe: #256b46; --warn: #8a5a00;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2.5rem 1.5rem 5rem; background: var(--bg); color: var(--ink);
+    font: 16px/1.55 ui-serif, Georgia, "Iowan Old Style", serif;
+  }
+  main { max-width: 62rem; margin: 0 auto; }
+  h1 { font-size: 1.7rem; line-height: 1.25; margin: 0 0 .4rem; letter-spacing: -.01em; }
+  .sub { color: var(--muted); margin: 0 0 .5rem; }
+  .model-note {
+    border-left: 3px solid var(--warn); background: #fdf8ec; padding: .7rem .9rem;
+    margin: 1rem 0 2rem; font-size: .92rem; color: #4a3a12;
+  }
+  h2 {
+    font-size: 1.05rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted);
+    font-weight: 600; margin: 2.4rem 0 .8rem; font-family: ui-sans-serif, system-ui, sans-serif;
+  }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 1.1rem 1.2rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .75rem; }
+  .field { font-size: .92rem; }
+  .field .k {
+    display: block; color: var(--muted); font-size: .74rem; text-transform: uppercase;
+    letter-spacing: .06em; font-family: ui-sans-serif, system-ui, sans-serif; margin-bottom: .12rem;
+  }
+  .field .v { font-variant-numeric: tabular-nums; }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+  th, td { text-align: left; padding: .42rem .55rem; border-bottom: 1px solid var(--line); }
+  th {
+    font-family: ui-sans-serif, system-ui, sans-serif; font-size: .74rem;
+    text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600;
+  }
+  .yes { color: var(--leak); font-weight: 600; }
+  .no { color: var(--safe); }
+  .unk { color: var(--warn); }
+  button {
+    font: inherit; font-size: .88rem; padding: .4rem .7rem; cursor: pointer; background: #fff;
+    color: var(--ink); border: 1px solid var(--line); border-radius: 4px;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  .buttons { display: flex; flex-wrap: wrap; gap: .45rem; }
+  .tabs { display: flex; flex-wrap: wrap; gap: .3rem; margin-bottom: .9rem; }
+  .tabs button[aria-selected="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .scenario { display: none; }
+  .scenario[data-active="true"] { display: block; }
+  .scenario p { margin: 0 0 .8rem; font-size: .93rem; color: #33383b; }
+  .steps { list-style: none; padding: 0; margin: 0; }
+  .steps li { display: flex; align-items: baseline; gap: .55rem; padding: .22rem 0; font-size: .9rem; }
+  .steps li .n { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 1.1rem; }
+  .steps li.done .label { color: var(--muted); text-decoration: line-through; }
+  .verdict { margin-top: 1rem; padding: .8rem .9rem; border-radius: 4px; font-size: .93rem; }
+  .verdict.leak { background: #fceceb; border-left: 3px solid var(--leak); }
+  .verdict.safe { background: #ecf5ef; border-left: 3px solid var(--safe); }
+  .verdict.none { background: #f4f5f5; border-left: 3px solid var(--line); color: var(--muted); }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .86em;
+    background: #f1f3f4; padding: .06em .3em; border-radius: 3px;
+  }
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; }
+</style>
+</head>
+<body>
+<main>
+
+  <h1>Does any VM artifact outlive the test run?</h1>
+  <p class="sub">A model of the cleanup machinery around a topic Molecule run, so we can see which failures leave something behind.</p>
+
+  <p class="model-note">
+    <strong>This is a model, not measured behaviour.</strong> It encodes what the tool source says
+    (molecule 26.9.0, limactl 2.2.1) and the repo's own scenario playbooks. It predicts; it does not observe.
+    The findings it is built on are in <code>docs/research/topic-vm-tests/CLEANUP-GUARANTEES.md</code>.
+  </p>
+
+  <h2>Current state</h2>
+  <div class="panel">
+    <div class="grid" id="state-grid"></div>
+    <p class="sub" style="margin:.9rem 0 0;font-size:.86rem" id="state-note"></p>
+  </div>
+
+  <h2>What survives the run</h2>
+  <div class="panel">
+    <table id="artifacts">
+      <thead><tr><th>Artifact</th><th>Where it lives</th><th>Survives?</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <h2>Free play</h2>
+  <p class="sub" style="font-size:.9rem">Press any failure in any order.</p>
+  <div class="panel"><div class="buttons" id="freeplay"></div></div>
+
+  <h2>Guided walkthroughs</h2>
+  <div class="panel">
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div id="scenarios"></div>
+  </div>
+
+  <footer>
+    Question this answers: <em>which failure modes leak which artifacts, and which cleanup mechanism catches each?</em>
+    Built 2026-11-07. Throwaway.
+  </footer>
+
+</main>
+
+<script>
+/* ------------------------------------------------------------------ *
+ * The model. Pure: state in, state out. No DOM below this block.
+ * ------------------------------------------------------------------ */
+
+const ARTIFACTS = [
+  { id: "vm",          label: "Lima instance + qcow2 disk", where: "/tmp/lima-<sha1>", large: true  },
+  { id: "tmpRoot",     label: "The /tmp root itself",       where: "/tmp/lima-<sha1>", large: false },
+  { id: "controller",  label: "limactl install",            where: "<ephemeral>/controller/.local", large: true },
+  { id: "home",        label: "Disposable HOME",            where: "<ephemeral>/home", large: false },
+  { id: "bookkeeping", label: "Molecule state + configs",    where: "<ephemeral>/",     large: false },
+];
+
+const MECHANISMS = {
+  M1: { id: "M1", label: "destroy-on-failure only",    note: "molecule's except clause" },
+  M2: { id: "M2", label: "+ relocation out of source", note: "ephemeral dir leaves home/" },
+  M3: { id: "M3", label: "+ run timeout",              note: "wrapper kills a hang" },
+  M4: { id: "M4", label: "+ lease & reaper",           note: "swept at next start" },
+};
+
+const FAILURES = {
+  clean:    { id: "clean",    label: "Clean exit",           failType: "none"     },
+  converge: { id: "converge", label: "Converge fails",       failType: "molecule" },
+  verify:   { id: "verify",   label: "Verify fails",         failType: "molecule" },
+  sigkill:  { id: "sigkill",  label: "SIGKILL mid-create",   failType: "hard"     },
+  cancel:   { id: "cancel",   label: "CI cancellation",      failType: "hard"     },
+  reboot:   { id: "reboot",   label: "Host reboot",          failType: "hard"     },
+  hang:     { id: "hang",     label: "Driver hangs forever", failType: "hang"     },
+};
+
+function activeMechanisms(level) {
+  const order = ["M1", "M2", "M3", "M4"];
+  return order.slice(0, order.indexOf(level) + 1);
+}
+
+function initialState(level) {
+  return {
+    level,
+    mechanisms: activeMechanisms(level),
+    run: "idle",
+    failure: null,
+    artifacts: Object.fromEntries(ARTIFACTS.map(a => [a.id, "absent"])),
+    sourceBroken: false,
+    notes: [],
+  };
+}
+
+// Did molecule's own teardown run? `failure` is null on a clean exit.
+function teardownRan(st, failure) {
+  if (!failure) return true;
+  if (!st.mechanisms.includes("M1")) return false;
+  return failure.failType === "molecule";
+}
+
+// Did something outside molecule (timeout, reaper) clean up?
+function caughtOutside(st, failure) {
+  if (!failure) return false;
+  if (failure.failType === "hang" && st.mechanisms.includes("M3")) return true;
+  if (failure.failType === "hard" && st.mechanisms.includes("M4")) return true;
+  if (failure.failType === "hang" && st.mechanisms.includes("M4")) return true;
+  return false;
+}
+
+function applyFailure(level, failure) {
+  const st = initialState(level);
+  const art = st.artifacts;
+
+  st.failure = failure.id;
+  st.run = failure.id === "clean" ? "done" : "failed";
+
+  // Everything the run creates is on disk now.
+  art.tmpRoot = "present";
+  art.vm = "present";
+  art.controller = "present";
+  art.home = "present";
+  art.bookkeeping = "present";
+
+  // An interrupted unarchive leaves a dangling symlink in the source, which
+  // only matters while the ephemeral dir sits inside chezmoi's source.
+  if ((failure.id === "sigkill" || failure.id === "cancel") && !st.mechanisms.includes("M2")) {
+    st.sourceBroken = true;
+    st.notes.push("The interrupted install left a dangling symlink inside the chezmoi source — chezmoi apply and execute-template now fail.");
+  }
+
+  // A clean exit runs the normal trailing destroy; any failure object is
+  // passed through so the helpers can classify it.
+  const failureSpec = failure.id === "clean" ? null : FAILURES[failure.id];
+  const cleaned = teardownRan(st, failureSpec) || caughtOutside(st, failureSpec);
+
+  if (cleaned) {
+    art.vm = "absent";
+    art.tmpRoot = "absent";
+    art.controller = "absent";
+    art.home = "absent";
+    art.bookkeeping = "absent";
+    st.sourceBroken = false;
+    st.notes.push("Teardown ran: destroy.yml stopped and deleted the VM, removed the /tmp root.");
+    if (st.mechanisms.includes("M4") && failure.id !== "clean") {
+      st.notes.push("The reaper found the old lease at the next start and swept the remainder.");
+    }
+  } else {
+    art.vm = "leaked";
+    art.tmpRoot = "leaked";
+    art.controller = "leaked";
+    art.home = "leaked";
+    art.bookkeeping = "leaked";
+    if (failure.failType === "hang") {
+      st.notes.push("The run never ended, so nothing failed and nothing cleaned up. It holds its VM indefinitely.");
+    } else if (failure.failType === "hard") {
+      st.notes.push("The process died without unwinding, so molecule's except clause never ran.");
+    }
+  }
+
+  return st;
+}
+
+/* ------------------------------------------------------------------ *
+ * The page. Everything below drives the model above.
+ * ------------------------------------------------------------------ */
+
+const stateGrid = document.getElementById("state-grid");
+const stateNote = document.getElementById("state-note");
+const artifactBody = document.querySelector("#artifacts tbody");
+const freeplay = document.getElementById("freeplay");
+const tabsEl = document.getElementById("tabs");
+const scenariosEl = document.getElementById("scenarios");
+
+let current = initialState("M1");
+let activeTab = 0;
+
+function el(tag, attrs = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") n.className = v; else n.setAttribute(k, v);
+  }
+  for (const k of kids) n.append(k);
+  return n;
+}
+
+function field(k, v) {
+  return el("div", { class: "field" }, el("span", { class: "k" }, k), el("span", { class: "v" }, v));
+}
+
+function render() {
+  const f = current.failure ? FAILURES[current.failure] : null;
+
+  stateGrid.replaceChildren(
+    field("Failure", f ? f.label : "none yet"),
+    field("Cleanup mechanism", MECHANISMS[current.level].label),
+    field("Teardown ran", current.failure ? (current.artifacts.vm === "absent" ? "yes" : "no") : "—"),
+    field("Source tree", current.sourceBroken ? "broken" : "intact"),
+  );
+
+  stateNote.textContent = current.notes.length
+    ? current.notes[current.notes.length - 1]
+    : "Press a failure below.";
+
+  artifactBody.replaceChildren(...ARTIFACTS.map(a => {
+    const s = current.artifacts[a.id];
+    const cell = s === "leaked"
+      ? el("span", { class: "yes" }, a.large ? "LEAKED — large" : "LEAKED")
+      : s === "present"
+        ? el("span", { class: "unk" }, "in use")
+        : el("span", { class: "no" }, "cleaned");
+    return el("tr", {}, el("td", {}, a.label), el("td", {}, el("code", {}, a.where)), el("td", {}, cell));
+  }));
+
+  renderScenarios();
+}
+
+function renderFreeplay() {
+  freeplay.replaceChildren(...Object.values(FAILURES).map(f => el("button", { type: "button" }, f.label)));
+  [...freeplay.children].forEach((btn, i) => {
+    btn.onclick = () => {
+      current = applyFailure(current.level, Object.values(FAILURES)[i]);
+      render();
+    };
+  });
+}
+
+const WALKTHROUGHS = [
+  { title: "Today (M1)", level: "M1",
+    intro: "The machinery as it is now: molecule's own except clause, nothing else. Walk the failures and watch which leave something behind.",
+    steps: ["clean", "converge", "sigkill", "cancel", "reboot", "hang"] },
+  { title: "Relocate only (M2)", level: "M2",
+    intro: "Move the ephemeral dir out of the chezmoi source. The source tree stops breaking — but does the VM stop leaking?",
+    steps: ["clean", "sigkill", "cancel", "hang"] },
+  { title: "Relocate + timeout (M3)", level: "M3",
+    intro: "Add a wall-clock timeout so a hang becomes a failure. Watch what changes and what does not.",
+    steps: ["clean", "hang", "sigkill", "reboot"] },
+  { title: "Guarantee (M4)", level: "M4",
+    intro: "Add leases and a reaper at the next start. This is the layer meant to satisfy 'no artifact outlives its run'.",
+    steps: ["clean", "converge", "sigkill", "cancel", "reboot", "hang"] },
+  { title: "The awkward case", level: "M1",
+    intro: "The one that actually happened here: a run killed mid-install, ephemeral dir inside the source. Follow it through, then switch mechanisms and replay.",
+    steps: ["sigkill"] },
+];
+
+let walkState = WALKTHROUGHS.map(() => ({ idx: 0, st: null }));
+
+function renderScenarios() {
+  if (!tabsEl.children.length) {
+    WALKTHROUGHS.forEach((w, i) => {
+      const b = el("button", { type: "button", role: "tab" }, w.title);
+      b.onclick = () => { activeTab = i; walkState[i] = { idx: 0, st: null }; render(); };
+      tabsEl.append(b);
+    });
+  }
+  [...tabsEl.children].forEach((b, i) => b.setAttribute("aria-selected", i === activeTab ? "true" : "false"));
+
+  scenariosEl.replaceChildren(...WALKTHROUGHS.map((w, i) => {
+    const ws = walkState[i];
+    const st = ws.st || initialState(w.level);
+    const f = st.failure ? FAILURES[st.failure] : null;
+    const leaked = Object.values(st.artifacts).some(v => v === "leaked");
+
+    const verdict = el("div", { class: "verdict " + (!f ? "none" : leaked ? "leak" : "safe") },
+      !f ? "Not started." : leaked ? "Artifacts outlived the run. " + describeLeak(st) : "Everything cleaned up.");
+
+    const ol = el("ol", { class: "steps" });
+    w.steps.forEach((sid, si) => {
+      const fr = FAILURES[sid];
+      const done = si < ws.idx;
+      const li = el("li", { class: done ? "done" : "" },
+        el("span", { class: "n" }, String(si + 1)),
+        el("span", { class: "label" }, fr.label));
+      if (!done) {
+        const b = el("button", { type: "button" }, "press");
+        b.onclick = () => {
+          walkState[i].st = applyFailure(w.level, fr);
+          walkState[i].idx = si + 1;
+          render();
+        };
+        li.append(b);
+      }
+      ol.append(li);
+    });
+
+    return el("div", { class: "scenario", "data-active": i === activeTab ? "true" : "false" },
+      el("p", {}, w.intro), ol, verdict);
+  }));
+}
+
+function describeLeak(st) {
+  const leaked = ARTIFACTS.filter(a => st.artifacts[a.id] === "leaked");
+  const big = leaked.filter(a => a.large).length;
+  const parts = [leaked.length + " artifact" + (leaked.length === 1 ? "" : "s")];
+  if (big) parts.push(big + " of them large");
+  if (st.sourceBroken) parts.push("and the chezmoi source is broken");
+  return parts.join(", ") + ".";
+}
+
+renderFreeplay();
+render();
+</script>
+</body>
+</html>
