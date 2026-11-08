@@ -111,6 +111,18 @@ BOTH = [
         "ask",
         "snapshot destruction asks in BOTH blocks",
     ),
+    # `shell --sync` rsyncs a host dir into the guest and syncs it back with
+    # --delete — a host-file deletion that must ask in BOTH blocks (job 526).
+    (
+        "limactl shell --sync /host/dir default true",
+        "ask",
+        "host-dir sync asks in BOTH blocks",
+    ),
+    (
+        "limactl shell default --sync=/host/dir true",
+        "ask",
+        "host-dir sync (= form) asks in BOTH blocks",
+    ),
 ]
 
 # (command, required tier in the TOP-LEVEL block, why). The autonomous agent
@@ -167,6 +179,11 @@ def test_top_level_block(config, cmd, want, why):
 # (command, required tier in the AUTONOMOUS block, why) — the widened agent
 # keeps the VM experiment lifecycle; everything destructive falls to ask.
 AUTONOMOUS = [
+    # No-arg forms default to the `default` instance (Lima v2.2.1) — the
+    # promised allow must cover them, not just the named forms (job 526).
+    ("limactl start", "allow", "default-instance start allowed unattended"),
+    ("limactl create", "allow", "default-instance create allowed unattended"),
+    ("limactl stop", "allow", "default-instance stop allowed unattended"),
     ("limactl start foo", "allow", "VM lifecycle allowed in the autonomous agent"),
     ("limactl stop foo", "allow", "VM lifecycle allowed in the autonomous agent"),
     ("limactl create foo", "allow", "VM lifecycle allowed in the autonomous agent"),
@@ -181,6 +198,21 @@ AUTONOMOUS = [
     # cannot name (Lima v2.2.1 aliases; review job 232).
     ("limactl rm foo", "ask", "delete alias cannot bypass the broad ask"),
     ("limactl factory-reset foo", "ask", "instance wipe cannot bypass the broad ask"),
+    # Host-dir sync reaches the host filesystem with --delete on the sync
+    # back — held at ask even unattended (job 526).
+    (
+        "limactl shell --sync /host/dir default true",
+        "ask",
+        "host-dir sync cannot bypass the ask",
+    ),
+    (
+        "limactl shell default --sync=/host/dir true",
+        "ask",
+        "host-dir sync (= form) cannot bypass",
+    ),
+    # v2.2.1 real spellings — allowed for SSH inspection (job 526).
+    ("limactl sudoers", "allow", "sudoers content is read-only inspection"),
+    ("limactl show-ssh default", "allow", "SSH command line is read-only inspection"),
 ]
 
 
