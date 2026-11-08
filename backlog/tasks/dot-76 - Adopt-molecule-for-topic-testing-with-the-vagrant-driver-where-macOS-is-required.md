@@ -68,11 +68,62 @@ updated_date: 2026-10-27 22:21
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
+- [ ] #1 A Linux VM scenario for one Debian topic converges, passes idempotence, and asserts post-converge state — the stronger definition being a clean guest that runs chezmoi apply plus the dotfiles playbook and ends with the topic's own command succeeding
+- [ ] #2 One Darwin topic has a scenario that converges and passes idempotence, using a provider chosen from the research file's evidence rather than assumption
+- [ ] #3 The macOS provider choice records its rejected alternatives and why each failed (Apple Silicon support, image size, Apple's two-VMs-per-host limit)
+- [ ] #4 CI-based macOS runners are marked deferred with the reason (Actions minutes budget unsettled), not silently omitted
+- [ ] #5 The per-driver choice is written into docs/TOPICS.md
 <!-- AC:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
+Merged from DOT-311 (2026-11-08), which was created separately and is retired here
+rather than duplicated. It adds the fleet framing this task lacked and records the
+decisions taken since the original 2026-09-14 approval.
+
+## Fleet framing and what "both machines" means
+
+The fleet is exactly two machines: one Linux desktop (Pop!_OS, amd64, KVM
+available) and one Apple Silicon Mac (arm64). Every topic declaring
+`topic_os: [Darwin, Debian]` needs its converge path proven on both. Today only
+the Linux half is real — `limactl` 2.2.1 boots Debian 12 guests through the
+shared adapter at `home/dotfiles/apps/lima/molecule/shared/`, driven by
+`scripts/run-molecule.sh`.
+
+Definition of "working" for the Linux half, deliberately stronger than
+"ansible converged": a clean guest that has run `chezmoi apply` plus the
+dotfiles playbook, and ends with `gita ls` listing registered repos and
+`gita fetch` succeeding. That is the only definition that tests something the
+host cannot, because the host is already configured.
+
+## macOS guest: open question, with the unknowns named
+
+Lima runs Linux guests on macOS, not macOS guests, so this task's original
+"vagrant against a macOS VM" plan needs the hypervisor question settled. For
+Apple Silicon that narrows to Virtualization.framework-based tools (UTM, Tart,
+Anka); VirtualBox does not work. The unknowns this task already listed remain
+the blockers: which provider works on Apple Silicon, image size, and Apple's
+licensing limit of two macOS VMs per host.
+
+## Decisions taken 2026-11-08
+
+- **Linux VM first.** Get the Debian scenario end-to-end before spending on the
+  macOS half.
+- **CI-based macOS runners deferred.** `macos-14`/`macos-15` are not the
+  fallback yet: the GitHub Actions minutes budget for private repos is not
+  settled.
+- **A layout-seeded Linux VM is not a substitute for OS testing.** One VM per
+  target OS environment across the fleet is the requirement. A fixture seeded
+  with the other machine's directory layout tests data, not platform — it may
+  still be the right check for a specific bug class (a committed config
+  carrying one machine's paths), which is DOT-306's problem, not this task's.
+
+Research in flight at `docs/research/cross-os-vm-testing.md`: what actually runs
+a macOS guest, how Ansible/Molecule practitioners test macOS roles, what
+GitHub's macOS runners provide, and what comparable dotfiles repos do. Read it
+before choosing a provider.
+
 
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
