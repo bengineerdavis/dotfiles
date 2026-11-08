@@ -73,16 +73,33 @@ it. Deleting is the cleanup; the fix is teardown on failure.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A Molecule run that fails before converging leaves no `controller/` symlink anywhere under the chezmoi source
-- [ ] #2 The failure mode is reproducible deliberately, and the cleanup is proven on both a successful and an injected-failure run
-- [ ] #3 `chezmoi status` and the `tests/chezmoi` suite pass from a clean checkout after an aborted VM run
-- [ ] #4 Some check notices the condition — a pre-commit or CI step over the chezmoi source that fails on a broken symlink, rather than a suite failing later for an unrelated-looking reason
+- [ ] #1 Molecule's ephemeral directory lives OUTSIDE the chezmoi source, so no run can leave anything in it
+- [ ] #2 The relocation lands with a one-time sweep of the old location — the `/tmp/lima-<sha1>` name is derived from the ephemeral dir's path, so a moved dir cannot find VMs created under the old one
+- [ ] #3 A run killed mid-install leaves the source tree usable: `chezmoi apply` and `chezmoi execute-template` both succeed afterwards
+- [ ] #4 The failure mode is reproducible deliberately, and the outcome is proven on both a successful run and an injected kill
 - [ ] #5 Whether this is a Molecule teardown fix, a DOT-256 acceptance criterion, or both is decided and recorded on the task that owns it
 <!-- AC:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
+**Revised 2026-11-07 after measurement — the original AC #4 was wrong.**
+
+The first version of this task asked for "a check over the chezmoi source that
+fails on a broken symlink". That check would pass while the bug is live:
+`chezmoi managed` and `chezmoi status` stay GREEN on a dangling symlink, and
+only `apply` and `execute-template` fail. Measured in an isolated scratch
+source: a dot-dir holding a broken link gives managed rc=0, status rc=0, apply
+rc=1, execute-template rc=1. A broken-symlink detector built on status or
+managed detects nothing.
+
+The real fix is the relocation in AC #1, plus the stale-path sweep in AC #2.
+
+Full mechanism, from the tool sources and the repo's own playbooks:
+`docs/research/topic-vm-tests/CLEANUP-GUARANTEES.md`. The state model that
+shows which failure modes leak which artifacts is
+`docs/research/topic-vm-tests/prototype-cleanup-model.html`.
+
 The stale directory was present and not deleted: it is VM state, and deleting
 it only clears the symptom on this host.
 
