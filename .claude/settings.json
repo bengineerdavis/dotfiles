@@ -161,7 +161,7 @@
       "Bash(limactl create *)",
       "Bash(limactl shell *)",
       "Bash(limactl delete *)",
-      "Bash(limactl copy-files *)",
+      "Bash(limactl copy *)",
       "Bash(limactl prune)",
       "Bash(limactl prune *)"
     ],

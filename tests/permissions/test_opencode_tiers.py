@@ -98,6 +98,19 @@ BOTH = [
     ("docker rm xyz", "ask", "container destruction asks in BOTH blocks"),
     ("limactl delete --force foo", "ask", "VM destruction asks in BOTH blocks"),
     ("limactl prune", "ask", "deletes shared VM state in BOTH blocks"),
+    # Aliased and unlisted destructive forms must fall through to the broad
+    # ask — a broad allow would let them delete unprompted (review job 232;
+    # Lima v2.2.1: rm/remove alias delete, factory-reset wipes, disk/snapshot
+    # delete destroy state).
+    ("limactl rm foo", "ask", "delete alias asks in BOTH blocks"),
+    ("limactl remove foo", "ask", "delete alias asks in BOTH blocks"),
+    ("limactl factory-reset foo", "ask", "instance wipe asks in BOTH blocks"),
+    ("limactl disk delete --force d", "ask", "disk destruction asks in BOTH blocks"),
+    (
+        "limactl snapshot delete foo --tag t",
+        "ask",
+        "snapshot destruction asks in BOTH blocks",
+    ),
 ]
 
 # (command, required tier in the TOP-LEVEL block, why). The autonomous agent
@@ -148,6 +161,32 @@ def test_both_blocks(config, block, cmd, want, why):
 @pytest.mark.parametrize("cmd,want,why", TOP, ids=[c[0][:40] for c in TOP])
 def test_top_level_block(config, cmd, want, why):
     got = _tier(_blocks(config)["top-level"], cmd)
+    assert got == want, f"{cmd!r} -> {got}, expected {want} — {why}"
+
+
+# (command, required tier in the AUTONOMOUS block, why) — the widened agent
+# keeps the VM experiment lifecycle; everything destructive falls to ask.
+AUTONOMOUS = [
+    ("limactl start foo", "allow", "VM lifecycle allowed in the autonomous agent"),
+    ("limactl stop foo", "allow", "VM lifecycle allowed in the autonomous agent"),
+    ("limactl create foo", "allow", "VM lifecycle allowed in the autonomous agent"),
+    ("limactl shell foo", "allow", "VM access for the autonomous agent"),
+    (
+        "docker run --rm debian whoami",
+        "allow",
+        "container lifecycle allowed unattended",
+    ),
+    ("docker exec xyz whoami", "allow", "container lifecycle allowed unattended"),
+    # The broad ask must catch every destructive form the delete/prune carves
+    # cannot name (Lima v2.2.1 aliases; review job 232).
+    ("limactl rm foo", "ask", "delete alias cannot bypass the broad ask"),
+    ("limactl factory-reset foo", "ask", "instance wipe cannot bypass the broad ask"),
+]
+
+
+@pytest.mark.parametrize("cmd,want,why", AUTONOMOUS)
+def test_autonomous_block(config, cmd, want, why):
+    got = _tier(_blocks(config)["autonomous"], cmd)
     assert got == want, f"{cmd!r} -> {got}, expected {want} — {why}"
 
 
