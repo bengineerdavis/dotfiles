@@ -4,6 +4,11 @@ title: Lore re-distillation corrupts .lore.md entries — verify rules survive e
   rewrite
 status: To Do
 created_date: 2026-11-07 22:16
+orchestration:
+  status_key: inprogress
+  lease_owner: opencode-session
+  lease_expires_at: '2026-11-08T22:34:58.031277Z'
+  version: 1
 ---
 
 ## Description
@@ -31,3 +36,22 @@ Two consecutive roborev reviews of agent/retro-docs (jobs 463 and 479) failed on
 ## Definition of Done
 <!-- DOD:BEGIN -->
 <!-- DOD:END -->
+
+## Run History
+<!-- SECTION:RUN_HISTORY:BEGIN -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-beacdac9fe164fac8aeb824b3e3faeba
+type: claim_task
+actor: opencode-session
+timestamp: '2026-11-08T21:34:58.031333Z'
+result: succeeded
+task_id: DOT-305
+from_status: todo
+to_status: inprogress
+metadata:
+  lease_ttl_seconds: '3600'
+```
+Interim .lore.md drift-guard test (tests/docs pattern); worktree .worktrees/dot-305 on agent/dot-305
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- SECTION:RUN_HISTORY:END -->
