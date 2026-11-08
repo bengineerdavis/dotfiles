@@ -15,6 +15,13 @@ re-wording that keeps the rule text still passes — survival is the bar, not
 placement. A guard that demanded exact entry placement would go red on every
 legitimate re-distillation; this one goes red only when a rule's content is
 actually gone.
+
+By design, title-only corruption is not caught: a title/body swap that keeps
+the rule's body intact still passes, because the rule text — the actual
+content that matters — survived. The anchor lives in the body, not the title,
+so corrupting only the title leaves the body (and therefore the rule) intact.
+This is correct, not a blind spot; the defects this guard exists to catch are
+the ones where the body is replaced or deleted outright.
 """
 
 from __future__ import annotations
