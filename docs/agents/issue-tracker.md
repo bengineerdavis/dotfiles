@@ -30,6 +30,12 @@ project from the session directory.
 The MCP path carries the project lock, ids and typed fields. Piping CLI text
 loses them, so it is a fallback.
 
+The CLI has no `view` subcommand. Task reads are the bare positional
+`backlog-py task <id>` or `backlog-py task list`; `backlog-py task view <id>`
+errors `Unknown task command: 'view'`. The CLI's own `task --help` opens with
+"View tasks", which invites exactly that wrong subcommand — treat the "View
+tasks" line as a description, not a verb name.
+
 ## Spec-driven flow
 
 - **Spec** — a document, not a task: `document_create` with a path such as

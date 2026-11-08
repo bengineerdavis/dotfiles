@@ -79,13 +79,15 @@ inspection:
    `.worktrees/<sid>_merge_<n>`, recreated per attempt from (base + input
    SHAs): re-running `git merge` in a conflicted tree is not idempotent;
    rebuilding from SHAs is.
-6. **Reap** — a branch is deleted only after
-   `git merge-base --is-ancestor <branch> main` proves the work landed. Never
-   `git branch -D` before that check. A branch whose commits were
-   cherry-picked into buckets never becomes an ancestor, because the copies
-   have new SHAs; prove it landed with `git cherry main <branch>` instead,
-   where every line starting `-` means that patch is already on main. Crash
-   recovery is `git worktree remove --force <path>` plus `git worktree prune`.
+6. **Reap** — a branch is deleted only after you have proven the work landed
+   on `main`. Never `git branch -D` before that check. `git merge-base
+   --is-ancestor <branch> main` proves it only for a real merge commit; the
+   repo squashes PRs, and squash rewrites every commit SHA, so the branch tip
+   is never an ancestor and the check reports "not merged" even after the PR
+   merged. Verify by content instead: the squashed files and lines are present
+   on `main` (`git show main:<path>`), or `git cherry main <branch>` — every
+   line starting `-` means that patch is already on `main`. Crash recovery is
+   `git worktree remove --force <path>` plus `git worktree prune`.
 
 ## Arriving from a PR
 

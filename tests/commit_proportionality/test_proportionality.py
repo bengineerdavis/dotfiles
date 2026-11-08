@@ -77,7 +77,7 @@ def test_budget_matches_the_standard_it_came_from(m):
 def test_rejects_a_long_message_on_a_small_change(m):
     ok, why = m.verdict(msg("word " * 300), changed_lines=5)
     assert ok is False
-    assert "should be two" in why or "should have been two" in why
+    assert "should usually be two" in why
 
 
 def test_accepts_the_same_message_on_a_large_change(m):
