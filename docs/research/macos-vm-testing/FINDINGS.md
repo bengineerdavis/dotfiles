@@ -1,18 +1,20 @@
 # macOS VM for local testing — findings
 
 **Written 2026-11-07.** The question: how can we run a macOS VM locally for
-testing config changes, from a Linux x86_64 host? Every claim below cites its
-primary source. The short answer is a constraint, not a setup guide.
+testing config changes, from a Linux x86_64 host? Claims are cited to primary
+sources where one exists; the few that rest on community material are labelled
+as secondary. The short answer is a constraint, not a setup guide.
 
 ## Conclusion
 
 **There is no legal way to run a macOS VM from this Linux x86_64 box.** macOS
-is licensed only for Apple-branded hardware, and macOS VMs are supported only
-on Apple silicon (or, historically, on Apple-badged Intel Macs). The "free"
-path via Apple's beta programs is a *software* program, not a virtualization
-license — it still runs on real Apple hardware, and the public-facing one
-(AppleSeed for IT) is gated to enterprise/education organizations behind an
-Apple Business/School Manager administrator.
+is licensed only for Apple-branded hardware, and macOS VM support varies: VZ,
+Tart, and UTM's macOS guests are Apple-silicon-only, while Anka still supports
+Intel Mac hosts (a compatible Apple-branded Intel Mac, at Anka 3.8.1). The
+"free" path via Apple's beta programs is a *software* program, not a
+virtualization license — it still runs on real Apple hardware, and the
+public-facing one (AppleSeed for IT) is gated to enterprise/education
+organizations behind an Apple Business/School Manager administrator.
 
 The realistic local-testing paths are, in order of fit:
 
@@ -23,7 +25,8 @@ The realistic local-testing paths are, in order of fit:
    in the cloud; the repo already runs tests on non-local hardware (the
    `tests.yml` workflow), so a macOS leg there is the natural extension.
 3. **AppleSeed for IT / Apple Beta** — beta *software* on real Apple hardware,
-   with a feedback requirement; not a path to a VM from this box.
+   with feedback encouraged (not a licence to virtualize off Apple hardware);
+   not a path to a VM from this box.
 
 ## What the license actually says
 
@@ -50,7 +53,7 @@ The realistic local-testing paths are, in order of fit:
 | Apple Virtualization framework (VZ) | Apple silicon | https://developer.apple.com/documentation/virtualization |
 | Tart (Cirrus Labs) | Apple silicon | https://github.com/cirruslabs/tart |
 | UTM | Apple-only ("UTM was created for macOS and only for Apple platforms") | https://getutm.app/ |
-| Anka | Apple silicon | https://veertu.com/ |
+| Anka | Apple-branded Mac (Intel at Anka 3.8.1, or Apple silicon) | https://veertu.com/ |
 
 None of these run on non-Apple x86_64 hardware. macOS-on-x86 via OpenCore/QEMU
 ("hackintosh") is unlicensed — the macOS SLA's "Apple-branded Systems" term
@@ -63,7 +66,8 @@ https://the.fmsoup.org/t/apple-silicon-macos-vm-software/3025.
 ## The "free" testing path — what it actually is
 
 Apple's beta programs provide **beta macOS software**, not a license to
-virtualize off Apple hardware, and the feedback requirement is real:
+virtualize off Apple hardware. Feedback is encouraged and central to the
+programs' purpose, not a mandatory obligation:
 
 - **AppleSeed for IT** is "specifically designed for enterprise and education
   customers committed to testing each new version of Apple beta software." An
