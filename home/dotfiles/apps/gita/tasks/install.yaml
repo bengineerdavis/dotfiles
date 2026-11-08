@@ -87,3 +87,6 @@
     label: "{{ item.item.path }}"
   when: not item.stat.exists
   changed_when: false
+
+- name: "Install: reconcile the work tree (see work-tree.yaml)"
+  ansible.builtin.import_tasks: work-tree.yaml

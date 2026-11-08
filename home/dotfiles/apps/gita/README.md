@@ -75,3 +75,32 @@ declarative mise module/role (call mise like apt/homebrew) is queued in
 - **Stay out of `gita`'s file.** `repos.csv`/`groups.csv` are gita's own
   state; the topic writes them via gita's first-party `add`, never by editing
   the CSV directly.
+## The work tree: reconciled recursively, never catalogued
+
+Work repos are absent from `config/repos.yaml` on purpose (spec.md § Data:
+employer-identifying strings never enter the committed repo). Their
+registration is discovery-driven instead — every `--tags install` reconciles
+gita against the disk under `gita_work_root` (`~/code/work`):
+
+1. **Register** what appeared: a recursive `gita add -r` walk; new finds land
+   straight in the group. The walk globs `**/` which never matches
+   dot-directories, so vendored trees (`.venv`, `node_modules`) are never
+   registered.
+2. **Sweep**: every work-tree registration into the single `gita_work_group`
+   (`work` — generic name; the group name is committed, repo names never are).
+
+Both steps are needed. The walk skips a repo that is already registered — it
+reports "No new repos found!" — so a repo added by hand without a group is
+missed by step 1 and only reaches the group in step 2.
+
+There is **no prune step**, and adding one back would not work. `gita freeze`
+filters vanished repos out of its own output, so the list it prints never
+contains a ghost; `gita rm` then refuses those names ("invalid choice")
+because `gita ls` is filtered the same way. A stale row left in `repos.csv` is
+harmless — gita re-adopts the repo if it returns at the same path. Cleaning
+`repos.csv` directly would mean editing gita's own state file, which this
+topic forbids.
+
+`gita fetch` / `gita pull` then cover the whole tree through the group.
+`--tags remove` drops the group (the registrations themselves leave only
+behind the `gita_remove_registration` gate, same as personal repos).
