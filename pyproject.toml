@@ -39,7 +39,7 @@ line-length = 88
 # prefer to run. Runtime policy is latest stable (3.14 today, free-threaded
 # from 3.15); formatter policy is the floor, because a formatter must emit code
 # the oldest executors accept. Two files here are run by interpreters we do not
-# choose: `scripts/*.py` go through pre-commit's `language: system` on the
+# choose: `scripts/*.py` go through prek's `language: system` on the
 # host's python3, and the Ansible payload calls `/usr/bin/python3` directly
 # (apps/apt/tasks/keyrings.yaml:15), which is 3.10.12 on Debian 12.
 #
@@ -141,7 +141,7 @@ markers = [
 # Modules loaded via sys.path at runtime, invisible to packaging: the harness
 # beside each suite that needs one (tests/restart_stale, tests/ollama_gpu_confirm,
 # tests/run_molecule) and skill-trust (pytest resolves it through
-# [tool.pytest] pythonpath; pyrefly needs it named here so the pre-commit
+# [tool.pytest] pythonpath; pyrefly needs it named here so the prek
 # hook's environment - which differs from a login shell - resolves the same
 # modules the same way).
 search-path = ["tests/restart_stale", "tests/ollama_gpu_confirm", "tests/run_molecule", "tests/loreai", "tools/skill-trust"]

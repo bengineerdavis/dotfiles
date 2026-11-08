@@ -6,9 +6,9 @@ import importlib.util
 from pathlib import Path
 import subprocess
 import sys
+import tomllib
 
 import pytest
-import yaml
 
 REPO = Path(__file__).resolve().parents[2]
 SCRIPT = REPO / "scripts" / "check-docs-links.py"
@@ -19,7 +19,7 @@ spec.loader.exec_module(links)
 
 
 def hook(hook_id: str) -> dict:
-    config = yaml.safe_load((REPO / ".pre-commit-config.yaml").read_text())
+    config = tomllib.loads((REPO / "prek.toml").read_text())
     return next(
         hook
         for repo in config["repos"]

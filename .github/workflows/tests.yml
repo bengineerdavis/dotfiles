@@ -1,6 +1,6 @@
 name: Tests
 
-# Every other check in this repo runs from a pre-commit hook, which means it
+# Every other check in this repo runs from a prek hook, which means it
 # runs only on a machine where `prek install` was done. A fresh clone has none
 # of them, and a bypassed hook leaves no trace. This job is the backstop: the
 # same suite `AGENTS.md` § Commands names, on a machine nobody can skip.
@@ -63,7 +63,7 @@ jobs:
           test "${actual}" = "${declared}"
 
       # Lint only the files this change touches. The repository has pre-existing
-      # ruff debt that the pre-commit hooks never see: hooks lint staged files
+      # ruff debt that the prek hooks never see: hooks lint staged files
       # (types_or: [python, pyi]) while a whole-tree run also reports the
       # grandfathered `home/dotfiles/**` and `smartparts/**` paths. A whole-tree
       # gate would be red on arrival and stay red, which teaches everyone to
