@@ -95,6 +95,15 @@ Rejected after verification, so they are not re-litigated:
 - **A hand-rolled reaper** — duplicates a deployed mechanism and carries a
   test burden nobody budgeted for.
 
+**Permission constraint on the loud half.** PR #143 widens agent permissions to
+allow `limactl start/stop/create/shell/delete/copy` and `limactl prune` in the
+worktree tier, but the `autonomous` tier deliberately keeps `limactl
+delete`/`prune` at **ask** (its own review found the broad allow let aliased
+forms like `limactl rm` bypass the ask). So a leftover report that *deletes*
+cannot run unattended from the autonomous tier — which is another reason point 3
+is a report, not a cleanup. Do not design the loud half around an unattended
+`limactl delete`.
+
 Known limits, stated so they are not claimed away: macOS has no systemd (the
 existing `.chezmoiignore:26` conditional already excludes `tmp.conf` from
 non-Linux, so points 1 and 3 apply there and the aging reaper does not); `e`
