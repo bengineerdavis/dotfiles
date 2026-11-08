@@ -71,13 +71,57 @@ updated_date: 2026-10-27 22:21
 - [ ] #1 A Linux VM scenario for one Debian topic converges, passes idempotence, and asserts post-converge state — the stronger definition being a clean guest that runs chezmoi apply plus the dotfiles playbook and ends with the topic's own command succeeding
 - [ ] #2 One Darwin topic has a scenario that converges and passes idempotence, using a provider chosen from the research file's evidence rather than assumption
 - [ ] #3 The macOS provider choice records its rejected alternatives and why each failed (Apple Silicon support, image size, Apple's two-VMs-per-host limit)
-- [ ] #4 CI-based macOS runners are marked deferred with the reason (Actions minutes budget unsettled), not silently omitted
+- [ ] #4 A `macos-15` CI job runs the playbook twice and asserts idempotence (`changed=0.*failed=0`), replacing the earlier budget-based deferral — standard runners are free for public repositories
 - [ ] #5 The per-driver choice is written into docs/TOPICS.md
 <!-- AC:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
+## The research landed (2026-11-08), and it changes a decision
+
+`docs/research/cross-os-vm-testing.md` (921 lines, primary sources) settles the
+hypervisor question and overturns the CI decision recorded above.
+
+**There is no legal, supported way to run a macOS guest on Linux.** Apple's
+Virtualization.framework is macOS-host-only; Tart, UTM and Anka all sit on top
+of it. Apple's SLA § 2B(iii) grants two VM instances for development and testing,
+but only on Apple-branded hardware. OSX-KVM works technically on this box
+(x86_64, SVM, /dev/kvm present) and is a Hackintosh outside the SLA — rejected.
+
+**The Actions-minutes reason for deferring CI macOS runners does not hold.**
+GitHub's billing docs: standard runners are free for public repositories, and
+this repo is public. So CI macOS is $0, not a budget question. Verified.
+
+**The strongest precedent needs no VM at all.** `geerlingguy/mac-dev-playbook`
+runs the real playbook on `macos-15` and `macos-14`, twice, grepping for
+`changed=0.*failed=0` (its `.github/workflows/ci.yml`). It uninstalls the
+runner's preinstalled Homebrew first — otherwise the install tasks never run.
+
+**Molecule has no macOS driver.** grep for macos/darwin across its source and
+docs returns nothing. Its `delegated` driver can drive a Mac over SSH, and this
+repo's `create.yml` already emits that instance shape — so a `darwin-lima`
+scenario is a backend change, not a new harness.
+
+**DOT-306's bug class needs no Mac.** chezmoi's deliverable tree renders for
+Darwin on Linux (`-D --override-data '{"chezmoi":{"os":"darwin"}}'`), and
+injected `os_family` facts select the Darwin Ansible branch — verified on this
+host. That boundary is exactly right for path bugs and useless for module bugs
+(`homebrew_cask`/`launchd` fail even in check mode).
+
+### Revised order (supersedes "Linux VM first, macOS deferred")
+
+1. **Linux VM end-to-end** for one Debian topic — unchanged, still the first
+   half, and the definition of working from the merge above stands.
+2. **A `macos-15` CI job** modelled on mac-dev-playbook. $0. This replaces
+   "deferred on budget".
+3. **Molecule-over-SSH to the real Mac** on demand, if 2 proves insufficient.
+4. **Lima `vmType: vz` on the Mac** only if 1-3 all fall short.
+
+The layout-fixture option (seed the other machine's tree, assert the committed
+config resolves both ways) is scoped to DOT-306 and is the cheapest check for
+the bug class that actually bit here.
+
 Merged from DOT-311 (2026-11-08), which was created separately and is retired here
 rather than duplicated. It adds the fleet framing this task lacked and records the
 decisions taken since the original 2026-09-14 approval.
