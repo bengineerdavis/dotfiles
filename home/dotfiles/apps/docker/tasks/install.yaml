@@ -28,12 +28,29 @@
   when: ansible_facts['os_family'] == 'Debian'
 
 - name: "Docker (Debian): add Docker's official signing key"
+  # Docker serves an ASCII-armoured key at .../gpg. apt 2.4 loads a
+  # `signed-by` keyring as BINARY, and a `.asc`-named file holding armoured
+  # (or, after the keyring-repair helper runs, binary) content is the exact
+  # mismatch that made apt report NO_PUBKEY while gpgv verified the same
+  # InRelease fine — measured 2026-11-08. Download the armoured key to a
+  # temp name, then dearmour it into a `.gpg` file so the extension matches
+  # the binary content.
   ansible.builtin.get_url:
     url: "https://download.docker.com/linux/{{ docker_apt_distro }}/gpg"
     dest: /etc/apt/keyrings/docker.asc
     mode: "0644"
   become: true
   when: ansible_facts['os_family'] == 'Debian'
+  register: docker_key_download
+
+- name: "Docker (Debian): dearmour the signing key to a binary .gpg"
+  ansible.builtin.command:
+    cmd: "gpg --dearmor --yes --output /etc/apt/keyrings/docker.gpg /etc/apt/keyrings/docker.asc"
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - docker_key_download is changed
+  changed_when: false
 
 - name: "Docker (Debian): retire legacy one-line source"
   # Pre-managed hosts have the repo as a hand-made docker.list. The deb822
@@ -53,7 +70,7 @@
     suites: ["{{ ansible_facts['distribution_release'] }}"]
     components: [stable]
     architectures: "{{ docker_apt_arch }}"
-    signed_by: /etc/apt/keyrings/docker.asc
+    signed_by: /etc/apt/keyrings/docker.gpg
     state: present
   become: true
   when: ansible_facts['os_family'] == 'Debian'

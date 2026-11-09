@@ -210,6 +210,25 @@ def test_armored_key_is_dearmored_before_writing(ak, tmp_path, pubkey):
     assert oct(dest.stat().st_mode & 0o777) == "0o644"
 
 
+def test_asc_dest_is_corrected_to_gpg(ak, tmp_path, pubkey):
+    """A .asc-named dest holding binary content breaks apt 2.4 (NO_PUBKEY).
+
+    Measured 2026-11-08: Docker's key was written binary into docker.asc, and
+    apt reported NO_PUBKEY while gpgv verified the same InRelease fine. The
+    helper must write to the .gpg sibling and report the correction.
+    """
+    armored, _, key_id = pubkey
+    dest = tmp_path / "repo.asc"
+    list_source(tmp_path, dest)
+    report = ak.repair(args(tmp_path), fetch=lambda u, t: armored)
+    corrected = tmp_path / "repo.gpg"
+    assert report["dest"] == str(corrected)
+    assert report["status"] == "repaired"
+    assert corrected.is_file()
+    assert not dest.exists()
+    assert ak.key_ids(corrected.read_bytes()) == [key_id]
+
+
 def test_required_key_missing_is_refused(ak, tmp_path, pubkey):
     armored, _, _ = pubkey
     dest = tmp_path / "repo.gpg"

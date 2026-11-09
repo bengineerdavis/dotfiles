@@ -30,7 +30,7 @@
     suites: ["{{ ansible_facts['distribution_release'] }}"]
     components: [stable]
     architectures: "{{ docker_apt_arch }}"
-    signed_by: /etc/apt/keyrings/docker.asc
+    signed_by: /etc/apt/keyrings/docker.gpg
     state: absent
   become: true
   when: ansible_facts['os_family'] == 'Debian'
@@ -43,6 +43,13 @@
   when: ansible_facts['os_family'] == 'Debian'
 
 - name: "Docker (Debian): remove Docker's official signing key"
+  ansible.builtin.file:
+    path: /etc/apt/keyrings/docker.gpg
+    state: absent
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "Docker (Debian): remove the armoured key download if present"
   ansible.builtin.file:
     path: /etc/apt/keyrings/docker.asc
     state: absent

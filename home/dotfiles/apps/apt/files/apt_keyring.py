@@ -222,6 +222,23 @@ def repair(args: argparse.Namespace, fetch=download) -> dict:
         )
     report["keys"] = ids
 
+    # apt 2.4 loads a `signed-by` keyring as BINARY, and a `.asc`-named
+    # file holding binary content is the exact mismatch that made apt
+    # report NO_PUBKEY while gpgv verified the same InRelease fine —
+    # measured 2026-11-08 (Docker's key). If the source names a `.asc`
+    # path but the dearmoured keyring is binary, write to the `.gpg`
+    # sibling instead and report the correction, so the extension always
+    # matches the content.
+    if dest_path.suffix == ".asc":
+        corrected = dest_path.with_suffix(".gpg")
+        report["dest"] = str(corrected)
+        report["detail"] = (
+            f"{dest} is a .asc path but the key is binary; apt 2.4 cannot "
+            f"load it. Writing to {corrected} instead — update the source's "
+            "signed-by= to match."
+        )
+        dest_path = corrected
+
     current = dest_path.read_bytes() if dest_path.is_file() else None
     if current == keyring:
         report["status"] = "ok"
