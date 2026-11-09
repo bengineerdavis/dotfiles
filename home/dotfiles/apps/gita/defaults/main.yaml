@@ -13,3 +13,28 @@ gita_code_root: "{{ ansible_facts['env']['HOME'] }}/code"
 # group gita knows about, including any added by hand — so a plain
 # --tags remove keeps the index and only the flag below wipes it.
 gita_remove_registration: false
+# ── work: reconciled recursively, never catalogued ───────────────────────────
+#
+# Work repos are deliberately absent from the committed catalogue (spec.md §
+# Data: employer-identifying strings stay machine-local). The topic still
+# owns their registration: on every install it reconciles the whole work root
+# into ONE machine-local group — registers what appeared (recursively,
+# vendored junk skipped), and sweeps every work-root registration into the
+# group. Gita filters missing paths from its own reads; its CLI cannot prune
+# them. No repo name is ever
+# committed; they exist only in gita's own CSVs and the machine-local layout
+# overlay.
+
+# The work tree root, walked recursively on install. Machines without one
+# (fresh, personal-only) skip the whole reconciliation.
+gita_work_root: "{{ ansible_facts['env']['HOME'] }}/code/work"
+
+# Match gita's config directory precedence (gita/common.py get_config_dir).
+gita_config_dir: >-
+  {{ (ansible_facts['env']['GITA_PROJECT_HOME'] | default('')
+      or ansible_facts['env']['XDG_CONFIG_HOME'] | default('')
+      or ansible_facts['env']['HOME'] ~ '/.config') ~ '/gita' }}
+
+# The single group every work-root registration lands in. Generic on
+# purpose — the name travels in this committed file.
+gita_work_group: work
