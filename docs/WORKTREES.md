@@ -20,19 +20,25 @@ invisible to chezmoi (probed 2026-09-22: a dot-prefixed source dir appears in
 neither `chezmoi managed` nor `chezmoi status`), so they never deploy.
 `.worktrees/` is in the tracked `.gitignore`.
 
-**The main checkout stays on `main`.** A task branch is never checked out
-there: the main checkout is the collector every session shares, and its
-branch is shared state — switching it moves governance files under every
-other session's feet and turns branch hygiene into a stash dance (observed
-2026-10-27, PR #87). Task branches get their own worktree from the start.
+**The main checkout stays on `main` — it is shared state, and chezmoi acts on
+it.** chezmoi resolves its source dir to the main checkout
+(`~/.local/share/chezmoi`) unless `-S "$PWD"` points at a worktree, and every
+command that reads or writes source — `git pull`, `chezmoi apply`, `chezmoi
+status`, `chezmoi diff` — acts on whichever branch is checked out there. A task
+branch left checked out there poisons each of them:
 
-**Confirm the branch before you reconcile.** `git pull` / `git fetch` +
-fast-forward in the *shared checkout* operates on whichever branch it is on —
-if another session switched it to their task branch, a reconcile acts on their
-branch and misreads as "main is behind". Before any shared-checkout
-reconcile/apply, run `git branch --show-current` and stop if it is not `main`
-(measured 2026-11-08: a reconcile on a concurrent session's branch made the
-local `git pull` report non-fast-forward with no local commits).
+- `git pull` reconciles the wrong branch ("main is behind" reads the task
+  branch's tip);
+- `chezmoi apply` deploys that branch's files over the single deployed tree;
+- `chezmoi status` / `chezmoi diff` report phantom drift — source is the stale
+  branch, so a target whose deployed copy already matches `main` reads as `M`.
+
+So a task branch never sits in the main checkout (observed 2026-10-27, PR #87),
+and before any reconcile or apply there, run `git branch --show-current` and
+stop unless it is `main`. Measured 2026-11-08 (a reconcile on a concurrent
+session's branch reported non-fast-forward with no local commits) and 2026-11-09
+(a phantom `M dotfiles/update.sh` where the deployed copy already carried
+PR #154's `-K` logic).
 
 Naming is **flat, never grouped**:
 
@@ -71,7 +77,11 @@ merge; only declarations (pyproject.toml, uv.lock) do.
 One lifecycle for every worktree, so a wedged session is recoverable by
 inspection:
 
-1. **Spawn** — `git worktree add .worktrees/<sid> -b agent/<sid>`.
+1. **Spawn** — `git worktree add .worktrees/<sid> -b agent/<sid>`. With
+   Worktrunk, `wt switch --create <sid>` runs the pre-switch helper first:
+   clean `main` is fetched and fast-forwarded before the branch is created.
+   Dirty or diverged `main` stops creation; existing task branches and stacked
+   parents are not reset. See `docs/BRANCH-SYNC.md`.
 2. **Fan-out** — sub-worktrees off the parent branch, named as above.
 3. **Provision** — venvs with `UV_LINK_MODE=copy`; consumers offline
    (`UV_OFFLINE=1 --frozen`), provisioners serialised. Before a rebase,

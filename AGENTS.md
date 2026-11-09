@@ -256,12 +256,9 @@ chezmoi -S "$PWD" add ~/bin/<script>     # -S is required, see below
 ```
 
 - chezmoi's source directory is **fixed**, not cwd-relative — it resolves to
-  `~/.local/share/chezmoi` wherever you run it. Without `-S "$PWD"` a `chezmoi add`
-  from a worktree writes into the main checkout and silently lands work on another
-  branch.
-- The deployed tree cannot be branched. `~/bin/<script>` is one file no matter how
-  many branches hold versions of it, so `chezmoi apply` from either branch
-  overwrites the other.
+  `~/.local/share/chezmoi` wherever you run it, and governs whichever branch is
+  checked out there. Use `-S "$PWD"` to point at a worktree. See
+  `docs/WORKTREES.md` § Main-checkout for what a stale branch fakes.
 
 **Claim hot files with an orchestration lease** before touching anything listed
 under § Cross-session hazards below: `backlog-py orchestration claim DOT-N
@@ -504,7 +501,9 @@ cannot be branched. `~/dotfiles` is a single set of files no matter how many
 branches hold versions of them, so two agents applying from two branches
 overwrite each other. Applying happens from main only, by the author or by a
 session holding the apply claim in an orchestration lease. When a session holds
-the claim, other sessions stay off it.
+the claim, other sessions stay off it. (The shared checkout is the same state
+at rest: `docs/WORKTREES.md` § Main-checkout is where the "verify branch before
+reconcile/apply/status" rule lives, stated once.)
 
 A target that changed since chezmoi last wrote it is a judgement call, not a
 prompt to answer hastily: inspect `chezmoi diff <target>` and either fold the
@@ -665,6 +664,31 @@ was retired with it). When you need a hook's config, flags, or file selection, r
 `prek.toml` — not a remembered `.pre-commit-config.yaml`, which no longer exists
 and will silently misreport the suite. A stale assertion about hooks is how
 "the ruff hook checks X" gets reported as fact from a file that is gone.
+
+### Three commands that fail in a way that looks like a broken repo
+
+Each was measured on 2026-11-09 and each cost a session real time. The failure
+is never the thing you assume; check these before diagnosing further.
+
+**`gh pr create` with a slashed branch name.** `--head agent/template-research`
+fails with *"No commits between main and agent/template-research"* even when the
+branch is fine and `gh api .../compare` reports `ahead_by: 2`. Name the owner:
+`--head <owner>:<branch>`. The error describes a repository problem that does
+not exist.
+
+**`gh` without `--repo` resolves by remote, not by cwd.** In a tree holding more
+than one clone of a similarly-named repo, `gh pr view 1` can read a *different*
+repository and report a PR you never created. Pass `--repo <owner>/<name>` on
+every `gh` command here; treat any surprising owner name in the output as this
+bug rather than as your own mistake.
+
+**`git diff <branch>` is not a claim about what your branch does.** Two-dot
+`git diff main` renders main's later additions as deletions, so a branch that
+deletes nothing appears to delete everything added since the merge-base. Use
+`git diff main...HEAD` for "what my change is" and `git merge-base HEAD main`
+before asserting that a merge would remove something. Measured the same day: a
+false "this merge deletes six files" alarm, from the two-dot form, on a branch
+that deleted nothing.
 
 ```bash
 # Fast loop — the default for iteration. Tests spread across CPUs. Measured on
@@ -872,6 +896,8 @@ Read by name when the work touches them:
 - **`docs/GLOSSARY.md`** — project terminology, linked on first use.
 - **`docs/LINK-CHECKING.md`** — the Lychee cadence and its security boundary.
 - **`docs/WORKTREES.md`** — the worktree naming contract and lifecycle.
+- **`docs/BRANCH-SYNC.md`** — how a branch stays mergeable: the pre-push
+  check, and why a declared hook stage without a shim never runs.
 - **`docs/TOPICS.md`** — topic structure, lifecycle, dependency and ownership.
 - **`docs/TRUST-LADDER.md`** — rungs, incident classes, promotion and ageing.
 - **`docs/TESTING.md`** — mutation proving, properties and fuzzing.
