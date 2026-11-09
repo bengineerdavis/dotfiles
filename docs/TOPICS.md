@@ -77,6 +77,17 @@ plain `ansible-playbook apps/<topic>/playbook.yaml` (no tags) runs `provision`
 and never tears the topic down. Uninstalling is always a deliberate
 `--tags remove`; new topics inherit this from `template_dir`.
 
+### Name inner loop vars in lifecycle task files
+
+The parent playbook imports every topic with `include_role` under a loop whose
+variable is `item`. A lifecycle task file that loops with the bare `item` —
+`retired.yaml` looping `apt_retired_sources`, `keyrings.yaml` looping
+`apt_keyrings`, `upgrade.yaml` looping `apt_source_audit` failures — shadows the
+parent's `item`, and Ansible warns on every run. The collision is invisible to
+per-file review because the parent loop lives in another file. Give every inner
+loop in a task file reachable from the parent playbook its own `loop_var`
+(e.g. `retired_src`), and treat a bare `loop:` that reuses `item` as a finding.
+
 ## Dependency resolution
 
 The parent playbook reads every `topic.yml`, builds a
