@@ -162,17 +162,6 @@ def test_ansible_library_is_exported(scenario_repo: pathlib.Path):
     assert value == "/fake/site-packages/molecule_plugins/vagrant/modules", value
 
 
-def test_ephemeral_directory_is_pinned_into_the_scenario(scenario_repo):
-    """State lives in the scenario .molecule/, not a basename cache."""
-    result = run_wrapper(scenario_repo, "faketopic", "converge")
-    assert result.returncode == 0, result.stderr
-    (record,) = molecule_records(scenario_repo)
-    (value,) = record["env-ed"]
-    expected = scenario_repo / "home" / "dotfiles" / "apps" / "faketopic"
-    expected = expected / "molecule" / "default" / ".molecule"
-    assert value == str(expected), value
-
-
 def make_named_scenario(scenario_repo: pathlib.Path, name: str) -> pathlib.Path:
     scenario = (
         scenario_repo / "home" / "dotfiles" / "apps" / "faketopic" / "molecule" / name
@@ -189,15 +178,6 @@ def test_named_scenario_is_passed_to_molecule(scenario_repo, monkeypatch):
     assert result.returncode == 0, result.stderr
     (argv,) = molecule_invocations(scenario_repo)
     assert argv[-2:] == ["-s", "debian"]
-
-
-def test_named_scenario_pins_its_own_state_dir(scenario_repo, monkeypatch):
-    scenario = make_named_scenario(scenario_repo, "debian")
-    monkeypatch.setenv("MOLECULE_SCENARIO", "debian")
-    result = run_wrapper(scenario_repo, "faketopic")
-    assert result.returncode == 0, result.stderr
-    (record,) = molecule_records(scenario_repo)
-    assert record["env-ed"] == [str(scenario / ".molecule")]
 
 
 def test_extra_args_pass_through_to_molecule(scenario_repo: pathlib.Path):
@@ -236,3 +216,194 @@ def test_uv_missing_names_the_fix(scenario_repo: pathlib.Path):
     assert "uv not found on PATH" in result.stderr
     assert "mise" in result.stderr, "stderr must name the install path"
     assert molecule_invocations(scenario_repo) == [], "no molecule run without uv"
+
+
+def test_ephemeral_directory_is_pinned_outside_the_source(scenario_repo):
+    """State must not live inside the chezmoi source (DOT-303).
+
+    A run killed during an install left a dangling symlink in the
+    in-source state dir. Chezmoi resolves the whole symlink chain while
+    loading source state, so `apply` and `execute-template` failed for
+    every later invocation while `managed` and `status` stayed green.
+    """
+    result = run_wrapper(scenario_repo, "faketopic", "converge")
+    assert result.returncode == 0, result.stderr
+    (record,) = molecule_records(scenario_repo)
+    (value,) = record["env-ed"]
+
+    source_root = scenario_repo / "home"
+    assert not pathlib.Path(value).is_relative_to(source_root), (
+        f"state must be outside the chezmoi source ({source_root}), got {value}"
+    )
+    # Scoped per checkout + topic + scenario, so none of them collide.
+    assert value.endswith("/molecule/repo/faketopic/default"), value
+
+
+def test_the_checkout_name_scopes_the_state_path(scenario_repo):
+    """Two worktrees must not share run state.
+
+    Worktrees share the git dir but not gitignored files, and the
+    derived /tmp/lima-<sha1> name is a hash of this path, so a path
+    without the checkout name would collide across checkouts.
+    """
+    result = run_wrapper(scenario_repo, "faketopic", "converge")
+    assert result.returncode == 0, result.stderr
+    (record,) = molecule_records(scenario_repo)
+    (value,) = record["env-ed"]
+    assert "/molecule/repo/" in value, f"checkout basename must scope it: {value}"
+
+
+def test_named_scenario_pins_its_own_state_dir(scenario_repo, monkeypatch):
+    """A named scenario keeps its own state dir, outside the source."""
+    make_named_scenario(scenario_repo, "debian")
+    monkeypatch.setenv("MOLECULE_SCENARIO", "debian")
+    result = run_wrapper(scenario_repo, "faketopic")
+    assert result.returncode == 0, result.stderr
+    (record,) = molecule_records(scenario_repo)
+    (value,) = record["env-ed"]
+    assert value.endswith("/molecule/repo/faketopic/debian"), value
+    assert not pathlib.Path(value).is_relative_to(scenario_repo / "home")
+
+
+def test_legacy_in_source_state_is_reported(scenario_repo):
+    """Pre-relocation state under the source is named, not ignored."""
+    legacy = (
+        scenario_repo
+        / "home"
+        / "dotfiles"
+        / "apps"
+        / "faketopic"
+        / "molecule"
+        / "default"
+        / ".molecule"
+    )
+    legacy.mkdir(parents=True)
+    result = run_wrapper(scenario_repo, "faketopic", "converge")
+    assert result.returncode == 0, result.stderr
+    assert "pre-relocation state" in result.stderr
+    assert str(legacy) in result.stderr
+    # It may belong to a run another session has in flight.
+    assert legacy.is_dir(), "report it, never delete it"
+
+
+def _run_with_env(scenario_repo, tmp_path, lima_tmp, state_home):
+    """Run the wrapper with the report pointed at a fixture tmp root."""
+    env = dict(os.environ)
+    env["PATH"] = f"{scenario_repo.parent / 'fake-bin'}:{env['PATH']}"
+    env["UV_LOG"] = str(scenario_repo / "uv.log")
+    env["LIMA_TMP_ROOT"] = str(lima_tmp)
+    env["XDG_STATE_HOME"] = str(state_home)
+    return subprocess.run(
+        [str(scenario_repo / "scripts" / "run-molecule.sh"), "faketopic"],
+        cwd=str(scenario_repo),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+
+
+def test_a_leftover_lima_root_is_reported_before_the_run(scenario_repo, tmp_path):
+    """A leftover is named, never silently removed.
+
+    A reaper that removes quietly is the same failure with a different
+    trigger, so the wrapper reports and leaves the decision to a human.
+    LIMA_TMP_ROOT points the report at a fixture instead of real /tmp.
+    """
+    import hashlib
+
+    lima_tmp = tmp_path / "faketmp"
+    lima_tmp.mkdir()
+    state_home = tmp_path / "state"
+    ephemeral = f"{state_home}/molecule/repo/faketopic/default"
+    digest = hashlib.sha1(ephemeral.encode()).hexdigest()
+    leftover = lima_tmp / f"lima-{digest}"
+    leftover.mkdir()
+    (leftover / "disk").write_text("x")
+
+    result = _run_with_env(scenario_repo, tmp_path, lima_tmp, state_home)
+
+    assert result.returncode == 0, result.stderr
+    assert "WARNING: leftover VM state" in result.stderr
+    assert str(leftover) in result.stderr, "the report must name the path"
+    assert "user-tmpfiles" in result.stderr, "and say what will reap it"
+    # Reported, never removed, and the run still proceeded.
+    assert leftover.is_dir(), "the wrapper must not delete a leftover"
+    assert (leftover / "disk").exists(), "nor anything inside it"
+    assert len(molecule_invocations(scenario_repo)) == 1
+
+
+def test_a_clean_tmp_root_reports_nothing(scenario_repo, tmp_path):
+    """No leftover must mean no warning, or it becomes noise."""
+    lima_tmp = tmp_path / "emptytmp"
+    lima_tmp.mkdir()
+    state_home = tmp_path / "state"
+    result = _run_with_env(scenario_repo, tmp_path, lima_tmp, state_home)
+    assert result.returncode == 0, result.stderr
+    assert "WARNING" not in result.stderr, result.stderr
+
+
+def test_another_scenarios_root_is_counted_not_named(scenario_repo, tmp_path):
+    """A root this scenario cannot address is counted, never removed.
+
+    Every run uses the fixed platform name `lima-mol`, so two concurrent
+    runs collide and a leftover may not be attributable at all. Say so
+    rather than guessing whose it is.
+    """
+    lima_tmp = tmp_path / "sharedtmp"
+    lima_tmp.mkdir()
+    stray = lima_tmp / "lima-deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+    stray.mkdir()
+    state_home = tmp_path / "state"
+    result = _run_with_env(scenario_repo, tmp_path, lima_tmp, state_home)
+    assert result.returncode == 0, result.stderr
+    assert "1 other /tmp/lima-* root(s) present" in result.stderr
+    assert "not mine to remove" in result.stderr
+    assert stray.is_dir(), "an unattributable root must survive the run"
+
+
+def test_the_run_is_bounded_by_a_timeout(scenario_repo):
+    """A hung run must fail, not run forever holding its VM.
+
+    Molecule installs no signal handlers and tears down only on its own
+    exceptions, so a hang holds its VM indefinitely (DOT-309). The bound
+    is asserted on the exec line, where it actually applies: the fake uv
+    logs its own argv and cannot witness the wrapper's.
+    """
+    script = (scenario_repo / "scripts" / "run-molecule.sh").read_text()
+    (exec_line,) = [ln for ln in script.splitlines() if ln.startswith("exec ")]
+    assert "TIMEOUT_CMD" in exec_line, (
+        f"the timeout must wrap the exec, not sit beside it: {exec_line}"
+    )
+    assert "timeout --signal=TERM" in script
+
+
+def test_login_is_not_bounded(scenario_repo):
+    """`login` is a human at a tty; a timeout would end it."""
+    script = (scenario_repo / "scripts" / "run-molecule.sh").read_text()
+    assert 'if [[ "$VERB" != "login" ]]' in script
+    result = run_wrapper(scenario_repo, "faketopic", "login")
+    assert result.returncode == 0, result.stderr
+
+
+def test_the_wrapper_never_reaps():
+    """Report, never remove (DOT-309, and the permission limit).
+
+    `limactl delete` asks in the autonomous tier (PR #143), so
+    unattended cleanup could not run anyway; a deletion here would be
+    both unsafe and unapproved. Checked on executable lines only: the
+    wrapper prints "limactl delete" as advice, and matching that would
+    be the same false positive the report itself warns about.
+    """
+    repo = pathlib.Path(__file__).resolve().parents[2]
+    script = (repo / "scripts" / "run-molecule.sh").read_text()
+    executed = [
+        ln
+        for ln in script.splitlines()
+        if ln.strip() and not ln.lstrip().startswith("#") and "printf" not in ln
+    ]
+    body = "\n".join(executed)
+    for destructive in ("limactl delete", "limactl prune", "molecule reset"):
+        assert destructive not in body, f"must not execute {destructive!r}"
+    assert 'rm -rf "$LIMA_ROOT"' not in body
