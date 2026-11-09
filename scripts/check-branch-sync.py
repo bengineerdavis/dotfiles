@@ -57,44 +57,46 @@ def find_checkout(repo: Path, branch: str) -> Path:
 
 
 def fast_forward(base: Path, branch: str) -> None:
-    """Bring the local base branch up to origin, refusing anything lossy.
+    """Bring the local base branch up to origin when that is free.
 
-    A dirty checkout is only a problem when the incoming commits touch a file
-    that is already modified — git can fast-forward around unrelated local
-    edits, and it does. Refusing on *any* dirt is wrong for this repository:
-    the main checkout is shared by concurrent sessions, so one session's
-    uncommitted work would block every other session's push. The check below
-    therefore asks git to attempt the fast-forward and treats its refusal as
-    the signal, rather than guessing from `status` output.
+    This is a convenience, never a gate. `main` is shared by every session on
+    the machine: one session's unpushed commit, or a rebase in progress, makes
+    it diverge for minutes at a time. Refusing a push because of that blocks
+    work the pusher cannot fix and did not cause — measured three times on
+    2026-11-08, each time against a checkout someone else was mid-edit in.
+
+    So: try, and ignore the outcome. Mergeability is decided against
+    `origin/{branch}`, which is what the pushed branch actually merges into
+    and which nothing local can move.
     """
-    require(git(base, "fetch", "origin", branch))
-
+    if git(base, "fetch", "origin", branch).returncode:
+        return
     counts = require(
         git(base, "rev-list", "--left-right", "--count", f"origin/{branch}...HEAD")
     ).split()
-    behind, ahead = (int(counts[0]), int(counts[1])) if len(counts) == 2 else (0, 0)
-
-    # Local commits that origin lacks are normal here: sessions commit to
-    # local main and the author pushes later. That is ahead-of-origin, not
-    # divergence, and with nothing behind it the fast-forward is a no-op.
-    # Only ahead *and* behind blocks one, and then rebasing or resetting is
-    # the author's decision rather than a hook's.
-    if not behind:
+    behind = int(counts[0]) if len(counts) == 2 else 0
+    if behind == 0:
         return
-
-    result = git(base, "merge", "--ff-only", f"origin/{branch}")
-    if result.returncode:
-        detail = (result.stderr or result.stdout).strip()
-        raise RuntimeError(
-            f"{branch} at {base} could not fast-forward to origin/{branch}. "
-            f"Uncommitted changes there probably overlap the incoming "
-            f"commits. {detail}"
-        )
+    # Best effort. A refusal means the shared checkout is busy; the push is
+    # still judged on `origin/{branch}` below.
+    git(base, "merge", "--ff-only", f"origin/{branch}")
 
 
 def conflicting_files(repo: Path, base_branch: str) -> list[str]:
-    """Return the paths that conflict between HEAD and the base, if any."""
-    result = git(repo, "merge-tree", "--write-tree", base_branch, "HEAD")
+    """Return the paths that conflict between HEAD and the merge target.
+
+    The target is `origin/{base_branch}`: a push lands on the remote, so the
+    remote tip is what the branch has to merge with. A local checkout of the
+    same branch can be ahead, behind, mid-rebase, or stale, and none of that
+    changes what the push does.
+    """
+    target = f"origin/{base_branch}"
+    if git(repo, "rev-parse", "--verify", "--quiet", target).returncode:
+        raise RuntimeError(
+            f"no {target} to compare against. Fetch it first: "
+            f"git fetch origin {base_branch}"
+        )
+    result = git(repo, "merge-tree", "--write-tree", target, "HEAD")
     if result.returncode == 0:
         return []
 
@@ -134,27 +136,33 @@ def main() -> int:
     branch = args.default_branch
 
     try:
-        base = find_checkout(repo, branch)
-        fast_forward(base, branch)
+        # The local checkout is optional. Using it when present keeps `main`
+        # current as a convenience; its state never decides the push.
+        try:
+            fast_forward(find_checkout(repo, branch), branch)
+        except RuntimeError:
+            pass
         conflicts = conflicting_files(repo, branch)
     except RuntimeError as error:
-        print(f"branch sync refused: {error}", file=sys.stderr)
-        return 1
+        # Cannot decide is not the same as "conflicts". Only a real conflict
+        # returns 1; an unknown returns 2 so a caller can tell them apart.
+        print(f"branch sync cannot check: {error}", file=sys.stderr)
+        return 2
 
     if not conflicts:
-        print(f"branch sync: {branch} merges cleanly into the pushed branch")
+        print(f"branch sync: origin/{branch} merges cleanly into the pushed branch")
         return 0
 
     current = require(git(repo, "rev-parse", "--abbrev-ref", "HEAD"))
     print(
-        f"branch sync: {branch} needs to be resolved with {current} before it "
-        f"can merge. Conflicting paths:",
+        f"branch sync: origin/{branch} needs to be resolved with {current} "
+        f"before it can merge. Conflicting paths:",
         file=sys.stderr,
     )
     for path in conflicts:
         print(f"  {path}", file=sys.stderr)
     print(
-        f"\nResolve with: git -C {repo} merge {branch}\n"
+        f"\nResolve with: git -C {repo} merge origin/{branch}\n"
         f"This hook does not merge for you: the two changes have to be "
         f"reconciled on purpose.",
         file=sys.stderr,

@@ -1,12 +1,10 @@
 """The pre-push branch-sync check.
 
 The hook must do two things and never a third: bring local `main` up to
-`origin/main`, report whether the pushed branch still merges, and
-leave the branch alone. A hook that quietly "fixes" the branch is worse
-than no hook, so most of these tests are about what it refuses to do.
-
-Run:
-    pytest tests/scripts/test_check_branch_sync.py -v
+`origin/main`, report whether the pushed branch still merges, and leave
+the branch alone. A hook that quietly "fixes" the branch is worse than
+no hook, so most of these tests are about what it refuses to do.
+Run: pytest tests/scripts/test_check_branch_sync.py -v
 """
 
 import os
@@ -194,11 +192,16 @@ def test_a_dirty_main_checkout_with_unrelated_edits_still_syncs(
     assert (repo / "unrelated.txt").read_text() == "work in progress\n"
 
 
-def test_a_dirty_main_checkout_overlapping_the_update_refuses(
+def test_a_dirty_main_checkout_never_loses_work_and_never_blocks(
     repo: Path,
 ) -> None:
-    """Refusing beats discarding work nobody asked it to touch."""
-    # Dirty exactly the file the incoming commit changes.
+    """Uncommitted work in the shared checkout is left exactly as found.
+
+    The hook used to fail here, which meant one session's half-typed
+    edit stopped every other session from pushing. It now leaves `main`
+    alone: the edit stays byte-identical, and the push is judged on
+    mergeability.
+    """
     write(repo / "shared.txt", "uncommitted\n")
     upstream = repo.parent / "upstream"
     git(
@@ -217,8 +220,7 @@ def test_a_dirty_main_checkout_overlapping_the_update_refuses(
     task = repo.parent / "task"
     result = run(cwd=task)
 
-    assert result.returncode == 1
-    assert "fast-forward" in result.stderr
+    assert result.returncode == 0, result.stderr
     assert (repo / "shared.txt").read_text() == "uncommitted\n"
 
 
@@ -239,10 +241,17 @@ def test_local_commits_ahead_of_origin_do_not_block(repo: Path) -> None:
     assert "merges cleanly" in result.stdout
 
 
-def test_a_true_divergence_refuses(repo: Path) -> None:
-    """Ahead and behind is real divergence: no fast-forward exists.
+def test_a_diverged_local_main_does_not_block_someone_elses_push(
+    repo: Path,
+) -> None:
+    """Local main diverging is another session's problem, not yours.
 
-    This is the case the refusal exists for, and it must still fire.
+    Every session shares the main checkout. One session committing to
+    local main while origin advances makes it diverge for minutes at a
+    time — and a rebase in progress is the same shape. Gating a push on
+    that state blocks work in every worktree for a reason the pusher
+    cannot fix, which is what happened three times on 2026-11-08.
+    The branch merges into origin/main, so that is what decides.
     """
     write(repo / "local-work.txt", "unpushed\n")
     commit(repo, "local commit")
@@ -264,21 +273,87 @@ def test_a_true_divergence_refuses(repo: Path) -> None:
     task = repo.parent / "task"
     result = run(cwd=task)
 
-    assert result.returncode == 1
-    assert "could not fast-forward" in result.stderr
+    assert result.returncode == 0, result.stderr
+    assert "merges cleanly" in result.stdout
+    # The hook still must not touch anyone's work.
     assert (repo / "local-work.txt").exists()
 
 
-def test_a_missing_main_checkout_refuses(tmp_path: Path) -> None:
-    """No main checkout means no way to fast-forward; say so."""
+def test_a_branch_that_conflicts_with_origin_main_still_refuses(
+    repo: Path,
+) -> None:
+    """Checking origin/main must still catch a real conflict.
+
+    Dropping the local-main gate cannot turn the check into a rubber
+    stamp: a branch that genuinely conflicts with the merge target is
+    still refused, and the local checkout is still left alone.
+    """
+    upstream = repo.parent / "upstream"
+    git(
+        repo.parent,
+        "-c",
+        "init.templateDir=",
+        "clone",
+        "-q",
+        str(repo / ".." / "origin.git"),
+        str(upstream),
+    )
+    write(upstream / "shared.txt", "origin edit\n")
+    commit(upstream, "origin edits the shared file")
+    git(upstream, "push", "-q", "origin", "main")
+
+    task = repo.parent / "task"
+    write(task / "shared.txt", "branch edit\n")
+    commit(task, "branch edits the shared file")
+
+    result = run(cwd=task)
+
+    assert result.returncode == 1
+    assert "shared.txt" in result.stderr
+
+
+def test_a_missing_main_checkout_does_not_block(tmp_path: Path) -> None:
+    """No base checkout is fine: merges are checked against origin.
+
+    A session working in a clone that never checked out `main` can still
+    push a branch. The old refusal made the local checkout a hard
+    requirement, which it never was — the remote is what the push merges
+    into.
+    """
     lonely = tmp_path / "lonely"
     subprocess.check_call(
         ["git", "-c", "init.templateDir=", "init", "-q", "-b", "feature", str(lonely)]
     )
     write(lonely / "f.txt", "x\n")
     commit(lonely, "only branch")
+    git(lonely, "remote", "add", "origin", str(tmp_path / "nonexistent.git"))
 
     result = run(cwd=lonely)
 
-    assert result.returncode == 1
-    assert "must have its own checkout" in result.stderr
+    # The remote does not exist, so it cannot be checked — but the
+    # answer is an unknown (2), never a claim that it merges cleanly.
+    assert result.returncode == 2, result.stderr
+    assert "no origin/main" in result.stderr
+
+
+def test_the_merge_target_is_origin_main_not_the_shared_checkout(
+    repo: Path,
+) -> None:
+    """A branch merges into origin/main; that is what to check.
+
+    A push lands on the remote. The local `main` checkout is a different
+    thing: every session shares it, and another session's unpushed
+    commit — or a rebase in progress — makes it diverge for minutes at a
+    time. Gating a push on that state blocks work in every worktree for
+    a reason the pusher cannot fix and did not cause.
+    This test leaves local main ahead of origin and asserts the push is
+    judged on the branch's mergeability alone.
+    """
+    write(repo / "unpushed.txt", "another session's commit\n")
+    commit(repo, "a session's commit, not yet pushed")
+
+    task = repo.parent / "task"
+    result = run(cwd=task)
+
+    assert result.returncode == 0, result.stderr
+    assert "merges cleanly" in result.stdout
