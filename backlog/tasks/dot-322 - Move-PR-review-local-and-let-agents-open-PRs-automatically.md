@@ -27,6 +27,12 @@ The parts are one task because agent PR automation is pointless without a local
 review step to catch them — automating the push without localizing the review
 just moves the human bottleneck to a web tab.
 
+Scope boundary (author, 2026-11-08): **push + open PR only; merge stays
+human-approved.** The guard belongs on the merge, not the PR — an agent that
+cannot auto-merge is safe to open PRs freely, as long as every submission is
+reviewed and interrogated before merge. A tiered system to decide which changes
+may even *skip* human review is later work, not this task.
+
 Today the work is blocked at three points, none of which are the trust ladder
 (which already grants "commit to a branch and open a PR" at rung 1, and
 self-merge docs/tests at rung 2):
@@ -44,16 +50,21 @@ self-merge docs/tests at rung 2):
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 1. A repo rules change lands (separate PR) that lets an agent push a branch and
-   open a PR without an author round-trip, with the permission change expressed
-   in `home/dot_config/opencode/opencode.jsonc.tmpl` (or `docs/PERMISSIONS.md`
-   and its tier tests) and proven by a tier test that fails when the rule is
-   absent.
-2. The local review step is defined: after an agent opens a PR, roborev (or an
-   equivalent local gate) reviews it and the author is offered merge inside the
-   session, so approve/merge no longer requires leaving the terminal.
-3. The change records why each permission widened, and keeps the existing
-   destructive carve-outs (force-push stays denied/ask, `gh auth` stays ask —
-   `docs/PERMISSIONS.md`).
+   open/edit a PR without an author round-trip — `git push`, `gh pr create`,
+   `gh pr edit` move from ask to allow — expressed in
+   `home/dot_config/opencode/opencode.jsonc.tmpl` and `docs/PERMISSIONS.md`,
+   with the tier test updated and seen to fail against the old rule.
+2. Merge stays human-gated: an agent may run `gh pr merge`, but only after an
+   explicit human approval for that PR. Auto-merge (roborev-pass + CI-green →
+   merge with no human in the loop) is out of scope and belongs to the later
+   tiered-review work.
+3. The destructive carve-outs survive unchanged: force-push stays denied/ask,
+   `gh auth` stays ask. `gh pr merge` stays ask (the prompt is the approval) or
+   is paired with an explicit "only after human says go" process rule — settled
+   at implementation, either way no unapproved merge.
+4. The local review loop is documented: agent opens a PR → roborev reviews →
+   findings fixed → the author reads the verdict and approves merge in-session.
+   No new merge automation beyond the permission change.
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -80,11 +91,31 @@ Cross-references for the implementer:
 - **Existing local review surface** — roborev MCP + the `/roborev-review-branch`
   skill: enqueue, poll `roborev_list_jobs`, read verdict. Review-only today.
 
-Open design questions to settle during grilling (not pre-answered here): whether
-"open a PR" should be allow-tier for a named set of subcommands (leaving
-force-push and `gh auth` ask), whether merge is ever local/automatic or stays a
-human confirmation, and whether this couples to DOT-208 (LEDGER) as the gate
-that would otherwise promote an agent to self-merge.
+Settled with the author 2026-11-08 (grilling round 1):
+
+- **Q1 (scope):** push + open/edit PR only. No merge automation now.
+- **Q2 (review location):** local — read the roborev verdict + fixes, approve
+  merge in-session.
+- **Q3 (merge authority):** an agent may run `gh pr merge`, but ONLY with human
+  approval still required. No auto-merge.
+- **Q4 (permission width):** narrow set — `git push`, `gh pr create`,
+  `gh pr edit`. Force-push and `gh auth` stay denied/ask. Wider permissions
+  added deliberately later, case by case.
+- **Q5 (ladder coupling):** permission tier only, independent of the trust
+  ladder rungs for now. The author's confidence: as long as an agent does not
+  auto-merge, creating PRs is fine, provided the submission is reviewed and
+  interrogated.
+
+Author's framing (keep as the working principle): even a low-rung agent may open
+PRs freely — the risk is concentrated in *merging*, not in proposing. Guard the
+merge, not the PR.
+
+**Future work (out of scope, flagged for later, NOT a task yet per author
+"not now"):** a tiered system that evaluates a branch and its commits to decide
+whether a change may be reviewed autonomously or requires human review/approval.
+Related to, but distinct from, the DOT-208 LEDGER (which gates self-merge
+promotion by streak). This DOT-322 change deliberately does not build that
+tiered gate.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
