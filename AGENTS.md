@@ -715,8 +715,13 @@ uv run --frozen --with pytest-xdist pytest tests tools -q -n auto --dist workste
 
 `--ignore` is a deliberate choice for a fast loop and a bad habit for a merge
 gate: it would hide a real regression in those two directories. For a merge
-gate, run the full suite and compare the failure list against the table above —
-a change is green when the failure LIST matches, not when the count does.
+gate, run the full suite and judge the failure list — **until DOT-314 refreshes
+the baseline, an empty failure list is green** (both tabled suites now pass),
+any FAILED or ERROR node outside the table is a regression, and
+expected-but-absent table entries are nonfatal (the baseline script's own
+ruling — a baseline that is too generous is a lesser fault than a gate nobody
+can run). A change is green when the failure LIST matches, not when the count
+does.
 
 **CI applies that rule mechanically.** `.github/workflows/tests.yml` runs the
 full suite on every pull request and every push to `main`, then feeds the
