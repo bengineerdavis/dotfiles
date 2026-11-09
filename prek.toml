@@ -109,6 +109,34 @@ entry = "python3 scripts/check-docs-links.py"
 pass_filenames = false
 stages = ["pre-push"]
 
+# 2d. Branch sync: a push whose branch no longer merges with main lands a
+#     conflict on whoever merges next. Checking here makes it the pusher's
+#     problem, while the fix is still small.
+[[repos.hooks]]
+id = "branch-sync"
+name = "Branch sync — the branch still merges with main"
+language = "system"
+entry = "python3 scripts/check-branch-sync.py"
+pass_filenames = false
+always_run = true
+stages = ["pre-push"]
+
+# 2e. roborev's push flush, folded in so one owner covers pre-push.
+#     roborev installs its own shim for this stage, which runs the flush and
+#     nothing else — so every hook this file declares at pre-push was
+#     configured but unreachable, including docs-links-full above. Carrying
+#     the flush as an entry here keeps one owner for the stage. The trailing
+#     "|| true" matches roborev's own shim: a daemon that is down must not
+#     block a push.
+[[repos.hooks]]
+id = "roborev-flush"
+name = "roborev - flush pending reviews before push"
+language = "system"
+entry = "sh -c 'command -v roborev >/dev/null 2>&1 && roborev post-commit --flush-push || true'"
+pass_filenames = false
+always_run = true
+stages = ["pre-push"]
+
 # 3. Message length must be proportional to the change it describes.
 #    Thresholds come from the commit-hygiene skill, not from this repo's
 #    history — see scripts/check_commit_proportionality.py for why that
