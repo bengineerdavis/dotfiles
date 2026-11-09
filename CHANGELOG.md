@@ -18,6 +18,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 <!-- scriv-insert-here -->
 
+## PR #143 — 2026-11-09
+
+### Added
+
+- Allow `docker` and `limactl` inspection for agents on all machines, with
+  container/VM mutations at ask in the default agent and allowed in the
+  `autonomous` agent (VM deletion always asks).
+
 ## PR #147 — 2026-11-08
 
 ### Changed
