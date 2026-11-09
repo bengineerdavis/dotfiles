@@ -121,6 +121,14 @@ copies of one change (measured 2026-11-02 on the docker-limactl-perms fragment).
 rename committed with `-o`, check `git status` for the old path's staged deletion and land
 it in the same change.
 
+A second trap in the same sequence: `git rm <path>` already stages the deletion, so a
+following `git add <path> && git commit -o <path>` fails the `git add` ("pathspec did not
+match any file(s) known to git") and the `&&` chain short-circuits — no commit runs, but
+the *next* command (a `git show --stat HEAD`) reads a pre-existing commit and reads as if
+yours landed. After any commit chain that touches a deleted path, verify `HEAD` has actually
+moved (measured 2026-11-08: a `git add` on an already-`git rm`'d fragment aborted the
+commit; `git show --stat HEAD` displayed the prior merge).
+
 #### Commit messages
 
 Subject: `scope: imperative statement`, lower case after the colon, no trailing period,
