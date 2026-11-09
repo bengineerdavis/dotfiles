@@ -67,4 +67,12 @@ fi
 mise upgrade --yes pipx:ansible
 
 # `-i localhost,` (trailing comma) is an inline host list, not an inventory file.
-mise exec -- ansible-playbook -i localhost, playbook.yaml --tags "upgrade,${profile}"
+# Linux topics elevate per-task via `become: true`, so the play needs the sudo
+# password once — `-K` (--ask-become-pass) prompts for it and ansible caches it
+# in-memory for the whole run. macOS brew tasks are user-owned and need no
+# become, so `-K` is Linux-only.
+become_args=()
+if [ "$(uname -s)" = "Linux" ]; then
+  become_args=(-K)
+fi
+mise exec -- ansible-playbook -i localhost, playbook.yaml --tags "upgrade,${profile}" "${become_args[@]}"
