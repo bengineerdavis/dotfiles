@@ -110,7 +110,7 @@ inspection:
    collides. `git rebase --autostash` is a stash too — it does not make
    the rule moot.
 
-   The same rule covers ordinary commits, because the pre-commit hook
+The same rule covers ordinary commits, because the pre-commit hook
    stashes too. When a commit aborts with "Stashed changes conflicted
    with hook auto-fixes" while the hook's own tests passed, the cause is
    usually `.lore.md` churn mid-run: commit `.lore.md` alone first, then
