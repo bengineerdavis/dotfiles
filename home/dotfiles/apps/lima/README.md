@@ -65,6 +65,20 @@ rather than the deep worktree path, and is removed on destroy. A run cannot
 see or modify your other Lima instances. The instance name is kept short
 (`lima-mol`) so the socket path fits within the limit.
 
+The ephemeral dir itself lives outside the repository, under
+`$XDG_STATE_HOME/molecule/<checkout>/<topic>/<scenario>`: a run killed during
+an install once left a dangling symlink in the in-source state dir, and
+`chezmoi` resolves the whole symlink chain while loading source state, so
+`chezmoi apply` broke for every later invocation while `chezmoi status` stayed
+green. The checkout name is in the path so two worktrees cannot share state.
+
+If a run dies before `destroy`, the `/tmp/lima-<sha1>` root is left behind.
+The wrapper reports it at the next start rather than deleting it, and the
+`systemd-tmpfiles` rule in `dot_config/user-tmpfiles.d/tmp.conf` ages it out
+after a day — a running VM keeps writing its disk, so it is never collected
+while alive. `timeout` bounds the run so a hang becomes a failure instead of
+holding the VM forever.
+
 ## Upgrade
 
 Bump `lima_release_tag` in `defaults/main.yaml` and refresh the

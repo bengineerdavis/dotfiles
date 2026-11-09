@@ -42,9 +42,11 @@ provisioner:
 verifier:
   name: testinfra
 # State location is pinned by the wrapper (MOLECULE_EPHEMERAL_DIRECTORY =
-# this scenario's .molecule/, gitignored): molecule 26.9.0 otherwise keeps
-# it in ~/.ansible/tmp/molecule.<checksum of project-dir basename>.<scenario>
-# — deterministic, but KEYED on the project directory's basename, so bare
-# molecule runs from another cwd get a different state than the wrapper's,
-# and two topics' `default` scenarios would share one state dir. The wrapper
-# pin fixes both. Re-check at the next molecule re-lock per O2.
+# $XDG_STATE_HOME/molecule/<checkout>/<topic>/<scenario>): molecule 26.9.0
+# otherwise keeps it in ~/.ansible/tmp/molecule.<checksum of project-dir
+# basename>.<scenario> — deterministic, but KEYED on the project directory's
+# basename, so bare molecule runs from another cwd get a different state than
+# the wrapper's, and two topics' `default` scenarios would share one state dir.
+# The wrapper pin fixes both, and keeps the state OUT of the chezmoi source
+# (DOT-303: a dangling symlink in an in-source state dir breaks `chezmoi
+# apply`). Re-check at the next molecule re-lock per O2.
