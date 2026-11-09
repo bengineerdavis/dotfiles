@@ -1,12 +1,14 @@
 ---
 id: DOT-324
-title: A stale Molecule artifact in the main checkout fails four chezmoi tests and is not in the CI baseline
+title: A stale Molecule artifact in the main checkout fails four chezmoi tests and
+  is not in the CI baseline
 status: To Do
 created_date: 2026-11-08 17:15
 labels:
 - bug
 - testing
 priority: high
+updated_date: 2026-11-09 15:50
 ---
 
 ## Description
@@ -84,12 +86,12 @@ cannot, never infer.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The cause is confirmed or refuted by evidence — the dangling symlink named, its target shown missing — rather than inferred from the error text
-- [ ] #2 Whether the artifact is safe to delete is decided with the author, and the decision recorded, since it is VM state and may belong to a live run
-- [ ] #3 After the fix, `tests/chezmoi` is green on this host without stashing changes, proven by a run recorded on the task
+- [x] #1 The cause is confirmed or refuted by evidence — the dangling symlink named, its target shown missing — rather than inferred from the error text
+- [x] #2 Whether the artifact is safe to delete is decided with the author, and the decision recorded, since it is VM state and may belong to a live run
+- [x] #3 After the fix, `tests/chezmoi` is green on this host without stashing changes, proven by a run recorded on the task
 - [ ] #4 The failure is either impossible to recur or impossible to miss: a broken symlink under the chezmoi source is detected by something that actually fails on it — not by `status` or `managed`, which stay green (measured)
 - [ ] #5 `AGENTS.md` § Known failures either gains these node IDs with the reason, or the task records why the baseline stays as it is
-- [ ] #6 The four failing tests are named on the task with their full node IDs, so the next reader recognises them without re-running the suite
+- [x] #6 The four failing tests are named on the task with their full node IDs, so the next reader recognises them without re-running the suite
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -118,8 +120,33 @@ hides a machine-specific condition behind a green check.
 Related: DOT-303 and DOT-309 (PR #148) moved run state out of the source and
 added a legacy-state report; DOT-323 (macOS, and the broken-symlink guard);
 DOT-256 (fail-closed destructive cleanup).
-<!-- SECTION:IMPLEMENTATION_NOTES:END -->
+**2026-11-09 — removed by the author-approved cleanup (AGENTS.md § Applying is main-only does not apply to a gitignored scratch artifact, but the author was asked and approved in-session).**
 
+Evidence recorded before the delete:
+
+```
+$ readlink -f home/dotfiles/apps/lima/molecule/debian/.molecule/controller/.local/share/doc/lima/templates
+rc=1                        # target missing — dangling, not merely odd
+$ test -e <same path>       # -> target MISSING (dangling)
+$ cat .molecule/state.yml   # converged: false, created: false, driver: null
+$ limactl list              # No instance found
+$ ls -d /tmp/lima-*         # no matches
+```
+
+So AC #1 and #2 are satisfied: the dangling symlink was named and its target shown missing, and nothing was in flight — no converged state, no live VM, no temporary Lima root. AC #3 is satisfied and measured:
+
+```
+pytest tests/chezmoi tests/topics -q  ->  before: 13 failed, 158 passed, 3 errors
+                                          after:  174 passed in 73.13s
+pytest tests/chezmoi -q               ->  34 passed in 0.48s
+chezmoi execute-template ...          ->  rc=0 (was rc=1)
+```
+
+Deleting `home/dotfiles/apps/lima/molecule/debian/.molecule/` was the whole fix. No other `.molecule` directory exists under the payload, and `find home/dotfiles/apps/lima/molecule -xtype l` now returns nothing. This does NOT close AC #4 (the broken-symlink guard, DOT-323) or AC #5 (baseline decision): the artifact is gone, the recurrence class is not.
+
+Watch for it coming back — a Molecule run from the main checkout recreates `.molecule/` here, so a host that reruns the scenario re-poisons itself until DOT-303/DOT-323 land their guard.
+**AC status, corrected 2026-11-09.** I marked this task Done by mistake and reverted it immediately. The artifact is gone and `tests/chezmoi` is green, but AC #4 (a guard that fails on a broken symlink) and AC #5 (the baseline decision) are still open — the artifact is gone, the recurrence class is not. See DOT-323 for the guard and DOT-310 for the source-tree scan. Remaining work on this task is the baseline decision (#5); #4 belongs with DOT-323.
+<!-- SECTION:IMPLEMENTATION_NOTES:END -->
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
