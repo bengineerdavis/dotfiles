@@ -21,12 +21,7 @@ import pytest
 # pyrefly: ignore [missing-import]
 from payload_seam import PAYLOAD_ROOT
 
-SCRIPT = (
-    PAYLOAD_ROOT
-    / "dot_config"
-    / "opencode"
-    / "run_before_before_retire-opencode-json.py"
-)
+SCRIPT = PAYLOAD_ROOT / "dot_config" / "opencode" / "run_before_retire-opencode-json.py"
 CHEZMOI = shutil.which("chezmoi")
 
 _spec = spec_from_file_location("retire_opencode_json", SCRIPT)
