@@ -18,6 +18,16 @@ if ANSIBLE_PLAYBOOK is None:
     pytest.skip("ansible-playbook not available", allow_module_level=True)
 assert ANSIBLE_PLAYBOOK is not None  # narrow the optional for pyrefly
 
+# Tests that drive the real topic playbook need `gita` on PATH: its
+# install task fails closed otherwise ("gita not found on PATH after the
+# mise entry ran"). CI has ansible-playbook via pipx but no mise, so the
+# binary is absent there. Mark those; keep the YAML and argv assertions
+# running everywhere.
+requires_gita = pytest.mark.skipif(
+    shutil.which("gita") is None,
+    reason="gita not on PATH; run `mise install` to exercise this",
+)
+
 
 def load_tasks(name):
     return yaml.safe_load((TOPIC / "tasks" / name).read_text())
@@ -125,6 +135,7 @@ def read_isolated_groups(home: Path, config_env: str | None = "XDG_CONFIG_HOME")
 
 
 @pytest.mark.parametrize("config_env", [None, "XDG_CONFIG_HOME", "GITA_PROJECT_HOME"])
+@requires_gita
 def test_registration_includes_local_only_repos_and_preserves_ghosts(
     tmp_path, config_env
 ):
@@ -150,6 +161,7 @@ def test_registration_includes_local_only_repos_and_preserves_ghosts(
     assert {repo, ghost} == {Path(row[0]) for row in registrations}
 
 
+@requires_gita
 def test_missing_work_root_skips_reconciliation_without_failing(tmp_path):
     result = run_isolated_install(tmp_path, work_root=False)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -158,6 +170,7 @@ def test_missing_work_root_skips_reconciliation_without_failing(tmp_path):
     assert not (tmp_path / "xdg_config_home" / "gita" / "repos.csv").exists()
 
 
+@requires_gita
 def test_check_mode_writes_no_registration_state(tmp_path):
     check = run_isolated_install(tmp_path, check=True)
     assert check.returncode == 0, check.stdout + check.stderr
@@ -226,6 +239,7 @@ def test_ghost_registration_is_not_passed_to_group_add(tmp_path):
     assert "removed-repo" in ghost_csv.read_text()
 
 
+@requires_gita
 def test_teardown_removes_work_group_before_fake_mise_unuse(tmp_path):
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
