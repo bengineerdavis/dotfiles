@@ -256,12 +256,9 @@ chezmoi -S "$PWD" add ~/bin/<script>     # -S is required, see below
 ```
 
 - chezmoi's source directory is **fixed**, not cwd-relative — it resolves to
-  `~/.local/share/chezmoi` wherever you run it. Without `-S "$PWD"` a `chezmoi add`
-  from a worktree writes into the main checkout and silently lands work on another
-  branch.
-- The deployed tree cannot be branched. `~/bin/<script>` is one file no matter how
-  many branches hold versions of it, so `chezmoi apply` from either branch
-  overwrites the other.
+  `~/.local/share/chezmoi` wherever you run it, and governs whichever branch is
+  checked out there. Use `-S "$PWD"` to point at a worktree. See
+  `docs/WORKTREES.md` § Main-checkout for what a stale branch fakes.
 
 **Claim hot files with an orchestration lease** before touching anything listed
 under § Cross-session hazards below: `backlog-py orchestration claim DOT-N
@@ -504,7 +501,9 @@ cannot be branched. `~/dotfiles` is a single set of files no matter how many
 branches hold versions of them, so two agents applying from two branches
 overwrite each other. Applying happens from main only, by the author or by a
 session holding the apply claim in an orchestration lease. When a session holds
-the claim, other sessions stay off it.
+the claim, other sessions stay off it. (The shared checkout is the same state
+at rest: `docs/WORKTREES.md` § Main-checkout is where the "verify branch before
+reconcile/apply/status" rule lives, stated once.)
 
 A target that changed since chezmoi last wrote it is a judgement call, not a
 prompt to answer hastily: inspect `chezmoi diff <target>` and either fold the
