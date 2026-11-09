@@ -1,6 +1,6 @@
 ---
 id: DOT-328
-title: Make backlog-py task-id allocation branch-aware (a `next-id` verb)
+title: Upgrade backlog-py to 2.2.0 for branch-aware task-id allocation
 status: To Do
 created_date: 2026-11-08 21:35
 labels:
@@ -21,92 +21,85 @@ fail-closed — but it only *surfaces* the collision; it does not *prevent* it.
 
 The tool already allocates: `backlog_py/core/repository.py` `_next_task_id()`
 computes `max + 1` over the configured prefix (`DOT`, from
-`backlog/config.yml` `prefixes.task`) and `_reserved_task_ids()` already spans
+`backlog/config.yml` `prefixes.task`) and `_reserved_task_ids()` spans
 `tasks/` + `completed/` + `archive/tasks/`, so completed ids are never reused.
-The gap: it is **branch-blind**. `_task_lookup_dirs()` reads only the three
-on-disk directories in the current checkout; it never reads other branches'
-task files, so a sibling branch holding DOT-323/324/325 is invisible to it —
-the exact collision this task records.
+In the **installed 2.1.0** it is branch-blind: `_task_lookup_dirs()` reads only
+the three on-disk directories in the current checkout, so a sibling branch
+holding DOT-323/324/325 is invisible to it — the exact collision this task
+records.
 
-Meanwhile `checkActiveBranches: true` (backlog/config.yml) already makes the
-*visible-record scan* load task files from other local branches — that is what
-powers `tests/backlog/test_queue_integrity.py::test_no_shadowed_task_ids`. The
-allocator and the guard read different views of the id space, so they disagree.
+**The fix is upstream, not local.** `backlog-md-py` v2.2.0 (2026-10-19) added
+branch-aware id allocation: `task create` (and draft promotion) no longer hands
+out an id that an active branch or another `git worktree` already uses
+(`_allocation_reserved_ids()` = `_reserved_task_ids().union(_other_checkout_task_files())`,
+repository.py:1029), and added a `task renumber TASK_ID NEW_ID` verb that
+refuses an id used elsewhere — the recovery path for the DOT-323-class
+collision. Research record: `docs/research/backlog-id-alloc/FINDINGS.md`.
 
-Goal: an id-allocator that resolves the SAME all-refs/active-branches view the
-guard uses — a `backlog-py task next-id` verb (or equivalent) so an agent can
-ask "what is the next free DOT id" and get a branch-aware answer, and `task
-create TITLE` (no `--id`) stays correct even across sibling branches.
+Goal: upgrade `pipx:backlog-md-py` from 2.1.0 to 2.2.0 so the branch-aware
+behaviour is available here, instead of building a local allocator that would
+duplicate shipped upstream behaviour.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-1. There is a mechanical way to learn the next free id that scans ALL refs
-   (the same input `checkActiveBranches`/the integrity guard uses), not just
-   the three on-disk directories. Either a `backlog-py task next-id` verb or a
-   small helper script in this repo.
-2. The helper returns the largest id + 1 across `git for-each-ref` heads/remotes
-   `ls-tree` of `backlog/`, and is seen to produce a *different* answer than the
-   on-disk-only `_next_task_id()` when a sibling branch holds a higher id
-   (mutation-proven against the DOT-323 case: it must return 324, not 323).
-3. The finding is recorded as an upstream-or-local fix decision: if `backlog-py`
-   can be patched upstream, the change is proposed there; if not, the local
-   script is documented in `docs/agents/issue-tracker.md` so the next session
-   reaches for it instead of hand-deriving `--id`.
-4. `docs/agents/issue-tracker.md`'s "the tool owns ids" rule and the actual
-   creation flow no longer contradict: either `--id` stops being the only way
-   to specify an id, or the doc states the branch-aware path.
+1. `backlog-py --version` reports `2.2.0` (or later) after apply. The entry is
+   already `"pipx:backlog-md-py" = "latest"`
+   (`home/dotfiles/apps/mise/files/config.toml:94`), so the `latest` float
+   should resolve to ≥2.2.0; if it holds at 2.1.0 because mise's resolution is
+   cached, pin `2.2.0` explicitly rather than leaving a stale `latest`.
+2. `task create TITLE` (no `--id`) is proven branch-aware on this repo: with a
+   throwaway sibling branch holding a task at a higher id than every on-disk
+   task file, `task create` allocates an id above the sibling's — not the
+   on-disk-only `max + 1` (mutation-proven against the DOT-323 case: it must
+   not return the id a sibling branch already holds).
+3. `task renumber` is exercised once as the collision-recovery path, and its
+   cross-branch refusal is confirmed (renumbering onto an id held by another
+   active branch/worktree is refused).
+4. `docs/agents/issue-tracker.md`'s "the tool owns ids" rule and the creation
+   flow no longer contradict: the doc states that `task create TITLE` (no
+   `--id`) is branch-aware as of 2.2.0, and that a hand-passed `--id` is still
+   checked locally only.
 <!-- AC:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-Source of truth, verified 2026-11-08 by reading the installed `backlog_py`
-source (pipx 2.1.0, Python 3.14):
+Primary sources, verified 2026-11-08:
 
-- `repository.py:1006` `_next_task_id()` — `max + 1` over the prefix.
-- `repository.py:205` `_reserved_task_ids()` — spans `list_tasks()` +
-  `_lookup_task_records_cached()` (active + completed + archive).
-- `repository.py:156` `_task_lookup_dirs()` — the three on-disk dirs only; this
-  is the branch-blind gap.
-- `checkActiveBranches` config feeds the visible-record scan, not the allocator.
-- `decisions.py` `_next_decision_id`, `documents.py` `_next_document_id`,
-  `drafts.py` `_next_draft_id` share the same `max + 1` pattern but are single-
-  bucket (no cross-branch source for decisions/docs/drafts either).
-- `cli/main.py:125` usage: `task create TITLE` (positional) is the documented
-  create form; `--id` is optional and its omission already triggers
-  `_next_task_id()` — but branch-blind.
-- `backlog-py doctor --help` exists (reports unreadable files + duplicate ids,
-  `--fix`/`--json`) but exposes no free-id query.
+- Installed `backlog-py --version` → **2.1.0**; upstream latest release
+  **v2.2.0** (2026-10-19). One release behind. Upstream source lives under
+  `src/backlog_py/` (the installed sdist flattens it into `site-packages/backlog_py/`,
+  which is why the raw `backlog_py/…` path 404s upstream).
+- Upstream CHANGELOG v2.2.0 "Fixed" (#194): "`task create` (and draft
+  promotion) no longer hands out an id that an active branch or another `git
+  worktree` already uses… Follows `checkActiveBranches`; ids given with `--id`
+  are unchanged."
+- Upstream CHANGELOG v2.2.0 "Added" (#193): `task renumber TASK_ID NEW_ID`.
+- v2.2.0 `repository.py:1029` `_allocation_reserved_ids()` =
+  `_reserved_task_ids().union(_other_checkout_task_files())`; `_next_task_id`
+  (line 1161) now iterates that union. `_other_checkout_task_files()` →
+  `runtime/git.py:285` `other_checkout_task_file_names()`: names only (id
+  reservation needs no content — skips the slow per-ref blob walk), gated on
+  `check_active_branches` + `_is_git_worktree`, and ALSO lists `git worktree
+  list --porcelain` dirs so an *uncommitted* task in another worktree is seen
+  (ref-bound snapshots cannot see it).
+- Docstring on `_allocation_reserved_ids`: "Explicit ids (`--id`) are still
+  checked locally only." So auto-allocation is branch-aware; a hand-pinned id
+  still needs a manual all-refs scan — the narrow carve-out this session used
+  when filing DOT-328.
 
-The free-id problem is symmetric with the shadowing the guard already solves:
-both need the merged view of every branch's `backlog/tasks`. The cleanest fix
-makes the allocator take the same input the guard takes, rather than adding a
-third, separate scanner.
+Build-vs-upgrade: this is an **upgrade**, not a build — the AGENTS.md outsource
+ladder does not apply because nothing is being built here. The `pipx:` backend
+already owns `backlog-md-py`; pinning a newer release is configuration.
 
-**The exact asymmetry (confirmed in installed 2.1.0, and to be re-checked
-upstream — see `docs/research/backlog-id-worktree/FINDINGS.md`):** the READ path
-is branch-aware and the WRITE path is not.
-
-- `ReadOnlyRepository.__init__` (repository.py:91) sets
-  `include_active_branch_snapshots=True`, so `task list` / `board` load
-  `_load_active_branch_records()` from `runtime/git.py`
-  `list_active_branch_task_snapshots()` (git.py:240, gated by
-  `checkActiveBranches`). That is why the duplicate-id guard *sees* the sibling
-  branch's DOT-323.
-- `MutableRepository.__init__` (repository.py:501) sets
-  `include_active_branch_snapshots=False`, and the mutation path —
-  `create_task` → `_next_task_id` (repository.py:1006) → `_reserved_task_ids`
-  (repository.py:205) → `list_tasks`/`_task_lookup_dirs` (repository.py:156) —
-  all read **only the three on-disk dirs**. So `task create` computes its next
-  id from the local working tree alone and will collide with a sibling branch
-  holding a higher id.
-
-The fix is therefore precise: make the *allocator* branch-aware — either by
-giving `MutableRepository` the same `_load_active_branch_records` input the read
-path already has (and having `_reserved_task_ids` fold those ids in), or by a
-`next-id` verb that runs the branch-aware scan before `create`. The machinery
-already exists in `runtime/git.py`; it is wired to the reader, not the writer.
+Upgrade mechanics: the entry is `"pipx:backlog-md-py" = "latest"`. Re-applying
+the mise config and `mise reshim` do NOT install 2.2.0 — with 2.1.0 already
+installed, the unchanged `latest` entry does not by itself pull the newer
+release. Run `mise upgrade pipx:backlog-md-py` (or a scoped forced install
+`mise install pipx:backlog-md-py@latest`) after the author applies the config,
+then verify with `backlog-py --version`. Pin `2.2.0` explicitly only if the
+`latest` float resolves stale, not as a substitute for running the installer.
 
 Related: DOT-326 (the template-sweep tool), DOT-314/DOT-310 (queue-integrity
 and `.molecule` scratch), the "task-242/task-244 TASK-prefix stragglers
