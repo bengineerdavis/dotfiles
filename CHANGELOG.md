@@ -44,13 +44,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - The opencode legacy-config retire helper was named
-  `run_before_before_retire-opencode-json.py`, which chezmoi parsed as a
-  `run_before_` hook onto a nonexistent target
-  `.config/opencode/before_retire-opencode-json.py`, leaving a permanent `R`
-  (remove) entry in `chezmoi status`. Renamed to
-  `run_before_retire-opencode-json.py` to match the target the script actually
-  guards (`retire-opencode-json.py`, script-only, never deployed). The helper's
-  behaviour is unchanged.
+  `run_before_before_retire-opencode-json.py`. The extra `before_` made chezmoi
+  strip the attributes to a nonsense target name
+  (`.config/opencode/before_retire-opencode-json.py`). Renamed to
+  `run_before_retire-opencode-json.py`, whose stripped target name
+  (`retire-opencode-json.py`) matches the script's own intent — its test asserts
+  no `retire-opencode-json.py` artifact is deployed. The helper's behaviour is
+  unchanged.
+
+  Note: an earlier version of this entry described the `R` line in
+  `chezmoi status` as a "permanent remove entry". That was wrong. In chezmoi,
+  `R` means "Run" — "script will be run on the next apply" — and a `run_before_`
+  script shows it on every status by design. It is normal, not a defect.
 
 ## PR #143 — 2026-11-09
 
