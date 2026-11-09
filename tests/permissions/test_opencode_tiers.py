@@ -88,11 +88,50 @@ BOTH = [
     ("git push --force-with-lease origin main", "deny", "spec.md § Change records"),
     ("git push --force origin main", "deny", "spec.md § Change records"),
     ("chezmoi apply ~/dotfiles", "ask", "main-only; the prompt is approval"),
+    ("docker version", "allow", "read-only VM-surface inspection"),
+    ("docker ps -a", "allow", "read-only VM-surface inspection"),
+    ("docker images", "allow", "read-only VM-surface inspection"),
+    ("docker inspect xyz", "allow", "read-only VM-surface inspection"),
+    ("docker logs xyz", "allow", "read-only VM-surface inspection"),
+    ("limactl list", "allow", "read-only VM-surface inspection"),
+    # Deletion loses work even in the widened agent — same line as worktree remove.
+    ("docker rm xyz", "ask", "container destruction asks in BOTH blocks"),
+    ("limactl delete --force foo", "ask", "VM destruction asks in BOTH blocks"),
+    ("limactl prune", "ask", "deletes shared VM state in BOTH blocks"),
+    # Aliased and unlisted destructive forms must fall through to the broad
+    # ask — a broad allow would let them delete unprompted (review job 232;
+    # Lima v2.2.1: rm/remove alias delete, factory-reset wipes, disk/snapshot
+    # delete destroy state).
+    ("limactl rm foo", "ask", "delete alias asks in BOTH blocks"),
+    ("limactl remove foo", "ask", "delete alias asks in BOTH blocks"),
+    ("limactl factory-reset foo", "ask", "instance wipe asks in BOTH blocks"),
+    ("limactl disk delete --force d", "ask", "disk destruction asks in BOTH blocks"),
+    (
+        "limactl snapshot delete foo --tag t",
+        "ask",
+        "snapshot destruction asks in BOTH blocks",
+    ),
+    # `shell --sync` rsyncs a host dir into the guest and syncs it back with
+    # --delete — a host-file deletion that must ask in BOTH blocks (job 526).
+    (
+        "limactl shell --sync /host/dir default true",
+        "ask",
+        "host-dir sync asks in BOTH blocks",
+    ),
+    (
+        "limactl shell default --sync=/host/dir true",
+        "ask",
+        "host-dir sync (= form) asks in BOTH blocks",
+    ),
 ]
 
 # (command, required tier in the TOP-LEVEL block, why). The autonomous agent
 # allows all of gh by design and is not narrowed here.
 TOP = [
+    ("docker run --rm debian whoami", "ask", "container mutation asks at top level"),
+    ("docker exec xyz whoami", "ask", "container mutation asks at top level"),
+    ("docker compose up -d", "ask", "container mutation asks at top level"),
+    ("limactl start foo", "ask", "VM mutation asks at top level"),
     ("gh pr view 5 --json state", "allow", "read-only"),
     ("gh pr create --fill", "ask", "writes to GitHub"),
     ("gh pr merge 5", "ask", "writes to GitHub"),
@@ -134,6 +173,59 @@ def test_both_blocks(config, block, cmd, want, why):
 @pytest.mark.parametrize("cmd,want,why", TOP, ids=[c[0][:40] for c in TOP])
 def test_top_level_block(config, cmd, want, why):
     got = _tier(_blocks(config)["top-level"], cmd)
+    assert got == want, f"{cmd!r} -> {got}, expected {want} — {why}"
+
+
+# (command, required tier in the AUTONOMOUS block, why) — the widened agent
+# keeps the VM experiment lifecycle; everything destructive falls to ask.
+AUTONOMOUS = [
+    # No-arg forms default to the `default` instance (Lima v2.2.1) — the
+    # promised allow must cover them, not just the named forms (job 526).
+    ("limactl start", "allow", "default-instance start allowed unattended"),
+    ("limactl create", "allow", "default-instance create allowed unattended"),
+    ("limactl stop", "allow", "default-instance stop allowed unattended"),
+    ("limactl start foo", "allow", "VM lifecycle allowed in the autonomous agent"),
+    ("limactl stop foo", "allow", "VM lifecycle allowed in the autonomous agent"),
+    ("limactl create foo", "allow", "VM lifecycle allowed in the autonomous agent"),
+    ("limactl shell foo", "allow", "VM access for the autonomous agent"),
+    (
+        "docker run --rm debian whoami",
+        "allow",
+        "container lifecycle allowed unattended",
+    ),
+    ("docker exec xyz whoami", "allow", "container lifecycle allowed unattended"),
+    # The broad ask must catch every destructive form the delete/prune carves
+    # cannot name (Lima v2.2.1 aliases; review job 232).
+    ("limactl rm foo", "ask", "delete alias cannot bypass the broad ask"),
+    ("limactl factory-reset foo", "ask", "instance wipe cannot bypass the broad ask"),
+    # Host-dir sync reaches the host filesystem with --delete on the sync
+    # back — held at ask even unattended (job 526).
+    (
+        "limactl shell --sync /host/dir default true",
+        "ask",
+        "host-dir sync cannot bypass the ask",
+    ),
+    (
+        "limactl shell default --sync=/host/dir true",
+        "ask",
+        "host-dir sync (= form) cannot bypass",
+    ),
+    # v2.2.1 real spellings — allowed for SSH inspection (job 526), except
+    # `sudoers --check`, which probes sudo/root on a configured macOS host
+    # (job 555: VerifySudoAccess fallback runs `sudo -k` and a root probe).
+    (
+        "limactl sudoers --check /etc/sudoers.d/lima",
+        "ask",
+        "sudo/root probe cannot run unattended (job 555)",
+    ),
+    ("limactl sudoers", "allow", "generation writes stdout only"),
+    ("limactl show-ssh default", "allow", "SSH command line is read-only inspection"),
+]
+
+
+@pytest.mark.parametrize("cmd,want,why", AUTONOMOUS)
+def test_autonomous_block(config, cmd, want, why):
+    got = _tier(_blocks(config)["autonomous"], cmd)
     assert got == want, f"{cmd!r} -> {got}, expected {want} — {why}"
 
 

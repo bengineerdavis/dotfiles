@@ -116,6 +116,42 @@
       "mise ls *": "allow",
       "mise list *": "allow",
 
+      // Docker and Lima are the throwaway-environment surfaces for agent
+      // experiments (author directive 2026-11-02: experiments run in
+      // containers/VMs, never against main's managed files). Read-only
+      // inspection is free; VM/container mutations ask, same tier as
+      // `git worktree *` — additive but state-bearing. limactl installs
+      // to ~/.local/bin, which PATH resolves, so the bare name matches;
+      // molecule also invokes it by absolute path
+      // ({{ lima_install_prefix }}/bin/limactl), which falls through to
+      // the catch-all ask rather than silently passing.
+      "docker version": "allow",
+      "docker info": "allow",
+      "docker ps": "allow",
+      "docker ps -a": "allow",
+      "docker ps *": "allow",
+      "docker images": "allow",
+      "docker images *": "allow",
+      "docker inspect *": "allow",
+      "docker logs *": "allow",
+      "docker stats": "allow",
+      "docker stats *": "allow",
+      // limactl: broad ask FIRST (last-match-wins), then the inspection
+      // carve-out — the inverse order would let the ask shadow the allow.
+      "limactl *": "ask",
+      "limactl list": "allow",
+      "limactl list *": "allow",
+      "docker run *": "ask",
+      "docker exec *": "ask",
+      "docker stop *": "ask",
+      "docker kill *": "ask",
+      "docker rm *": "ask",
+      "docker rmi *": "ask",
+      "docker build *": "ask",
+      "docker compose *": "ask",
+      "docker cp *": "ask",
+      "docker start *": "ask",
+
       // read-only shell utilities
       "pwd": "allow",
       "pwd *": "allow",
@@ -338,6 +374,70 @@
           "ollama show *": "allow",
           "mise ls *": "allow",
           "mise list *": "allow",
+
+          // Docker/Lima, widened for unattended VM experiments: inspection
+          // free, VM lifecycle (run/exec/stop/kill/rm/build/compose) allowed
+          // since the whole point is throwaway environments. Creation and
+          // deletion of VMs still asks — same shape as the worktree tier,
+          // where add is free and remove asks.
+          "docker version": "allow",
+          "docker info": "allow",
+          "docker ps": "allow",
+          "docker ps -a": "allow",
+          "docker ps *": "allow",
+          "docker images": "allow",
+          "docker images *": "allow",
+          "docker inspect *": "allow",
+          "docker logs *": "allow",
+          "docker stats": "allow",
+          "docker stats *": "allow",
+          // Broad ask FIRST (last-match-wins), then explicit allows for the
+          // widened set only — mirroring the top-level block's shape. A broad
+          // allow would hand the autonomous agent every destructive alias
+          // Lima has (rm/remove = delete, factory-reset, disk delete,
+          // snapshot delete, flag-prefixed forms), which the delete/prune
+          // carves could never name back (review job 232, Lima v2.2.1).
+          "limactl *": "ask",
+          "limactl list": "allow",
+          "limactl list *": "allow",
+          // Container lifecycle allowed for unattended experiments...
+          "docker run *": "allow",
+          "docker exec *": "allow",
+          "docker stop *": "allow",
+          "docker kill *": "allow",
+          "docker build *": "allow",
+          "docker compose *": "allow",
+          "docker cp *": "allow",
+          "docker start *": "allow",
+          // ...but destruction loses work even here: rm/rmi sit AFTER the
+          // allows so last-match wins, mirroring the worktree tier where
+          // remove asks in every agent.
+          "docker rm *": "ask",
+          "docker rmi *": "ask",
+          "limactl start": "allow",
+          "limactl start *": "allow",
+          "limactl create": "allow",
+          "limactl create *": "allow",
+          "limactl stop": "allow",
+          "limactl stop *": "allow",
+          "limactl shell *": "allow",
+          // `shell --sync DIR` rsyncs a host dir into the guest and syncs it
+          // back with --delete — a host-file deletion the shell allow must
+          // never auto-approve (review job 526; Lima v2.2.1). Mid-pattern so
+          // it covers space, =, and instance-first forms.
+          "limactl shell *--sync*": "ask",
+          // v2.2.1's real SSH-inspection/sudoers commands (job 526): `sudo`
+          // and `ssh` subcommands do not exist.
+          "limactl sudoers": "allow",
+          "limactl sudoers *": "allow",
+          // `sudoers --check` is not read-only: on a configured macOS host it
+          // reaches VerifySudoAccess's fallback and runs `sudo -k` (and
+          // `sudo --user root --non-interactive true` when socket_vmnet is
+          // installed) — cached-credential invalidation and a root probe the
+          // ask tier must gate (job 555). Generation itself only writes
+          // stdout and bootstraps ~/.lima/_config/networks.yaml when absent.
+          "limactl sudoers *--check*": "ask",
+          "limactl show-ssh *": "allow",
 
           "pwd": "allow",
           "pwd *": "allow",
