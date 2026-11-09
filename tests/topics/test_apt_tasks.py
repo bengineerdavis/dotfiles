@@ -73,11 +73,16 @@ def run(tmp_path, task_file, extra, *flags):
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    return result.stdout
+    # Return the full result, not just stdout: ansible writes warnings and
+    # diagnostics to stderr, and a caller that only sees stdout is blind to
+    # them (the loop-collision warning cost a long detour for exactly this).
+    return result
 
 
-def recap_changed(output: str) -> int:
-    line = next(raw for raw in output.splitlines() if raw.startswith("localhost"))
+def recap_changed(result: subprocess.CompletedProcess) -> int:
+    line = next(
+        raw for raw in result.stdout.splitlines() if raw.startswith("localhost")
+    )
     return int(line.split("changed=")[1].split()[0])
 
 
@@ -231,5 +236,5 @@ def test_keyrings_with_no_configured_source_are_ok_and_unchanged(tmp_path):
     # ran and the helper saw no configured source — a skipped loop would
     # print only "(item=t)" with no status line. The no-source JSON itself
     # is pinned at helper level by test_apt_source_audit.
-    assert "(item=t)" in out
-    assert "t: no-source" in out
+    assert "(item=t)" in out.stdout
+    assert "t: no-source" in out.stdout
