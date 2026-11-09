@@ -67,6 +67,18 @@ tasks created with `orchestration_split_task`; declare blockers with
 - `autoCommit` is false: commit task files yourself under the house commit
   discipline.
 
+### `autoCommit: false` means a write is not a save
+
+`draft create` and `task create` write to disk and do **not** commit; nothing
+survives until the `backlog/` commit lands. A draft left uncommitted is
+indistinguishable from a draft that was never filed — and a report saying "the
+draft is done" while it sits untracked is a silent loss, the same shape this
+repo keeps catching elsewhere (measured 2026-11-08: three drafts filed across
+two template repos; one repo's backlog went fully uncommitted and the drafts
+existed only on disk until a later session ran the commit). Before declaring a
+draft or task durable, run `git status --short` on the target repo and confirm
+the `backlog/` change is staged *and* committed — not merely written.
+
 ## The `--notes` trap
 
 `task --notes` and `task --append-notes` do not apply the flag. They print the
