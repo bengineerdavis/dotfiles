@@ -296,6 +296,30 @@ def test_required_key_missing_is_refused(ak, tmp_path, pubkey):
     assert not dest.exists()
 
 
+def test_source_rewrite_is_atomic_on_write_failure(ak, tmp_path, pubkey, monkeypatch):
+    """A failed source rewrite must not truncate the live apt source.
+
+    rewrite_signed_by writes via write_atomic (temp + rename); a failure
+    mid-write must leave the original source intact so a retry can still
+    rediscover the repository.
+    """
+    _, binary, _ = pubkey
+    dest = tmp_path / "repo.asc"
+    list_source(tmp_path, dest)
+    corrected = tmp_path / "repo.gpg"
+    corrected.write_bytes(binary)
+    src = tmp_path / "sources.list.d" / "repo.list"
+    before = src.read_text()
+
+    def boom(dest_path, data, mode=0o644):
+        raise OSError("ENOSPC")
+
+    monkeypatch.setattr(ak, "write_atomic", boom)
+    with pytest.raises(OSError, match="ENOSPC"):
+        ak.repair(args(tmp_path), fetch=lambda u, t: binary)
+    assert src.read_text() == before
+
+
 def test_required_key_present_passes_case_insensitively(ak, tmp_path, pubkey):
     armored, _, key_id = pubkey
     dest = tmp_path / "repo.gpg"

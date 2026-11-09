@@ -86,13 +86,16 @@ def rewrite_signed_by(source: Path, old_dest: str, new_dest: str) -> bool:
 
     Replaces the old path wherever it appears as a signed-by value, so
     the repaired source no longer references a `.asc` file apt cannot
-    read. Returns True when the file changed.
+    read. Writes atomically (temp file + rename) so a failed write never
+    truncates the live source, preserving the source's mode. Returns
+    True when the file changed.
     """
     text = source.read_text(errors="replace")
     new_text = text.replace(old_dest, new_dest)
     changed = new_text != text
     if changed:
-        source.write_text(new_text)
+        mode = source.stat().st_mode & 0o777
+        write_atomic(source, new_text.encode(), mode=mode)
     return changed
 
 
@@ -169,13 +172,13 @@ def download(url: str, timeout: int) -> bytes:
         return response.read()
 
 
-def write_atomic(dest: Path, data: bytes) -> None:
+def write_atomic(dest: Path, data: bytes, mode: int = 0o644) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=dest.parent, prefix=f".{dest.name}.")
     try:
         with os.fdopen(fd, "wb") as fh:
             fh.write(data)
-        os.chmod(tmp, 0o644)
+        os.chmod(tmp, mode)
         os.replace(tmp, dest)
     except BaseException:
         Path(tmp).unlink(missing_ok=True)
