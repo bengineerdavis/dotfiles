@@ -96,6 +96,19 @@ jobs:
       - name: Type check
         run: uv tool run --from pyrefly==1.3.2 pyrefly check
 
+      # `tests/gita` drives the real role, which shells out to `gita` and
+      # asserts the binary is on PATH. A developer machine has it from
+      # `mise use -g pipx:gita`; a runner has nothing, so six cases failed
+      # here from the day the suite landed (DOT-329). Same shape as pyrefly
+      # above: install the tool CI needs at the pinned version rather than
+      # standing on a provisioned machine.
+      #
+      # The pin is hard, not `latest` as the mise config says, because a
+      # floating tool in a gate means a green commit and a red re-run of the
+      # same commit. Bump it with the mise entry, and keep the two in step.
+      - name: Install gita for the gita role tests
+        run: uv tool install "gita==0.16.8.2"
+
       # pytest's exit status is nonzero for the known failures, so the run is
       # allowed to finish and the RESULT is judged by which tests failed rather
       # than by the exit code. See `AGENTS.md` § Known failures: green means the
