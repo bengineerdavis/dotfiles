@@ -132,7 +132,20 @@ fi
 # here can only report the ones this scenario's current location owns.
 # LIMA_TMP_ROOT exists so the report can be tested without touching real /tmp.
 LIMA_TMP_ROOT="${LIMA_TMP_ROOT:-/tmp}"
-LIMA_ROOT="$LIMA_TMP_ROOT/lima-$(printf '%s' "$MOLECULE_EPHEMERAL_DIRECTORY" | sha1sum | cut -d' ' -f1)"
+# Portable SHA-1: macOS has no sha1sum (GNU), only shasum (perl) and openssl.
+# The hash names the Lima root, so a wrong or missing one would silently point
+# the report at the wrong directory — probe instead of guessing.
+if command -v sha1sum >/dev/null 2>&1; then
+  SHA1="sha1sum"
+elif command -v shasum >/dev/null 2>&1; then
+  SHA1="shasum -a 1"
+elif command -v openssl >/dev/null 2>&1; then
+  SHA1="openssl dgst -sha1 -r"
+else
+  err "no SHA-1 tool (sha1sum, shasum, or openssl) on PATH; it names the Lima root."
+  exit 1
+fi
+LIMA_ROOT="$LIMA_TMP_ROOT/lima-$(printf '%s' "$MOLECULE_EPHEMERAL_DIRECTORY" | $SHA1 | cut -d' ' -f1)"
 if [[ -d "$LIMA_ROOT" ]]; then
   printf 'run-molecule: WARNING: leftover VM state at %s\n' "$LIMA_ROOT" >&2
   printf 'run-molecule:   the age rule in home/dot_config/user-tmpfiles.d/tmp.conf reaps it after 1d.\n' >&2
@@ -140,8 +153,10 @@ if [[ -d "$LIMA_ROOT" ]]; then
 fi
 # Stray roots this scenario cannot address: report count only, never remove.
 # Two concurrent runs collide on the fixed platform name `lima-mol`, so a
-# leftover may not be attributable — say so rather than guessing.
-STRAY=$(find "$LIMA_TMP_ROOT" -maxdepth 1 -type d -name 'lima-*' ! -path "$LIMA_ROOT" 2>/dev/null | wc -l | tr -d ' ')
+# leftover may not be attributable — say so rather than guessing. `|| true`
+# because a missing LIMA_TMP_ROOT would otherwise kill the run under
+# `set -euo pipefail` with no message at all.
+STRAY=$(find "$LIMA_TMP_ROOT" -maxdepth 1 -type d -name 'lima-*' ! -path "$LIMA_ROOT" 2>/dev/null | wc -l | tr -d ' ' || true)
 if [[ "$STRAY" != "0" ]]; then
   printf 'run-molecule: WARNING: %s other /tmp/lima-* root(s) present; not mine to remove.\n' "$STRAY" >&2
   printf 'run-molecule:   inspect with: find %s -maxdepth 1 -type d -name "lima-*"\n' "$LIMA_TMP_ROOT" >&2
@@ -153,18 +168,35 @@ cd "$SCENARIO_PARENT"
 # upstream main), so a hung driver call neither fails nor finishes and holds its
 # VM forever. A wall-clock bound turns that into a failure with an exit code.
 # `login` is deliberate and human, so it is not bounded — a human closes it.
+#
+# Two portability constraints, both measured:
+# - macOS ships bash 3.2, where `"${arr[@]}"` on an EMPTY array under `set -u`
+#   is an unbound-variable error. So the unbounded path is a separate branch
+#   rather than an empty array expansion.
+# - macOS has no `timeout` (GNU coreutils); brew installs it as `gtimeout`.
+#   Fails closed when neither exists: a silently unbounded run is the exact
+#   failure DOT-309 exists to fix.
 MOLECULE_TIMEOUT="${MOLECULE_TIMEOUT:-30m}"
-TIMEOUT_CMD=()
+TIMEOUT_BIN=""
 if [[ "$VERB" != "login" ]]; then
-  if ! command -v timeout >/dev/null 2>&1; then
-    err "timeout not found on PATH; it is GNU coreutils. Without it a hung run holds its VM indefinitely (DOT-309)."
+  if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_BIN="timeout"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    TIMEOUT_BIN="gtimeout"
+  else
+    err "no timeout/gtimeout on PATH; without it a hung run holds its VM indefinitely (DOT-309)."
+    err "install GNU coreutils: the gnu-tools topic (brew coreutils provides gtimeout)."
     exit 1
   fi
-  TIMEOUT_CMD=(timeout --signal=TERM --kill-after=2m "$MOLECULE_TIMEOUT")
 fi
 
 # The driver comes from molecule.yml; no -d flag: molecule 26.9.0 accepts
 # --driver-name on create/prepare/destroy/test but rejects it on
 # converge/idempotence/verify/login (measured 2026-10-11), and an override
 # the config already names is not worth per-verb dispatch.
-exec "${TIMEOUT_CMD[@]}" uv run --frozen --project "$REPO_ROOT" --group test-vm molecule "$VERB" -s "$SCENARIO" "$@"
+if [[ -n "$TIMEOUT_BIN" ]]; then
+  exec "$TIMEOUT_BIN" --signal=TERM --kill-after=2m "$MOLECULE_TIMEOUT" \
+    uv run --frozen --project "$REPO_ROOT" --group test-vm molecule "$VERB" -s "$SCENARIO" "$@"
+else
+  exec uv run --frozen --project "$REPO_ROOT" --group test-vm molecule "$VERB" -s "$SCENARIO" "$@"
+fi

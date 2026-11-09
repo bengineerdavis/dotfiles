@@ -11,7 +11,10 @@ from __future__ import annotations
 
 import os
 import pathlib
+import shutil
 import subprocess
+
+import pytest
 
 from run_molecule_harness import (
     molecule_invocations,
@@ -372,11 +375,11 @@ def test_the_run_is_bounded_by_a_timeout(scenario_repo):
     logs its own argv and cannot witness the wrapper's.
     """
     script = (scenario_repo / "scripts" / "run-molecule.sh").read_text()
-    (exec_line,) = [ln for ln in script.splitlines() if ln.startswith("exec ")]
-    assert "TIMEOUT_CMD" in exec_line, (
-        f"the timeout must wrap the exec, not sit beside it: {exec_line}"
-    )
-    assert "timeout --signal=TERM" in script
+    exec_lines = [ln for ln in script.splitlines() if ln.lstrip().startswith("exec ")]
+    assert exec_lines, "the wrapper must exec molecule"
+    bounded = [ln for ln in exec_lines if '"$TIMEOUT_BIN"' in ln]
+    assert bounded, f"the timeout must wrap an exec: {exec_lines}"
+    assert "--signal=TERM" in script
 
 
 def test_login_is_not_bounded(scenario_repo):
@@ -407,3 +410,106 @@ def test_the_wrapper_never_reaps():
     for destructive in ("limactl delete", "limactl prune", "molecule reset"):
         assert destructive not in body, f"must not execute {destructive!r}"
     assert 'rm -rf "$LIMA_ROOT"' not in body
+
+
+def _isolated_path(tmp_path, scenario_repo, *, include_shasum, include_timeout):
+    """Build a PATH holding one toolset, so a probe can be isolated."""
+    box = tmp_path / "bin"
+    box.mkdir()
+    tools = [
+        "bash",
+        "cut",
+        "find",
+        "mkdir",
+        "wc",
+        "tr",
+        "sha1sum",
+        "basename",
+        "dirname",
+        "printf",
+        "cat",
+        "sed",
+        "grep",
+    ]
+    if include_shasum:
+        tools.remove("sha1sum")
+        tools.append("shasum")
+    if include_timeout:
+        tools.append("timeout")
+    for tool in tools:
+        real = shutil.which(tool)
+        if real:
+            (box / tool).symlink_to(real)
+    for name in ("uv", "ansible-galaxy"):
+        fake = scenario_repo.parent / "fake-bin" / name
+        if fake.exists():
+            (box / name).symlink_to(fake)
+    return box
+
+
+def _run_isolated(scenario_repo, tmp_path, box, *args):
+    """Run the wrapper with PATH limited to one toolset."""
+    env = dict(os.environ)
+    env["PATH"] = str(box)
+    env["UV_LOG"] = str(scenario_repo / "uv.log")
+    env["LIMA_TMP_ROOT"] = str(tmp_path / "lima")
+    env["XDG_STATE_HOME"] = str(tmp_path / "state")
+    return subprocess.run(
+        [str(scenario_repo / "scripts" / "run-molecule.sh"), "faketopic", *args],
+        cwd=str(scenario_repo),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+
+
+def test_the_wrapper_works_without_gnu_sha1sum(scenario_repo, tmp_path):
+    """A Mac has shasum, not sha1sum; the probe must fall through.
+
+    This is the Mac failure mode reproduced on Linux by removing
+    sha1sum: a hardcoded call dies with "command not found".
+    """
+    if shutil.which("shasum") is None:
+        pytest.skip("shasum not installed on this host")
+    box = _isolated_path(
+        tmp_path, scenario_repo, include_shasum=True, include_timeout=True
+    )
+    result = _run_isolated(scenario_repo, tmp_path, box)
+    assert "sha1sum: command not found" not in result.stderr, result.stderr
+    assert result.returncode == 0, result.stderr
+
+
+def test_no_empty_array_expansion_under_set_u(scenario_repo):
+    """A Mac ships bash 3.2, where "" on an empty array is fatal.
+
+    The unbounded path must be a separate branch, not an empty array.
+    """
+    script = (scenario_repo / "scripts" / "run-molecule.sh").read_text()
+    assert "TIMEOUT_CMD" not in script
+
+
+def test_missing_timeout_fails_closed_naming_the_fix(scenario_repo, tmp_path):
+    """A Mac has neither timeout nor gtimeout; the run must not go on.
+
+    A silent fallback leaves the run unbounded, which is the failure
+    DOT-309 exists to fix. Failing closed and naming the fix is design.
+    """
+    box = _isolated_path(
+        tmp_path, scenario_repo, include_shasum=False, include_timeout=False
+    )
+    result = _run_isolated(scenario_repo, tmp_path, box)
+    assert result.returncode != 0, "an unbounded run must not proceed"
+    assert "no timeout/gtimeout on PATH" in result.stderr
+    assert "gnu-tools" in result.stderr, "stderr must name the fix"
+
+
+def test_login_runs_without_timeout(scenario_repo, tmp_path):
+    """`login` needs no bound, so its absence must not block a human."""
+    box = _isolated_path(
+        tmp_path, scenario_repo, include_shasum=False, include_timeout=False
+    )
+    result = _run_isolated(scenario_repo, tmp_path, box, "login")
+    assert result.returncode == 0, result.stderr
+    assert "no timeout/gtimeout" not in result.stderr
