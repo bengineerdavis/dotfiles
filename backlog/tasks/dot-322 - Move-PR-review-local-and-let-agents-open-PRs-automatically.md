@@ -116,6 +116,13 @@ whether a change may be reviewed autonomously or requires human review/approval.
 Related to, but distinct from, the DOT-208 LEDGER (which gates self-merge
 promotion by streak). This DOT-322 change deliberately does not build that
 tiered gate.
+
+**Agent policy → agentic-project-template (author, 2026-11-08):** once this
+policy is defined and settled here, submit it as a feature request to
+`agentic-project-template` so it is reusable by stamped projects rather than
+bespoke to this repo. Fleet direction: chezmoi migrates toward being stamped by
+all three templates (agentic, meta, python); agent policy like this belongs
+upstream, not one-off here.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
