@@ -99,6 +99,20 @@ Recovery pattern that worked, for the record: after any research dispatch,
 **check for the artefact before reading the summary** (`ls` the target, or
 `find` for the filename). A summary is not evidence of a file.
 
+Both eventual files did land, written inline by the parent instead — so each
+is a reproduction case for what a successful write looks like from the other
+side of the failure:
+
+- copier-template-copier-template
+  [#1](https://github.com/bengineerdavis/copier-template-copier-template/pull/1)
+  (`84be534`) — `docs/research/repo-types.md`.
+- The same PR — `docs/research/worktrunk-guard.md`.
+
+Worth noting for the investigation: the directory `docs/research/` did not
+exist on `origin/main` when both dispatches ran. It exists now. If the cause
+was a missing parent directory, a re-run against the current tree would pass
+and tell you nothing — reproduce against a branch that still lacks it.
+
 The skill itself is unmanaged (`~/.config/opencode/skills/research/`, not
 deployed by chezmoi), so the fix lands there or in the agent runtime, not in
 this repo. This task owns the diagnosis and the decision; it does not own the

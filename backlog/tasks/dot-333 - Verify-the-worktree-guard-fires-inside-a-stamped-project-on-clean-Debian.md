@@ -63,6 +63,25 @@ commit, then read what happened.
 Related: DOT-271 (VM-verified config gate) covers the chezmoi side of the same
 idea. This task is the template-repo side, and the two should share the Lima
 harness rather than each building one.
+
+### Provenance
+
+Raised by the session that built the guards this task verifies, 2026-11-09.
+The two PRs are what there is to verify against:
+
+- agentic-project-template [#5](https://github.com/bengineerdavis/agentic-project-template/pull/5)
+  (`53b7382`) — the commit-time guard.
+- agentic-project-template [#8](https://github.com/bengineerdavis/agentic-project-template/pull/8)
+  (`ac50d67`) — branch ownership, `refs/wt-owners/*`.
+
+Both merged with unit and stamp tests passing; neither has been run in a
+stamped project on a host that is not the author's. That gap is this task.
+
+The commit graph is the authorship record: `git log 53b7382` and
+`git log ac50d67` in agentic-project-template carry the reasoning, the
+mutations tried, and what each change deliberately excluded. Session notes
+lived outside the repo by design — `docs/` holds durable reference, not
+per-session narrative — so nothing here points at a machine-local path.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Definition of Done
