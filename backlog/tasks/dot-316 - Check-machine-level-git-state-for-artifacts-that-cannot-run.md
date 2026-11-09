@@ -50,7 +50,12 @@ unreferenced for three years precisely because nothing looked.
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
+2026-11-08: task filed by another session; released unclaimed to main
+(`2c03c70`). Not owned — claim it on the next available execution-session
+budget (.agent-budget.toml currently `workers = 1`). The claim itself is the
+signal: record it via `backlog-py orchestration claim DOT-316 --actor <you>
+--expected-version <v>`, and fold any hold-onto-main machine-git check into
+the existing suite rather than a new tool.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
