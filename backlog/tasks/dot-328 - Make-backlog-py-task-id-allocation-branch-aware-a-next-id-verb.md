@@ -93,12 +93,13 @@ Build-vs-upgrade: this is an **upgrade**, not a build — the AGENTS.md outsourc
 ladder does not apply because nothing is being built here. The `pipx:` backend
 already owns `backlog-md-py`; pinning a newer release is configuration.
 
-Upgrade mechanics: change the `pipx:backlog-md-py` version in
-`home/dotfiles/apps/mise/files/config.toml` (the `github:`-backend convention
-is for release binaries; `pipx:` is the existing backend for this tool — keep
-it). Apply is author-run (agents never run `chezmoi apply`); a re-apply of the
-mise config plus `mise reshim` makes the new version live. Verify with
-`backlog-py --version`.
+Upgrade mechanics: the entry is `"pipx:backlog-md-py" = "latest"`. Re-applying
+the mise config and `mise reshim` do NOT install 2.2.0 — with 2.1.0 already
+installed, the unchanged `latest` entry does not by itself pull the newer
+release. Run `mise upgrade pipx:backlog-md-py` (or a scoped forced install
+`mise install pipx:backlog-md-py@latest`) after the author applies the config,
+then verify with `backlog-py --version`. Pin `2.2.0` explicitly only if the
+`latest` float resolves stale, not as a substitute for running the installer.
 
 Related: DOT-326 (the template-sweep tool), DOT-314/DOT-310 (queue-integrity
 and `.molecule` scratch), the "task-242/task-244 TASK-prefix stragglers
