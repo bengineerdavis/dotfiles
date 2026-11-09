@@ -96,7 +96,11 @@ merge; only declarations (pyproject.toml, uv.lock) do.
 One lifecycle for every worktree, so a wedged session is recoverable by
 inspection:
 
-1. **Spawn** — `git worktree add .worktrees/<sid> -b agent/<sid>`.
+1. **Spawn** — `git worktree add .worktrees/<sid> -b agent/<sid>`. With
+   Worktrunk, `wt switch --create <sid>` runs the pre-switch helper first:
+   clean `main` is fetched and fast-forwarded before the branch is created.
+   Dirty or diverged `main` stops creation; existing task branches and stacked
+   parents are not reset. See `docs/BRANCH-SYNC.md`.
 2. **Fan-out** — sub-worktrees off the parent branch, named as above.
 3. **Provision** — venvs with `UV_LINK_MODE=copy`; consumers offline
    (`UV_OFFLINE=1 --frozen`), provisioners serialised. Before a rebase,
