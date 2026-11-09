@@ -60,6 +60,25 @@ form. A sub-worktree branches off its **parent branch**, not main. Git
 enforces a single-branch lock — one branch may be checked out in exactly one
 worktree — so a sub-agent never reuses its parent's branch name.
 
+## Is this work owned?
+
+Before touching a branch, ask whether another session is already on it. An
+empty claims board is not an answer — `AGENTS.md` § Branches and integration
+explains why it cannot be. Three signals, cheapest first:
+
+1. **A claim** on the covering task (`backlog-py orchestration claims`).
+2. **A live worktree** for the branch — `git worktree list`, plus whether its
+   working tree has uncommitted edits.
+3. **A recent PR update** — `gh pr view <n> --json updatedAt`. Treat a PR
+   updated within roughly the last 30 minutes as owned. Measured 2026-11-09: a
+   branch whose claim board was empty had landed a review-fix commit at 08:35Z,
+   and only `updatedAt` distinguished it from three idle siblings. Merging
+   under that author would have landed a state they had not finished.
+
+Two sessions building the same feature costs more than either alone: the merge
+conflicts, and one of the two gets closed unreviewed. When signals disagree,
+trust the most recent activity and ask rather than assume.
+
 ## One writer per worktree
 
 A worktree is one index plus one mutable filesystem. Many readers, one
@@ -90,6 +109,14 @@ inspection:
    out from under that process, and a stash that pops mid-rebase
    collides. `git rebase --autostash` is a stash too — it does not make
    the rule moot.
+
+   The same rule covers ordinary commits, because the pre-commit hook
+   stashes too. When a commit aborts with "Stashed changes conflicted
+   with hook auto-fixes" while the hook's own tests passed, the cause is
+   usually `.lore.md` churn mid-run: commit `.lore.md` alone first, then
+   the real commit. Measured 2026-11-09 across four failed commits; the
+   hook's message names test failures, so the real cause is invisible
+   unless the ordering is known.
 4. **Bucket** — when finished work needs more reviewable merges than the task
    planned, split it into buckets before publishing. See § Bucketing below.
 5. **Collect** — merge serially, suite after each, ordered inert → behaviour →
