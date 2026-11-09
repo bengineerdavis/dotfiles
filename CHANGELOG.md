@@ -18,6 +18,72 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 <!-- scriv-insert-here -->
 
+## PR #152 — 2026-11-09
+
+### Added
+
+- **`apps/gita` now owns the work-tree registration.** Every install
+  reconciles `~/code/work` into a single `work` group: new repos are registered
+  by the recursive walk (which skips vendored dot-directories), and the
+  complete registration index includes local-only repos independently of the
+  active context. Gita filters missing paths from its own reads; its CLI cannot
+  prune those ghosts. Work repo names still never enter the committed catalogue
+  (spec.md § Data); discovery, not declaration, is their source of truth.
+
+### Changed
+
+- **`config/repos.yaml` paths are re-pointed at the type dirs.** The
+  catalogue still named the pre-migration `projects/…` layout, so a run on
+  the migrated machine matched nothing and reported every repo as
+  declared-but-not-cloned. Paths now follow `docs/LAYOUT.md` (`personal/`,
+  `forks/`, `templates/`, `try/`), and the repos added since the last settle
+  are in it.
+
+## PR #149 — 2026-11-09
+
+### Fixed
+
+- The opencode legacy-config retire helper was named
+  `run_before_before_retire-opencode-json.py`, which chezmoi parsed as a
+  `run_before_` hook onto a nonexistent target
+  `.config/opencode/before_retire-opencode-json.py`, leaving a permanent `R`
+  (remove) entry in `chezmoi status`. Renamed to
+  `run_before_retire-opencode-json.py` to match the target the script actually
+  guards (`retire-opencode-json.py`, script-only, never deployed). The helper's
+  behaviour is unchanged.
+
+## PR #143 — 2026-11-09
+
+### Added
+
+- Allow `docker` and `limactl` inspection for agents on all machines, with
+  container/VM mutations at ask in the default agent and allowed in the
+  `autonomous` agent (VM deletion always asks).
+
+## PR #147 — 2026-11-08
+
+### Changed
+
+- `scripts/check_commit_proportionality.py` now leads its failure message with
+  the escape hatch — "if the length is genuinely warranted, add a
+  `Proportionality:` trailer" — instead of burying it after the word-count
+  arithmetic. The split-into-two advice follows. A failing author now sees the
+  way forward first.
+
+- `docs/WORKTREES.md` § Reap now says squash merges rewrite every commit SHA,
+  so `git merge-base --is-ancestor` reports "not merged" after a PR merges;
+  verify by content (`git show main:<path>`) or `git cherry`.
+
+- `tests/docs/test_lore_md_rules_survive.py` docstring notes that title-only
+  corruption is not caught by design — the anchor lives in the body, so a
+  title/body swap that keeps the body still passes, and that is correct.
+
+### Fixed
+
+- `docs/agents/issue-tracker.md` records that `backlog-py task` has no `view`
+  subcommand (reads are the bare `backlog-py task <id>`), after the CLI's own
+  `--help` "View tasks" line invited the wrong verb.
+
 ## PR #145 — 2026-11-08
 
 ### Added

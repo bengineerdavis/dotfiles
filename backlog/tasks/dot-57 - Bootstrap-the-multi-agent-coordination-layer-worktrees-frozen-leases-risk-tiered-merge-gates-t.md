@@ -360,6 +360,15 @@ updated_date: 2026-10-27 22:21
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
 
+**Agent policy → agentic-project-template (author, 2026-11-08):** this
+coordination layer (worktrees, frozen leases, risk-tiered merge gates) and the
+accompanying agent policy are already slated for extraction to the copier
+template. Once the policy is settled here, submit it as a feature request to
+`agentic-project-template` so it is reusable by stamped projects. Fleet
+direction: chezmoi migrates toward being stamped by all three templates
+(agentic, meta, python). Same note applies to DOT-208 (trust-ladder LEDGER) and
+DOT-322 (open-PR / review-merge policy).
+
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary

@@ -71,6 +71,21 @@ Carve-outs from an `ask` family:
   `graphql` makes it ask, because each can write. `gh auth` stays at ask, since
   it can print a token.
 
+- **Docker and Lima inspection** is allowed: `docker version`/`info`/`ps`/
+  `images`/`inspect`/`logs`/`stats` and `limactl list`. These are the read-only
+  views of the throwaway-environment surface (author directive 2026-11-02:
+  agent experiments run in containers/VMs, never against main's managed
+  files). Everything that creates, enters, stops or destroys a container or
+  VM stays at ask in both agents — `docker run`/`exec`/`stop`/`kill`/`rm`/
+  `rmi`/`build`/`compose`/`cp`/`start`, and all of `limactl` except `list`.
+  The `autonomous` agent additionally allows the container/VM mutation set
+  (`docker run` through `start`, `limactl start`/`create`/`stop`/`shell`) so
+  unattended VM experiments are not prompt-blocked; VM *deletion*
+  (`limactl delete`/`prune`) still asks there, mirroring the worktree tier
+  where creating a checkout is free and removing one can lose work. Note the
+  OS layer sits underneath: the docker group membership gates the daemon
+  socket, so an allow here does not grant a socket the user cannot open.
+
 Claude Code has the worktree carve-out but not the `gh` one. Its precedence is
 deny > ask > allow regardless of order, so an allow cannot carve an exception
 out of the `Bash(gh *)` ask; that needs the broad rule split first.

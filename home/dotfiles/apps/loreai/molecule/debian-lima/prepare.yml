@@ -1,14 +1,79 @@
 ---
 # Lima's guest already has Python and CA certificates. Add only the external
-# commands the topic actually invokes. No host package or login state changes.
+# commands the topic actually invokes, plus rsync's replacement (a file copy)
+# and chezmoi for the header-render check. No host package or login state
+# changes. No ansible.posix dependency: the sync is a plain file copy.
 - name: Prepare the Debian guest for apps/loreai
   hosts: all
-  gather_facts: false
+  gather_facts: true
   become: false
+  vars:
+    # The guest's own home, resolved on the target — the lima guest username
+    # collides with the host login name, so cloud-init renames the home dir
+    # (measured: /home/molecule.guest). Never hardcode it.
+    guest_home: "{{ ansible_env.HOME }}"
+    # Relative to this playbook (repo root is ../../../../../..). The render
+    # needs only these four static files — sandbox-verified 2026-11-08.
+    # .chezmoiroot names `home`; the template pulls the fragment via
+    # `dotfiles/apps/loreai/files/opencode/lore-plugin.jsonc` relative to the
+    # source dir, so the files must land at their `home/...` positions.
+    chezmoi_source: "{{ playbook_dir }}/../../../../../.."
   tasks:
-    - name: Install gzip for the verified release archive
+    - name: Install gzip for the verified release archive, and curl for the chezmoi installer
       ansible.builtin.apt:
-        name: gzip
+        name:
+          - gzip
+          - curl
         state: present
         update_cache: true
       become: true
+
+    - name: Install chezmoi user-local from get.chezmoi.io
+      # The vagrant scenario installs chezmoi via brew; the lima guest has no
+      # brew. The upstream one-line installer goes to a user-local prefix, so
+      # no root is needed.
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          mkdir -p "{{ guest_home }}/bin"
+          sh -c "$(curl -fsSL https://get.chezmoi.io)" -- -b "{{ guest_home }}/bin"
+          "{{ guest_home }}/bin/chezmoi" --version
+      args:
+        executable: /bin/bash
+        creates: "{{ guest_home }}/bin/chezmoi"
+
+    - name: Create the source directories in the guest
+      ansible.builtin.file:
+        path: "{{ guest_home }}/repo/home/{{ item }}"
+        state: directory
+      loop:
+        - .chezmoidata
+        - dot_config/opencode
+        - dotfiles/apps/loreai/files/opencode
+
+    - name: Place the chezmoi source files needed for the render
+      # The header lives in a chezmoi-rendered fragment, so the scenario must
+      # render the real template on the guest. The lima adapter has no
+      # driver-level synced folder, and a lima mount silently no-ops on this
+      # Debian guest (no 9p support — sandbox-verified 2026-11-08), so copy the
+      # three source files the template needs rather than the whole repo. This
+      # binds the exact files under test and avoids the ansible.posix dependency
+      # a synchronize module would add.
+      ansible.builtin.copy:
+        src: "{{ chezmoi_source }}/home/.chezmoidata/opencode.yaml"
+        dest: "{{ guest_home }}/repo/home/.chezmoidata/opencode.yaml"
+
+    - name: Place .chezmoiroot
+      ansible.builtin.copy:
+        src: "{{ chezmoi_source }}/.chezmoiroot"
+        dest: "{{ guest_home }}/repo/.chezmoiroot"
+
+    - name: Place the opencode template
+      ansible.builtin.copy:
+        src: "{{ chezmoi_source }}/home/dot_config/opencode/opencode.jsonc.tmpl"
+        dest: "{{ guest_home }}/repo/home/dot_config/opencode/opencode.jsonc.tmpl"
+
+    - name: Place the lore plugin fragment
+      ansible.builtin.copy:
+        src: "{{ chezmoi_source }}/home/dotfiles/apps/loreai/files/opencode/lore-plugin.jsonc"
+        dest: "{{ guest_home }}/repo/home/dotfiles/apps/loreai/files/opencode/lore-plugin.jsonc"

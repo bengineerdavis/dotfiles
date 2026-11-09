@@ -95,6 +95,14 @@ Build the LEDGER for the trust ladder. The ladder itself — rungs, promotion
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
 
+**Agent policy → agentic-project-template (author, 2026-11-08):** the trust
+ladder and its LEDGER are agent policy. Once the ladder/LEDGER schema is settled
+here, submit it as a feature request to `agentic-project-template` so the policy
+is reusable by stamped projects rather than bespoke to this repo. Fleet
+direction: chezmoi migrates toward being stamped by all three templates
+(agentic, meta, python). Same note applies to DOT-322 (open-PR/review-merging
+policy).
+
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary

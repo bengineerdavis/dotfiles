@@ -1,6 +1,10 @@
 ---
 # Install the real topic in the disposable guest. No host credentials or
 # inference service are mounted, forwarded, or used.
+#
+# After the role converges the gateway service, render the opencode config
+# through chezmoi on the guest to prove the X-Lore-Provider header (a
+# chezmoi-rendered fragment, DOT-242.1 / PR #134) lands in the deployed file.
 - name: Converge apps/loreai
   hosts: all
   gather_facts: true
@@ -8,5 +12,29 @@
   vars:
     loreai_telemetry: 0
     loreai_inference: none
-  roles:
-    - role: apps/loreai
+    # Resolved on the target, never hardcoded (see prepare.yml — the guest's
+    # home is /home/molecule.guest when the name collides with the host).
+    guest_home: "{{ ansible_env.HOME }}"
+  tasks:
+    - name: Install the loreai topic
+      ansible.builtin.include_role:
+        name: apps/loreai
+
+    - name: Render the opencode config from the synced source
+      # The header is chezmoi-rendered, not Ansible-installed, so the role's
+      # converge alone would not exercise it. Render into the guest's real
+      # deploy target and let verify assert the header. --force because the
+      # guest has no prior opencode.jsonc to answer the "changed since last
+      # write" prompt the real home poses (sandbox-verified 2026-11-08).
+      ansible.builtin.command:
+        argv:
+          - "{{ guest_home }}/bin/chezmoi"
+          - --source
+          - "{{ guest_home }}/repo"
+          - --destination
+          - "{{ guest_home }}"
+          - apply
+          - --force
+          - ~/.config/opencode
+      register: loreai_opencode_render
+      changed_when: false

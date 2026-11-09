@@ -42,3 +42,21 @@
         content: "LoreAI scenario data must survive topic removal.\n"
         dest: "{{ ansible_env.HOME }}/.local/share/lore/molecule-test-preserved"
         mode: "0600"
+
+    - name: Assert the rendered opencode config carries the X-Lore-Provider header
+      # The header (DOT-242.1 / PR #134) is chezmoi-rendered in lore-plugin.jsonc
+      # and must land under provider.openrouter.options.headers in the deployed
+      # opencode.jsonc. The deployed file is JSONC, and the guest has no opencode
+      # binary to run `debug config`, so strip // line comments before parsing —
+      # then assert the exact nested path, not a bare substring (which would
+      # false-positive on a comment or a stray key).
+      ansible.builtin.shell:
+        cmd: >-
+          python3 -c 'import json,sys,re; s=open(sys.argv[1]).read();
+          s=re.sub(r"^\s*//.*$","",s,flags=re.M); c=json.loads(s);
+          print(c["provider"]["openrouter"]["options"]["headers"]["X-Lore-Provider"])'
+          "{{ ansible_env.HOME }}/.config/opencode/opencode.jsonc"
+        executable: /bin/bash
+      register: loreai_header
+      changed_when: false
+      failed_when: loreai_header.stdout.strip() != "openrouter"

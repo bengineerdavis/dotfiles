@@ -158,6 +158,21 @@ deployed tree, and one machine. Most work never collides — in practice the onl
 real conflict so far came from two sessions rewriting the same large file at once.
 These are the cases that do need care.
 
+**Check the tool surface before asserting what a tool does.** A named tool in
+working memory can be stale three ways: retired (`.pre-commit-config.yaml` →
+`prek.toml`), versioned past its docs (Lima's `sudo`/`ssh` subcommands never
+existed in v2.2.1; the real spellings are `sudoers`/`show-ssh`), or installed
+and absent from it. Before a claim about a tool's behaviour lands in a report,
+a PR body, or an instruction: run its `--help`, probe the binary, or grep its
+config file — and cite the probe. When a tool turns out missing or
+contradictory (help text disagreesing with the binary, a config key with no
+consumer, a retired file still referenced), do not silently route around it:
+surface it and queue a reconciliation or resolution task in the backlog, the
+same way stale docs land as DOT tasks. Measured 2026-11-08, three instances in
+one session: hooks described from a deleted config file, `--help` read as
+"read-only" for a command that probes sudo, and a permission rule naming a
+subcommand that does not exist.
+
 **Commit with `git commit -o <paths>`, never a bare `git commit`.** All sessions
 share one `.git/index`. `git add <paths> && git commit` stages your paths and then
 commits *the entire index* — including whatever another session staged and had not
@@ -529,6 +544,34 @@ Anything else: push the branch, open a PR, and report. Stakes and size decide,
 not preference. A new feature goes to PR; so does any change that takes more
 than a paragraph to explain.
 
+**A permission-blocked push resolves by handoff, not workaround.** Force-pushes
+(`--force-with-lease`, `--force`, `-f`) are denied at the shell layer for agents
+by policy — root-adjacent history rewrites are author-tier, the same class as
+`chezmoi apply`. Do not retype variants at the deny until one slips through:
+a bare `git push` after a rebase fails non-fast-forward and teaches nothing.
+Hand the author the exact command instead, and bind the drift check into the
+command itself:
+
+- `git ls-remote origin <branch>` first — the handoff was written against a
+  remote tip that can move before it runs.
+- hand off the **explicit-expectation form**, never bare `--force-with-lease`:
+  `git push --force-with-lease=<branch>:<sha-from-ls-remote> origin <branch>`.
+  Bare `--force-with-lease` validates against the local remote-tracking ref,
+  which a background fetch can move between the check and the push — the lease
+  then accepts the moved tip and the expected `<old>...<new>` output confirms
+  the overwrite instead of catching it (review job 588). The explicit form
+  makes the observed SHA the lease, so any push after the check rejects.
+- if the push rejects, the remote moved: re-verify with `ls-remote`, never
+  re-run with the old SHA or drop the expectation.
+- after it lands, verify from the assistant side with `git ls-remote`, never by
+  re-pushing.
+
+The same shape covers `git push origin --delete <branch>` and any other
+author-tier remote write: verify what the remote holds, hand the one command
+binding what you verified, read back what it printed. Measured 2026-11-08:
+three push attempts (compound denied, lease denied, bare non-fast-forward)
+preceded the handoff that worked on the first try.
+
 ### Pull request descriptions
 
 **A pushed branch is not a pull request.** `git push` prints a
@@ -571,6 +614,16 @@ they are where an agent's work is most likely to be wrong in a way the code
 hides — an agent will happily write code and then write tests that ratify
 whatever it just wrote. That is what § Prove the test fails exists to catch.
 
+**Verify-then-claim for tool facts.** A reviewer (human or agent) who states
+what a tool does — "read-only", "fails closed", "not supported on this host" —
+cites the probe that produced the claim: the `--help` read, the versioned
+source, the measured run. Bare adjectives are not findings; they are guesses
+with confidence. A reviewer citing a probe that a fix then contradicts
+(`sudoers --check` read as "read-only" from `--help`, while the binary probes
+sudo) has verified the wrong thing, and the fix that cites *its* probe wins.
+Settle contradicting reviews by reading the cited source, not by counting
+reviews.
+
 ### Quiz before merge
 
 When a PR is opened, or when a change is too large to explain in a paragraph,
@@ -600,6 +653,12 @@ Two rules bind regardless, and live here:
 
 ## Commands
 
+The hook runner is **prek** (`prek.toml` at the repo root; `.pre-commit-config.yaml`
+was retired with it). When you need a hook's config, flags, or file selection, read
+`prek.toml` — not a remembered `.pre-commit-config.yaml`, which no longer exists
+and will silently misreport the suite. A stale assertion about hooks is how
+"the ruff hook checks X" gets reported as fact from a file that is gone.
+
 ```bash
 # Fast loop — the default for iteration. Tests spread across CPUs. Measured on
 # this machine 2026-09-23 (32 cores, 641 passed / 2 pre-existing failures):
@@ -627,17 +686,24 @@ almost nothing — the `binned_module` fixture skips without `typer`/`questionar
 
 ### Known failures
 
-Two suites fail on a clean checkout, for reasons outside the code. Expect these
-in every full run, and do not spend a session proving they are not yours:
+**This table is stale post-DOT-73 (PR #114): both suites below now pass.**
+The table and `scripts/check_suite_baseline.py` `EXPECTED_FAILURES` move
+together — DOT-314 owns that update as part of `agent/retro-ci-guard`'s rebase.
+Until then, read the table as the pre-#114 baseline, not current behaviour.
+
+Two suites failed on a clean checkout before DOT-73, for reasons outside the
+code. Expect this shape in older baselines, and do not spend a session proving
+they are not yours:
 
 | Suite | Count | Why |
 |---|---|---|
 | `tests/clipped` | ~10 | Drives the real clipboard through subprocesses; needs a live `wl-copy`/`wl-paste` and a TTY. |
 | `tests/restart_stale` | 2 | Exercises launchd/systemd role behaviour that the test host does not have. |
 
-A full run on the reference host reads **12 failed, 1093 passed, 20 skipped**.
-Compared against a stashed baseline on the same machine, this count is the
-expected one rather than a regression signal. Tracked in DOT-73.
+A full run on the reference host read **12 failed, 1093 passed, 20 skipped**
+pre-#114; measured 2026-11-08 post-#114, the same host reads **zero failed**
+from these suites (1426 passed, 20 skipped) once the `.molecule` scratch trap
+(DOT-310) is cleared. Tracked in DOT-73 (Done) and DOT-314 (baseline refresh).
 
 Two ways to keep this cheap, in order of preference:
 
@@ -649,8 +715,13 @@ uv run --frozen --with pytest-xdist pytest tests tools -q -n auto --dist workste
 
 `--ignore` is a deliberate choice for a fast loop and a bad habit for a merge
 gate: it would hide a real regression in those two directories. For a merge
-gate, run the full suite and compare the failure list against the table above —
-a change is green when the failure LIST matches, not when the count does.
+gate, run the full suite and judge the failure list — **until DOT-314 refreshes
+the baseline, an empty failure list is green** (both tabled suites now pass),
+any FAILED or ERROR node outside the table is a regression, and
+expected-but-absent table entries are nonfatal (the baseline script's own
+ruling — a baseline that is too generous is a lesser fault than a gate nobody
+can run). A change is green when the failure LIST matches, not when the count
+does.
 
 **CI applies that rule mechanically.** `.github/workflows/tests.yml` runs the
 full suite on every pull request and every push to `main`, then feeds the

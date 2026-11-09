@@ -79,11 +79,10 @@ def verdict(message: str, changed_lines: int) -> tuple[bool, str]:
     return False, (
         f"Commit message is {used} words for a {changed_lines}-line change; "
         f"the budget is {budget}.\n\n"
-        "This usually means the commit should be two, not that the prose should "
-        "be trimmed — see conventions in AGENTS.md § Commits and the "
-        "commit-hygiene skill.\n\n"
-        "If the length is genuinely warranted, say why in a trailer:\n"
-        "    Proportionality: <reason this change needs the detail>"
+        "If the length is genuinely warranted, add a trailer and re-commit:\n"
+        "    Proportionality: <reason this change needs the detail>\n\n"
+        "Otherwise the commit should usually be two, not the prose trimmed — "
+        "see conventions in AGENTS.md § Commits and the commit-hygiene skill."
     )
 
 
