@@ -510,6 +510,13 @@ A target that changed since chezmoi last wrote it is a judgement call, not a
 prompt to answer hastily: inspect `chezmoi diff <target>` and either fold the
 local edit into the source or discard it deliberately.
 
+**`R` in `chezmoi status` means Run, not Remove.** The reference table reads
+"Run" / "Script will be run" for `R`; it is the second column's "what apply
+will do" marker. A `run_before_` script shows `R` on every status by design —
+normal, not a defect. Probe the letter's meaning against the reference before
+calling a status line a bug (measured 2026-11-08: an `R` was misread as a
+rename "ghost" and the correction needed a follow-up PR).
+
 ### Merge gates
 
 Gate selection is computed from the diff (`git diff --name-only`), never

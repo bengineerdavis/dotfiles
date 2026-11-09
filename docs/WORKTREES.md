@@ -26,6 +26,14 @@ branch is shared state — switching it moves governance files under every
 other session's feet and turns branch hygiene into a stash dance (observed
 2026-10-27, PR #87). Task branches get their own worktree from the start.
 
+**Confirm the branch before you reconcile.** `git pull` / `git fetch` +
+fast-forward in the *shared checkout* operates on whichever branch it is on —
+if another session switched it to their task branch, a reconcile acts on their
+branch and misreads as "main is behind". Before any shared-checkout
+reconcile/apply, run `git branch --show-current` and stop if it is not `main`
+(measured 2026-11-08: a reconcile on a concurrent session's branch made the
+local `git pull` report non-fast-forward with no local commits).
+
 Naming is **flat, never grouped**:
 
 ```
