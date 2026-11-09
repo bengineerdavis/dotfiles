@@ -145,6 +145,8 @@ def test_local_main_is_fast_forwarded_to_origin(repo: Path) -> None:
         "init.templateDir=",
         "clone",
         "-q",
+        "-b",
+        "main",
         str(repo / ".." / "origin.git"),
         str(upstream),
     )
@@ -176,6 +178,8 @@ def test_a_dirty_main_checkout_with_unrelated_edits_still_syncs(
         "init.templateDir=",
         "clone",
         "-q",
+        "-b",
+        "main",
         str(repo / ".." / "origin.git"),
         str(upstream),
     )
@@ -210,6 +214,8 @@ def test_a_dirty_main_checkout_never_loses_work_and_never_blocks(
         "init.templateDir=",
         "clone",
         "-q",
+        "-b",
+        "main",
         str(repo / ".." / "origin.git"),
         str(upstream),
     )
@@ -263,6 +269,8 @@ def test_a_diverged_local_main_does_not_block_someone_elses_push(
         "init.templateDir=",
         "clone",
         "-q",
+        "-b",
+        "main",
         str(repo / ".." / "origin.git"),
         str(upstream),
     )
@@ -295,6 +303,8 @@ def test_a_branch_that_conflicts_with_origin_main_still_refuses(
         "init.templateDir=",
         "clone",
         "-q",
+        "-b",
+        "main",
         str(repo / ".." / "origin.git"),
         str(upstream),
     )
