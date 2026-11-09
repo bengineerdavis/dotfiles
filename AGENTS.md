@@ -666,6 +666,31 @@ was retired with it). When you need a hook's config, flags, or file selection, r
 and will silently misreport the suite. A stale assertion about hooks is how
 "the ruff hook checks X" gets reported as fact from a file that is gone.
 
+### Three commands that fail in a way that looks like a broken repo
+
+Each was measured on 2026-11-09 and each cost a session real time. The failure
+is never the thing you assume; check these before diagnosing further.
+
+**`gh pr create` with a slashed branch name.** `--head agent/template-research`
+fails with *"No commits between main and agent/template-research"* even when the
+branch is fine and `gh api .../compare` reports `ahead_by: 2`. Name the owner:
+`--head <owner>:<branch>`. The error describes a repository problem that does
+not exist.
+
+**`gh` without `--repo` resolves by remote, not by cwd.** In a tree holding more
+than one clone of a similarly-named repo, `gh pr view 1` can read a *different*
+repository and report a PR you never created. Pass `--repo <owner>/<name>` on
+every `gh` command here; treat any surprising owner name in the output as this
+bug rather than as your own mistake.
+
+**`git diff <branch>` is not a claim about what your branch does.** Two-dot
+`git diff main` renders main's later additions as deletions, so a branch that
+deletes nothing appears to delete everything added since the merge-base. Use
+`git diff main...HEAD` for "what my change is" and `git merge-base HEAD main`
+before asserting that a merge would remove something. Measured the same day: a
+false "this merge deletes six files" alarm, from the two-dot form, on a branch
+that deleted nothing.
+
 ```bash
 # Fast loop — the default for iteration. Tests spread across CPUs. Measured on
 # this machine 2026-09-23 (32 cores, 641 passed / 2 pre-existing failures):
