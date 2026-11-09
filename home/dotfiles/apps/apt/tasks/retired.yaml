@@ -14,12 +14,13 @@
 
 - name: "Retired: comment out retired source"
   ansible.builtin.replace:
-    path: "{{ item.file }}"
+    path: "{{ retired_src.file }}"
     regexp: '^(?!#)(\s*deb(?:-src)?\s.*)$'
     replace: '# retired by dotfiles apt topic: \1'
   loop: "{{ apt_retired_sources }}"
   loop_control:
-    label: "{{ item.file }}"
+    loop_var: retired_src
+    label: "{{ retired_src.file }}"
   register: apt_retired_commented
   become: true
   failed_when:
@@ -28,12 +29,13 @@
 
 - name: "Retired: record why the source was retired"
   ansible.builtin.lineinfile:
-    path: "{{ item.file }}"
-    line: "# Retired: {{ item.reason }}"
+    path: "{{ retired_src.file }}"
+    line: "# Retired: {{ retired_src.reason }}"
     insertbefore: BOF
   loop: "{{ apt_retired_sources }}"
   loop_control:
-    label: "{{ item.file }}"
+    loop_var: retired_src
+    label: "{{ retired_src.file }}"
   register: apt_retired_noted
   become: true
   failed_when:
@@ -42,11 +44,12 @@
 
 - name: "Retired: remove the retired source's keyring"
   ansible.builtin.file:
-    path: "{{ item.keyring }}"
+    path: "{{ retired_src.keyring }}"
     state: absent
   loop: "{{ apt_retired_sources | selectattr('keyring', 'defined') | list }}"
   loop_control:
-    label: "{{ item.keyring }}"
+    loop_var: retired_src
+    label: "{{ retired_src.keyring }}"
   become: true
 
 - name: "Retired: purge packages only a retired source provided"
