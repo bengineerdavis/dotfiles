@@ -549,21 +549,28 @@ than a paragraph to explain.
 by policy — root-adjacent history rewrites are author-tier, the same class as
 `chezmoi apply`. Do not retype variants at the deny until one slips through:
 a bare `git push` after a rebase fails non-fast-forward and teaches nothing.
-Hand the author the exact command instead, and make the handoff drift-checked:
+Hand the author the exact command instead, and bind the drift check into the
+command itself:
 
 - `git ls-remote origin <branch>` first — the handoff was written against a
-  remote tip that can move before it runs. A lease verified now is the only
-  one worth writing down.
-- state the expected output line (`<old>...<new>  <branch> -> <branch>`) so the
-  author can see a moved remote, not puzzle over a rejected lease.
+  remote tip that can move before it runs.
+- hand off the **explicit-expectation form**, never bare `--force-with-lease`:
+  `git push --force-with-lease=<branch>:<sha-from-ls-remote> origin <branch>`.
+  Bare `--force-with-lease` validates against the local remote-tracking ref,
+  which a background fetch can move between the check and the push — the lease
+  then accepts the moved tip and the expected `<old>...<new>` output confirms
+  the overwrite instead of catching it (review job 588). The explicit form
+  makes the observed SHA the lease, so any push after the check rejects.
+- if the push rejects, the remote moved: re-verify with `ls-remote`, never
+  re-run with the old SHA or drop the expectation.
 - after it lands, verify from the assistant side with `git ls-remote`, never by
   re-pushing.
 
 The same shape covers `git push origin --delete <branch>` and any other
-author-tier remote write: verify what the remote holds, hand the one command,
-read back what it printed. Measured 2026-11-08: three push attempts (compound
-denied, lease denied, bare non-fast-forward) preceded the handoff that worked
-on the first try.
+author-tier remote write: verify what the remote holds, hand the one command
+binding what you verified, read back what it printed. Measured 2026-11-08:
+three push attempts (compound denied, lease denied, bare non-fast-forward)
+preceded the handoff that worked on the first try.
 
 ### Pull request descriptions
 
