@@ -111,6 +111,37 @@ already exists in `runtime/git.py`; it is wired to the reader, not the writer.
 Related: DOT-326 (the template-sweep tool), DOT-314/DOT-310 (queue-integrity
 and `.molecule` scratch), the "task-242/task-244 TASK-prefix stragglers
 collide with DOT ids" gotcha (renumber next-free, fail-closed).
+
+### Second collision, and what the two together prove (2026-11-09)
+
+A later session hit this twice in one sitting. Both times the queue-integrity
+guard refused the commit, which is the guard working — but the cost is a
+detour, and the collision is invisible until you commit.
+
+1. Free-id pick read `ls backlog/tasks/ | grep -oE "dot-[0-9]+" | sort -n |
+   tail -1` → 326. Chose 327. **DOT-327 already existed** on a sibling branch.
+2. Picked 328, which is this very task. Then picked 333 after finding the
+   real max at 332.
+
+Note what the failing command actually was. The idiom above is not merely
+racy — **it reads the working tree, which is exactly the branch-blind view
+this task describes.** So it reproduces `_next_task_id()`'s defect in a shell
+one-liner. Anyone hand-rolling an id inherits the same bug the allocator has,
+which is why the fix belongs in the tool rather than in a recipe: there is no
+safer recipe available from the working tree alone.
+
+For anyone needing an id before this lands, the branch-aware scan is:
+
+```bash
+git for-each-ref --format='%(refname)' refs/heads refs/remotes |
+while read -r r; do
+  git ls-tree --name-only "$r" backlog/tasks/ 2>/dev/null
+done | grep -oE 'dot-[0-9]+' | grep -oE '[0-9]+' | sort -n | tail -1
+```
+
+It is slower and uglier than the pipx verb this task asks for, and it still
+races if a sibling branch is created between the scan and the commit. Treat
+it as a stopgap that at least reads the same view the guard reads.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
