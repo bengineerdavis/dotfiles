@@ -28,12 +28,94 @@
   when: ansible_facts['os_family'] == 'Debian'
 
 - name: "Docker (Debian): add Docker's official signing key"
+  # Docker serves an ASCII-armoured key at .../gpg. apt 2.4 loads a
+  # `signed-by` keyring as BINARY, and a `.asc`-named file holding armoured
+  # (or, after the keyring-repair helper runs, binary) content is the exact
+  # mismatch that made apt report NO_PUBKEY while gpgv verified the same
+  # InRelease fine — measured 2026-11-08. Download the armoured key to a
+  # temp name, then dearmour it into a `.gpg` file so the extension matches
+  # the binary content.
   ansible.builtin.get_url:
     url: "https://download.docker.com/linux/{{ docker_apt_distro }}/gpg"
     dest: /etc/apt/keyrings/docker.asc
     mode: "0644"
   become: true
   when: ansible_facts['os_family'] == 'Debian'
+  register: docker_key_download
+
+- name: "Docker (Debian): check whether the binary key already exists"
+  ansible.builtin.stat:
+    path: /etc/apt/keyrings/docker.gpg
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+  register: docker_gpg_present
+
+- name: "Docker (Debian): check gpg is available"
+  # gpg is provided by the apt topic's prerequisites (gnupg), which runs
+  # first in the pkg-manager tier. A scoped `run-role.sh docker` has no such
+  # guarantee, so preflight it and fail before the dearmour command with the
+  # fix named — a bare command on a missing gpg fails with a generic
+  # "Error executing command" and never reaches the explanatory task.
+  ansible.builtin.stat:
+    path: /usr/bin/gpg
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+  register: docker_gpg_bin
+
+- name: "Docker (Debian): fail with the fix if gpg is missing"
+  # Only fail when the dearmour command would actually run: a converged host
+  # with docker.gpg present and an unchanged download skips dearmour, so a
+  # missing gpg there is not a problem and must not fail the role.
+  ansible.builtin.fail:
+    msg: >-
+      Docker's key dearmour needs gpg, which the apt topic installs
+      (gnupg). Run the apt topic first, or `sudo apt-get install -y gnupg`.
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - not docker_gpg_bin.stat.exists
+    - docker_key_download is changed or not docker_gpg_present.stat.exists
+
+- name: "Docker (Debian): dearmour the signing key to a binary .gpg"
+  # Dearmour into a temp file, then move it over docker.gpg only on success:
+  # gpg truncates its --output before parsing, so a bad armoured input (e.g. an
+  # HTML error served with HTTP 200) would zero an existing good key. The temp
+  # file keeps the live key intact on failure.
+  ansible.builtin.command:
+    cmd: "gpg --dearmor --yes --output /etc/apt/keyrings/docker.gpg.tmp /etc/apt/keyrings/docker.asc"
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - docker_key_download is changed or not docker_gpg_present.stat.exists
+  changed_when: docker_key_download is changed or not docker_gpg_present.stat.exists
+
+- name: "Docker (Debian): move the dearmoured key into place"
+  ansible.builtin.command:
+    cmd: "mv /etc/apt/keyrings/docker.gpg.tmp /etc/apt/keyrings/docker.gpg"
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - docker_key_download is changed or not docker_gpg_present.stat.exists
+
+- name: "Docker (Debian): re-check the binary key exists"
+  # gpg may create docker.gpg with a restrictive become umask (0600), which
+  # apt's unprivileged _apt reader cannot open — NO_PUBKEY persists despite a
+  # successful dearmour. Re-stat after dearmour so a freshly created key (not
+  # present in the pre-run snapshot) still gets the mode. Match the 0644 the
+  # Python helper and the armoured download both write.
+  ansible.builtin.stat:
+    path: /etc/apt/keyrings/docker.gpg
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+  register: docker_gpg_after
+
+- name: "Docker (Debian): enforce 0644 on the binary key"
+  ansible.builtin.file:
+    path: /etc/apt/keyrings/docker.gpg
+    mode: "0644"
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - docker_gpg_after.stat.exists
 
 - name: "Docker (Debian): retire legacy one-line source"
   # Pre-managed hosts have the repo as a hand-made docker.list. The deb822
@@ -53,7 +135,7 @@
     suites: ["{{ ansible_facts['distribution_release'] }}"]
     components: [stable]
     architectures: "{{ docker_apt_arch }}"
-    signed_by: /etc/apt/keyrings/docker.asc
+    signed_by: /etc/apt/keyrings/docker.gpg
     state: present
   become: true
   when: ansible_facts['os_family'] == 'Debian'

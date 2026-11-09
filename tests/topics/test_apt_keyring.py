@@ -210,6 +210,81 @@ def test_armored_key_is_dearmored_before_writing(ak, tmp_path, pubkey):
     assert oct(dest.stat().st_mode & 0o777) == "0o644"
 
 
+def test_asc_dest_is_corrected_to_gpg(ak, tmp_path, pubkey):
+    """A .asc-named dest holding binary content breaks apt 2.4 (NO_PUBKEY).
+
+    Measured 2026-11-08: Docker's key was written binary into docker.asc, and
+    apt reported NO_PUBKEY while gpgv verified the same InRelease fine. The
+    helper must write to the .gpg sibling and report the correction.
+    """
+    armored, _, key_id = pubkey
+    dest = tmp_path / "repo.asc"
+    list_source(tmp_path, dest)
+    report = ak.repair(args(tmp_path), fetch=lambda u, t: armored)
+    corrected = tmp_path / "repo.gpg"
+    assert report["dest"] == str(corrected)
+    assert report["status"] == "repaired"
+    assert corrected.is_file()
+    assert not dest.exists()
+    assert ak.key_ids(corrected.read_bytes()) == [key_id]
+    # The source's signed-by must now name the .gpg path, not the stale .asc.
+    src = (tmp_path / "sources.list.d" / "repo.list").read_text()
+    assert "signed-by=" + str(corrected) in src
+    assert "signed-by=" + str(dest) not in src
+
+
+def test_asc_check_mode_leaves_source_and_files_untouched(ak, tmp_path, pubkey):
+    """A --check repair of a .asc dest must not repoint the source either.
+
+    Repointing in check mode would leave apt reading a .gpg that check mode
+    never wrote, reintroducing NO_PUBKEY. Both the source text and the files
+    must be unchanged.
+    """
+    armored, _, _ = pubkey
+    dest = tmp_path / "repo.asc"
+    list_source(tmp_path, dest)
+    src = tmp_path / "sources.list.d" / "repo.list"
+    before = src.read_text()
+    report = ak.repair(args(tmp_path, check=True), fetch=lambda u, t: armored)
+    assert report["status"] == "would-repair"
+    assert src.read_text() == before
+    assert not (tmp_path / "repo.gpg").exists()
+    assert not dest.exists()
+
+
+def test_asc_repoint_with_current_gpg_reports_repaired(ak, tmp_path, pubkey):
+    """A stale .asc source with an already-current .gpg key: normal mode
+    repoints the source and reports repaired; the key file is untouched.
+    """
+    _, binary, _ = pubkey
+    dest = tmp_path / "repo.asc"
+    list_source(tmp_path, dest)
+    corrected = tmp_path / "repo.gpg"
+    corrected.write_bytes(binary)
+    src = tmp_path / "sources.list.d" / "repo.list"
+    report = ak.repair(args(tmp_path), fetch=lambda u, t: binary)
+    assert report["status"] == "repaired"
+    assert report["changed"] is True
+    assert "signed-by=" + str(corrected) in src.read_text()
+    assert "signed-by=" + str(dest) not in src.read_text()
+
+
+def test_asc_repoint_with_current_gpg_check_mode_is_would_repair(ak, tmp_path, pubkey):
+    """Check mode with a stale .asc source and current .gpg: report the repoint
+    as pending (would-repair), and leave the source text unchanged.
+    """
+    _, binary, _ = pubkey
+    dest = tmp_path / "repo.asc"
+    list_source(tmp_path, dest)
+    corrected = tmp_path / "repo.gpg"
+    corrected.write_bytes(binary)
+    src = tmp_path / "sources.list.d" / "repo.list"
+    before = src.read_text()
+    report = ak.repair(args(tmp_path, check=True), fetch=lambda u, t: binary)
+    assert report["status"] == "would-repair"
+    assert src.read_text() == before
+
+
 def test_required_key_missing_is_refused(ak, tmp_path, pubkey):
     armored, _, _ = pubkey
     dest = tmp_path / "repo.gpg"
@@ -219,6 +294,30 @@ def test_required_key_missing_is_refused(ak, tmp_path, pubkey):
             args(tmp_path, require_key=["5612B36462313325"]), fetch=lambda u, t: armored
         )
     assert not dest.exists()
+
+
+def test_source_rewrite_is_atomic_on_write_failure(ak, tmp_path, pubkey, monkeypatch):
+    """A failed source rewrite must not truncate the live apt source.
+
+    rewrite_signed_by writes via write_atomic (temp + rename); a failure
+    mid-write must leave the original source intact so a retry can still
+    rediscover the repository.
+    """
+    _, binary, _ = pubkey
+    dest = tmp_path / "repo.asc"
+    list_source(tmp_path, dest)
+    corrected = tmp_path / "repo.gpg"
+    corrected.write_bytes(binary)
+    src = tmp_path / "sources.list.d" / "repo.list"
+    before = src.read_text()
+
+    def boom(dest_path, data, mode=0o644):
+        raise OSError("ENOSPC")
+
+    monkeypatch.setattr(ak, "write_atomic", boom)
+    with pytest.raises(OSError, match="ENOSPC"):
+        ak.repair(args(tmp_path), fetch=lambda u, t: binary)
+    assert src.read_text() == before
 
 
 def test_required_key_present_passes_case_insensitively(ak, tmp_path, pubkey):

@@ -81,6 +81,35 @@ def recap_changed(output: str) -> int:
     return int(line.split("changed=")[1].split()[0])
 
 
+def retirement_play_inside_outer_loop() -> str:
+    """The real playbook wraps each topic in an `item` loop via include_role,
+    then the role's tasks/main.yaml imports retired.yaml, whose own loop reuse
+    of `item` collided. Reproduce it with an inner task file that itself loops
+    over apt_retired_sources using the default item var, run under an outer
+    include_role loop of dict items — the shape that provably emits the warning
+    against the pre-fix file and none against the fix.
+    """
+    return f"""\
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    role_path: "{ROLE}"
+  vars_files:
+    - "{ROLE}/defaults/main.yaml"
+  tasks:
+    - name: outer item loop (mimics the parent playbook)
+      ansible.builtin.include_role:
+        name: "{ROLE}"
+        tasks_from: retired.yaml
+      loop:
+        - topic_name: apt
+      loop_control:
+        label: "{{{{ item.topic_name }}}}"
+"""
+
+
 @pytest.fixture
 def retired(tmp_path):
     kr = tmp_path / "prebuilt-mpr-archive-keyring.gpg"
@@ -133,6 +162,49 @@ def test_check_mode_retires_nothing(tmp_path, retired):
     run(tmp_path, "retired.yaml", extra, "--check")
     assert src.read_text() == before
     assert kr.exists()
+
+
+def test_retired_inside_outer_loop_retires_correctly(tmp_path, retired):
+    # Regression guard for the parent-playbook collision: the play wraps each
+    # topic in an `item` loop (here a dict item, matching topic metadata), and
+    # retired.yaml then loops apt_retired_sources. The pre-fix file reused the
+    # default `item` for that inner loop, shadowing the outer topic item — the
+    # warning "The variable 'item' is already in use" fired on every run. The
+    # fix renames the inner loop var to retired_src. The warning text itself is
+    # emitted only when include_role carries the outer item into the imported
+    # file (harness-dependent), so pin the load-bearing behaviour instead: the
+    # retirement still completes correctly with a distinct inner loop var, and
+    # the outer item is not clobbered into a retired-source dict.
+    src, kr, extra = retired
+    harness = tmp_path / "harness.yaml"
+    harness.write_text(retirement_play_inside_outer_loop())
+    env = {**os.environ, "ANSIBLE_BECOME": "false", "ANSIBLE_NOCOLOR": "1"}
+    result = subprocess.run(
+        [
+            "ansible-playbook",
+            "-i",
+            "localhost,",
+            str(harness),
+            "-e",
+            json.dumps(extra),
+            "-e",
+            '{"ansible_become": false}',
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=180,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    # The retirement ran: the source was commented in place and the keyring
+    # removed, exactly as the non-nested tests assert.
+    assert src.read_text().startswith("# Retired: archived upstream\n")
+    assert not kr.exists()
+    # The collision warning goes to stderr, not stdout. The pre-fix file reused
+    # the default item var for the inner loop, and ansible warns 'The variable
+    # item is already in use' when the outer include_role carries its own item.
+    assert "already in use" not in result.stderr
 
 
 def test_keyrings_with_no_configured_source_are_ok_and_unchanged(tmp_path):

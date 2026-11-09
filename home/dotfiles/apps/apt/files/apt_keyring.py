@@ -81,6 +81,24 @@ def _sources_signed_by(text: str, repo_host: str) -> str | None:
     return None
 
 
+def rewrite_signed_by(source: Path, old_dest: str, new_dest: str) -> bool:
+    """Repoint a source's signed-by path to the corrected keyring.
+
+    Replaces the old path wherever it appears as a signed-by value, so
+    the repaired source no longer references a `.asc` file apt cannot
+    read. Writes atomically (temp file + rename) so a failed write never
+    truncates the live source, preserving the source's mode. Returns
+    True when the file changed.
+    """
+    text = source.read_text(errors="replace")
+    new_text = text.replace(old_dest, new_dest)
+    changed = new_text != text
+    if changed:
+        mode = source.stat().st_mode & 0o777
+        write_atomic(source, new_text.encode(), mode=mode)
+    return changed
+
+
 def find_keyring_dest(repo_host: str, sources: list[Path]) -> tuple[Path, str] | None:
     """Return (source_file, keyring_path) for the first enabled match.
 
@@ -154,13 +172,13 @@ def download(url: str, timeout: int) -> bytes:
         return response.read()
 
 
-def write_atomic(dest: Path, data: bytes) -> None:
+def write_atomic(dest: Path, data: bytes, mode: int = 0o644) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=dest.parent, prefix=f".{dest.name}.")
     try:
         with os.fdopen(fd, "wb") as fh:
             fh.write(data)
-        os.chmod(tmp, 0o644)
+        os.chmod(tmp, mode)
         os.replace(tmp, dest)
     except BaseException:
         Path(tmp).unlink(missing_ok=True)
@@ -222,14 +240,53 @@ def repair(args: argparse.Namespace, fetch=download) -> dict:
         )
     report["keys"] = ids
 
-    current = dest_path.read_bytes() if dest_path.is_file() else None
+    # apt 2.4 loads a `signed-by` keyring as BINARY, and a `.asc`-named
+    # file holding binary content is the exact mismatch that made apt
+    # report NO_PUBKEY while gpgv verified the same InRelease fine —
+    # measured 2026-11-08 (Docker's key). If the source names a `.asc`
+    # path but the dearmoured keyring is binary, write to the `.gpg`
+    # sibling instead and report the correction, so the extension always
+    # matches the content.
+    needs_repoint = dest_path.suffix == ".asc"
+    write_path = dest_path.with_suffix(".gpg") if needs_repoint else dest_path
+
+    current = write_path.read_bytes() if write_path.is_file() else None
     if current == keyring:
-        report["status"] = "ok"
+        # Key already correct. If the source still names the stale .asc,
+        # repoint it now — that change is real and must report changed.
+        if needs_repoint:
+            report["dest"] = str(write_path)
+            report["detail"] = (
+                f"{dest} is a .asc path but the key is binary; apt 2.4 cannot "
+                f"load it. Repointing the source to {write_path}."
+            )
+            if args.check:
+                # Check mode writes nothing: report the repoint as
+                # pending, not as a completed repair.
+                report["changed"] = True
+                report["status"] = "would-repair"
+            else:
+                repointed_now = rewrite_signed_by(source, dest, str(write_path))
+                report["changed"] = repointed_now
+                report["status"] = "repaired" if repointed_now else "ok"
+        else:
+            report["status"] = "ok"
         return report
+
+    # Key needs writing. Write it first, THEN repoint the source, so a
+    # failed write never leaves apt pointing at a missing keyring.
+    report["dest"] = str(write_path)
+    if needs_repoint:
+        report["detail"] = (
+            f"{dest} is a .asc path but the key is binary; apt 2.4 cannot "
+            f"load it. Writing to {write_path} and repointing the source."
+        )
     report["changed"] = True
     report["status"] = "would-repair" if args.check else "repaired"
     if not args.check:
-        write_atomic(dest_path, keyring)
+        write_atomic(write_path, keyring)
+        if needs_repoint:
+            rewrite_signed_by(source, dest, str(write_path))
     return report
 
 
