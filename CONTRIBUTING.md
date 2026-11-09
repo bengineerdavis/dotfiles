@@ -129,6 +129,20 @@ yours landed. After any commit chain that touches a deleted path, verify `HEAD` 
 moved (measured 2026-11-08: a `git add` on an already-`git rm`'d fragment aborted the
 commit; `git show --stat HEAD` displayed the prior merge).
 
+**`git commit --amend` amends the tip only.** Wanting to fold a change into an
+earlier commit, then running `--amend -o <path>`, edits the branch tip instead —
+scattering the work across the wrong commit with no error (measured 2026-11-08 on
+the DOT-59 prek revert). To fold into an earlier *local, unpushed* commit: `git
+reset --soft <that-commit>` and re-commit, never `--amend` on a non-tip. Rewriting
+a pushed commit is a different class of decision (§ Commits, rewrite window).
+
+**`git rev-list --left-right --count` reports left first.** `origin/main...main`
+counts `origin/main` on the *left* and `main` on the *right*; reading the two
+numbers as "ahead / behind" out of habit flips the direction (measured 2026-11-08:
+local main read as "5 ahead" when it was "0 ahead, 5 behind"). For the
+unambiguous direction check, use `git merge-base --is-ancestor origin/main main`
+(or plain `git status`'s ahead/behind line) instead of parsing two bare numbers.
+
 #### Commit messages
 
 Subject: `scope: imperative statement`, lower case after the colon, no trailing period,
