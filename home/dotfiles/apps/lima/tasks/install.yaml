@@ -1,4 +1,12 @@
 # Check the dependency before changing any state. The Lima topic never uses sudo.
+#
+# Every task here carries `[install, upgrade]`, the same shape `apps/ori` uses.
+# Lima is a direct install, so the checksum-compared fetch IS the upgrade path
+# (docs/TOPICS.md § Currency for anything brew and apt do not install). The
+# tags must also cover the tasks that REGISTER facts the tagged block reads: a
+# producer tagged `[install, provision]` while its consumer carries `upgrade`
+# leaves the fact undefined under `--tags upgrade`, which is how this topic
+# failed with "'lima_already_installed' is undefined" (measured 2026-11-08).
 - name: "Check for an existing QEMU binary"
   vars:
     lima_qemu_binary: "qemu-system-{{ 'aarch64' if lima_release_arch == 'arm64' else 'x86_64' }}"
@@ -15,6 +23,7 @@
   changed_when: false
   failed_when: false
   check_mode: false
+  tags: [install, upgrade]
 
 - name: "Require user-owned QEMU"
   ansible.builtin.fail:
@@ -23,6 +32,7 @@
       user-owned qemu formula on macOS, then rerun this topic. No host change
       was made by the Lima topic.
   when: lima_qemu.rc != 0 or lima_qemu.stdout == ''
+  tags: [install, upgrade]
 
 # Idempotence: detect an already-installed matching release before downloading
 # anything. get_url/unarchive into a deleted /tmp would otherwise re-run.
@@ -33,10 +43,12 @@
   changed_when: false
   failed_when: false
   check_mode: false
+  tags: [install, upgrade]
 
 - name: "Record whether the target release is already installed"
   ansible.builtin.set_fact:
     lima_already_installed: "{{ (lima_release_tag | regex_replace('^v', '')) in lima_installed_version.stdout }}"
+  tags: [install, upgrade]
 
 - name: "Create the user installation directories"
   ansible.builtin.file:
@@ -47,6 +59,7 @@
     - "{{ lima_install_prefix }}/libexec"
     - "{{ lima_install_prefix }}/share/doc"
     - "{{ lima_install_prefix }}/share"
+  tags: [install, upgrade]
 
 - name: "Install Lima only when the target release is absent"
   when: not lima_already_installed
@@ -94,6 +107,7 @@
     argv: ["{{ lima_install_dir }}/limactl", "--version"]
   register: lima_version
   changed_when: false
+  tags: [install, upgrade]
 
 - name: "Verify the native QEMU accelerator"
   ansible.builtin.command:
@@ -103,6 +117,7 @@
   failed_when: >-
     (ansible_facts.os_family == 'Darwin' and 'hvf' not in lima_accelerator.stdout)
     or (ansible_facts.os_family == 'Debian' and 'kvm' not in lima_accelerator.stdout)
+  tags: [install, upgrade]
 
 - name: "Report the verified VM capabilities"
   ansible.builtin.debug:
@@ -110,3 +125,4 @@
       {{ lima_version.stdout }}; QEMU accelerator:
       {{ 'HVF' if ansible_facts.os_family == 'Darwin' else 'KVM' }}.
       Lima and QEMU run as the invoking user; no sudo is required.
+  tags: [install, upgrade]

@@ -16,6 +16,11 @@
 # run @latest, which is how a plugin feature arrived unannounced in 3.4.0 while
 # mise still pinned 3.3.0.
 
+# Both tasks carry `[dotagents_skills, upgrade]` because the upgrade path
+# rebuilds every registered fact these tasks produce. A producer whose tags are
+# a subset of its consumers' is the bug this guards against: the consumers ran
+# under `--tags upgrade`, the producer did not, and Ansible failed the `when`
+# with "'dotagents_manifest' is undefined" (measured 2026-11-08).
 - name: "Check that the pinned dotagents binary is on PATH"
   ansible.builtin.command: dotagents --version
   environment:
@@ -23,6 +28,7 @@
   register: dotagents_version_check
   changed_when: false
   failed_when: false
+  tags: [dotagents_skills, upgrade]
 
 - name: "Fail with the fix when dotagents is absent"
   ansible.builtin.fail:
@@ -32,6 +38,7 @@
       `mise install` or re-run the mise topic, then retry. Nothing has been
       installed or moved.
   when: dotagents_version_check.rc != 0
+  tags: [dotagents_skills, upgrade]
 
 # ── Guard: the skills store must be migratable ───────────────────────────────
 # dotagents relocates an agent's skills directory into ~/.agents/skills and
@@ -57,6 +64,7 @@
   ansible.builtin.stat:
     path: "{{ ansible_facts['env']['HOME'] }}/.agents/agents.toml"
   register: dotagents_manifest
+  tags: [dotagents_skills, upgrade]
 
 - name: "Initialise the global manifest with every supported agent"
   ansible.builtin.command:
