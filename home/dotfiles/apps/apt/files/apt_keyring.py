@@ -244,29 +244,43 @@ def repair(args: argparse.Namespace, fetch=download) -> dict:
     # path but the dearmoured keyring is binary, write to the `.gpg`
     # sibling instead and report the correction, so the extension always
     # matches the content.
-    if dest_path.suffix == ".asc":
-        corrected = dest_path.with_suffix(".gpg")
-        report["dest"] = str(corrected)
-        # A dry run must not repoint the source either: repointing to a
-        # .gpg that --check does not write leaves apt reading a missing
-        # file.
-        if not args.check:
-            rewrite_signed_by(source, dest, str(corrected))
+    needs_repoint = dest_path.suffix == ".asc"
+    write_path = dest_path.with_suffix(".gpg") if needs_repoint else dest_path
+
+    current = write_path.read_bytes() if write_path.is_file() else None
+    if current == keyring:
+        # Key already correct. If the source still names the stale .asc,
+        # repoint it now — that change is real and must report changed.
+        if needs_repoint:
+            report["dest"] = str(write_path)
+            report["detail"] = (
+                f"{dest} is a .asc path but the key is binary; apt 2.4 cannot "
+                f"load it. Repointing the source to {write_path}."
+            )
+            if not args.check:
+                repointed_now = rewrite_signed_by(source, dest, str(write_path))
+            else:
+                repointed_now = True  # prospective in check mode
+            report["changed"] = repointed_now
+            report["status"] = "repaired" if repointed_now else "ok"
+        else:
+            report["status"] = "ok"
+        return report
+
+    # Key needs writing. Write it first, THEN repoint the source, so a
+    # failed write never leaves apt pointing at a missing keyring.
+    report["dest"] = str(write_path)
+    if needs_repoint:
         report["detail"] = (
             f"{dest} is a .asc path but the key is binary; apt 2.4 cannot "
-            f"load it. Writing to {corrected} instead."
+            f"load it. Writing to {write_path} and repointing the source."
         )
-        dest_path = corrected
-
-    current = dest_path.read_bytes() if dest_path.is_file() else None
-    if current == keyring:
-        report["status"] = "ok"
-        report["source_repointed"] = dest_path.name != Path(dest).name
-        return report
     report["changed"] = True
     report["status"] = "would-repair" if args.check else "repaired"
     if not args.check:
-        write_atomic(dest_path, keyring)
+        write_atomic(write_path, keyring)
+        if needs_repoint:
+            rewrite_signed_by(source, dest, str(write_path))
     return report
 
 

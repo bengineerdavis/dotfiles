@@ -201,6 +201,10 @@ def test_retired_inside_outer_loop_retires_correctly(tmp_path, retired):
     # removed, exactly as the non-nested tests assert.
     assert src.read_text().startswith("# Retired: archived upstream\n")
     assert not kr.exists()
+    # The collision warning goes to stderr, not stdout. The pre-fix file reused
+    # the default item var for the inner loop, and ansible warns 'The variable
+    # item is already in use' when the outer include_role carries its own item.
+    assert "already in use" not in result.stderr
 
 
 def test_keyrings_with_no_configured_source_are_ok_and_unchanged(tmp_path):

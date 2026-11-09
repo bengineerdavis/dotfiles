@@ -63,6 +63,9 @@
   register: docker_gpg_bin
 
 - name: "Docker (Debian): fail with the fix if gpg is missing"
+  # Only fail when the dearmour command would actually run: a converged host
+  # with docker.gpg present and an unchanged download skips dearmour, so a
+  # missing gpg there is not a problem and must not fail the role.
   ansible.builtin.fail:
     msg: >-
       Docker's key dearmour needs gpg, which the apt topic installs
@@ -70,6 +73,7 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
     - not docker_gpg_bin.stat.exists
+    - docker_key_download is changed or not docker_gpg_present.stat.exists
 
 - name: "Docker (Debian): dearmour the signing key to a binary .gpg"
   # changed_when reports true only when the command actually recreated the
