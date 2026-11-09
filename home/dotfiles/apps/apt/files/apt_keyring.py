@@ -257,12 +257,15 @@ def repair(args: argparse.Namespace, fetch=download) -> dict:
                 f"{dest} is a .asc path but the key is binary; apt 2.4 cannot "
                 f"load it. Repointing the source to {write_path}."
             )
-            if not args.check:
-                repointed_now = rewrite_signed_by(source, dest, str(write_path))
+            if args.check:
+                # Check mode writes nothing: report the repoint as
+                # pending, not as a completed repair.
+                report["changed"] = True
+                report["status"] = "would-repair"
             else:
-                repointed_now = True  # prospective in check mode
-            report["changed"] = repointed_now
-            report["status"] = "repaired" if repointed_now else "ok"
+                repointed_now = rewrite_signed_by(source, dest, str(write_path))
+                report["changed"] = repointed_now
+                report["status"] = "repaired" if repointed_now else "ok"
         else:
             report["status"] = "ok"
         return report

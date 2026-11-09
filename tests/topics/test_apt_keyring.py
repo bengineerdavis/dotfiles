@@ -252,6 +252,39 @@ def test_asc_check_mode_leaves_source_and_files_untouched(ak, tmp_path, pubkey):
     assert not dest.exists()
 
 
+def test_asc_repoint_with_current_gpg_reports_repaired(ak, tmp_path, pubkey):
+    """A stale .asc source with an already-current .gpg key: normal mode
+    repoints the source and reports repaired; the key file is untouched.
+    """
+    _, binary, _ = pubkey
+    dest = tmp_path / "repo.asc"
+    list_source(tmp_path, dest)
+    corrected = tmp_path / "repo.gpg"
+    corrected.write_bytes(binary)
+    src = tmp_path / "sources.list.d" / "repo.list"
+    report = ak.repair(args(tmp_path), fetch=lambda u, t: binary)
+    assert report["status"] == "repaired"
+    assert report["changed"] is True
+    assert "signed-by=" + str(corrected) in src.read_text()
+    assert "signed-by=" + str(dest) not in src.read_text()
+
+
+def test_asc_repoint_with_current_gpg_check_mode_is_would_repair(ak, tmp_path, pubkey):
+    """Check mode with a stale .asc source and current .gpg: report the repoint
+    as pending (would-repair), and leave the source text unchanged.
+    """
+    _, binary, _ = pubkey
+    dest = tmp_path / "repo.asc"
+    list_source(tmp_path, dest)
+    corrected = tmp_path / "repo.gpg"
+    corrected.write_bytes(binary)
+    src = tmp_path / "sources.list.d" / "repo.list"
+    before = src.read_text()
+    report = ak.repair(args(tmp_path, check=True), fetch=lambda u, t: binary)
+    assert report["status"] == "would-repair"
+    assert src.read_text() == before
+
+
 def test_required_key_missing_is_refused(ak, tmp_path, pubkey):
     armored, _, _ = pubkey
     dest = tmp_path / "repo.gpg"
