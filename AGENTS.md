@@ -235,6 +235,20 @@ the file-churn argument below — the index is shared on *every* commit, not jus
 during large rewrites. Weigh it against the chezmoi `-S` requirement, which is easy
 to forget and lands work on the wrong branch when you do.
 
+**The shared checkout stays on `main`; branch work runs in a worktree.** Do not
+create a feature branch with `git switch -c` inside `~/.local/share/chezmoi`.
+When a session does, the background process writing `.lore.md` re-dirties it
+continuously in a checkout that is supposed to hold only `main`, so every
+rebase or merge there races the rewrite and aborts with "unstaged changes" no
+stash or sync rule can win (measured 2026-11-08: the retro-dot59 docs branch was
+cut in the shared checkout and three rebase attempts failed this way). Two
+consequences, both live: the shared checkout gets stranded off `main` (so a
+later `git switch main` fails while another worktree holds it), and
+`chezmoi apply` from that checkout deploys whichever branch it happens to be on.
+Create the worktree first — `git worktree add .worktrees/<sid> -b <group>-<item>`
+— and write there. The `.lore.md` one-liner below is only a fallback for when
+this rule was already broken.
+
 **Before `chezmoi apply`, run `chezmoi status`.** Source and deployed drift in both
 directions. Applying picks up whatever another session has committed but not yet
 deployed, which may not be ready — Debian topic changes have sat committed and
