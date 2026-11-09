@@ -93,6 +93,78 @@ this without rebasing onto current main first.
 
 ## Implementation Notes
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
+## Evidence gathered 2026-11-09 (from the session that shipped #156)
+
+Interim fix already on `main`: PR #156 marks the six tests `@requires_gita`, so
+they skip when the binary is absent. Measured `5 passed, 6 skipped` with `gita`
+off PATH and `11 passed` with it on. That unblocked every PR, but the task's
+own ACs are **not** all satisfied by it:
+
+- **AC2 is satisfied in the "or" branch** — the skip reason states what is
+  needed (`run \`mise install\``).
+- **AC3 asks for the reasoning to be recorded**; it was not. This note is that
+  record, and it corrects part of the assumption the skip was built on.
+
+### What was measured about "can a fake stand in"
+
+A stub `gita` was put on PATH and the suite run: **4 failed, 7 passed**. Two of
+the six do pass with a stub — `test_check_mode_writes_no_registration_state` and
+`test_missing_work_root_skips_reconciliation_without_failing` — so "the six all
+need the real binary" is too strong.
+
+But the stub passing those two is **why they must not be converted to use one**.
+Both assert that no state is written:
+
+```python
+assert not (tmp_path / ".config" / "gita" / "repos.csv").exists()
+assert read_isolated_groups(tmp_path) == {"unrelated": []}
+```
+
+A stub that writes nothing satisfies those assertions **whether or not the code
+under test honours `check_mode`**. Verified by pointing the same test at a
+no-write stub: rc=0, no CSV, regardless of the behaviour being tested. The test
+would pass while asserting nothing — the exact shape `spec.md` § Verification
+forbids, and the one that made an earlier property test here green-on-empty.
+
+So the honest position is: **four need a real `gita`; two need a state-writing
+fake to be meaningful, and a stub cannot supply that.** That distinction is what
+AC3 was asking for.
+
+### The fix in flight (better than the skip)
+
+Another session's worktree (`.worktrees/dot-329`, `agent/dot-329`) has an
+uncommitted change to `.github/workflows/tests.yml` that installs the pinned
+tool instead of skipping:
+
+```yaml
+- name: Install gita for the gita role tests
+  run: uv tool install "gita==0.16.8.2"
+```
+
+Verified this resolves and runs on this machine (`gita 0.16.8.2`, `uv tool
+install` completes). That is AC3's **first** branch — "if the assert is correct,
+the test supplies the precondition" — and it restores the coverage the skip gave
+up, so it is the right end state. The skip in #156 is compatible: with the tool
+installed the markers simply never fire.
+
+One inconsistency to settle there: the workflow pins `0.16.8.2` while the mise
+entry is `"pipx:gita" = "latest"`. The pin is the safer choice for a gate (a
+floating tool means a green commit and a red re-run of the same commit), but the
+two should be bumped together and the comment should say so.
+
+### AC status after #156 plus that in-flight change
+
+- #1 — confirmed on this machine (`pipx:gita 0.16.8.2` in mise, binary present at
+  `~/.local/share/mise/installs/pipx-gita/latest/bin/gita`).
+- #2 — met by the skip reason; superseded once the CI install lands.
+- #3 — **this note**, including the stub measurement that sharpens it.
+- #4 — `Mutation:`/`Failing-test:` trailers are on `52bb91b` (the real commit,
+  not the merge commit).
+- #5 — main CI green: runs 42632904431 and 42592628925 both `success`.
+- #6 — `EXPECTED_FAILURES` was **not** extended; zero gita entries.
+- #7 — untouched; DOT-314 still owns the clipped/restart_stale refresh.
+
+
 Start by rebasing onto current `main` — the suite does not exist on older
 branches.
 
