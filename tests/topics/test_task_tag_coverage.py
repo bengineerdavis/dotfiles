@@ -76,7 +76,11 @@ def _flatten(tasks, inherited, task_file):
     for task in tasks or []:
         if not isinstance(task, dict):
             continue
-        tags = inherited | set(task.get("tags") or []) - {"never"}
+        # `never` is a suppression marker, not a lifecycle tag: a task carrying
+        # it runs only when explicitly requested, so it cannot be counted as
+        # covering a reader.
+        own = set(task.get("tags") or []) - {"never"}
+        tags = inherited | own
         yield task, tags, task_file
         if isinstance(task.get("block"), list):
             yield from _flatten(task["block"], tags, task_file)
@@ -105,38 +109,56 @@ def _collected_always_defined(role):
 
 
 def _imports(role):
-    """(file_name, import_tags) for each task file the role's router imports."""
+    """(file_name, import_tags) for each task file the role's router imports.
+
+    Follows nested `import_tasks` too — `apps/loreai` reaches its registry
+    answers through `prompts.yaml`, and a scan that stopped at `main.yaml`
+    would report a clean role without reading it. Tags accumulate the way
+    Ansible's do: an imported file's tasks inherit every tag on the import
+    that reached them.
+    """
     main = role / "tasks" / "main.yaml"
     if not main.is_file():
         return []
-    try:
-        router = yaml.safe_load(main.read_text()) or []
-    except yaml.YAMLError:
-        return []
+
     found = []
-    for entry in router:
-        if not isinstance(entry, dict):
-            continue
-        fname = entry.get("ansible.builtin.import_tasks") or entry.get("import_tasks")
-        if fname:
-            found.append((fname, set(entry.get("tags") or []) - {"never"}))
-    return found
+    seen = set()
+
+    def walk(path, inherited):
+        try:
+            tasks = yaml.safe_load(path.read_text()) or []
+        except yaml.YAMLError:
+            return
+        if not isinstance(tasks, list):
+            return
+        found.append((path, inherited))
+        for entry, tags, _ in _flatten(tasks, inherited, path.name):
+            fname = entry.get("ansible.builtin.import_tasks") or entry.get(
+                "import_tasks"
+            )
+            if not fname:
+                continue
+            nested = path.parent / fname
+            if nested.is_file() and nested not in seen:
+                seen.add(nested)
+                walk(nested, tags)
+
+    walk(main, set())
+    return [(p, t) for p, t in found if p.name != "main.yaml"]
 
 
 def _producers_and_readers(role):
     """Every registered name, and every expression that reads one."""
     producers = {}
     readers = []
-    for fname, import_tags in _imports(role):
-        path = role / "tasks" / fname
-        if not path.is_file():
-            continue
+    for path, import_tags in _imports(role):
         try:
             tasks = yaml.safe_load(path.read_text()) or []
         except yaml.YAMLError:
             continue
         if not isinstance(tasks, list):
             continue
+        fname = path.name
         for task, tags, _ in _flatten(tasks, import_tags, fname):
             name = task.get("name") or (
                 task.get("ansible.builtin.import_role") or task.get("import_role")
