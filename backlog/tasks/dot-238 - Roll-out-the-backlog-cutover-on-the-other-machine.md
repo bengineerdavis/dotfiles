@@ -1,12 +1,12 @@
 ---
 id: DOT-238
 title: Roll out the backlog cutover on the other machine
-status: To Do
+status: Done
 created_date: 2026-10-27 19:48
 labels:
 - cutover
 priority: high
-updated_date: 2026-10-27 22:22
+updated_date: 2026-11-09 15:58
 ---
 
 ## Description
@@ -28,9 +28,9 @@ The Debian machine needs the full rollout from docs/BACKLOG-CUTOVER.md: pull mai
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-
+Pruned as a stale artifact (2026-11-09): the cutover rollout was completed on the other machine and absorbed into routine operation. No outstanding rollout work remains.
+Pruned as a stale artifact (2026-11-09): the cutover rollout was completed on the other machine and absorbed into routine operation. No outstanding rollout work remains.
 <!-- SECTION:FINAL_SUMMARY:END -->
-
 ## Definition of Done
 <!-- DOD:BEGIN -->
 <!-- DOD:END -->
