@@ -227,6 +227,29 @@ def test_asc_dest_is_corrected_to_gpg(ak, tmp_path, pubkey):
     assert corrected.is_file()
     assert not dest.exists()
     assert ak.key_ids(corrected.read_bytes()) == [key_id]
+    # The source's signed-by must now name the .gpg path, not the stale .asc.
+    src = (tmp_path / "sources.list.d" / "repo.list").read_text()
+    assert "signed-by=" + str(corrected) in src
+    assert "signed-by=" + str(dest) not in src
+
+
+def test_asc_check_mode_leaves_source_and_files_untouched(ak, tmp_path, pubkey):
+    """A --check repair of a .asc dest must not repoint the source either.
+
+    Repointing in check mode would leave apt reading a .gpg that check mode
+    never wrote, reintroducing NO_PUBKEY. Both the source text and the files
+    must be unchanged.
+    """
+    armored, _, _ = pubkey
+    dest = tmp_path / "repo.asc"
+    list_source(tmp_path, dest)
+    src = tmp_path / "sources.list.d" / "repo.list"
+    before = src.read_text()
+    report = ak.repair(args(tmp_path, check=True), fetch=lambda u, t: armored)
+    assert report["status"] == "would-repair"
+    assert src.read_text() == before
+    assert not (tmp_path / "repo.gpg").exists()
+    assert not dest.exists()
 
 
 def test_required_key_missing_is_refused(ak, tmp_path, pubkey):

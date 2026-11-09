@@ -72,26 +72,36 @@
     - not docker_gpg_bin.stat.exists
 
 - name: "Docker (Debian): dearmour the signing key to a binary .gpg"
+  # changed_when reports true only when the command actually recreated the
+  # key (a fresh create or a replaced download), so callers see the real state.
   ansible.builtin.command:
     cmd: "gpg --dearmor --yes --output /etc/apt/keyrings/docker.gpg /etc/apt/keyrings/docker.asc"
   become: true
   when:
     - ansible_facts['os_family'] == 'Debian'
     - docker_key_download is changed or not docker_gpg_present.stat.exists
-  changed_when: false
+  changed_when: docker_key_download is changed or not docker_gpg_present.stat.exists
 
-- name: "Docker (Debian): enforce 0644 on the binary key"
+- name: "Docker (Debian): re-check the binary key exists"
   # gpg may create docker.gpg with a restrictive become umask (0600), which
   # apt's unprivileged _apt reader cannot open — NO_PUBKEY persists despite a
-  # successful dearmour. Match the 0644 the Python helper and the armoured
-  # download both write.
+  # successful dearmour. Re-stat after dearmour so a freshly created key (not
+  # present in the pre-run snapshot) still gets the mode. Match the 0644 the
+  # Python helper and the armoured download both write.
+  ansible.builtin.stat:
+    path: /etc/apt/keyrings/docker.gpg
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+  register: docker_gpg_after
+
+- name: "Docker (Debian): enforce 0644 on the binary key"
   ansible.builtin.file:
     path: /etc/apt/keyrings/docker.gpg
     mode: "0644"
   become: true
   when:
     - ansible_facts['os_family'] == 'Debian'
-    - docker_gpg_present.stat.exists
+    - docker_gpg_after.stat.exists
 
 - name: "Docker (Debian): retire legacy one-line source"
   # Pre-managed hosts have the repo as a hand-made docker.list. The deb822

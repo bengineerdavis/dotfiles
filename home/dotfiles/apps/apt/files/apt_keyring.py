@@ -247,16 +247,21 @@ def repair(args: argparse.Namespace, fetch=download) -> dict:
     if dest_path.suffix == ".asc":
         corrected = dest_path.with_suffix(".gpg")
         report["dest"] = str(corrected)
-        repointed = rewrite_signed_by(source, dest, str(corrected))
+        # A dry run must not repoint the source either: repointing to a
+        # .gpg that --check does not write leaves apt reading a missing
+        # file.
+        if not args.check:
+            rewrite_signed_by(source, dest, str(corrected))
         report["detail"] = (
             f"{dest} is a .asc path but the key is binary; apt 2.4 cannot "
-            f"load it. Rewrote the source's signed-by to {corrected}."
+            f"load it. Writing to {corrected} instead."
         )
         dest_path = corrected
 
     current = dest_path.read_bytes() if dest_path.is_file() else None
     if current == keyring:
         report["status"] = "ok"
+        report["source_repointed"] = dest_path.name != Path(dest).name
         return report
     report["changed"] = True
     report["status"] = "would-repair" if args.check else "repaired"
