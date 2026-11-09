@@ -110,6 +110,15 @@ def run_isolated_install(
     )
     if config_env is not None:
         env[config_env] = str(config_root)
+    else:
+        # The None case means "no config-env override", not "inherit
+        # whatever the caller had". A runner that exports
+        # XDG_CONFIG_HOME would send gita's writes to that real path
+        # while this test reads from tmp_path — KeyError: 'work' on CI,
+        # green locally (measured 2026-11-09). Pin every config root
+        # into the sandbox.
+        for key in ("XDG_CONFIG_HOME", "GITA_PROJECT_HOME"):
+            env.pop(key, None)
     gita_dir = home / ".config" / "gita"
     if gita_dir.exists() and gita_dir != config_root / "gita":
         shutil.move(str(gita_dir), str(config_root / "gita"))
@@ -376,3 +385,34 @@ def test_run_isolated_install_consults_the_guard(monkeypatch, tmp_path):
     monkeypatch.setattr(shutil, "which", lambda _name: None)
     with pytest.raises(pytest.skip.Exception, match="gita not on PATH"):
         run_isolated_install(tmp_path)
+
+
+def test_the_none_case_ignores_an_ambient_config_root(tmp_path, monkeypatch):
+    """`None` means "no override", not "inherit the caller's".
+
+    A runner can export XDG_CONFIG_HOME. When that leaked through, gita
+    wrote the group to the real config while the test read from
+    tmp_path — KeyError: 'work' on CI, green locally (measured
+    2026-11-09). The sandbox must hold regardless of what it inherits.
+    """
+    ambient = tmp_path / "ambient"
+    ambient.mkdir()
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(ambient))
+    monkeypatch.setenv("GITA_PROJECT_HOME", str(ambient))
+
+    home = tmp_path / "sandbox"
+    work = home / "code" / "work"
+    repo = work / "local-only"
+    (home / ".config" / "gita").mkdir(parents=True)
+    repo.mkdir(parents=True)
+    with (home / ".config" / "gita" / "repos.csv").open("a", newline="") as stream:
+        csv.writer(stream).writerow([str(repo), "local-only", "", ""])
+
+    proc = run_isolated_install(home, config_env=None)
+
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "local-only" in read_isolated_groups(home, None)["work"]
+    # Nothing may have been written into the inherited config root.
+    assert not (ambient / "gita").exists(), (
+        "the run wrote into the caller's XDG_CONFIG_HOME"
+    )
