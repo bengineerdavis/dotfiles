@@ -5,10 +5,8 @@ title: Lore re-distillation corrupts .lore.md entries — verify rules survive e
 status: To Do
 created_date: 2026-11-07 22:16
 orchestration:
-  status_key: inprogress
-  lease_owner: opencode-session
-  lease_expires_at: '2026-11-08T22:34:58.031277Z'
-  version: 1
+  status_key: todo
+  version: 2
 ---
 
 ## Description
@@ -25,11 +23,33 @@ Two consecutive roborev reviews of agent/retro-docs (jobs 463 and 479) failed on
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
 
+Interim guard shipped (PR #145, squash-merged 2026-11-08):
+`tests/docs/test_lore_md_rules_survive.py` fails the suite when a load-bearing
+rule's anchor vanishes from `.lore.md`. Three rules pinned — uv --frozen
+("re-locks uv.lock"), requires_map undefined skips removal ("skip the removal
+rather than assume it is harmless"), work repos never enter the committed
+catalogue. Anchors are body phrases, not titles, so a title/body swap that
+keeps the body still passes (survival is the bar, not placement). The codex
+decision-pointer defect is deliberately not canaried — it is still broken, so
+a guard on it would be permanently red.
+
+Remaining scope (not addressed here): the upstream report to BYK/loreai
+(DOT-298 pattern), and reconciling the codex wrong pointer. The pointer is
+wrong in the *body*, not the title: the entry title says "(decision-4)" and
+decision-4's own title is "codex routes through the Lore gateway; DOT-104's
+premise is retired", but the body cites "decision-2". `.lore.md` is
+captures-only, so the fix is a lore re-capture, not a hand-edit.
+
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
+
+The interim guard is in place and merged. This task's headline defect — silent
+loss of load-bearing rules during re-distillation — is now caught in the suite
+instead of in review. The two remaining items (upstream report, codex pointer)
+are deliberately deferred and recorded above.
 
 <!-- SECTION:FINAL_SUMMARY:END -->
 
@@ -53,5 +73,18 @@ metadata:
   lease_ttl_seconds: '3600'
 ```
 Interim .lore.md drift-guard test (tests/docs pattern); worktree .worktrees/dot-305 on agent/dot-305
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-fdd7d4983b124f99bd77914faa280450
+type: release_task
+actor: opencode-session
+timestamp: '2026-11-09T00:04:32.004254Z'
+result: succeeded
+task_id: DOT-305
+from_status: inprogress
+to_status: todo
+```
+Interim drift guard merged (PR #145); retro follow-ups merged (PR #147); remaining scope recorded in task
 <!-- RUN_HISTORY_ENTRY:END -->
 <!-- SECTION:RUN_HISTORY:END -->
