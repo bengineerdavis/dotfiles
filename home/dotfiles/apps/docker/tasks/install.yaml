@@ -50,21 +50,17 @@
   when: ansible_facts['os_family'] == 'Debian'
   register: docker_gpg_present
 
-- name: "Docker (Debian): dearmour the signing key to a binary .gpg"
+- name: "Docker (Debian): check gpg is available"
   # gpg is provided by the apt topic's prerequisites (gnupg), which runs
   # first in the pkg-manager tier. A scoped `run-role.sh docker` has no such
-  # guarantee, so fail with the fix named rather than a bare gpg-not-found.
-  ansible.builtin.command:
-    cmd: "gpg --dearmor --yes --output /etc/apt/keyrings/docker.gpg /etc/apt/keyrings/docker.asc"
+  # guarantee, so preflight it and fail before the dearmour command with the
+  # fix named — a bare command on a missing gpg fails with a generic
+  # "Error executing command" and never reaches the explanatory task.
+  ansible.builtin.stat:
+    path: /usr/bin/gpg
   become: true
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-    - docker_key_download is changed or not docker_gpg_present.stat.exists
-  changed_when: false
-  register: docker_key_dearmor
-  failed_when:
-    - docker_key_dearmor.rc != 0
-    - "'not found' not in docker_key_dearmor.stderr | default('')"
+  when: ansible_facts['os_family'] == 'Debian'
+  register: docker_gpg_bin
 
 - name: "Docker (Debian): fail with the fix if gpg is missing"
   ansible.builtin.fail:
@@ -73,8 +69,29 @@
       (gnupg). Run the apt topic first, or `sudo apt-get install -y gnupg`.
   when:
     - ansible_facts['os_family'] == 'Debian'
-    - docker_key_dearmor.rc is defined
-    - docker_key_dearmor.rc != 0
+    - not docker_gpg_bin.stat.exists
+
+- name: "Docker (Debian): dearmour the signing key to a binary .gpg"
+  ansible.builtin.command:
+    cmd: "gpg --dearmor --yes --output /etc/apt/keyrings/docker.gpg /etc/apt/keyrings/docker.asc"
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - docker_key_download is changed or not docker_gpg_present.stat.exists
+  changed_when: false
+
+- name: "Docker (Debian): enforce 0644 on the binary key"
+  # gpg may create docker.gpg with a restrictive become umask (0600), which
+  # apt's unprivileged _apt reader cannot open — NO_PUBKEY persists despite a
+  # successful dearmour. Match the 0644 the Python helper and the armoured
+  # download both write.
+  ansible.builtin.file:
+    path: /etc/apt/keyrings/docker.gpg
+    mode: "0644"
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - docker_gpg_present.stat.exists
 
 - name: "Docker (Debian): retire legacy one-line source"
   # Pre-managed hosts have the repo as a hand-made docker.list. The deb822

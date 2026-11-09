@@ -81,6 +81,21 @@ def _sources_signed_by(text: str, repo_host: str) -> str | None:
     return None
 
 
+def rewrite_signed_by(source: Path, old_dest: str, new_dest: str) -> bool:
+    """Repoint a source's signed-by path to the corrected keyring.
+
+    Replaces the old path wherever it appears as a signed-by value, so
+    the repaired source no longer references a `.asc` file apt cannot
+    read. Returns True when the file changed.
+    """
+    text = source.read_text(errors="replace")
+    new_text = text.replace(old_dest, new_dest)
+    changed = new_text != text
+    if changed:
+        source.write_text(new_text)
+    return changed
+
+
 def find_keyring_dest(repo_host: str, sources: list[Path]) -> tuple[Path, str] | None:
     """Return (source_file, keyring_path) for the first enabled match.
 
@@ -232,10 +247,10 @@ def repair(args: argparse.Namespace, fetch=download) -> dict:
     if dest_path.suffix == ".asc":
         corrected = dest_path.with_suffix(".gpg")
         report["dest"] = str(corrected)
+        repointed = rewrite_signed_by(source, dest, str(corrected))
         report["detail"] = (
             f"{dest} is a .asc path but the key is binary; apt 2.4 cannot "
-            f"load it. Writing to {corrected} instead — update the source's "
-            "signed-by= to match."
+            f"load it. Rewrote the source's signed-by to {corrected}."
         )
         dest_path = corrected
 
