@@ -62,6 +62,29 @@ def test_teardown_drops_the_group_before_uninstalling_gita():
     )
 
 
+def require_gita(*, stubbed: bool = False) -> None:
+    """Skip locally without gita; fail in CI, where a skip hides a gap.
+
+    The role shells out to `gita` and fails if it is not on PATH, by
+    design. Without the binary these cases fail for a reason unrelated
+    to what they assert.
+
+    A skip is invisible to the baseline gate: `check_suite_baseline.py`
+    compares failing node ids, so a skipped test simply disappears and
+    the gate reads green while testing nothing. So CI fails loudly
+    instead — if the workflow's install step stops working, that must
+    not look like a pass.
+    """
+    if stubbed or shutil.which("gita") is not None:
+        return
+    if os.environ.get("CI"):
+        pytest.fail(
+            "gita not on PATH in CI — the workflow step that installs it did "
+            "not run, so these cases would pass without testing"
+        )
+    pytest.skip("gita not on PATH — run `mise use -g pipx:gita`")
+
+
 def run_isolated_install(
     home: Path,
     check: bool = False,
@@ -71,6 +94,7 @@ def run_isolated_install(
     work_root: bool = True,
     work_root_name: str = "work",
 ):
+    require_gita(stubbed=fake_bin is not None)
     code = home / "code"
     work = code / work_root_name
     repo = work / "local-only"
@@ -96,6 +120,15 @@ def run_isolated_install(
     )
     if config_env is not None:
         env[config_env] = str(config_root)
+    else:
+        # The None case means "no config-env override", not "inherit
+        # whatever the caller had". A runner that exports
+        # XDG_CONFIG_HOME would send gita's writes to that real path
+        # while this test reads from tmp_path — KeyError: 'work' on CI,
+        # green locally (measured 2026-11-09). Pin every config root
+        # into the sandbox.
+        for key in ("XDG_CONFIG_HOME", "GITA_PROJECT_HOME"):
+            env.pop(key, None)
     gita_dir = home / ".config" / "gita"
     if gita_dir.exists() and gita_dir != config_root / "gita":
         shutil.move(str(gita_dir), str(config_root / "gita"))
@@ -241,6 +274,9 @@ def test_ghost_registration_is_not_passed_to_group_add(tmp_path):
 
 @requires_gita
 def test_teardown_removes_work_group_before_fake_mise_unuse(tmp_path):
+    # This one stubs mise, not gita: the role runs `gita clear` and
+    # `gita group rm`, so the real binary is required.
+    require_gita()
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     marker = tmp_path / "mise-called"
@@ -288,3 +324,109 @@ def test_group_add_passes_each_name_as_one_argument():
     argv = group_add["ansible.builtin.command"]["argv"]
     assert argv == ["gita", "group", "add", "-n", "{{ gita_work_group }}", "{{ item }}"]
     assert group_add["loop"] == "{{ gita_work_names }}"
+
+
+def test_require_gita_fails_in_ci_when_absent(monkeypatch):
+    """CI must fail without gita, never skip.
+
+    A skipped test disappears from the baseline gate's comparison, so a
+    skip here would read as a pass while six cases tested nothing. This
+    pins the branch that makes the absence loud.
+
+    Skipping is caught explicitly rather than left to propagate: a skip
+    raised out of this test would be reported as a skip, not a failure —
+    the same silent pass this guard exists to prevent.
+    """
+    monkeypatch.setenv("CI", "1")
+    monkeypatch.setattr(shutil, "which", lambda _name: None)
+    try:
+        require_gita()
+    except pytest.skip.Exception as exc:
+        raise AssertionError(
+            "require_gita skipped in CI, where a skip is invisible to the "
+            f"baseline gate: {exc}"
+        ) from exc
+    except pytest.fail.Exception as exc:
+        assert "did not run" in str(exc), exc
+    else:
+        raise AssertionError("require_gita neither failed nor skipped in CI")
+
+
+def test_require_gita_skips_locally_when_absent(monkeypatch):
+    """Off CI, a missing gita skips and names the fix."""
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.setattr(shutil, "which", lambda _name: None)
+    with pytest.raises(pytest.skip.Exception, match="mise use -g pipx:gita"):
+        require_gita()
+
+
+def test_require_gita_is_satisfied_by_a_stub(monkeypatch):
+    """A gita stub stands in, so a stubbed case never skips."""
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.setattr(shutil, "which", lambda _name: None)
+    require_gita(stubbed=True)
+
+
+def test_every_real_gita_case_declares_the_requirement():
+    """Each case needing the real binary must call the guard.
+
+    test_teardown builds its own env rather than going through
+    run_isolated_install, so it needs the guard called directly — and
+    without this test, deleting that call leaves the suite silently
+    depending on a provisioned machine again (a surviving mutation).
+    """
+    from pathlib import Path
+
+    source = Path(__file__).read_text()
+    # Anchor on the definition (line start), not the earlier mention of
+    # the same phrase inside another test's docstring.
+    marker = "\ndef test_teardown_removes_work_group_before_fake_mise_unuse"
+    assert marker in source
+    body = source.split(marker, 1)[1].split("\ndef ", 1)[0]
+    assert "require_gita()" in body, (
+        "test_teardown needs the guard: it runs the real role"
+    )
+
+
+def test_run_isolated_install_consults_the_guard(monkeypatch, tmp_path):
+    """The helper must ask before running the role.
+
+    Without this, deleting the guard call leaves every case depending on
+    a provisioned machine, and nothing notices while gita happens to be
+    installed (measured: mutation M3 survived without this test).
+    """
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.setattr(shutil, "which", lambda _name: None)
+    with pytest.raises(pytest.skip.Exception, match="gita not on PATH"):
+        run_isolated_install(tmp_path)
+
+
+def test_the_none_case_ignores_an_ambient_config_root(tmp_path, monkeypatch):
+    """`None` means "no override", not "inherit the caller's".
+
+    A runner can export XDG_CONFIG_HOME. When that leaked through, gita
+    wrote the group to the real config while the test read from
+    tmp_path — KeyError: 'work' on CI, green locally (measured
+    2026-11-09). The sandbox must hold regardless of what it inherits.
+    """
+    ambient = tmp_path / "ambient"
+    ambient.mkdir()
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(ambient))
+    monkeypatch.setenv("GITA_PROJECT_HOME", str(ambient))
+
+    home = tmp_path / "sandbox"
+    work = home / "code" / "work"
+    repo = work / "local-only"
+    (home / ".config" / "gita").mkdir(parents=True)
+    repo.mkdir(parents=True)
+    with (home / ".config" / "gita" / "repos.csv").open("a", newline="") as stream:
+        csv.writer(stream).writerow([str(repo), "local-only", "", ""])
+
+    proc = run_isolated_install(home, config_env=None)
+
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "local-only" in read_isolated_groups(home, None)["work"]
+    # Nothing may have been written into the inherited config root.
+    assert not (ambient / "gita").exists(), (
+        "the run wrote into the caller's XDG_CONFIG_HOME"
+    )
