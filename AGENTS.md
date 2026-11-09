@@ -865,6 +865,8 @@ Read by name when the work touches them:
 - **`docs/GLOSSARY.md`** — project terminology, linked on first use.
 - **`docs/LINK-CHECKING.md`** — the Lychee cadence and its security boundary.
 - **`docs/WORKTREES.md`** — the worktree naming contract and lifecycle.
+- **`docs/BRANCH-SYNC.md`** — how a branch stays mergeable: the pre-push
+  check, and why a declared hook stage without a shim never runs.
 - **`docs/TOPICS.md`** — topic structure, lifecycle, dependency and ownership.
 - **`docs/TRUST-LADDER.md`** — rungs, incident classes, promotion and ageing.
 - **`docs/TESTING.md`** — mutation proving, properties and fuzzing.
