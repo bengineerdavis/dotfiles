@@ -77,9 +77,21 @@ Measured on 2026-10-26:
 - The provenance guard audits `~/.agents/skills`; plugin skills live elsewhere,
   so they are outside that audit.
 
-Per-client marketplace wiring is queued as its own task. Until it lands, treat
-a plugin source as opencode-only and say so, rather than claiming the skill set
-is uniform across agents.
+Per-client marketplace wiring:
+
+- `claude` and `codex` are wired by this topic — `claude plugin marketplace
+  add` plus `claude plugin install`, and `codex plugin add` — reading the
+  plugin names from the marketplace file dotagents generated.
+- `cursor` is excluded: its CLI exposes no plugin or marketplace subcommand
+  (checked 2026-10-30, cursor 3.27.22).
+- **A client whose CLI is absent is skipped, not failed.** The clients are
+  machine-local, and `claude` comes from `apps/claude-code`, which is
+  Darwin-only (Debian is DOT-141). The skill set still reaches every agent
+  through `~/.agents/skills`. A client that IS installed and then fails for a
+  real reason still fails the run.
+- Set `dotagents_wire_claude` or `dotagents_wire_codex` to `false` to decline
+  wiring for an installed client. The run reports it as *declined*, which is
+  distinct from *absent*, so the two states never blur.
 
 ## Teardown
 

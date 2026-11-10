@@ -244,15 +244,20 @@
       `dotagents list` reports which skills and plugins that resolved to.
   tags: [dotagents_skills, upgrade]
 
-# ── Claude plugin wiring ─────────────────────────────────────────────────────
+# ── Client plugin wiring ─────────────────────────────────────────────────────
 # dotagents publishes the local marketplace in claude's native format
 # (~/.agents/plugins/marketplace.json, name `dotagents-local`) but does not
 # register it — plugin skills reached opencode only (measured 2026-10-28,
-# dotagents 3.4.0; upstream #201 is a library API, not client wiring). The
-# claude CLI accepts the marketplace by path, so this topic drives the CLI
+# dotagents 3.4.0; upstream #201 is a library API, not client wiring). Each
+# client CLI registers the marketplace itself, so this topic drives the CLI
 # rather than templating ~/.claude/settings.json, which is machine-local.
-# `claude` is a mise tool (apps/claude/files/config.toml); the shims PATH is
-# prepended the same way the dotagents calls above do it.
+#
+# The clients are machine-local and optional: `claude` comes from
+# apps/claude-code, which is Darwin-only (Debian is DOT-141, open), and `codex`
+# has no topic at all. A CLI that is absent is skipped and reported — the skill
+# set still reaches every agent through ~/.agents/skills — while a CLI that is
+# present and fails still fails the run. Probed rather than assumed, because
+# the assumption is what aborted a Debian run (measured 2026-11-09).
 
 - name: "Find the dotagents plugin marketplace"
   ansible.builtin.stat:
@@ -269,6 +274,66 @@
   when: dotagents_claude_marketplace.stat.exists
   tags: [dotagents_skills, upgrade]
 
+- name: "Probe for each optional client CLI"
+  # `command -v` through the shell, not the command module: the command module
+  # passes `||` as a literal operand and then resolves ANY token, so `a || b`
+  # is a false-positive detector (roborev review, PR #70 — apps/loreai). The
+  # probe runs whether or not the marketplace exists, because the report below
+  # describes the machine, not this run's skipping.
+  ansible.builtin.shell:
+    cmd: command -v {{ item.probe | quote }} >/dev/null 2>&1
+  environment:
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/shims:{{ ansible_facts['env']['PATH'] }}"
+  register: dotagents_client_probes
+  changed_when: false
+  failed_when: false
+  check_mode: false  # read-only probe; keeps --check detection honest
+  loop:
+    - {client: claude, probe: claude, wire_var: dotagents_wire_claude}
+    - {client: codex, probe: codex, wire_var: dotagents_wire_codex}
+  loop_control:
+    label: "{{ item.client }}"
+  tags: [dotagents_skills, upgrade]
+
+- name: "Record which clients are wired, declined, or absent"
+  # One fact feeds both the per-client `when:` and the report, so the report
+  # cannot disagree with what the run did. `declined` is a machine deciding not
+  # to wire a client that IS installed — distinct from absent, and it must not
+  # read as absent or the operator loses the distinction they asked for.
+  ansible.builtin.set_fact:
+    dotagents_client_state: >-
+      {%- set state = {} -%}
+      {%- for probe in dotagents_client_probes.results -%}
+        {%- set installed = probe.rc == 0 -%}
+        {#- `vars[...]` is refused inside a template; the lookup is the supported
+            way to read a variable whose NAME is itself data. -#}
+        {%- set wanted = lookup('vars', probe.item.wire_var, default=true) | bool -%}
+        {%- set _ = state.update({
+              probe.item.client:
+                ('wired' if installed and wanted
+                 else 'declined' if installed
+                 else 'absent')}) -%}
+      {%- endfor -%}
+      {{ state }}
+  tags: [dotagents_skills, upgrade]
+
+- name: "Report client wiring on this machine"
+  ansible.builtin.debug:
+    msg: >-
+      Client plugin wiring:
+      {% for client, state in dotagents_client_state.items() %}
+      {{ client }} is {{ state }}{{ ',' if not loop.last else '.' }}
+      {% endfor %}
+      {{ '' if 'absent' not in dotagents_client_state.values() else
+         'An absent client is skipped, not an error: its CLI is not installed
+         here, so there is nothing to register the marketplace with. Install the
+         client (apps/claude-code is Darwin-only; Debian is DOT-141) and re-run
+         the topic to wire it.' }}
+      {{ '' if 'declined' not in dotagents_client_state.values() else
+         'A declined client is installed but its dotagents_wire_<client> flag is
+         off; set it true in defaults/main.yaml to wire it.' }}
+  tags: [dotagents_skills, upgrade]
+
 - name: "Register the dotagents marketplace with claude"
   # Re-running is a no-op that exits 0 with "already on disk", so this
   # converges on every run. When the marketplace file is absent (no plugin
@@ -283,7 +348,9 @@
   register: dotagents_claude_marketplace_add
   failed_when: false
   changed_when: "'Successfully added' in dotagents_claude_marketplace_add.stdout"
-  when: dotagents_claude_marketplace.stat.exists
+  when:
+    - dotagents_claude_marketplace.stat.exists
+    - dotagents_client_state.claude == 'wired'
   tags: [dotagents_skills, upgrade]
 
 - name: "Fail with anything claude's marketplace registration could not explain"
@@ -293,13 +360,14 @@
          | rejectattr('rc', 'eq', 0) | list }}
   ansible.builtin.fail:
     msg: >-
-      claude could not register the dotagents marketplace
+      claude is installed but could not register the dotagents marketplace
       (~/.agents/plugins/marketplace.json). What it actually said:
       {{ dotagents_claude_marketplace_failures
-         | map(attribute='stderr') | map('trim') | select | join(' | ')
-         | default('nothing on stderr; re-run `claude plugin marketplace add` by hand', true) }}
+         | map('client_said', 'nothing on stderr, stdout or msg; re-run `claude plugin marketplace add` by hand')
+         | join(' | ') }}
   when:
     - dotagents_claude_marketplace.stat.exists
+    - dotagents_client_state.claude == 'wired'
     - dotagents_claude_marketplace_add.rc | default(0) != 0
   tags: [dotagents_skills, upgrade]
 
@@ -317,7 +385,9 @@
   register: dotagents_claude_plugin_install
   failed_when: false
   changed_when: "'Successfully installed' in dotagents_claude_plugin_install.stdout"
-  when: dotagents_claude_marketplace.stat.exists
+  when:
+    - dotagents_claude_marketplace.stat.exists
+    - dotagents_client_state.claude == 'wired'
   tags: [dotagents_skills, upgrade]
 
 - name: "Fail with every dotagents plugin claude could not install"
@@ -327,14 +397,15 @@
          | rejectattr('rc', 'eq', 0) | list }}
   ansible.builtin.fail:
     msg: >-
-      claude could not install
+      claude is installed but could not install
       {{ dotagents_claude_plugin_failures | map(attribute='item.name') | join(', ') }}.
       What it actually said:
       {{ dotagents_claude_plugin_failures
-         | map(attribute='stderr') | map('trim') | select | join(' | ')
-         | default('nothing on stderr; re-run `claude plugin install <name>@dotagents-local` by hand', true) }}
+         | map('client_said', 'nothing on stderr, stdout or msg; re-run `claude plugin install <name>@dotagents-local` by hand')
+         | join(' | ') }}
   when:
     - dotagents_claude_marketplace.stat.exists
+    - dotagents_client_state.claude == 'wired'
     - dotagents_claude_plugin_failures | default([]) | length > 0
   tags: [dotagents_skills, upgrade]
 
@@ -355,7 +426,9 @@
   register: dotagents_codex_plugin_install
   failed_when: false
   changed_when: "'Added plugin' in dotagents_codex_plugin_install.stdout"
-  when: dotagents_claude_marketplace.stat.exists
+  when:
+    - dotagents_claude_marketplace.stat.exists
+    - dotagents_client_state.codex == 'wired'
   tags: [dotagents_skills, upgrade]
 
 - name: "Fail with every dotagents plugin codex could not install"
@@ -365,14 +438,15 @@
          | rejectattr('rc', 'eq', 0) | list }}
   ansible.builtin.fail:
     msg: >-
-      codex could not install
+      codex is installed but could not install
       {{ dotagents_codex_plugin_failures | map(attribute='item.name') | join(', ') }}.
       What it actually said:
       {{ dotagents_codex_plugin_failures
-         | map(attribute='stderr') | map('trim') | select | join(' | ')
-         | default('nothing on stderr; re-run `codex plugin add <name>@dotagents-local` by hand', true) }}
+         | map('client_said', 'nothing on stderr, stdout or msg; re-run `codex plugin add <name>@dotagents-local` by hand')
+         | join(' | ') }}
   when:
     - dotagents_claude_marketplace.stat.exists
+    - dotagents_client_state.codex == 'wired'
     - dotagents_codex_plugin_failures | default([]) | length > 0
   tags: [dotagents_skills, upgrade]
 

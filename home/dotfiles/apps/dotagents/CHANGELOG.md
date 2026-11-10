@@ -3,6 +3,28 @@
 Section names come from antsibull-changelog; see `docs/TOPICS.md`
 § "Per-topic changelog and local edge cases".
 
+## 2026-11-09
+
+### minor_changes
+
+- **Client plugin wiring tolerates an absent CLI.** `claude` and `codex` are
+  probed on the extend PATH; an absent one is skipped and named in the run
+  report. The wiring assumed both were installed, which aborted the whole topic
+  on Debian, where `claude` is absent by design (apps/claude-code is Darwin-only;
+  DOT-141 is open). The skill set reaches every agent through `~/.agents/skills`
+  regardless, so absence is a supported state — a client that IS installed and
+  then fails still fails the run.
+
+- **Failure messages report what the client actually said.** The gates mapped
+  `stderr` alone; `ansible.builtin.command` answers a missing binary with rc 2,
+  empty stderr, and the reason in `msg`, so they printed "nothing on stderr".
+  A `client_said` filter reports stderr, then stdout (where `claude plugin
+  install` prints "Aborted."), then `msg`.
+
+- `dotagents_wire_claude` and `dotagents_wire_codex` (default true) let a
+  machine decline wiring for an installed client. A declined client reports as
+  declined, never as absent.
+
 ## 2026-11-01
 
 ### minor_changes
