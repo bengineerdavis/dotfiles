@@ -163,3 +163,18 @@ dotagents_allow_unapproved_skills: false
 # next session, so the guard would fail every run forever. Off restores the
 # fail-closed denial.
 dotagents_skill_foreign: true
+
+# ── Per-client plugin wiring ─────────────────────────────────────────────────
+# dotagents publishes the local marketplace, but each agent CLI registers it
+# itself, so the topic drives that CLI. A client whose CLI is not installed is
+# SKIPPED with a report, not failed: the runtimes are machine-local, and the
+# skill set reaches every agent through ~/.agents/skills regardless. Failing
+# the whole topic because one of six clients is absent made a Darwin-only
+# `claude` abort the install on Debian (measured 2026-11-09).
+#
+# A client that IS installed and then fails for a real reason still fails the
+# run. Absence is the supported state; a broken client is not. Set a flag to
+# false to decline wiring for a client that is installed, so a deliberately
+# unwired client is reported as declined rather than silently skipped.
+dotagents_wire_claude: true
+dotagents_wire_codex: true
