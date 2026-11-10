@@ -4,6 +4,12 @@ title: Make dotagents client wiring tolerate an absent CLI, and fail loudly on r
   errors
 status: To Do
 created_date: 2026-11-10 06:04
+orchestration:
+  status_key: inprogress
+  lease_owner: dotagents-optional-clients
+  lease_expires_at: '2026-11-10T07:04:22.697723Z'
+  version: 1
+updated_date: 2026-11-10 06:16
 ---
 
 ## Description
@@ -38,9 +44,8 @@ Decision 2026-11-09: absence is gated on the binary, not on OAuth or API credent
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
+Fixed on branch dotagents-optional-clients, PR #172 (2026-11-09). Clients are probed with command -v and classified wired/declined/absent; absence is gated on the BINARY, not credentials — verified from code.claude.com/docs/en/plugins/cli-reference that plugin marketplace add is a local settings write needing no auth. client_said filter reports stderr, then stdout ('Aborted.'), then msg. Measured: --tags dotagents_skills now completes on this Debian box with failed=0, reporting 'claude is absent, codex is wired'. 9 tests; 3 mutations tried and caught. Pre-existing unrelated failure: tests/docs/test_lore_md_rules_survive.py (requires_map anchor missing from .lore.md on main too).
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
-
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
@@ -50,3 +55,21 @@ Decision 2026-11-09: absence is gated on the binary, not on OAuth or API credent
 ## Definition of Done
 <!-- DOD:BEGIN -->
 <!-- DOD:END -->
+
+## Run History
+<!-- SECTION:RUN_HISTORY:BEGIN -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-732eb5d5bde74ca8b6ef85c660555cb8
+type: claim_task
+actor: dotagents-optional-clients
+timestamp: '2026-11-10T06:04:22.697775Z'
+result: succeeded
+task_id: DOT-341
+from_status: todo
+to_status: inprogress
+metadata:
+  lease_ttl_seconds: '3600'
+```
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- SECTION:RUN_HISTORY:END -->
