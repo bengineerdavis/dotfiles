@@ -23,7 +23,7 @@ project from the session directory.
 | create | `task_create` | `backlog-py task create "<title>"` |
 | edit | `task_edit` | `backlog-py task edit <id>` |
 | claim, release | `orchestration_claim_task`, `orchestration_release_task` | `backlog-py orchestration claim`, `release` |
-| close | `task_complete` | `backlog-py task complete <id>` |
+| close | `task_complete` | `backlog-py task edit <id> -s Done` |
 | board, status | `task_board`, `project_status` | `backlog-py board`, `overview` |
 | documents | `document_create`, `document_view` | `backlog-py doc create`, `view` |
 
@@ -35,6 +35,11 @@ The CLI has no `view` subcommand. Task reads are the bare positional
 errors `Unknown task command: 'view'`. The CLI's own `task --help` opens with
 "View tasks", which invites exactly that wrong subcommand — treat the "View
 tasks" line as a description, not a verb name.
+
+The CLI has no `complete` subcommand either. Closing a task is the `-s` flag
+on the bare positional: `backlog-py task <id> -s Done` (or `task edit <id> -s
+Done`). `task complete <id>` falls through to the generic `task --help`, the
+same way `view` does.
 
 ## Spec-driven flow
 
