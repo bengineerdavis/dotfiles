@@ -88,3 +88,55 @@ to_status: todo
 Interim drift guard merged (PR #145); retro follow-ups merged (PR #147); remaining scope recorded in task
 <!-- RUN_HISTORY_ENTRY:END -->
 <!-- SECTION:RUN_HISTORY:END -->
+
+## State as of 2026-11-10 — read before starting
+
+**`main` is red, and the cause is this task's subject.** One test fails on a
+clean `origin/main` (`39e6acaca`):
+
+```
+tests/docs/test_lore_md_rules_survive.py::test_rule_survives_redistillation[requires_map undefined skips removal]
+1 failed, 4 passed
+```
+
+**What happened.** Commit `732eaa550` ("backlog: record DOT-341 outcome and PR
+#172") rewrote `.lore.md` — 68 lines changed — and silently dropped the entry
+`lore:01a1bf7f-db90-77fd-8fad-43094b413e14`. That entry carried the rule
+"when you are unsure whether a test-owned artifact is safe to remove, skip the
+removal rather than assume it is harmless", which is exactly what
+`tests/docs/test_lore_md_rules_survive.py` asserts on.
+
+**Verified, not inferred** — the rule's presence by commit:
+
+| Commit | Rule present |
+|---|---|
+| `696af7bae` | yes |
+| `732eaa550` | **no** — the rewrite |
+| `a9ee7892a` | no — the merge carried the loss forward |
+
+**A fix was written and deliberately discarded.** A commit restoring the block
+from `696af7bae` was prepared in a scratch worktree. The author chose to discard
+it and leave the repair to this task, so nothing was pushed and `main` is
+unchanged. Do not go looking for that commit; it no longer exists.
+
+**Third sighting.** Prior occurrences are in this task's history. This one is
+different in a way that matters: it was caught by the `tests/docs` guard on CI,
+not by a human noticing. The guard did its job.
+
+**The real gap.** The guard only catches a loss *after* it lands, and only for
+the rules it happens to assert on. Any unguarded `.lore.md` entry can still be
+dropped by a re-distillation with nothing noticing. So the durable fix is not
+"restore this one block" — it is one of:
+
+- a `.lore.md` rewrite that is structurally lossless (re-distillation that
+  cannot delete an entry, only reorder or summarise it), or
+- a diff check that fails a commit which removes a `<!-- lore:ID -->` block
+  without an explicit deletion marker.
+
+The second is cheaper and catches the class rather than one instance.
+
+**Reproduction for whoever takes this:** `uv run --frozen pytest
+tests/docs/test_lore_md_rules_survive.py` on a clean `origin/main`. Then
+`git show 732eaa550 -- .lore.md` to see the rewrite that dropped it. Restoring
+the block is a valid first move, but it leaves the class open and `main` red
+again at the next rewrite.
