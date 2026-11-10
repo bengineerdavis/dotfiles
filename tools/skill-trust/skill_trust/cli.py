@@ -13,6 +13,7 @@ import dataclasses
 import datetime
 import json
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -23,7 +24,7 @@ import yaml
 from .buckets import ForeignBucket, find_buckets
 
 # pyrefly: ignore [missing-import]
-from .decide import Decision, Verdict, decide, layer_configs
+from .decide import Decision, Verdict, decide, layer_configs, source_matches
 
 # pyrefly: ignore [missing-import]
 from .discover import licence_from_dir, licence_from_repo
@@ -454,6 +455,8 @@ def cmd_resolve(args, input_fn=None) -> int:
     lands in the machine-local store the moment it is given, so an interrupted
     run keeps the decisions already made.
     """
+    if getattr(args, "revisit", False):
+        return _cmd_revisit(args, input_fn)
     if input_fn is None:
         # Resolved at call time, not def time: a default of `input` would bind
         # the original builtin at import and be unpatchable in tests.
@@ -526,6 +529,166 @@ def cmd_resolve(args, input_fn=None) -> int:
         "failing on them. Remove the skills, or re-run resolve."
     )
     return DENIED
+
+
+# ── resolve --revisit ───────────────────────────────────────────────────────
+
+# The store kinds `--revisit` walks and can reverse. `exclude` is deliberately
+# absent: an exclusion names a source AND a skill and stays retractable via
+# `trust remove --exclude`, never through this workflow.
+_REVISIT_KINDS = ("deny_sources", "deny_skills")
+
+
+def _repo_caller(config_path: pathlib.Path | None) -> str | None:
+    """The topic that wrote the rules, from the guard's header comment.
+
+    `load_config` parses YAML and discards the header, so the caller has to be
+    read from the raw text — the guard writes ``# Written by ... (<caller>).``
+    and that is the only place the provenance lives.
+    """
+    if config_path is None or not config_path.is_file():
+        return None
+    head = config_path.read_text(encoding="utf-8").split("\n", 4)
+    for line in head:
+        match = re.search(r"roles/guards/tasks/[^ ]+ \(([^)]+)\)", line)
+        if match:
+            return match.group(1)
+    return None
+
+
+def _revisit_declared_sources(args, config: dict) -> set[str] | None:
+    """Sources still present on this machine, from the manager's inventory.
+
+    None means "no source of truth" — the inventory could not be obtained and
+    `installed` carries nothing, so nothing can be marked gone. A skill with no
+    declared source cannot match (source_matches(pattern, None) is False), so a
+    denied source with no declared skill under it is gone.
+    """
+    if getattr(args, "declared_json", None) or (
+        getattr(args, "inventory_cmd", None)
+        and not getattr(args, "no_inventory", False)
+    ):
+        return set(_load_declared(args, config, interactive=True).values())
+    installed = {e["source"] for e in config.get("installed") or []}
+    return installed or None
+
+
+def _entry_gone(
+    kind: str, value: str, root: pathlib.Path, declared: set[str] | None
+) -> bool:
+    """Whether a denied target no longer exists on this machine."""
+    if kind == "deny_skills":
+        return not (root / value).is_dir()
+    if declared is None:
+        return False
+    return not any(source_matches(value, s) for s in declared)
+
+
+def _report_repo_denials(config: dict, config_path: pathlib.Path | None) -> None:
+    """Repo-level denials, read-only: reported with where they live, never
+    retracted from the store (layering puts a store deny UNDER the repo rules,
+    so a store write could not overturn them anyway).
+    """
+    caller = _repo_caller(config_path)
+    for kind, key in (("deny_sources", "source"), ("deny_skills", "name")):
+        for value in config.get(kind) or []:
+            via = f" set by {caller}" if caller else ""
+            at = f" ({config_path})" if config_path else ""
+            print(
+                f"── (repo rule) {kind}: {value}{via} — a repo ban; retractable "
+                f"only by editing the topic rules{at}"
+            )
+
+
+def _revisit_menu(kind: str) -> list[tuple[str, str]]:
+    if kind == "deny_sources":
+        return [
+            ("k", "keep the ban"),
+            ("r", "retract the ban — next run judges on merits"),
+            ("a", "approve instead — lift the ban and approve this source"),
+        ]
+    return [
+        ("k", "keep the denial"),
+        ("r", "retract the denial — next run judges on merits"),
+        ("a", "approve instead — lift the denial and vendor this directory"),
+    ]
+
+
+def _revisit_apply(store_path, store, kind, value, choice, input_fn):
+    if choice == "r":
+        store, _removed = store_mod.remove_entry(store, kind, value)
+        store_mod.save_store(store_path, store)
+        return store
+    why = ""
+    while not why.strip():
+        why = input_fn("  why (required — the change of mind, checkable later): ")
+    store, _removed = store_mod.remove_entry(store, kind, value)
+    if kind == "deny_sources":
+        store = store_mod.add_entry(store, "approved_sources", source=value, why=why)
+    else:
+        store = store_mod.add_entry(store, "vendored", name=value, why=why)
+    store_mod.save_store(store_path, store)
+    return store
+
+
+def _cmd_revisit(args, input_fn=None) -> int:
+    """Walk recorded store denials and offer to retract or reverse each.
+
+    Reads the RAW store (trust.yaml), not the layered config: store denials are
+    retractable, repo denials are not (and are reported read-only above). Never
+    touches the network or a licence lookup, so it needs no gh.
+    """
+    if input_fn is None:
+        input_fn = input
+    if not sys.stdin.isatty():
+        print(
+            "skill-trust: resolve --revisit needs a terminal — it asks questions. "
+            "Run it in one, or use `skill-trust trust remove` non-interactively.",
+            file=sys.stderr,
+        )
+        return ERROR
+
+    config = load_config(args.config)
+    store_path = args.store
+    root = pathlib.Path(args.skills_dir)
+
+    _report_repo_denials(config, args.config)
+
+    found = store_mod.read_store(store_path)
+    entries = [
+        (kind, entry, store_mod.KIND_KEYS[kind])
+        for kind in _REVISIT_KINDS
+        for entry in found.get(kind, [])
+    ]
+    if not entries:
+        if any(key in config for key in ("deny_sources", "deny_skills")):
+            print(
+                "nothing to revisit — no store-level denials recorded (repo bans above)"
+            )
+        else:
+            print("nothing to revisit — no denials recorded")
+        return PERMITTED
+
+    declared = _revisit_declared_sources(args, config)
+    for kind, entry, key in entries:
+        value = entry[key]
+        gone = _entry_gone(kind, value, root, declared)
+        meta = " — ".join(x for x in (entry.get("why"), entry.get("decided")) if x)
+        gone_mark = " [gone from disk]" if gone else ""
+        print(f"\n── {kind}: {value} ({meta}){gone_mark}")
+        choices = _revisit_menu(kind)
+        valid = {k for k, _label in choices}
+        for k, label in choices:
+            print(f"   [{k}] {label}")
+        try:
+            answer = _ask(f"   choice [{'/'.join(sorted(valid))}]: ", valid, input_fn)
+            if answer == "k":
+                continue
+            found = _revisit_apply(store_path, found, kind, value, answer, input_fn)
+        except EOFError, KeyboardInterrupt:
+            print("\ninterrupted — decisions already made are recorded")
+            break
+    return PERMITTED
 
 
 # Flag dest → store kind, for `trust add` / `trust remove`.
@@ -694,6 +857,13 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="do not fetch the manager's inventory",
     )
+    resolve.add_argument(
+        "--revisit",
+        action="store_true",
+        help="walk recorded store denials and offer to retract or reverse "
+        "each (change-of-mind workflow; repo rules are reported, never "
+        "retracted)",
+    )
     resolve.set_defaults(func=cmd_resolve)
 
     trust = sub.add_parser(
@@ -730,7 +900,11 @@ def main(argv: list[str] | None = None) -> int:
     # commands can reach — never for trust, which touches only the store. The
     # guard's failure message names `trust add` as the non-interactive fix, so
     # it must work on a box without gh (roborev job 16, finding 2).
-    if not args.offline and args.command in {"check", "audit", "resolve"}:
+    if (
+        not args.offline
+        and args.command in {"check", "audit", "resolve"}
+        and (not getattr(args, "revisit", False))
+    ):
         require("gh")
     try:
         return args.func(args)
