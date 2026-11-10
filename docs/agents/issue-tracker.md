@@ -20,7 +20,7 @@ project from the session directory.
 |---|---|---|
 | list, search | `task_list`, `task_search` | `backlog-py task list` |
 | read one | `task_view` | `backlog-py task <id>` |
-| create | `task_create` | `backlog-py task create "<title>"` |
+| create | `task_create` | `backlog-py task --id <id> --title "<title>"` |
 | edit | `task_edit` | `backlog-py task edit <id>` |
 | claim, release | `orchestration_claim_task`, `orchestration_release_task` | `backlog-py orchestration claim`, `release` |
 | close | `task_complete` | `backlog-py task edit <id> -s Done` |
