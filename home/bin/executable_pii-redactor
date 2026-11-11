@@ -56,7 +56,7 @@ import tempfile
 from collections import Counter
 from pathlib import Path
 
-MODEL_DEFAULT = "qwen3.5:9b-mlx"
+MODEL_DEFAULT = "ollama/qwen3.5:9b-mlx"
 
 # Inserted before the extension when -o is given without an argument.
 OUTPUT_SUFFIX = "-pii-removed"
@@ -635,11 +635,24 @@ def parse_args(argv: list[str]) -> Options:
 
 
 def build_cmd(model: str) -> list[str]:
-    cmd = ["llm", "-m", model, "-s", SYSTEM_PROMPT, "-n"]
+    cmd = ["llm", "-m", qualify_model(model), "-s", SYSTEM_PROMPT, "-n"]
     # Deliberately word-split, matching the unquoted ${LLM_EXTRA_OPTS} the bash
     # version expanded: callers pass things like "-o think false".
     cmd += shlex.split(os.environ.get("LLM_EXTRA_OPTS", ""))
     return cmd
+
+
+def qualify_model(model: str) -> str:
+    """Give a bare ollama tag its provider prefix.
+
+    `llm` resolves models as `<provider>/<name>`, so `qwen3.8:27b-mlx` fails with
+    "Unknown model" even though ollama has it — the exact tag in `ollama list`
+    is the one that cannot be passed. A tag with no slash is unambiguous, so
+    assume ollama rather than making the caller discover the prefix.
+    """
+    if "/" in model:
+        return model
+    return f"ollama/{model}"
 
 
 def child_env() -> dict[str, str]:
