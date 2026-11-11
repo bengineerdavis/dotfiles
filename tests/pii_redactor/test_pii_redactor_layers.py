@@ -227,14 +227,19 @@ def test_scrub_leaves_crash_and_har_lookalikes_alone(pii_module, text):
         ("/srv/builds/acme-internal/App", "[LOCAL-PATH]/App"),
         # Trailing punctuation in prose is not part of the path.
         ("crash in /Users/jane/app/bin/run.", "crash in [HOME]/run"),
+        # An all-separator run survives the length check but has no components
+        # to name. It used to raise IndexError on parts[-1] and take down the
+        # whole run — met in a real 26 MB HAR.
+        ("a //// b", "a //// b"),
+        ("regression: ///// here", "regression: ///// here"),
     ],
 )
 def test_paths_collapse_but_keep_the_code_identity(pii_module, given, expected):
     scrubbed, hits = pii_module.scrub(given)
     assert scrubbed == expected, f"{given!r} -> {scrubbed!r}"
-    # Claimed by exactly one detector — the container paths by their own rule,
-    # everything else by the generic collapse.
-    assert sum(hits.values()) == 1, hits
+    # `/8` in a CIDR range and all-separator runs are left alone and uncounted.
+    expected_hits = 0 if "////" in given else 1
+    assert sum(hits.values()) == expected_hits, hits
 
 
 def test_the_scrubbed_path_names_the_same_code(pii_module):

@@ -253,6 +253,10 @@ def _collapse_path(match: re.Match) -> str | None:
     if len(path) < 4:
         return None
     parts = [p for p in path.split("/") if p]
+    # An all-separator path such as `////` survives the length check but has no
+    # components, so there is no leaf to keep. Leave it rather than crash.
+    if not parts:
+        return None
     if len(parts) >= 2 and parts[-2].endswith((".framework", ".app")) and parts[-1] == parts[-2].rsplit(".", 1)[0]:
         keep = "/".join(parts[-2:])
     else:
