@@ -89,7 +89,35 @@ Sources to read before answering: `backlog-py task --help`,
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
+2026-11-12 — measured answer to the main question, on a live dirty tree
+(8 other task files modified by a concurrent session, including DOT-140):
 
+`git commit -o <path>` IS sufficient, given two conditions:
+1. the path is already tracked OR staged first (an untracked path makes
+   `-o` error with "pathspec ... did not match any file(s) known to git");
+2. the index holds nothing else for that commit.
+
+Verified: staged one new task file, ran `git commit -o <that file>` with 9
+dirty neighbours present, result was 1 file changed / 103 insertions, and every
+neighbour stayed dirty afterwards. DOT-140's uncommitted notes survived intact.
+
+So the original incident's cause was NOT `-o` leaking neighbours. It was the
+`git add` needed to make an untracked path committable, combined with the file
+already having been rewritten on disk by backlog-py's re-index — the second
+attempt at that commit picked up DOT-140 because DOT-140 was dirty at the moment
+`git add` ran on a *different* path... worth re-checking whether that is exactly
+what happened, but the safe procedure is clear either way:
+
+  git add <the one task file>
+  git diff --cached --name-only   # assert exactly one path
+  git commit -o <that same path>
+
+The `git diff --cached --name-only` assertion is the cheap guard: it makes a
+sweep visible before the commit rather than after.
+
+Alternative rejected: making backlog-py commit for you (`autoCommit: true`).
+It violates the house rule that the tool never commits, and a tool committing
+would race the same dirty tree with less visibility, not more.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
