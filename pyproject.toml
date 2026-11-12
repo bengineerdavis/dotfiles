@@ -111,7 +111,6 @@ max-doc-length = 72
 "tests/herdr/**" = ["W505", "D205"]
 "tests/ollama_evals/**" = ["W505", "D205"]
 "tests/permissions/**" = ["W505", "D205"]
-"tests/pii_redactor/**" = ["W505", "D205"]
 "tests/policy/**" = ["W505", "D205"]
 "tests/quarantine/**" = ["W505", "D205"]
 "tests/suite/**" = ["W505", "D205"]

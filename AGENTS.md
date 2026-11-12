@@ -294,11 +294,14 @@ first.
 
 - `home/bin/executable_fetchurl` — actively developed; caused the only real merge
   conflict so far.
-- `home/bin/executable_pii-redactor` — ported to Python, then extended with layered
-  redaction by another session. Suite is 63 tests; run it after any change.
-  Its conftest default mock is a *working* model, not `cat`: a pass-through mock
-  plus exit-status assertions is green exactly when the tool leaks, which is the
-  defect the layers exist to prevent. Ask for `mock_llm("cat")` explicitly.
+- `home/bin/executable_pii-redactor` — a shim. The implementation and its suite
+  moved to the `pii-redaction` skill in `ai-prompt-library`
+  (`skills/pii-redaction/scripts/pii-redactor`), because the skill specifies the
+  tool. This repo keeps only the wrapper that makes it callable as
+  `pii-redactor`; run the suite from that repository. Its conftest default mock
+  is a *working* model, not `cat`: a pass-through mock plus exit-status
+  assertions is green exactly when the tool leaks, which is the defect the
+  layers exist to prevent. Ask for `mock_llm("cat")` explicitly.
 - `home/bin/executable_model-bench` — multi-case judge suite; the reference scorecards
   in `CASES` must be re-derived if a case script changes.
 - `home/dotfiles/apps/mise/files/config.toml` — two sessions edited it within an hour
@@ -939,7 +942,7 @@ Layout: `tests/<script>/conftest.py` plus `test_*.py` split by concern. Mark tes
 that call real models with `llm_judge` so they stay out of the default run.
 
 A port is a chance to test what bash could not. `default_output()` in
-`home/bin/pii-redactor` was previously only reachable by running the whole CLI and seeing
+`pii-redactor` was previously only reachable by running the whole CLI and seeing
 which file appeared; called directly, the path edge cases became explicit. Platform
 dispatch in `home/bin/clipped` could only be exercised by mocking `uname` on `PATH`, so
 in practice only the host platform was ever tested.
