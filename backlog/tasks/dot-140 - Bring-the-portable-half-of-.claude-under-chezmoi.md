@@ -5,7 +5,7 @@ status: To Do
 created_date: 2026-10-27 02:57
 labels:
 - planned
-updated_date: 2026-11-12 03:25
+updated_date: 2026-10-27 22:22
 ---
 
 ## Description
@@ -36,13 +36,13 @@ updated_date: 2026-11-12 03:25
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-2026-11-12 (opencode-claude-credential-helper): Delivered the credential-profile slice in `23e5d52` (`agent/claude_credential_helper`, merged at `f430e586`). Direct `claude` selects `~/.claude-direct`; `claude-lore` preserves the gateway profile. The direct settings also clear inherited provider variables for direct subprocesses, such as Skillet's harness. No secrets entered git. 25 focused tests passed, plus ruff, pyrefly, shellcheck and doc links. Native direct OAuth reports `authMethod=claude.ai`; a real request returned `OK`; the deployed wrapper selects the direct profile. The remaining broader portable-settings migration is still open in this task. GUI processes with no shell environment are not verified by these tests.
+
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-Direct OAuth and explicit Lore gateway credentials are separate profiles. The profile selection is deployed and verified; the full portable `~/.claude/` migration remains To Do. Related `structure-authoring` evals use direct OAuth successfully but scored 1/3 overall with zero measured lift; those results stay with the library's behavioral work, not this credential fix.
+
 <!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
