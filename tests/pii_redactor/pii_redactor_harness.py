@@ -10,6 +10,7 @@ binary without raising. See tests/guards/guard_harness.py.
 from __future__ import annotations
 
 import atexit
+import os
 import pathlib
 import shutil
 import tempfile
@@ -23,21 +24,34 @@ def _resolve_script() -> pathlib.Path:
     failed on `FileNotFoundError`, which was 55 of CI's 64 failures.
 
     The tests need the script's SOURCE, which is always present in the repo.
-    Prefer the deployed copy when it exists, because that is what a user runs.
+    The deployed copy is NOT preferred, and that is a reversal of 40fbf6c8.
+    Preferring it meant a change made in a worktree was tested only after
+    `chezmoi apply`, which agents may not run from a worktree (main only) —
+    so the suite silently graded the last deployed code and reported a pass on
+    a file nobody had run. Measured 2026-11-11: a `-R` fix in the source failed
+    two tests against the stale deployed copy, then passed once applied.
 
     The source is stored mode 644: chezmoi records `executable_` in the name
     and applies the bit at deploy time. Running it in place therefore fails
-    with `PermissionError`, so the fallback copies it to a temp directory and
-    marks that copy executable rather than chmod-ing a tracked file (which
-    would dirty the working tree and fight the chezmoi state).
+    with `PermissionError`, so it is copied to a temp directory and marked
+    executable rather than chmod-ing a tracked file (which would dirty the
+    working tree and fight the chezmoi state).
+
+    `PII_REDACTOR_SCRIPT` overrides the resolution, so a caller that really
+    does want to grade the deployed artefact can say so explicitly.
     """
-    deployed = pathlib.Path.home() / "bin" / "pii-redactor"
-    if deployed.is_file():
-        return deployed
+    override = os.environ.get("PII_REDACTOR_SCRIPT")
+    if override:
+        return pathlib.Path(override)
 
     # tests/pii_redactor/pii_redactor_harness.py -> repo root
     repo = pathlib.Path(__file__).resolve().parents[2]
     source = repo / "home" / "bin" / "executable_pii-redactor"
+    if not source.is_file():
+        raise FileNotFoundError(
+            f"pii-redactor source not found at {source}. The tests grade the "
+            "repo's own script; set PII_REDACTOR_SCRIPT to grade another copy."
+        )
     staging = pathlib.Path(tempfile.mkdtemp(prefix="pii-redactor-source-"))
     atexit.register(shutil.rmtree, staging, ignore_errors=True)
     runnable = staging / "pii-redactor"
