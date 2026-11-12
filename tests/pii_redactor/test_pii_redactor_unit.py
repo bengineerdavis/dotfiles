@@ -37,10 +37,30 @@ def test_default_output_paths(pii_module, given, expected):
 
 def test_build_cmd_uses_system_and_no_log(pii_module, monkeypatch):
     monkeypatch.delenv("LLM_EXTRA_OPTS", raising=False)
-    cmd = pii_module.build_cmd("some-model")
-    assert cmd[:3] == ["llm", "-m", "some-model"]
+    cmd = pii_module.build_cmd("ollama/some-model")
+    assert cmd[:3] == ["llm", "-m", "ollama/some-model"]
     assert "-s" in cmd and "-n" in cmd
     assert "-p" not in cmd
+
+
+@pytest.mark.parametrize(
+    ("given", "expected"),
+    [
+        # A bare ollama tag is what `ollama list` prints, and `llm` cannot
+        # resolve it — "Unknown model" even though the model is installed.
+        ("qwen3.8:27b-mlx", "ollama/qwen3.8:27b-mlx"),
+        # An already-qualified name passes through untouched.
+        ("ollama/qwen3.8:27b-mlx", "ollama/qwen3.8:27b-mlx"),
+        # Hosted providers keep their own routing.
+        ("openrouter/qwen/qwen3.5-9b", "openrouter/qwen/qwen3.5-9b"),
+    ],
+)
+def test_build_cmd_qualifies_a_bare_model_with_its_provider(
+    pii_module, monkeypatch, given, expected
+):
+    monkeypatch.delenv("LLM_EXTRA_OPTS", raising=False)
+    cmd = pii_module.build_cmd(given)
+    assert cmd[2] == expected
 
 
 def test_build_cmd_word_splits_extra_opts(pii_module, monkeypatch):

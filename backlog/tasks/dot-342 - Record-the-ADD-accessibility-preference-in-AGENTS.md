@@ -1,5 +1,5 @@
 ---
-id: DOT-338
+id: DOT-342
 title: Record the ADD accessibility preference in AGENTS.md
 status: To Do
 created_date: 2026-11-10 04:48
