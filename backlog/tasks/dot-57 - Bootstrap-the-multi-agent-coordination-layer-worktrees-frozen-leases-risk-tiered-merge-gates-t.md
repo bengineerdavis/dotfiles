@@ -360,6 +360,45 @@ updated_date: 2026-10-27 22:21
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
 
+**Third recurrence, and the carve-out that causes it (2026-11-11):** the
+shared-index contamination this task names as its motivating defect happened
+again. `f5ac99f7` ("backlog: record the temporary queue-scan repair") was
+titled as a DOT-353 change and also carried another session's in-progress
+DOT-140 edit; it needed the corrective `4176bd27` ("backlog: restore DOT-140 to
+its owner") to put the task file back and leave the owner's edit staged. That
+makes three — `b3ad740`, `5692a86`, and now `f5ac99f7` — against a rule
+(`git commit -o <paths>`, AGENTS.md § Working alongside other sessions) that
+has been written down since August. Rule-only enforcement has now failed three
+times in three months, which is the evidence this task's worktree-per-session
+structure was proposed on.
+
+The new detail is **where** it keeps happening. All three contaminated commits
+landed on `main`, none in a worktree, and that is structural rather than
+coincidental: worktrees already have private indexes (`.git/worktrees/<name>/index`,
+separate files, verified 2026-11-11), so the isolation this task specifies
+already works everywhere it is in force. The exception is the `backlog/`
+carve-out (AGENTS.md:398, author ruling 2026-10-23) sending queue writes
+straight to `main` — the one path that puts sessions back in the shared index.
+So the carve-out needs an answer inside this task's design, not beside it:
+"a queue mutation does not deserve a branch" is true, but it does not follow
+that it must share the main checkout's index. A persistent `backlog/`-only
+worktree on `main` would keep queue commits unbranched and still isolated.
+
+**`autoCommit` is a complement to that, not a substitute (measured 2026-11-11).**
+backlog-py's auto-commit is more careful than its name suggests — it stages a
+restricted pathspec (`backlog/` plus the config file, never `git add -A`),
+snapshots git state before the mutation, and refuses to commit when the project
+was already dirty (`runtime/git.py:59-100`). But its safety gate and its
+usefulness are inversely related, and this repo sits at the bad end: a status
+probe scoped to `backlog/` returned eight dirty paths from concurrent sessions
+(two modified task files, six untracked new tasks), so the clean-before gate
+would skip the commit and emit only a log warning. It would also still commit
+from the shared main-checkout index, narrowing the blast radius without moving
+the blast. Order therefore matters: isolate queue writes to their own worktree
+first, which makes that tree reliably clean, and `autoCommit` becomes
+attractive afterwards rather than a non-deterministic half-measure now.
+Keep `autoCommit: false` until then.
+
 **Agent policy → agentic-project-template (author, 2026-11-08):** this
 coordination layer (worktrees, frozen leases, risk-tiered merge gates) and the
 accompanying agent policy are already slated for extraction to the copier
