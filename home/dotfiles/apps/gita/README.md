@@ -20,13 +20,15 @@ commands write through the deployed symlink into the tracked
 `apps/mise/files/config.toml`; a run that changes the entry leaves the repo
 dirty by design and the change is committed as the capture.
 
-## Stopgap scope, and what it deliberately does not do
+## Scope, and what it deliberately does not do
 
-- **Registers at current paths.** The repos live at `~/code/projects/…`, not
-  yet the `docs/LAYOUT.md` type dirs. `install.yaml` registers each repo where
-  it is and gives it the group the catalogue declares. The physical migration
-  into `personal/`/`forks/`/`work/` is LAYOUT phase 4 — a separate step; gita
-  re-registers a repo on move and nothing is deleted.
+- **Registers at catalogue paths.** `config/repos.yaml` paths follow the
+  `docs/LAYOUT.md` type dirs (`personal/`, `forks/`, `templates/`, `try/`).
+  `install.yaml` registers each repo where it is and gives it the group the
+  catalogue declares. The physical migration into the type dirs is LAYOUT
+  phase 4; this Mac is migrated, the second machine is not, so it reports
+  repos as declared-but-not-cloned until its own migration lands (DOT-306
+  tracks the per-machine resolution).
 - **No catalogue discovery.** `config/repos.yaml` is the source of truth; a
   repo declared there but not cloned is skipped and reported.
 - **`work/` is empty on the author's own machines.** The group exists in the

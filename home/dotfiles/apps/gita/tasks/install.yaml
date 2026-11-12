@@ -11,10 +11,11 @@
 # committed as the capture — this topic never writes that file directly.
 #
 # The registration reads the committed catalogue (config/repos.yaml) for
-# repo -> group and writes gita's own repos.csv/groups.csv. Deliberately does
-# NOT move repos into the docs/LAYOUT.md type dirs — that is the migration, a
-# separate step. Every piece of state created here has a matching teardown in
-# remove.yaml (CRUD ownership invariant, docs/TOPICS.md).
+# repo -> group and writes gita's own repos.csv/groups.csv. Catalogue paths
+# follow the docs/LAYOUT.md type dirs; repos that live elsewhere on a machine
+# are reported as declared-but-not-cloned, not relocated. Every piece of state
+# created here has a matching teardown in remove.yaml (CRUD ownership
+# invariant, docs/TOPICS.md).
 
 - name: "Install: probe whether the global mise config declares pipx:gita"
   ansible.builtin.command:
