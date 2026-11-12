@@ -16,6 +16,7 @@ until the underlying work is actually completed.
 
 | Topic | Status | Issue |
 |---|---|---|
+| `agentsview` | ✓ | Darwin: install/remove via homebrew-core cask (app + CLI in one cask). Debian: checksummed tarball CLI + checksummed AppImage, tarball stamp and libfuse2 teardown-guarded, `~/.agentsview` user data intentionally left |
 | `apt` | ⚪ N/A | pkg-manager tier — install/remove of apt itself handled by the OS |
 | `docker` | ⚪ N/A | pkg-manager tier — install/remove of Docker handled by Rancher Desktop |
 | `homebrew` | ⚪ N/A | pkg-manager tier — install in `bootstrap.yaml`; uninstall is out of scope |

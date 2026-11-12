@@ -1,0 +1,26 @@
+# apps/agentsview/topic.yml
+#
+# Topic metadata read by the parent playbook. See docs/TOPICS.md.
+#
+# Lives at the role root (not under meta/) because Ansible reserves
+# meta/main.yml for galaxy_info / role dependencies and rejects unknown
+# top-level keys there.
+
+topic_name: agentsview
+
+# App-tier: provides nothing to other topics. Projects and sessions read
+# agent state they own; nothing here consumes agentsview.
+topic_provides: []
+
+# Empty on purpose, same reason as apps/roborev: Darwin's Homebrew is
+# undeclared here, because topic_requires runs on every OS and no Debian
+# topic provides homebrew (the box has no linuxbrew). The cask task is
+# guarded by os_family in-task, the apps/ollama pattern. Debian needs
+# nothing this repo does not already have: the tarball route uses curl via
+# the get_url module and the system tar, and installs into the user's own
+# ~/.local/bin, so it needs no privilege at all.
+topic_requires: []
+
+topic_os: [Darwin, Debian]
+
+topic_tier: app

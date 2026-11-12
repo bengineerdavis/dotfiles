@@ -1,0 +1,71 @@
+# apps/agentsview/tasks/remove.yaml
+#
+# Teardown for everything install.yaml and prerequisites.yaml create, per
+# the CRUD ownership invariant in docs/TOPICS.md. One piece of shared state
+# (the libfuse2 package) is deliberately guarded behind a flag, mirroring
+# apps/roborev's tap.
+
+# ── Darwin: the cask install ────────────────────────────────────────────────
+- name: "Uninstall the AgentsView cask (desktop app and CLI binary)"
+  community.general.homebrew_cask:
+    name: agentsview
+    state: absent
+  when: ansible_facts['os_family'] == 'Darwin'
+  tags: [agentsview, remove]
+
+# ── Debian: the tarball and AppImage installs ───────────────────────────────
+- name: "Remove the agentsview CLI binary"
+  ansible.builtin.file:
+    path: "{{ agentsview_install_dir }}/agentsview"
+    state: absent
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [agentsview, remove]
+
+- name: "Remove the AgentsView AppImage"
+  ansible.builtin.file:
+    path: "{{ agentsview_appimage_path }}"
+    state: absent
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - agentsview_install_desktop_appimage | bool
+  tags: [agentsview, remove]
+
+- name: "Delete the cache directory (tarball, unpacked binary, installed-tag stamp)"
+  # The cache dir belongs to this topic — it created it, it removes it.
+  ansible.builtin.file:
+    path: "{{ agentsview_cache_dir }}"
+    state: absent
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [agentsview, remove]
+
+- name: "Remove the libfuse2 package"
+  # Off by default: AppImages are shared infrastructure — another AppImage
+  # on the box may depend on libfuse2, so revoking it under them is not a
+  # surprise a `remove` should spring. Flip agentsview_remove_libfuse2
+  # deliberately.
+  ansible.builtin.apt:
+    name: libfuse2
+    state: absent
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - agentsview_remove_libfuse2 | bool
+  tags: [agentsview, remove]
+
+# ── What is intentionally NOT removed here ──────────────────────────────────
+# The ~/.agentsview directory — the daemon's SQLite session archive,
+# configuration, and telemetry-install-id — belongs to the user, not to
+# this topic. It records every AI agent session on the machine; a fleet
+# teardown has no business dropping an archive that took months to build.
+
+- name: "Note what remove leaves in place"
+  ansible.builtin.debug:
+    msg: >-
+      Binaries and cached assets removed. The ~/.agentsview session
+      archive and configuration were left in place — that data belongs to
+      the user, not to this topic. Remove it by hand if retiring
+      agentsview entirely. libfuse2 was
+      {{ 'removed (agentsview_remove_libfuse2 is true)'
+         if agentsview_remove_libfuse2 | bool else
+         'kept (agentsview_remove_libfuse2 is false)' }}.
+  tags: [agentsview, remove]

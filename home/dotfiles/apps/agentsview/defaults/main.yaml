@@ -1,0 +1,41 @@
+# apps/agentsview/defaults/main.yaml
+#
+# Overridable per run with -e. Nothing here is machine-specific: every path
+# is resolved on the target (ansible_user_dir, facts), never written out.
+
+# Which release the Debian tarball route installs: 'latest' resolves through
+# the GitHub API at run time, or pin a tag (e.g. "v0.45.0") for
+# determinism. A pinned tag must also set agentsview_sha256, because a
+# checksum cannot be verified against a release that was never fetched.
+agentsview_release_tag: latest
+
+# SHA256 of the pinned release's tarball asset. Only consulted when
+# agentsview_release_tag is pinned; ignored (and recomputed from the API's
+# per-asset digest) when resolving latest.
+agentsview_sha256: ""
+
+# Where the tarball is downloaded, unpacked, and its installed tag stamped.
+# User-owned: nothing in the Debian route needs privilege.
+agentsview_cache_dir: "{{ ansible_user_dir }}/.cache/agentsview"
+
+# Where the CLI binary lands on Debian. On PATH via the standard
+# ~/.local/bin entry every environment already carries. The Darwin cask
+# decides its own bin location; this only governs the tarball route.
+agentsview_install_dir: "{{ ansible_user_dir }}/.local/bin"
+
+# Whether Debian also installs the desktop app as an AppImage. The cask is
+# the sole owner of the Darwin desktop experience; this toggles the Linux
+# one. The AppImage goes exactly where the upstream cask's Linux artifact
+# targets ($HOME/Applications), so both platforms agree on the location.
+agentsview_install_desktop_appimage: true
+
+# Where the AppImage lands on Debian. A single, fully qualified path — not
+# project layout — resolved on the target like everything else.
+agentsview_appimage_path: "{{ ansible_user_dir }}/Applications/AgentsView.AppImage"
+
+# Remove the libfuse2 package on teardown. Off by default, mirroring
+# roborev_remove_tap: AppImages are shared infrastructure — another
+# AppImage on the box may depend on libfuse2, and revoking it under them is
+# not a surprise a `remove` should spring. Flip deliberately:
+# -e agentsview_remove_libfuse2=true.
+agentsview_remove_libfuse2: false

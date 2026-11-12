@@ -1,0 +1,22 @@
+# apps/agentsview/tasks/prerequisites.yaml
+#
+# One prerequisite, Debian only: libfuse2, required to execute an AppImage.
+# The desktop class of this topic (agentsview_install_desktop_appimage) is
+# exactly the surface that needs it; the CLI tarball route does not.
+#
+# app.installs it directly rather than declaring a topic_requires, for the
+# same reason apps/roborev does not declare homebrew: topic_requires runs
+# on every OS, and no topic provides libfuse2 — only the apt module does.
+# The install is idempotent (apt reports unchanged when present), and
+# remove.yaml leaves libfuse2 in place unless agentsview_remove_libfuse2 is
+# flipped, because other packages' AppImages may depend on it.
+
+- name: "Ensure libfuse2 is present so the AppImage can execute"
+  ansible.builtin.apt:
+    name: libfuse2
+    state: present
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - agentsview_install_desktop_appimage | bool
+  tags: [agentsview, prerequisites, install, provision]
