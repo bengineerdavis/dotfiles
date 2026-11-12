@@ -7,7 +7,7 @@ created_date: 2026-11-05 00:24
 labels:
 - queue-integrity
 ordinal: 1
-updated_date: 2026-11-10 04:56
+updated_date: 2026-11-12 03:26
 ---
 
 ## Description
@@ -24,6 +24,7 @@ Mechanism (source-read, backlog-py 2.2.0): with checkActiveBranches: true (activ
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
 2026-11-09: author-executed branch hygiene verified. Reaped: 15 worktrees, 15 merged local branches, 16 merged remote refs (all blob-carrying, all fully merged). Dot-108 blob-holders 42 -> 9. Remaining warnings (3 TASK- phantoms, DOT-108 + DOT-281-284 shadows) trace ONLY to the spared unmerged branches (agent_skills_refresh, lima-molecule, mise-remove-whisperx, mise-upgrade-result, molecule-qemu-loreai, docs-relocate-review, backup/main-before-sync-20261104) — real unlanded work 300-390 commits behind main. test_no_shadowed_task_ids still fails on those; documented-skip era continues until the spared branches land or die, or the 30-day window expires. checkActiveBranches stays on per author ruling.
+2026-11-11: six duplicate-ID warnings blocked DOT-352's task commit on a main checkout that otherwise matched origin/main. They came from old task records at the tips of the backup, agent-skills-refresh, and gita-lifecycle-docs branches. DOT-353 temporarily sets checkActiveBranches to false after the maintainer chose that smaller repair over editing those sessions' task records. This task owns safe scanner repair and re-enablement. Retire only merged branches after proving they have landed; do not treat any historical-copy deletion as a substitute for the scanner fix.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
