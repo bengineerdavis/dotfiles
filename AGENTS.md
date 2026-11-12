@@ -734,24 +734,29 @@ almost nothing — the `binned_module` fixture skips without `typer`/`questionar
 
 ### Known failures
 
-**This table is stale post-DOT-73 (PR #114): both suites below now pass.**
 The table and `scripts/check_suite_baseline.py` `EXPECTED_FAILURES` move
-together — DOT-314 owns that update as part of `agent/retro-ci-guard`'s rebase.
-Until then, read the table as the pre-#114 baseline, not current behaviour.
+together. A node ID in one and not the other is the drift this section exists
+to prevent.
 
-Two suites failed on a clean checkout before DOT-73, for reasons outside the
-code. Expect this shape in older baselines, and do not spend a session proving
-they are not yours:
+Failures on a clean checkout, by cause:
 
 | Suite | Count | Why |
 |---|---|---|
-| `tests/clipped` | ~10 | Drives the real clipboard through subprocesses; needs a live `wl-copy`/`wl-paste` and a TTY. |
+| `tests/clipped` | 10 | Drives the real clipboard through subprocesses; needs a live `wl-copy`/`wl-paste` and a TTY. |
 | `tests/restart_stale` | 2 | Exercises launchd/systemd role behaviour that the test host does not have. |
+| `tests/docs` | 2 | Two load-bearing rules are genuinely absent from `.lore.md` as committed — Lore's re-distillation dropped them. The guard is working, not broken. Tracked by DOT-305. |
 
-A full run on the reference host read **12 failed, 1093 passed, 20 skipped**
-pre-#114; measured 2026-11-08 post-#114, the same host reads **zero failed**
-from these suites (1426 passed, 20 skipped) once the `.molecule` scratch trap
-(DOT-310) is cleared. Tracked in DOT-73 (Done) and DOT-314 (baseline refresh).
+The lore pair is baselined rather than hand-edited back: `.lore.md` is a managed
+projection, so an edit races the next rewrite and each heal has minted new
+defects. Both rules still describe live behaviour — `remove.yaml` gates uninstall
+on `requires_map is defined`, and work repos stay out of the committed
+catalogue. Remove those two entries when Lore restores the rules; the baseline
+reports them as stale until then.
+
+The clipped and restart_stale entries are from the pre-#114 baseline. Measured
+2026-11-08 post-#114, the reference host reads zero failures from those two
+suites once the `.molecule` scratch trap (DOT-310) is cleared, so expect them to
+be reported as stale and delete them with that change (DOT-314).
 
 Two ways to keep this cheap, in order of preference:
 
