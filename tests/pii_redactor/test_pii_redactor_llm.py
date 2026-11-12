@@ -83,3 +83,39 @@ def test_redacts_name_and_phone_from_file(run_script, real_env, tmp_path):
     assert "Jane Smith" not in result
     assert "555-867-5309" not in result
     assert "[" in result
+
+
+def test_the_models_reasoning_never_reaches_stderr(run_script, real_env, tmp_path):
+    """The PII must not survive in stderr either.
+
+    A reasoning model narrates the redaction and quotes the values it removes,
+    so its chain-of-thought on stderr carries the same PII the output had
+    replaced — into logs and scrollback, which outlast the run. Asserting only
+    on the output file is how that leak stayed invisible: the released artifact
+    was clean while every run wrote the raw name to stderr.
+
+    This test deliberately does NOT use INTEGRATION_LLM_OPTS. That sets
+    `-o think false`, which suppresses reasoning at the model, so stderr stays
+    clean whether or not the tool passes -R — the test would pass for the wrong
+    reason. Measured: with reasoning on, the raw name appears 13 times on
+    stderr without -R and 0 times with it. Slow by design; it is the only case
+    that exercises the flag's actual purpose.
+    """
+    src, dst = tmp_path / "in.md", tmp_path / "out.md"
+    src.write_text("Hi, my name is Jane Smith and my number is 555-867-5309.\n")
+    r = run_script(
+        "-i",
+        str(src),
+        "-o",
+        str(dst),
+        "-m",
+        INTEGRATION_MODEL,
+        env={**os.environ},  # no `-o think false`: reasoning must be possible
+    )
+    assert r.returncode == 0, r.stderr
+
+    # The output is redacted...
+    assert "Jane Smith" not in dst.read_text()
+    # ...and so is everything the run said about itself.
+    assert "Jane Smith" not in r.stderr
+    assert "555-867-5309" not in r.stderr
