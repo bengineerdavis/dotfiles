@@ -43,6 +43,24 @@ def test_build_cmd_uses_system_and_no_log(pii_module, monkeypatch):
     assert "-p" not in cmd
 
 
+def test_build_cmd_hides_reasoning(pii_module, monkeypatch):
+    """-R keeps the model's chain-of-thought off stderr.
+
+    A reasoning model narrates what it is removing and quotes the values, so
+    without -R the PII lands on stderr — which outlives the run in logs and
+    scrollback. Measured before the flag: 7 occurrences of a name the released
+    output had replaced. The flag belongs in the base command, not in
+    LLM_EXTRA_OPTS, so a caller cannot drop it by setting that variable.
+    """
+    monkeypatch.delenv("LLM_EXTRA_OPTS", raising=False)
+    assert "-R" in pii_module.build_cmd("ollama/some-model")
+
+
+def test_build_cmd_hides_reasoning_even_with_extra_opts(pii_module, monkeypatch):
+    monkeypatch.setenv("LLM_EXTRA_OPTS", "-o think false")
+    assert "-R" in pii_module.build_cmd("ollama/some-model")
+
+
 @pytest.mark.parametrize(
     ("given", "expected"),
     [

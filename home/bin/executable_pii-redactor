@@ -635,7 +635,13 @@ def parse_args(argv: list[str]) -> Options:
 
 
 def build_cmd(model: str) -> list[str]:
-    cmd = ["llm", "-m", qualify_model(model), "-s", SYSTEM_PROMPT, "-n"]
+    # -R/--hide-reasoning is not cosmetic. A reasoning model narrates the
+    # redaction it is doing and quotes the values it is removing, so its
+    # chain-of-thought on stderr carries the PII this tool exists to remove —
+    # measured at 7 occurrences of a name the released output had replaced.
+    # stderr is kept in logs and terminal scrollback, so that leak outlives the
+    # run. Reasoning has no value here; nothing reads it.
+    cmd = ["llm", "-m", qualify_model(model), "-s", SYSTEM_PROMPT, "-n", "-R"]
     # Deliberately word-split, matching the unquoted ${LLM_EXTRA_OPTS} the bash
     # version expanded: callers pass things like "-o think false".
     cmd += shlex.split(os.environ.get("LLM_EXTRA_OPTS", ""))
