@@ -12,6 +12,27 @@
   // upgrade path, so `auto` stays off.
   "update": "notify",
 
+  // Format on write. Shift the formatter left of the commit so a file is
+  // already formatted when it is written, instead of being rewritten by a
+  // pre-commit auto-fixer later. The formatters below run mdformat, which is
+  // the same formatter and the same plugin set as the pre-commit hook, so the
+  // two cannot disagree.
+  //
+  // mdformat is reached through its pre-commit cache because that is the only
+  // place it is installed; there is no mise or brew mdformat. If the cache is
+  // cleared, `pre-commit run mdformat --all-files` reinstalls it.
+  "formatter": {
+    "mdformat": {
+      "command": [
+        "{{ .home }}/.cache/pre-commit/repon5s75h5s/py_env-python3.14/bin/mdformat",
+        "--wrap",
+        "keep",
+        "$FILE"
+      ],
+      "extensions": [".md"]
+    }
+  },
+
   // The Lore.AI integration lives in the loreai topic
   // (dotfiles/apps/loreai/files/opencode/lore-plugin.jsonc) and is included
   // here behind a stat guard: removing the topic removes its config from the
