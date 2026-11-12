@@ -3,6 +3,23 @@
 Section names come from antsibull-changelog; see `docs/TOPICS.md`
 § "Per-topic changelog and local edge cases".
 
+## 2026-11-10
+
+### minor_changes
+
+- Split direct Claude OAuth from the Lore profile in `files/zsh/claude.zsh`.
+  `claude` selects `~/.claude-direct` and removes inherited gateway/provider
+  credentials for that profile; `claude-lore` retains `~/.claude`.
+- Add real-zsh tests for interactive wrappers and direct subprocesses.
+
+### known_issues
+
+- Claude Desktop does not read `CLAUDE_CONFIG_DIR` or `apiKeyHelper`; this
+  profile split applies to the CLI and tools that invoke it, not Desktop OAuth.
+- An API-key profile backed by 1Password is deliberately separate future work:
+  `apiKeyHelper` sends its value as both x-api-key and Bearer, so it must not
+  substitute an OpenRouter key on Claude's Anthropic-protocol Lore route.
+
 ## 2026-09-14
 
 ### release_summary

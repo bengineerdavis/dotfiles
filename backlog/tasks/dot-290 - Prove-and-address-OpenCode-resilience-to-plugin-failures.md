@@ -47,6 +47,23 @@ AC #4 inventory 2026-11-01 (before any fork work):
   - anomalyco/opencode#33455 — "Plugins from config plugin array silently not loaded since v1.17.0": silent-skip failure mode (opposite of a hard failure but part of the same observability problem).
   - sst/opencode#3392 — "[bug] Add scoped npm package as plugin shows error": adding a scoped npm plugin prevents opencode from starting at all (total host failure mode).
 - Next: AC #1/#5 isolated reproduction — four failure modes (schema/load-time rejection, initialization throw, hook dispatch error, provider-routing failure) each in an isolated OpenCode state dir, recording which stop agent use.
+
+AC #1 four-mode reproduction 2026-11-01 (host = brew opencode v2.2.2; isolated throwaway HOME + service port 49421; plugin under a worktree-local .repro/proj/plugins/; model calls via env-var creds so no stored auth leaks):
+- Mode 1 — load/schema rejection (V1-shape default export): WARN "failed to load plugin … Plugin must export a default definition with an id and an effect or setup function (SchemaError: Expected object at [default])". NON-FATAL — agent session ran fine; only the plugin features are absent. This is the mode the existing DOT-244 evidence proved; it does NOT stop agent use. (Reconfirmed here on 2.2.2, matching the v2.1.2 measurement.)
+- Mode 2 — initialization throw (valid V2 shape {id, setup}, setup throws): WARN "failed to load plugin … Cause([Die(Error: … boom during setup)])". NON-FATAL — session ran fine. (A NAMED export is schema-rejected before setup runs; the default-export object shape is required.)
+- Mode 3 — hook dispatch error (ctx.tool.hook("execute.before", …) throws on every tool call): the hook IS honored (the tool is blocked), but recovery is a silent multi-tool retry loop (write→shell→grep→read→glob…) with no user-facing cause. Degrades the agent to noise, not a stop. This is the failure mode closest to "breaks normal agent use."
+- Mode 4 — provider-routing failure (ctx.session.hook("model.request", …) rewrites event.baseURL to a dead port): the corruption is SILENT at the plugin layer; opencode retries the model call ~13× then reports a clean transport error "ECONNREFUSED: Unable to connect" to the dead URL — NOT "your plugin broke routing." This is the observability gap a health-check/recovery feature must close.
+- No total host/agent failure reproduced in any mode. Separately observed host bug (not one of the four modes): the file-watcher hot-reload of an object-shaped export throws "failed to reload plugins … TypeError: r is not a function" — crashes reload, not the running session.
+
+V2 contract facts confirmed from @opencode/plugin types + the v2 migrate-v1 doc (fixes several earlier probes that assumed the V1 hook-return shape still applied):
+- Config key is `plugins` (plural); a `plugin` (singular) key is ignored.
+- Configured local paths must name directories; a single-file path is skipped with WARN "configured plugin path must be a directory".
+- A V1 function-returning-hooks default export does NOT run in V2.
+- V2 shape is default-export Plugin.define({ id, setup(ctx) }); setup registers hooks on ctx domains — ctx.tool.hook("execute.before", …), ctx.session.hook("model.request", …), ctx.session.hook("context", …) etc. setup's RETURN VALUE is ignored.
+- ctx.event.subscribe() is an AsyncIterable taking {signal} (for await … of …), NOT a callback registration; the callback form is silently ignored (the cause of several "hook never fired" probes during this repro).
+- Per-session/model.request event shape: `SessionModelRequest { sessionID, agent, model: Model.Ref, kind, baseURL?, headers }` — baseURL and headers are the mutable routing fields.
+
+Containment answer for AC #2 (already present, no host change needed for the disable half): config `plugins` entries prefixed `-` disable a plugin; `*` and `.*` wildcards match every plugin / an ID prefix. There is NO CLI disable subcommand — the gap DOT-290 targets for the "explain + interactively disable" feature — but config-level disable is the current recovery path (the live ~/.config/opencode/opencode.jsonc carries `// @loreai/opencode` commented out by hand).
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
