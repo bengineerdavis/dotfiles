@@ -6,7 +6,7 @@ dependencies = []           # nothing installs this; scripts declare their own d
 
 [dependency-groups]
 test = ["pytest>=9", "hypothesis", "typer", "questionary", "pyyaml", "pillow", "jinja2"]
-test-llm = ["llm", "files-to-prompt"]   # opt-in: pulls ~34 packages
+test-llm = ["llm", "llm-ollama", "files-to-prompt"]   # opt-in: pulls ~34 packages
 lint = ["ruff", "ty"]
 # The task queue is migrating to backlog-md-py (TASKS.md § Planned, author
 # direction 2026-10-18). In the project venv so `uv run backlog-py` works
