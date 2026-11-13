@@ -42,6 +42,17 @@ decline ALWAYS — because refusing looks identical to not running. Same reason
 `tests/policy/test_policy_callers.py` flips the policy to permit and asserts the
 behaviour changes.
 
+**A stub that writes nothing cannot test that nothing was written.** When the
+assertion is `assert not path.exists()` or `read_state() == {}`, any fake that
+declines to write satisfies it — including one that ignores the behaviour under
+test entirely. Pointed at a no-write stub, such a test passes whether or not the
+code honours its guard. Reduce it to a property instead: assert the state the
+code *should* have written, then that this run wrote none of it. Measured
+2026-11-09 while triaging DOT-329's six gita tests: two of the six looked
+hermetic-replaceable, but only `test_missing_work_root` survived the check —
+the other needed a state-writing fake, so skipping it was correct. The
+conclusion held; the reasoning that produced it did not.
+
 Two harness traps found here, worth checking for in any suite you touch:
 
 - A test path pointing at a file that does not exist. `tests/clipped.bats` used
