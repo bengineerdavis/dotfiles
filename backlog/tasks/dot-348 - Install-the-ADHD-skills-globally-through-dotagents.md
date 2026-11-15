@@ -5,6 +5,11 @@ status: To Do
 created_date: 2026-11-10 20:55
 assignee:
 - opencode-dotagents-adhd
+orchestration:
+  status_key: inprogress
+  lease_owner: opencode-dotagents-adhd
+  lease_expires_at: '2026-11-12T23:10:09.706806Z'
+  version: 1
 ---
 
 ## Description
@@ -52,3 +57,22 @@ Decision record: Approved by the author 2026-11-10: upstream dotagents sources n
 ## Definition of Done
 <!-- DOD:BEGIN -->
 <!-- DOD:END -->
+
+## Run History
+<!-- SECTION:RUN_HISTORY:BEGIN -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-368ef661bac0405f824f1de815ef97bb
+type: claim_task
+actor: opencode-dotagents-adhd
+timestamp: '2026-11-12T22:10:09.706869Z'
+result: succeeded
+task_id: DOT-348
+from_status: todo
+to_status: inprogress
+metadata:
+  lease_ttl_seconds: '3600'
+```
+Worktree .worktrees/dot-348 on branch agent/dot-348; author approved A on 2026-11-10 and directed durable topic-doc corrections.
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- SECTION:RUN_HISTORY:END -->
