@@ -7,7 +7,7 @@ created_date: 2026-11-05 00:24
 labels:
 - queue-integrity
 ordinal: 1
-updated_date: 2026-11-12 03:26
+updated_date: 2026-11-15 16:33
 ---
 
 ## Description
@@ -18,6 +18,10 @@ Mechanism (source-read, backlog-py 2.2.0): with checkActiveBranches: true (activ
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
+- [ ] #1 The scanner no longer serves task blobs from refs whose content has landed, proven against the branches that produced the 2026-11-11 warnings
+- [ ] #2 checkActiveBranches is back to true with the queue-integrity gate green and no SKIP= needed
+- [ ] #3 A phantom warning names a path that exists, or does not fire
+- [ ] #4 DOT-353's temporary flip is reverted in backlog/config.yml and the comment removed
 <!-- AC:END -->
 
 ## Implementation Notes
