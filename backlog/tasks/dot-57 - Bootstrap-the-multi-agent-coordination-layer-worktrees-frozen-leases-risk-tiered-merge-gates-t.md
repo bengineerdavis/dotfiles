@@ -407,6 +407,18 @@ it exists only because the tree has other writers. In an isolated worktree one
 probe stays valid until the session itself changes something. Recorded here as
 evidence for the worktree split rather than queued as tooling.
 
+**Author ruling 2026-11-15: this is priority one, and the check stands in the
+meantime.** Worktree management and session isolation outrank the other
+queued work. The measurement above argued against a status script on its own
+merits, and that argument holds only once isolation is proven; until then a
+standing check is the cheaper error. So: keep a deterministic guard against
+commits made from the shared main checkout while the carve-out exists, and
+retire it when isolation is conclusively resolved — not before. Isolation
+means the worktree *and its environment*, which is sub-item (c)'s `$HOME`
+problem, not the index alone. It must also leave a sane override for working
+directly from main, since the author does so deliberately; an override is
+recorded with its reason rather than silently permitted.
+
 **`autoCommit` is a complement to that, not a substitute (measured 2026-11-11).**
 backlog-py's auto-commit is more careful than its name suggests — it stages a
 restricted pathspec (`backlog/` plus the config file, never `git add -A`),
