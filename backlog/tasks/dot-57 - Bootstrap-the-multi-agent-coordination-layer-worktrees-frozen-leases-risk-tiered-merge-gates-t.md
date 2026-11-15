@@ -77,8 +77,21 @@ updated_date: 2026-10-27 22:21
     a retried `git add` after a partially applied operation stages a
     *different* set — the retry is the bug, not the lock; and hook frameworks
     that stash unstaged changes can eat or resurrect a concurrent writer's
-    work in the same tree (benign here, since this repo's hooks only check,
-    but not in ai-prompt-library where formatters run).
+    work in the same tree (~~benign here, since this repo's hooks only check~~
+    — **corrected 2026-11-12: not benign here either.** prek 0.5.10 saves
+    unstaged changes to `~/.cache/prek/patches/<id>.patch` and restores them
+    after a failed hook, and the restore twice re-applied edits a session had
+    deliberately backed out: a mis-targeted DOT-244 edit after it was removed,
+    and another session's DOT-140 edit after it was unstaged. The hazard is not
+    formatters rewriting content, it is the restore silently undoing a
+    deliberate correction — the hooks only checking is what makes it look
+    benign. `prek run --help` exposes no flag to disable the save/restore, so
+    documentation and the worktree split are the only levers; the patches also
+    accumulate unbounded, 635 files and 32 MB dating to August 10. Detection
+    recipe for the shared-sessions docs: run `git status --short` immediately
+    after any failed hook run, since the restore announces itself only as
+    `Restored unstaged changes from …`. ai-prompt-library, where formatters
+    run, is worse still).
   - **(c) The real parallel ceiling is the machine, not git.** A worktree
     virtualizes the source, not the host. Anything touching `$HOME` is
     unparallelizable regardless of git — and in a dotfiles repo that is most
