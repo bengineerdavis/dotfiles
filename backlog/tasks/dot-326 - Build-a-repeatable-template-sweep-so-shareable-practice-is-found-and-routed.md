@@ -11,7 +11,7 @@ labels:
 - template
 - copier-cat
 priority: high
-updated_date: 2026-11-15 21:55
+updated_date: 2026-11-15 22:03
 ---
 
 ## Description
@@ -65,6 +65,8 @@ that produces the spec for that upstream piece.
 - [ ] #9 Architecture, spec and principles are written from what the prototype measured, not from the conversational sketch
 - [ ] #10 The flow works from any downstream repo, not just this one: nothing assumes the submitting repo is dotfiles
 - [ ] #11 A submission carries the subproject's evidence — failing case, surrounding context — not a summary of it
+- [ ] #12 Submission mechanics are deferred to copier-cat: this task does not re-specify spec.md C2, CCC-21 or CCC-23
+- [ ] #13 Candidate capture records the evidence a CCC-21 contribution candidate will need, so nothing is re-derived at submission time
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -83,6 +85,19 @@ out of conversation and have no research behind them yet. Run them against
 comparable projects and real submissions before treating any of it as
 architecture; expect the decomposition to change. The one part carrying
 evidence is that routing to a list is not a stopping point.
+
+**Read copier-cat's queue before designing any of it (checked 2026-11-16).**
+Much of this is specified there already, and duplicating it here would create
+a rival design: `spec.md` § C2 fixes how contribute computes and maps changes;
+CCC-21 requires a candidate to follow the *target's* contributor conventions,
+read from the target's own docs, with a separate approval gate per
+publication; CCC-23 rules that behaviour starts in the project that needs it
+and hoists through recorded lineage, proposing each parent in turn, with
+defects fixed at the earliest layer that exhibits them; CCC-19 tracks lineage.
+All are To Do. This task therefore owns the trigger and the candidate capture
+in a repo that has real candidates, and defers submission mechanics upstream.
+Also settled upstream: the CLI alias is `ccc`, with `copier-cat` the project
+and package identity (CCC-15, Q30).
 
 **Three stages, because each needs its own tasking.** Routing to a list was
 the old stopping point and it is not enough; the work after routing is where
