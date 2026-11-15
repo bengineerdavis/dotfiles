@@ -21,9 +21,16 @@ to *find* them and the wrong place to *own* the machinery, because every other
 stamped project needs the same path upstream and none should import dotfiles
 to get it.
 
-The general case is wider than this repo, and naming it as "the" prototype
-would already be too narrow. **Any child repo downstream of a template, or of
-copier-cat itself, can become the accidental prototype**: the problem appears
+Two things are true at once, and an earlier draft of this record kept only the
+second. This repo's practice does carry **more weight** than a peer's: it has
+the most agentic experience and the most proven conventions of any project
+here, so a convention that survived here is better evidence than one proposed
+cold. That earns its findings influence, not authority — the receiving
+template's scope still decides, per CCC-23.
+
+The general case is wider than this repo all the same, and naming it as "the"
+prototype would be too narrow. **Any child repo downstream of a template, or
+of copier-cat itself, can become the accidental prototype**: the problem appears
 wherever the work happens, and the subproject holds the context that makes it
 legible — the failing case, the surrounding code, the reason the template's
 assumption did not hold. Sometimes it holds the fix too. That context is
@@ -31,21 +38,36 @@ exactly what a parent repo lacks when a finding arrives as a bare description,
 and it is why the finding has to travel with its evidence rather than as a
 summary of it.
 
-Which end should prototype is genuinely unsettled. The subproject has the
-context and the pressure to solve it; the parent has the generality and every
-other consumer to answer to. A fix shaped entirely by one subproject's
-specifics is the known failure of prototyping downstream, and a fix designed
-upstream without the failing case is the known failure of prototyping up. The
-working hypothesis is that a shared-context mechanism dissolves the question
-rather than answering it: if submissions carry the subproject's evidence into
-the parent's design conversation, the location of the prototype stops being
-load-bearing. That hypothesis is unproven.
+Which end should prototype looked unsettled from here, and copier-cat has
+already ruled on it. CCC-23 (maintainer, 2026-11-14) states the principle
+directly: useful behaviour begins in the project that needs it, then moves
+through recorded lineage, proposing each suitable parent in turn and stopping
+when the feature no longer fits that template's scope — explicitly so that no
+permanent home must be chosen before the first useful implementation. Its
+constraints add the corollaries: do not delay a useful local implementation
+waiting for a universal taxonomy, and do not equate inheritance with
+ownership. For defects the rule differs — reproduce at successive layers and
+fix the earliest layer that exhibits the bug.
 
-copier-cat already claims the role. Its README describes pushing "project
-fixes back upstream as reviewable PRs through `contribute`", and verified
-2026-11-15 its CLI ships `merge`, `mergers` and `adopt` while describing
-contribute as "phone home, planned". The concept is owned there and unbuilt,
-which is precisely the gap this work fills.
+That answers the grey area without needing the shared-context hypothesis to
+resolve it. Shared context may still be the right mechanism, but it is now a
+question about how hoisting is implemented, not about where prototyping
+belongs.
+
+copier-cat already claims the role, and more of it is designed than a glance
+at the CLI suggests. Verified 2026-11-16 against the repo: `spec.md` § C2
+specifies contribute in detail — reuse copier's own update computation as the
+diff source rather than forking merge logic, derive ownership from the render,
+map rendered paths back to template source by re-rendering with the recorded
+answers, never ask the template to cooperate. Its queue carries CCC-21
+(contribution candidates must follow the *target's* contributor conventions,
+read from the target's own docs), CCC-23 (feature hoisting through the
+template inheritance graph) and CCC-19 (lineage tracking), all To Do. The
+shipped CLI is `merge`, `mergers`, `adopt`, with contribute described as
+"phone home, planned".
+
+So the gap is implementation, not design, and this repo should not re-specify
+what C2 and CCC-21/23 already settle.
 
 ## Decision
 
@@ -101,6 +123,14 @@ a skill before the procedure it refactors.
   mechanism holding both repos' context at once is easier to argue for as a
   service than as a capability each repo carries alone, but that is a reason to
   test the claim, not to assume it.
+- The scale is ten-plus agentically built repos, not one. That is the reason
+  pif, copier-cat and flagship exist, and it means a per-repo capability has
+  to be multiplied by ten while a service is written once — a cost argument
+  the design session should price rather than assume.
+- DOT-326's scope shrinks accordingly: it prototypes the *trigger and
+  candidate capture* in a repo that has candidates, and stops short of
+  re-specifying submission mechanics that spec.md § C2 and CCC-21 already
+  define.
 - A finding travels with its evidence, not as a summary. The subproject's
   context is usually the part that makes a template-shaped problem legible
   upstream, so a submission that drops it is asking the parent to re-derive
