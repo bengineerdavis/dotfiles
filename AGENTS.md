@@ -906,6 +906,8 @@ Read by name when the work touches them:
   before adopting one.
 - **`docs/LAYOUT.md`** — the `~/code` taxonomy. Cite it, do not paste absolute
   paths into queue prose.
+- **`docs/AGENTIC-REPOS.md`** — which personal repositories carry agent
+  instructions or a queue. Re-survey before relying on the count.
 - **`docs/LANGUAGES.md`** — language inventory and per-language tool profile.
 - **`docs/GLOSSARY.md`** — project terminology, linked on first use.
 - **`docs/LINK-CHECKING.md`** — the Lychee cadence and its security boundary.
