@@ -132,11 +132,33 @@ a skill before the procedure it refactors.
   The boundary follows from the subject matter: a submission to a stranger
   needs no inheritance graph, and a hoist without one cannot choose a parent.
 - Whether pif is a per-repo capability or a central service remains open — the
-  roborev-shaped question. The shared-context hypothesis bears on it: a
-  mechanism holding both repos' context at once is easier to argue for as a
-  service than as a capability each repo carries alone, but that is a reason to
-  test the claim, not to assume it. The division above narrows the question
-  rather than settling it, since either shape can consume copier-cat's lineage.
+  roborev-shaped question — but the author leans central (2026-11-16), and the
+  argument for it is narrow enough to state. A service owns three things a
+  repo cannot: whether a lesson has already gone upstream from any of the ten
+  repos, which no single repo can answer and which duplicate submissions to
+  the same maintainer depend on; the waiting in stage two, since a repo-local
+  capability only advances a submission when someone opens that repo; and
+  cached target-side contribution rules, read once per target rather than
+  per source repo as CCC-21 requires. Everything else stays repo-local.
+- **The concurrency risk is the real objection, and it has a known answer**
+  (author concern, 2026-11-16). State moving repo → pif → repo goes wrong when
+  a session blocks on the service or when both sides claim the same fact.
+  roborev already solved the first: its hook callbacks fail open when the
+  daemon is unavailable, so they never block the coding agent
+  (`~/code/personal/roborev/README.md:126`). pif inherits that property —
+  unavailable means degraded, never stalled. The second is solved by single
+  ownership per fact: the repo owns the finding and its evidence, pif owns the
+  submission record, and nothing writes the other's. That makes the exchange a
+  sync rather than a merge, so it needs no conflict resolution. If pif is lost,
+  findings survive in each repo's queue and submission status is recoverable
+  from the forge, which is the authoritative answer to whether a PR is open.
+- **The submission key is a tuple, not an identity** (author ruling,
+  2026-11-16): owner, source repo, target repo, agent, session. A name like
+  `bengineerdavis-dotfiles` reads as one opaque identity and loses the ability
+  to ask the questions that matter — everything this repo sent anywhere,
+  everything any repo sent to one template, everything one session submitted.
+  The unique combination tracks an individual submission; each element stays
+  independently searchable as an attribute.
 - The scale is ten agentic repositories, not one, surveyed 2026-11-16 and
   recorded in `docs/AGENTIC-REPOS.md`: seven live queues, 437 open tasks,
   four of the five template repos agentic themselves. That is the reason pif,
