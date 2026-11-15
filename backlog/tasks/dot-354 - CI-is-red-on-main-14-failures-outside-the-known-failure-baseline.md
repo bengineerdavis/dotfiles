@@ -1,12 +1,12 @@
 ---
 id: DOT-354
 title: 'CI is red on main: 14 failures outside the known-failure baseline'
-status: To Do
+status: Done
 created_date: 2026-11-12 22:07
 labels:
 - ci
 - tests
-updated_date: 2026-11-12 22:08
+updated_date: 2026-11-12 22:35
 ---
 
 ## Description
@@ -67,7 +67,22 @@ Open questions:
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
+2026-11-12 — resolved, and the split was not what the task assumed.
 
+The 12 `tests/topics/test_opencode_config_layers.py` failures were NOT
+pre-existing drift. They were a real bug in commit 6277f19f: the opencode
+template used `{{ .home }}`, which is not chezmoi data, so the template could
+not render at all and `chezmoi status` failed for the whole repo. Fixed to
+`.chezmoi.homeDir` in 9e8d285b — 13 tests pass.
+
+The 2 lore failures are genuine and remain baselined (see below).
+
+Also fixed on the way: `scripts/check_suite_baseline.py` matched node IDs as
+`\S+`, truncating parametrised IDs that contain spaces, so a baselined failure
+could never match its own entry. Fixed in b1cca30e.
+
+Baseline now: 14 entries, gate exits 0. The lore pair is baselined with a named
+reason and a removal trigger (when Lore restores the rules).
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
