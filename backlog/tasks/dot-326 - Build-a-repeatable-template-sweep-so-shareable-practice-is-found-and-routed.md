@@ -11,7 +11,7 @@ labels:
 - template
 - copier-cat
 priority: high
-updated_date: 2026-11-15 21:51
+updated_date: 2026-11-15 21:55
 ---
 
 ## Description
@@ -63,6 +63,8 @@ that produces the spec for that upstream piece.
 - [ ] #7 The dotfiles implementation is recorded as the prototype spec for copier-cat's planned contribute command
 - [ ] #8 The stage decomposition is stress-tested against research and real submissions, and what the sketch got wrong is recorded
 - [ ] #9 Architecture, spec and principles are written from what the prototype measured, not from the conversational sketch
+- [ ] #10 The flow works from any downstream repo, not just this one: nothing assumes the submitting repo is dotfiles
+- [ ] #11 A submission carries the subproject's evidence — failing case, surrounding context — not a summary of it
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -107,6 +109,18 @@ mechanism graduates to copier-cat rather than hardening here.
 Why dotfiles prototypes it: this repo has the deepest agentic history of any
 project here, so it is where the candidates and the failure modes actually
 are. That is an argument for prototyping here, never for keeping it here.
+
+**Build it for the accidental prototype, not for this repo.** Any child repo
+downstream of a template — or of copier-cat itself — can be where a
+template-shaped problem surfaces, because problems appear wherever the work
+happens. The subproject holds the context that makes the finding legible and
+sometimes the fix as well, which is precisely what the parent lacks when a
+finding arrives as a bare description. So the flow carries evidence, not
+summaries, and nothing in it may assume the submitting repo is this one. Which
+end should prototype is a grey area the author named explicitly: the subproject
+has the context and the pressure, the parent has the generality and the other
+consumers. The hypothesis under test is that shared context between both repos
+dissolves the question; it is a draft and needs proving.
 
 Cross-references:
 
