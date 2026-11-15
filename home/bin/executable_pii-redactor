@@ -24,6 +24,10 @@ set -euo pipefail
 
 find_script() {
   if [[ -n "${PII_REDACTOR_SKILL_SCRIPT:-}" ]]; then
+    # The override is checked like any other candidate. Returning it verbatim
+    # would turn a typo into a bare `exec: ...: No such file or directory`,
+    # which does not say what was wrong or how to fix it.
+    [[ -x "$PII_REDACTOR_SKILL_SCRIPT" ]] || return 2
     printf '%s\n' "$PII_REDACTOR_SKILL_SCRIPT"
     return 0
   fi
@@ -42,7 +46,25 @@ find_script() {
   return 1
 }
 
-if ! target="$(find_script)"; then
+status=0
+target="$(find_script)" || status=$?
+
+if [[ "$status" -eq 2 ]]; then
+  cat >&2 <<EOF
+[ERROR] PII_REDACTOR_SKILL_SCRIPT is set but is not an executable file:
+
+  ${PII_REDACTOR_SKILL_SCRIPT}
+
+Point it at the skill's script:
+
+  ai-prompt-library/skills/pii-redaction/scripts/pii-redactor
+
+or unset it to use the installed skill.
+EOF
+  exit 1
+fi
+
+if [[ "$status" -ne 0 ]]; then
   cat >&2 <<'EOF'
 [ERROR] pii-redactor's implementation was not found.
 
