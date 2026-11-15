@@ -397,6 +397,16 @@ So the carve-out needs an answer inside this task's design, not beside it:
 that it must share the main checkout's index. A persistent `backlog/`-only
 worktree on `main` would keep queue commits unbranched and still isolated.
 
+A third symptom, cheaper to miss: working in the shared checkout forces
+constant re-probing. This session ran `git status` and `git log` more than a
+dozen times, often back to back, because concurrent sessions kept changing the
+tree between calls — the churn was real, not careless probing. The retro first
+proposed a combined status script, which measures at 0.12s and would have been
+a workaround made permanent: the cost is tokens and turns, not wall clock, and
+it exists only because the tree has other writers. In an isolated worktree one
+probe stays valid until the session itself changes something. Recorded here as
+evidence for the worktree split rather than queued as tooling.
+
 **`autoCommit` is a complement to that, not a substitute (measured 2026-11-11).**
 backlog-py's auto-commit is more careful than its name suggests — it stages a
 restricted pathspec (`backlog/` plus the config file, never `git add -A`),
