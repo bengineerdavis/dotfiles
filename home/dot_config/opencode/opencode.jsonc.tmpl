@@ -14,17 +14,30 @@
 
   // Format on write. Shift the formatter left of the commit so a file is
   // already formatted when it is written, instead of being rewritten by a
-  // pre-commit auto-fixer later. The formatters below run mdformat, which is
-  // the same formatter and the same plugin set as the pre-commit hook, so the
-  // two cannot disagree.
+  // pre-commit auto-fixer later.
   //
-  // mdformat is reached through its pre-commit cache because that is the only
-  // place it is installed; there is no mise or brew mdformat. If the cache is
-  // cleared, `pre-commit run mdformat --all-files` reinstalls it.
+  // mdformat is run through uvx rather than a path into anyone's cache. The
+  // first version of this pointed at a pre-commit venv, which baked in a
+  // `repo<random>` directory name that pre-commit regenerates per machine and
+  // per store rebuild — a literal correct only on the machine that wrote it.
+  // uvx is installed at the system level and deliberately not managed by mise
+  // (see ~/.config/mise/config.toml), so it does not churn.
+  //
+  // The version and plugin set match ai-prompt-library's mdformat hook, so the
+  // two agree on what formatted means.
   "formatter": {
     "mdformat": {
       "command": [
-        "{{ .chezmoi.homeDir }}/.cache/pre-commit/repon5s75h5s/py_env-python3.14/bin/mdformat",
+        "uvx",
+        "--from",
+        "mdformat==0.7.22",
+        "--with",
+        "mdformat-gfm",
+        "--with",
+        "mdformat-frontmatter",
+        "--with",
+        "mdformat-footnote",
+        "mdformat",
         "--wrap",
         "keep",
         "$FILE"
