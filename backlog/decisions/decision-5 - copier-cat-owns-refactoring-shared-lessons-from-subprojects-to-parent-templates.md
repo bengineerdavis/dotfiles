@@ -14,12 +14,32 @@ promise is prose in a task body that no mechanism collects. DOT-326 built the
 discovery half (find shareable practice, classify it, emit a routing list) and
 stopped before anything was submitted anywhere.
 
-The question is where that mechanism lives. This repo is the obvious host by
-accident of history: it has the deepest agentic use of any project here, so it
-is where the candidates and the failure modes appear first. That makes it the
-right place to *find* them and the wrong place to *own* the machinery, because
-every other stamped project needs the same path upstream and none of them
-should import dotfiles to get it.
+The question is where that mechanism lives. This repo looks like the obvious
+host because it has the deepest agentic use of any project here, so the
+candidates and failure modes surface here first. That makes it the right place
+to *find* them and the wrong place to *own* the machinery, because every other
+stamped project needs the same path upstream and none should import dotfiles
+to get it.
+
+The general case is wider than this repo, and naming it as "the" prototype
+would already be too narrow. **Any child repo downstream of a template, or of
+copier-cat itself, can become the accidental prototype**: the problem appears
+wherever the work happens, and the subproject holds the context that makes it
+legible — the failing case, the surrounding code, the reason the template's
+assumption did not hold. Sometimes it holds the fix too. That context is
+exactly what a parent repo lacks when a finding arrives as a bare description,
+and it is why the finding has to travel with its evidence rather than as a
+summary of it.
+
+Which end should prototype is genuinely unsettled. The subproject has the
+context and the pressure to solve it; the parent has the generality and every
+other consumer to answer to. A fix shaped entirely by one subproject's
+specifics is the known failure of prototyping downstream, and a fix designed
+upstream without the failing case is the known failure of prototyping up. The
+working hypothesis is that a shared-context mechanism dissolves the question
+rather than answering it: if submissions carry the subproject's evidence into
+the parent's design conversation, the location of the prototype stops being
+load-bearing. That hypothesis is unproven.
 
 copier-cat already claims the role. Its README describes pushing "project
 fixes back upstream as reviewable PRs through `contribute`", and verified
@@ -35,10 +55,16 @@ questions about how a lesson travels upstream — what gets submitted, how
 submissions are tracked, how an adopted change migrates back — are answered
 there, not re-answered per repo.
 
-This repo prototypes. DOT-326 produces a working event-driven flow and the
-evidence from running it, which becomes the spec for copier-cat's `contribute`.
-The mechanism graduates upstream rather than hardening here; what stays behind
-is configuration and the record of which submissions this repo made.
+This repo prototypes *this* instance, not every instance. DOT-326 produces a
+working event-driven flow and the evidence from running it, which becomes the
+spec for copier-cat's `contribute`. The mechanism graduates upstream rather
+than hardening here; what stays behind is configuration and the record of which
+submissions this repo made.
+
+The same path is open to any downstream repo that hits a template-shaped
+problem. dotfiles is first because it got there first, and the flow is built so
+the next accidental prototype uses it rather than reinventing it — a
+subproject-shaped finding is the normal case, not an exception to handle.
 
 The trigger is event-driven first: a task reaching Done with a template-bound
 note emits a candidate while its evidence is still attached. A cadence sweep
@@ -71,7 +97,14 @@ a skill before the procedure it refactors.
   concrete exercise of the flow rather than separate work.
 - Whether push-it-forward is a per-repo capability or a central service — the
   roborev-shaped question — is open and belongs to copier-cat's design, with
-  the answer recorded there.
+  the answer recorded there. The shared-context hypothesis bears on it: a
+  mechanism holding both repos' context at once is easier to argue for as a
+  service than as a capability each repo carries alone, but that is a reason to
+  test the claim, not to assume it.
+- A finding travels with its evidence, not as a summary. The subproject's
+  context is usually the part that makes a template-shaped problem legible
+  upstream, so a submission that drops it is asking the parent to re-derive
+  what the child already knew.
 - A per-item judgement stands for each candidate: raise the issue alone, or
   carry the fix with it. The ask is cheaper, the fix is more useful, and the
   call travels with the candidate.
