@@ -1,13 +1,17 @@
 ---
 id: DOT-326
-title: Build a repeatable template-sweep so shareable practice is found and routed on a cadence
+title: Build a repeatable template-sweep so shareable practice is found and routed
+  on a cadence
 status: To Do
 created_date: 2026-11-08 21:11
+references:
+- backlog/decisions/decision-5 - copier-cat-owns-refactoring-shared-lessons-from-subprojects-to-parent-templates.md
 labels:
 - process
 - template
 - copier-cat
-priority: medium
+priority: high
+updated_date: 2026-11-15 21:51
 ---
 
 ## Description
@@ -50,11 +54,60 @@ that produces the spec for that upstream piece.
    the meta-template repo to absorb it later. Nothing here is committed to the
    foreign copier-cat repo without its maintainer's acknowledgment
    (`AGENTS.md` § Cross-repo changes).
+- [ ] #1 A task reaching Done with a template-bound note emits a routing candidate naming the target template, the source task, and the evidence
+- [ ] #2 Stage one produces a draft issue or PR on the target repo, following that repo's existing branch convention
+- [ ] #3 Stage two tracks the submission: maintainer feedback, HITL events, and the decision to revise or withdraw
+- [ ] #4 Stage three queues migration work in this repo once the upstream change merges and releases
+- [ ] #5 The ten existing upstream promises are collected as the first run: DOT-57, 208, 209, 210, 242, 307, 322, 326, 360, 361
+- [ ] #6 A scheduled sweep runs as a safety net and reports candidates no event emitted
+- [ ] #7 The dotfiles implementation is recorded as the prototype spec for copier-cat's planned contribute command
+- [ ] #8 The stage decomposition is stress-tested against research and real submissions, and what the sketch got wrong is recorded
+- [ ] #9 Architecture, spec and principles are written from what the prototype measured, not from the conversational sketch
 <!-- AC:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
+
+**Event-driven first, sweep as the safety net (author, 2026-11-15).** The
+original shape assumed a schedule. The author approved event-driven as the
+primary trigger: a task reaching Done with a template-bound note emits the
+candidate while the context is fresh and the evidence is still attached. The
+cadence sweep stays, demoted to a safety net that catches what no event
+emitted — it diffs merged PRs since the last run and reports the difference.
+
+**The stages below are a draft to stress-test, not a conclusion.** They came
+out of conversation and have no research behind them yet. Run them against
+comparable projects and real submissions before treating any of it as
+architecture; expect the decomposition to change. The one part carrying
+evidence is that routing to a list is not a stopping point.
+
+**Three stages, because each needs its own tasking.** Routing to a list was
+the old stopping point and it is not enough; the work after routing is where
+submissions stall. (1) Prepare and submit: produce the draft issue or PR on
+the target repo. Whether to raise the problem or also carry the fix is a
+per-item call — the ask is cheaper and the fix is more useful, and the
+decision belongs with the candidate rather than set globally here. (2) Respond
+upstream: track maintainer feedback and HITL events, and revise or withdraw.
+(3) Migrate after merge: once the change lands and releases, queue the work to
+adopt it here, plus any follow-up feedback to other repos if adoption goes
+wrong. Event-driven suits all three; scheduled checks are an option for stage
+two, where the waiting happens.
+
+**Home: copier-cat is the subject-matter expert (author ruling, 2026-11-15).**
+Refactoring shared lessons from subprojects up to parent templates is
+copier-cat's domain, not this repo's. Verified 2026-11-15: copier-cat's README
+already claims it ("push project fixes back upstream as reviewable PRs through
+`contribute`"), and `copier-cat --help` lists only `merge`, `mergers` and
+`adopt`, describing contribute as "phone home, planned". So the concept is
+owned upstream and unbuilt. This task stays the dotfiles-side prototype that
+produces the spec for it, exactly as the original note intended, and the
+mechanism graduates to copier-cat rather than hardening here.
+
+Why dotfiles prototypes it: this repo has the deepest agentic history of any
+project here, so it is where the candidates and the failure modes actually
+are. That is an argument for prototyping here, never for keeping it here.
+
 Cross-references:
 
 - **The 2026-11-08 sweep it replaces** — recorded in DOT-209 § Implementation
