@@ -73,9 +73,13 @@ what C2 and CCC-21/23 already settle.
 
 **copier-cat is the subject-matter expert for refactoring shared lessons from
 subprojects to their parent templates** (author ruling, 2026-11-15). Design
-questions about how a lesson travels upstream — what gets submitted, how
-submissions are tracked, how an adopted change migrates back — are answered
-there, not re-answered per repo.
+questions about how a lesson travels upstream are answered there, not
+re-answered per repo.
+
+Refined 2026-11-16: that expertise is specifically the **child-parent
+relationship** — the lineage from a subproject through the template that
+stamped it and its own parents. **pif drives the movement** of a finding to
+any target repository; copier-cat answers which parent should receive it.
 
 This repo prototypes *this* instance, not every instance. DOT-326 produces a
 working event-driven flow and the evidence from running it, which becomes the
@@ -117,16 +121,28 @@ a skill before the procedure it refactors.
   only conversation is a guess.
 - The ten promissory tasks are the first run's input; collecting them is a
   concrete exercise of the flow rather than separate work.
-- Whether push-it-forward is a per-repo capability or a central service — the
-  roborev-shaped question — is open and belongs to copier-cat's design, with
-  the answer recorded there. The shared-context hypothesis bears on it: a
+- **Division of labour (author, 2026-11-16): pif drives, copier-cat supplies
+  the lineage.** pif owns moving a finding to another repository — preparing
+  the submission, publishing it, tracking the response, and queueing the
+  migration after a merge — for any target, related or not. copier-cat owns
+  what is unique to the child-parent relationship: which parent template
+  stamped this project, which parent stamped that one, and therefore which
+  template should receive a given lesson. That is the lineage graph CCC-19
+  records and CCC-23 walks, and it has no meaning between two unrelated repos.
+  The boundary follows from the subject matter: a submission to a stranger
+  needs no inheritance graph, and a hoist without one cannot choose a parent.
+- Whether pif is a per-repo capability or a central service remains open — the
+  roborev-shaped question. The shared-context hypothesis bears on it: a
   mechanism holding both repos' context at once is easier to argue for as a
   service than as a capability each repo carries alone, but that is a reason to
-  test the claim, not to assume it.
-- The scale is ten-plus agentically built repos, not one. That is the reason
-  pif, copier-cat and flagship exist, and it means a per-repo capability has
-  to be multiplied by ten while a service is written once — a cost argument
-  the design session should price rather than assume.
+  test the claim, not to assume it. The division above narrows the question
+  rather than settling it, since either shape can consume copier-cat's lineage.
+- The scale is ten agentic repositories, not one, surveyed 2026-11-16 and
+  recorded in `docs/AGENTIC-REPOS.md`: seven live queues, 437 open tasks,
+  four of the five template repos agentic themselves. That is the reason pif,
+  copier-cat and flagship exist, and it means a per-repo capability has to be
+  multiplied by ten while a service is written once — a cost argument the
+  design session should price rather than assume.
 - DOT-326's scope shrinks accordingly: it prototypes the *trigger and
   candidate capture* in a repo that has candidates, and stops short of
   re-specifying submission mechanics that spec.md § C2 and CCC-21 already
