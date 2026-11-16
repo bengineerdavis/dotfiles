@@ -46,10 +46,14 @@ find_script() {
   return 1
 }
 
-status=0
-target="$(find_script)" || status=$?
+# `rc`, not `status`: zsh reserves `status` as a read-only alias for `$?`, so
+# assigning it aborts with "read-only variable: status" — which reads like the
+# wrapped command failed. The shebang makes bash the normal interpreter, but a
+# script that dies when sourced or run under another shell is a trap.
+rc=0
+target="$(find_script)" || rc=$?
 
-if [[ "$status" -eq 2 ]]; then
+if [[ "$rc" -eq 2 ]]; then
   cat >&2 <<EOF
 [ERROR] PII_REDACTOR_SKILL_SCRIPT is set but is not an executable file:
 
@@ -64,7 +68,7 @@ EOF
   exit 1
 fi
 
-if [[ "$status" -ne 0 ]]; then
+if [[ "$rc" -ne 0 ]]; then
   cat >&2 <<'EOF'
 [ERROR] pii-redactor's implementation was not found.
 

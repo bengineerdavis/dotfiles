@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import os
 import pathlib
+import shutil
 import subprocess
 
 import pytest
@@ -30,11 +31,15 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 SHIM = REPO / "home" / "bin" / "executable_pii-redactor"
 
 
+SHELLS = ["bash", "zsh"]
+
+
 def run_shim(
     args: list[str] | None = None,
     *,
     home: pathlib.Path,
     override: str | None = None,
+    shell: str = "bash",
 ) -> subprocess.CompletedProcess[str]:
     """Run the shim with a sandboxed HOME and no inherited override."""
     env = {k: v for k, v in os.environ.items() if k != "PII_REDACTOR_SKILL_SCRIPT"}
@@ -42,12 +47,28 @@ def run_shim(
     if override is not None:
         env["PII_REDACTOR_SKILL_SCRIPT"] = override
     return subprocess.run(
-        ["bash", str(SHIM), *(args or [])],
+        [shell, str(SHIM), *(args or [])],
         capture_output=True,
         text=True,
         env=env,
         check=False,
     )
+
+
+@pytest.fixture(params=SHELLS)
+def shell(request: pytest.FixtureRequest) -> str:
+    """Run every behavioural test under each interpreter that exists here.
+
+    The shebang selects bash in normal use, so the suite ran under bash alone
+    until a `status=...` assignment turned out to be a fatal zsh error
+    ("read-only variable: status") — the shim printed the right message and then
+    exited 1 regardless of what the implementation returned. A wrapper that
+    silently reports failure is the worst possible bug in a tool whose whole job
+    is to refuse loudly, and running one shell would never have shown it.
+    """
+    if shutil.which(request.param) is None:
+        pytest.skip(f"{request.param} is not installed")
+    return request.param
 
 
 def install_fake_skill(home: pathlib.Path, body: str) -> pathlib.Path:
@@ -73,21 +94,23 @@ def test_the_shim_exists_and_is_a_bash_script() -> None:
     assert first.startswith("#!") and "bash" in first, first
 
 
-def test_an_override_wins_over_a_discovered_candidate(sandbox: pathlib.Path) -> None:
+def test_an_override_wins_over_a_discovered_candidate(
+    sandbox: pathlib.Path, shell: str
+) -> None:
     """The override exists so an operator can grade a checkout deliberately."""
     install_fake_skill(sandbox, "#!/usr/bin/env bash\necho discovered\n")
     chosen = sandbox / "chosen"
     chosen.write_text("#!/usr/bin/env bash\necho override\n", encoding="utf-8")
     chosen.chmod(0o755)
 
-    result = run_shim(home=sandbox, override=str(chosen))
+    result = run_shim(home=sandbox, override=str(chosen), shell=shell)
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "override"
 
 
 def test_a_bad_override_names_the_override_not_the_missing_skill(
-    sandbox: pathlib.Path,
+    sandbox: pathlib.Path, shell: str
 ) -> None:
     """Two failure modes, two messages: they need different fixes.
 
@@ -98,7 +121,7 @@ def test_a_bad_override_names_the_override_not_the_missing_skill(
     install_fake_skill(sandbox, "#!/usr/bin/env bash\necho discovered\n")
     missing = str(sandbox / "no-such-file")
 
-    result = run_shim(home=sandbox, override=missing)
+    result = run_shim(home=sandbox, override=missing, shell=shell)
 
     assert result.returncode == 1
     assert "PII_REDACTOR_SKILL_SCRIPT" in result.stderr
@@ -109,10 +132,10 @@ def test_a_bad_override_names_the_override_not_the_missing_skill(
 
 
 def test_no_candidate_names_what_is_missing_and_how_to_install(
-    sandbox: pathlib.Path,
+    sandbox: pathlib.Path, shell: str
 ) -> None:
     """A wrapper that silently does nothing is worse than one that fails loudly."""
-    result = run_shim(home=sandbox)
+    result = run_shim(home=sandbox, shell=shell)
 
     assert result.returncode == 1
     assert "was not found" in result.stderr
@@ -123,7 +146,7 @@ def test_no_candidate_names_what_is_missing_and_how_to_install(
 
 
 def test_arguments_reach_the_implementation_untouched(
-    sandbox: pathlib.Path,
+    sandbox: pathlib.Path, shell: str
 ) -> None:
     """`exec "$target" "$@"` is the whole point of a shim.
 
@@ -135,7 +158,9 @@ def test_arguments_reach_the_implementation_untouched(
         '#!/usr/bin/env bash\nprintf "<%s>\\n" "$@"\n',
     )
 
-    result = run_shim(["--input", "a file.md", "-o", "out.md"], home=sandbox)
+    result = run_shim(
+        ["--input", "a file.md", "-o", "out.md"], home=sandbox, shell=shell
+    )
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.splitlines() == [
@@ -147,7 +172,7 @@ def test_arguments_reach_the_implementation_untouched(
 
 
 def test_the_implementations_exit_status_is_the_shims(
-    sandbox: pathlib.Path,
+    sandbox: pathlib.Path, shell: str
 ) -> None:
     """`exec` preserves status; a wrapper that captured and re-ran would not.
 
@@ -156,6 +181,6 @@ def test_the_implementations_exit_status_is_the_shims(
     """
     install_fake_skill(sandbox, "#!/usr/bin/env bash\nexit 3\n")
 
-    result = run_shim(home=sandbox)
+    result = run_shim(home=sandbox, shell=shell)
 
     assert result.returncode == 3
