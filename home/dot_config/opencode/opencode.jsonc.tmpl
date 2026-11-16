@@ -24,7 +24,9 @@
   // (see ~/.config/mise/config.toml), so it does not churn.
   //
   // The version and plugin set match ai-prompt-library's mdformat hook, so the
-  // two agree on what formatted means.
+  // two agree on what formatted means. gfm-alerts is in the set because
+  // without it a custom alert title stays inline while the hook folds it into
+  // the body — the two would reflow each other's output forever.
   "formatter": {
     "mdformat": {
       "command": [
@@ -37,6 +39,8 @@
         "mdformat-frontmatter",
         "--with",
         "mdformat-footnote",
+        "--with",
+        "mdformat-gfm-alerts",
         "mdformat",
         "--wrap",
         "keep",
