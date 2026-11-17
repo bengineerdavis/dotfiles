@@ -182,7 +182,16 @@ usage = "latest"
 #   ansible-lint  — lint playbooks/roles (+ expose its CLI)
 #   argcomplete   — tab-completion for ansible* commands
 #   docker        — Docker SDK required by community.docker.docker_image
+#
+# --python 3.14 pins the tool venv BELOW the config's global python when the
+# global is 3.15: ansible-core 2.21.6 (the meta-package's ~=2.21.6 pin) patches
+# dataclasses._is_type, removed in 3.15, and its metadata does not exclude 3.15
+# (requires_python >=3.12) so uv builds it anyway — the venv imports crash with
+# 'module dataclasses has no attribute _is_type' (DOT-371; upstream
+# ansible/ansible#87677, fixed in core 2.22.0 which the meta-package cannot
+# reach). Same mechanism as pipx:aider-chat's --python 3.12 above.
 "pipx:ansible" = { version = "latest", uvx_args = """
+  --python 3.14
   --with ansible-lint
   --with argcomplete
   --with docker
