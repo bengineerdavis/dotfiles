@@ -11,10 +11,11 @@
 # committed as the capture — this topic never writes that file directly.
 #
 # The registration reads the committed catalogue (config/repos.yaml) for
-# repo -> group and writes gita's own repos.csv/groups.csv. Deliberately does
-# NOT move repos into the docs/LAYOUT.md type dirs — that is the migration, a
-# separate step. Every piece of state created here has a matching teardown in
-# remove.yaml (CRUD ownership invariant, docs/TOPICS.md).
+# repo -> group and writes gita's own repos.csv/groups.csv. Catalogue paths
+# follow the docs/LAYOUT.md type dirs; repos that live elsewhere on a machine
+# are reported as declared-but-not-cloned, not relocated. Every piece of state
+# created here has a matching teardown in remove.yaml (CRUD ownership
+# invariant, docs/TOPICS.md).
 
 - name: "Install: probe whether the global mise config declares pipx:gita"
   ansible.builtin.command:
@@ -59,6 +60,38 @@
       dotfiles/config/repos.yaml.
   when: gita_catalogue.repos is not defined
 
+# ── skeleton: the type directories a fresh machine must have ─────────────────
+#
+# docs/LAYOUT.md phase 3 assigns this to the topic: all three type trees plus
+# the four named subdirs inside personal/ are created, so a fresh machine gets
+# the full skeleton from one run and no registration ever points into a
+# vanished location (DOT-366). Empty types are cheap. The list follows the
+# standard, not the current disk — top-level templates/ and try/ on existing
+# machines are drift the author-tier migration resolves, not something this
+# task blesses. The skeleton is provisioning, not owned state: remove.yaml
+# never deletes these dirs — they hold the repos themselves, and deleting
+# ~/code/personal on teardown would be data destruction.
+
+- name: "Install: probe whether a work tree exists on this machine"
+  ansible.builtin.stat:
+    path: "{{ gita_work_root }}"
+  register: gita_work_root_probe
+  changed_when: false
+  # Runs BEFORE the skeleton: the reconciliation below must answer "did this
+  # machine have a work tree already", not "did the skeleton just create the
+  # work type". On a fresh machine the skeleton still makes the empty work
+  # dir (LAYOUT.md phase 3 — empty types are cheap), and the next run's
+  # reconciliation finds it and registers nothing.
+
+- name: "Install: provision the type-directory skeleton"
+  ansible.builtin.file:
+    path: "{{ gita_code_root }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ gita_layout_skeleton }}"
+  loop_control:
+    label: "~/code/{{ item }}"
+
 - name: "Install: check which catalogue repos are on disk"
   ansible.builtin.stat:
     path: "{{ gita_code_root }}/{{ item.path }}/.git"
@@ -87,6 +120,78 @@
     label: "{{ item.item.path }}"
   when: not item.stat.exists
   changed_when: false
+
+# ── layout capture: the observed ~/code shape, for redge-cli later ───────────
+#
+# Every install records which type directories exist and how they nest, as a
+# machine-local state file (~/.local/state/layout/tree.yaml). Counts only —
+# never repo names, never remotes: the shape is what redge's catalogue work
+# needs (docs/research/repo-manager/SPEC.md R1/R2), names are already in the
+# committed catalogue, and work paths must never leave the machine (spec.md §
+# Data). The file is gita-topic-owned state: overwritten each run, with a
+# matching teardown below, same as every state this topic creates.
+
+- name: "Install: enumerate the top-level code trees"
+  ansible.builtin.find:
+    paths: "{{ gita_code_root }}"
+    file_type: directory
+    depth: 1
+  register: gita_layout_tops
+  changed_when: false
+
+- name: "Install: enumerate the personal tree's named subdirectories"
+  ansible.builtin.find:
+    paths: "{{ gita_code_root }}/personal"
+    file_type: directory
+    depth: 1
+  register: gita_layout_personal
+  failed_when: false
+  # A personal tree is the taxonomy's core; its absence is reported, not fatal
+  # — a fresh machine gets the skeleton from this topic's own provisioning.
+
+- name: "Install: count git repositories per captured directory"
+  ansible.builtin.find:
+    paths: "{{ item.path }}"
+    file_type: directory
+    depth: 1
+    excludes: "{{ gita_layout_capture_ignored_dirs }}"
+  loop: "{{ (gita_layout_tops.files | default([])) + (gita_layout_personal.files | default([])) }}"
+  loop_control:
+    label: "{{ item.path | relpath(gita_code_root) }}"
+  register: gita_layout_children
+  changed_when: false
+
+- name: "Install: build the layout capture document"
+  ansible.builtin.set_fact:
+    gita_layout_capture: >-
+      {%- set tops = gita_layout_tops.files | default([]) | map(attribute='path') | list -%}
+      {%- set personal = gita_layout_personal.files | default([]) | map(attribute='path') | list -%}
+      {%- set counts = {} -%}
+      {%- for r in gita_layout_children.results | default([]) -%}
+      {%-   set _ = counts.update({r.item.path | relpath(gita_code_root): r.files | length}) -%}
+      {%- endfor -%}
+      {{ {
+        'captured_at': ansible_facts['date_time']['iso8601'],
+        'code_root': gita_code_root,
+        'top_trees': tops | map('basename') | sort | list,
+        'personal_nested': personal | map('basename') | sort | list,
+        'repo_counts': counts,
+      } }}
+
+- name: "Install: hold the layout-capture directory (state home beside machines.local.yaml)"
+  ansible.builtin.file:
+    path: "{{ gita_layout_capture_path | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: "Install: write the layout capture to the machine-local state"
+  ansible.builtin.copy:
+    content: "{{ gita_layout_capture | to_nice_yaml(indent=2) }}"
+    dest: "{{ gita_layout_capture_path }}"
+    mode: "0644"
+  # Machine-local state under the layout dir, beside machines.local.yaml.
+  # Overwritten every run — it is an observation, not an accumulation.
+
 # ── work: reconcile the work tree into one machine-local group ────────────────
 #
 # Work repos never enter the committed catalogue (spec.md § Data: employer
@@ -104,12 +209,6 @@
 # freeze: freeze omits local-only repos, respects context, and filters missing
 # paths. Gita filters those ghosts from its repository operations, but cannot
 # remove them through gita rm, so no unsupported manual pruning is attempted.
-
-- name: "Install: probe whether a work tree exists on this machine"
-  ansible.builtin.stat:
-    path: "{{ gita_work_root }}"
-  register: gita_work_root_probe
-  changed_when: false
 
 - name: "Install: report the skipped work reconciliation on personal machines"
   ansible.builtin.debug:
