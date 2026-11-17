@@ -9,6 +9,38 @@ gita_catalogue_path: "{{ role_path }}/../../config/repos.yaml"
 # The code root the catalogue paths are relative to.
 gita_code_root: "{{ ansible_facts['env']['HOME'] }}/code"
 
+# ── layout capture: the observed ~/code shape, machine-local ─────────────────
+#
+# Written to the XDG state home on every install, beside machines.local.yaml.
+# Holds which type trees exist, how they nest under personal/, and repo counts
+# per directory — never repo names or remotes. This is the per-machine shape
+# evidence redge-cli's catalogue work consumes later (SPEC.md R1/R2), and it
+# never leaves the machine (spec.md § Data).
+#
+# Resolved from $HOME, not ansible_user_dir: the tests sandbox HOME to a tmp
+# path, and user_dir ignores it, so a capture path keyed on user_dir let a
+# pytest run write live state at ~/.local/state (measured 2026-11-17: the
+# sandbox's tree.yaml overwrote the real capture). $HOME follows the sandbox.
+gita_layout_capture_path: "{{ ansible_facts['env']['HOME'] }}/.local/state/layout/tree.yaml"
+
+# Directories never counted in the capture's repo counts — vendored trees,
+# caches, anything that is not a clone.
+gita_layout_capture_ignored_dirs: [".venv", "node_modules", "__pycache__"]
+
+# The type-directory skeleton this topic provisions (docs/LAYOUT.md phase 3):
+# all three type trees plus the four named subdirs that live inside personal/
+# — never top-level siblings (LAYOUT.md § Structure). Empty types are cheap;
+# a fresh machine gets the full skeleton from one run, so registrations never
+# point into a vanished location (DOT-366).
+gita_layout_skeleton:
+  - personal
+  - personal/templates
+  - personal/try
+  - personal/captures
+  - personal/interviews
+  - forks
+  - work
+
 # Teardown of the registration is opt-in. `gita clear` removes EVERY repo and
 # group gita knows about, including any added by hand — so a plain
 # --tags remove keeps the index and only the flag below wipes it.
