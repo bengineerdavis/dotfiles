@@ -20,5 +20,7 @@ backlog_daemon_label: "com.backlog-py.daemon"
 backlog_logs_dir: "{{ ansible_env.HOME }}/.local/state/backlog-py"
 backlog_plist_path: >-
   {{ ansible_env.HOME }}/Library/LaunchAgents/{{ backlog_daemon_label }}.plist
+# The systemd unit takes the same stem as the launchd label, so the two init
+# systems never drift apart (roles/services uses service_systemd_name as given).
 backlog_unit_path: >-
-  {{ ansible_env.HOME }}/.config/systemd/user/backlog-daemon.service
+  {{ ansible_env.HOME }}/.config/systemd/user/{{ backlog_daemon_label }}.service
