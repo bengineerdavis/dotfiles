@@ -175,10 +175,15 @@ any phase reverses by moving back.
    three types (the per-repo mapping is recorded in `TASKS.md`); gita
    re-registers each. `personal/dotfiles` is a redundant second clone of the
    chezmoi checkout and is resolved, not migrated. Done when `~/code` matches
-   the taxonomy and every repo still fetches.
+   the taxonomy and every repo still fetches. **Done on the Mac** — the tree
+   moved and the catalogue was re-pointed to the type dirs (PR #152 series,
+   `config/repos.yaml` follows `docs/LAYOUT.md` paths as of 2026-11-12).
 5. **Migrate the other machine.** `projects/personal/*` flattens into the
    right types; `try/` is already conformant. Done when the two machines'
-   `~/code` trees are structurally identical for the shared types.
+   `~/code` trees are structurally identical for the shared types. Open; the
+   catalogue's declared-but-not-cloned reports on the Linux box are this
+   phase's work signal (DOT-306 tracks per-machine resolution until it
+   lands).
 6. **Switch the citations.** Queue and docs stop carrying absolute paths and
    cite the standard; the drift guard is added under `roles/guards/`. Done
    when `tests/backlog` and the guard both pass and a planted drifted repo
