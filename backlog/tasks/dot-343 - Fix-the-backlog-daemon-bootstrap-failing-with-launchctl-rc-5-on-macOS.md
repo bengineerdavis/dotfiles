@@ -131,6 +131,20 @@ prove the result.
   it installs and would restart the live daemon, which needs the author's
   approval and the apply claim. AC #2 asks for it; it remains open for the
   author to run.
+
+### Branch and PR
+
+- Branch `dot-343-launchctl-rc5`, two commits off `c57f945c`:
+  - `4870e876` the fix and its five tests
+  - `290b5c0e` this task record
+- PR body drafted, PR not yet opened: the branch needs the author's push first
+  (house rule — remote writes are author-tier).
+- `wt switch --create` was used first and **refused correctly** (dirty main in
+  the shared checkout, `scripts/sync-task-base.py` fails closed); the worktree
+  was then created with `git worktree add .worktrees/dot-343-launchctl-rc5 -b
+  dot-343-launchctl-rc5 origin/main`, per docs/WORKTREES.md § Lifecycle.
+- All nine AC boxes are still unchecked. #1 and #3 are evidenced above and
+  left for the author to tick with the merge, since #2 needs the live run.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 
