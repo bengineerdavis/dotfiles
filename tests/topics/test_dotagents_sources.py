@@ -105,6 +105,57 @@ def test_install_declares_targets_before_refreshing_the_sources():
     assert _defaults()["dotagents_plugin_target_state"] == "present"
 
 
+def test_teardown_tolerates_a_missing_manifest():
+    """M1: blockinfile create=false + missing file must not abort teardown."""
+    projection = _tasks("plugin-targets")
+    stats = [
+        task
+        for task in projection
+        if isinstance(task.get("ansible.builtin.stat"), dict)
+    ]
+    assert len(stats) == 1, "projection must stat the manifest before editing"
+    stat_path = stats[0]["ansible.builtin.stat"]["path"]
+    assert stat_path == "{{ ansible_facts['env']['HOME'] }}/.agents/agents.toml"
+    assert stats[0]["register"] == "dotagents_plugin_manifest"
+    blockinfile = next(
+        task
+        for task in projection
+        if isinstance(task.get("ansible.builtin.blockinfile"), dict)
+    )
+    guard = " ".join(str(blockinfile["when"]).split())
+    # Absent-state must only run when the file exists (stat guard), so a
+    # teardown on a manifest-less machine is a clean no-op.
+    assert "dotagents_plugin_manifest.stat.exists" in guard
+    assert "'absent'" in guard
+
+
+def test_absent_state_is_reachable_with_an_empty_target_list():
+    """M2: emptying the target list must not orphan a stale managed block."""
+    projection = _tasks("plugin-targets")
+    blockinfile = next(
+        task
+        for task in projection
+        if isinstance(task.get("ansible.builtin.blockinfile"), dict)
+    )
+    guard = " ".join(str(blockinfile["when"]).split())
+    # The old guard `length > 0` alone made absent-state unreachable once the
+    # list was emptied. Absent must be executable regardless of list content.
+    assert "'absent'" in guard
+    assert "length > 0" in guard
+    # absent must not be gated on the list length: the two disjuncts are
+    # (absent AND file-exists) OR (present AND length>0).
+    assert "or" in guard
+    assert "'present'" in guard
+
+
+def test_header_names_the_manifest_template_carveout():
+    """L1: install.yaml's header must name the single templated slice."""
+    header = "\n".join((TOPIC / "tasks" / "install.yaml").read_text().splitlines()[:14])
+    assert "carve-out" in header
+    assert "plugin-targets.yaml" in header
+    assert "target-exclusion" in header
+
+
 def test_teardown_covers_the_targeted_declaration():
     tasks = _tasks("remove")
     imports = [
@@ -265,3 +316,176 @@ def test_empty_projection_cannot_create_a_manifest(
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert not manifest.exists()
+
+
+@needs_ansible
+@pytest.mark.parametrize("ansible_playbook", ["ansible-playbook"])
+def test_teardown_on_missing_manifest_is_a_noop(
+    tmp_path: pathlib.Path, ansible_playbook: str
+):
+    """M1 behavioral: absent-state on a machine with no manifest exits clean."""
+    executable = shutil.which(ansible_playbook)
+    if executable is None:
+        raise AssertionError("ansible-playbook is required; run mise install")
+
+    home = tmp_path / "home"
+    home.mkdir()  # deliberately no .agents/agents.toml
+    play = tmp_path / "absent.yaml"
+    play.write_text(
+        f"""- hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    dotagents_plugin_targets:
+      - name: i-have-adhd
+        source: ayghri/i-have-adhd
+        targets: [ claude, cursor, codex, opencode ]
+    dotagents_plugin_target_state: absent
+  tasks:
+    - ansible.builtin.include_tasks: {TOPIC / "tasks" / "plugin-targets.yaml"}
+"""
+    )
+    result = subprocess.run(
+        [executable, "-i", "localhost,", str(play)],
+        cwd=PAYLOAD_ROOT / "dotfiles",
+        env={**os.environ, "HOME": str(home)},
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    # Must NOT exit 257 (blockinfile create=false on a missing file).
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert not (home / ".agents" / "agents.toml").exists()
+
+
+@needs_ansible
+@pytest.mark.parametrize("ansible_playbook", ["ansible-playbook"])
+def test_absent_state_removes_a_stale_block_with_empty_list(
+    tmp_path: pathlib.Path, ansible_playbook: str
+):
+    """M2 behavioral: emptied target list + state=absent still removes the block."""
+    executable = shutil.which(ansible_playbook)
+    if executable is None:
+        raise AssertionError("ansible-playbook is required; run mise install")
+
+    home = tmp_path / "home"
+    agents = home / ".agents"
+    agents.mkdir(parents=True)
+    manifest = agents / "agents.toml"
+    # Seed a manifest that already carries the managed block (as a prior
+    # present-state run would have written it).
+    manifest.write_text(
+        """version = 1
+
+# BEGIN ANSIBLE MANAGED PLUGIN TARGETS
+[[plugins]]
+name = "i-have-adhd"
+source = "ayghri/i-have-adhd"
+targets = ["claude", "cursor", "codex", "opencode"]
+# END ANSIBLE MANAGED PLUGIN TARGETS
+"""
+    )
+    play = tmp_path / "absent-empty.yaml"
+    play.write_text(
+        f"""- hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    dotagents_plugin_targets: []
+    dotagents_plugin_target_state: absent
+  tasks:
+    - ansible.builtin.include_tasks: {TOPIC / "tasks" / "plugin-targets.yaml"}
+"""
+    )
+    result = subprocess.run(
+        [executable, "-i", "localhost,", str(play)],
+        cwd=PAYLOAD_ROOT / "dotfiles",
+        env={**os.environ, "HOME": str(home)},
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    remaining = manifest.read_text()
+    assert "i-have-adhd" not in remaining
+    assert "ANSIBLE MANAGED PLUGIN TARGETS" not in remaining
+
+
+@needs_ansible
+@pytest.mark.dotagents_cli
+@pytest.mark.parametrize("ansible_playbook", ["ansible-playbook"])
+def test_add_preserves_predeclared_targets_and_copilot_exclusion(
+    tmp_path: pathlib.Path, ansible_playbook: str
+):
+    """L2: after projection, `dotagents add` must refresh, not duplicate.
+
+    The Copilot exclusion depends on dotagents 3.4.0 refreshing a predeclared
+    [[plugins]] entry instead of appending a second untargeted one. If a future
+    dotagents changes duplicate handling, this test is what catches the silent
+    revert. Opt-in (dotagents_cli marker): runs the real pinned binary against
+    a networked isolated HOME.
+    """
+    executable = shutil.which(ansible_playbook)
+    if executable is None:
+        raise AssertionError("ansible-playbook is required; run mise install")
+    dotagents = shutil.which("dotagents")
+    if dotagents is None:
+        raise AssertionError("dotagents is required; run mise install")
+
+    home = tmp_path / "home"
+    agents = home / ".agents"
+    agents.mkdir(parents=True)
+    manifest = agents / "agents.toml"
+    manifest.write_text(
+        """version = 1
+agents = [ "claude", "cursor", "codex", "opencode", "copilot" ]
+
+[trust]
+github_repos = [ "ayghri/i-have-adhd" ]
+"""
+    )
+    env = {**os.environ, "HOME": str(home), "DOTAGENTS_HOME": str(agents)}
+    play = tmp_path / "projection.yaml"
+    play.write_text(
+        f"""- hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    dotagents_plugin_targets:
+      - name: i-have-adhd
+        source: ayghri/i-have-adhd
+        targets: [ claude, cursor, codex, opencode ]
+    dotagents_plugin_target_state: present
+  tasks:
+    - ansible.builtin.include_tasks: {TOPIC / "tasks" / "plugin-targets.yaml"}
+"""
+    )
+    projected = subprocess.run(
+        [executable, "-i", "localhost,", str(play)],
+        cwd=PAYLOAD_ROOT / "dotfiles",
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert projected.returncode == 0, projected.stdout + projected.stderr
+    assert 'name = "i-have-adhd"' in manifest.read_text()
+
+    added = subprocess.run(
+        [dotagents, "--user", "add", "ayghri/i-have-adhd", "--all"],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert added.returncode == 0, added.stdout + added.stderr
+
+    final = tomllib.loads(manifest.read_text())
+    entries = [p for p in final.get("plugins", []) if p["name"] == "i-have-adhd"]
+    assert len(entries) == 1, (
+        f"expected exactly one i-have-adhd entry after add, got {len(entries)}: "
+        f"{manifest.read_text()}"
+    )
+    targets = entries[0]["targets"]
+    assert "copilot" not in targets
+    assert set(targets) == {"claude", "cursor", "codex", "opencode"}

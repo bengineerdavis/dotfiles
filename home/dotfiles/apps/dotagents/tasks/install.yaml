@@ -3,8 +3,11 @@
 # sources, sync them, and prove nothing else is installed.
 #
 # Config files are NOT here — chezmoi owns them, and dotagents owns
-# `~/.agents/agents.toml` once it exists. This topic drives the CLI; it does
-# not template the manager's state.
+# `~/.agents/agents.toml` once it exists. This topic drives the CLI and does
+# not template the manager's state, with one carve-out: the per-plugin targets
+# block in tasks/plugin-targets.yaml, because `dotagents add` 3.4.0 has no
+# target-exclusion option. That block is the only manifest edit this topic
+# makes; everything else stays dotagents' to write.
 #
 # Every piece of state created here has a matching teardown in remove.yaml,
 # per the CRUD ownership invariant in docs/TOPICS.md.
