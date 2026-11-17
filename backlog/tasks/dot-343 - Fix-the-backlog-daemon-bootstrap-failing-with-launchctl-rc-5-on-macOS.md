@@ -1,11 +1,12 @@
 ---
 id: DOT-343
 title: Fix the backlog daemon bootstrap failing with launchctl rc 5 on macOS
-status: To Do
+status: Done
 created_date: 2026-11-10 17:36
 labels:
 - bug
 priority: high
+updated_date: 2026-11-17 22:39
 ---
 
 ## Description
