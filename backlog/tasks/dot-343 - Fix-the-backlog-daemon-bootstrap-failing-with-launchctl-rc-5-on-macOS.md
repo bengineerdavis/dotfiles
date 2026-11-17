@@ -7,10 +7,8 @@ labels:
 - bug
 priority: high
 orchestration:
-  status_key: inprogress
-  lease_owner: opencode-dot-343-launchctl-rc5
-  lease_expires_at: '2026-11-17T18:18:41.066421Z'
-  version: 1
+  status_key: todo
+  version: 2
 ---
 
 ## Description
@@ -212,6 +210,18 @@ from_status: todo
 to_status: inprogress
 metadata:
   lease_ttl_seconds: '3600'
+```
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-c35a9cce41fd4828a0ab9caced07c890
+type: release_task
+actor: opencode-dot-343-launchctl-rc5
+timestamp: '2026-11-17T21:02:43.440106Z'
+result: succeeded
+task_id: DOT-343
+from_status: inprogress
+to_status: todo
 ```
 <!-- RUN_HISTORY_ENTRY:END -->
 <!-- SECTION:RUN_HISTORY:END -->
