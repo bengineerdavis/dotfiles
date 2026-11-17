@@ -422,6 +422,24 @@ entry — the comment survives a rebase, the entry survives a move to another re
 Entries are dated, not versioned: topics carry no version yet, and inventing one
 per topic would be a versioning scheme nothing consumes.
 
+### Keep topic knowledge current
+
+Write a verified correction in the affected topic's README, changelog, or a
+comment beside the relevant task. Replace the stale claim; do not leave the
+correction only in a session report, memory note, or central document.
+
+Link the authoritative upstream documentation, issue, or specification for
+behavior that this repository does not control. Record the tool version, test
+conditions, and date when they affect the finding. Distinguish measured behavior
+from an untested projection, and report an unsupported client explicitly rather
+than folding it into a pass.
+
+A topic skill is only as current as the knowledge that travels with its topic.
+When you create or update one, read the topic's local notes and upstream
+references rather than reconstructing its behavior from the tasks alone.
+`docs/PROCESS.md` § Observations are deliverables and `spec.md` § Evidence apply
+to these corrections.
+
 ## Template Conformance
 
 The canonical topic skeleton ships with the topical repo (checked out at

@@ -129,6 +129,14 @@
 # source outside the table, at both `add` and `install`. Done via the CLI rather
 # than templating agents.toml, because that file is dotagents' to write.
 
+- name: "Declare only the plugins that need explicit runtime targets"
+  # `dotagents add` has no target-exclusion option in 3.4.0. Declare the
+  # targeted plugin before calling add, so its duplicate check refreshes this
+  # declaration rather than appending a second untargeted one. The refresh does
+  # not rewrite targets. Every foreign declaration stays outside this block.
+  ansible.builtin.import_tasks: plugin-targets.yaml
+  tags: [dotagents_skills, upgrade]
+
 - name: "Declare the approved sources to dotagents"
   # Adding an entry that is already present is a no-op that exits non-zero with
   # "already in ...". The reporting task below treats that as success rather

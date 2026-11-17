@@ -1,0 +1,19 @@
+# Manage only explicitly targeted plugin declarations in dotagents' manifest.
+# The source approval remains in dotagents_sources. This small block exists
+# because `dotagents add` 3.4.0 cannot set a per-plugin targets list.
+# Leave every other declaration in agents.toml untouched.
+
+- name: "Declare per-plugin runtime targets in the dotagents manifest"
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_facts['env']['HOME'] }}/.agents/agents.toml"
+    marker: "# {mark} ANSIBLE MANAGED PLUGIN TARGETS"
+    block: |
+      {% for plugin in dotagents_plugin_targets %}
+      [[plugins]]
+      name = {{ plugin.name | to_json }}
+      source = {{ plugin.source | to_json }}
+      targets = {{ plugin.targets | to_json }}
+      {% endfor %}
+    create: "{{ dotagents_plugin_target_state == 'present' and dotagents_plugin_targets | length > 0 }}"
+    state: "{{ dotagents_plugin_target_state }}"
+  when: dotagents_plugin_targets | length > 0
