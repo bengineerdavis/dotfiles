@@ -25,6 +25,14 @@
   failed_when: false
   changed_when: true
 
+- name: "Remove: delete the layout capture (install wrote it; removal undoes it)"
+  ansible.builtin.file:
+    path: "{{ gita_layout_capture_path }}"
+    state: absent
+  # The capture is this topic's own state file, not the author's hand-maintained
+  # overlay (machines.local.yaml next to it) — so full teardown removes it.
+
+
 - name: "Remove: probe whether the global mise config declares pipx:gita"
   ansible.builtin.command:
     cmd: grep -q -e pipx:gita {{ ansible_facts['env']['HOME'] }}/.config/mise/config.toml
