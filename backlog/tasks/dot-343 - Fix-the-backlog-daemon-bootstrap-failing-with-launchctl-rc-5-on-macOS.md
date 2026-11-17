@@ -139,8 +139,9 @@ prove the result.
   - this task record
   - branch-state record
   - `4c536b7` the shared `roles/services` role (see below)
-- PR body drafted, PR not yet opened: the branch needs the author's push first
-  (house rule — remote writes are author-tier).
+- PR opened: **DOT-343 → bengineerdavis/dotfiles PR #181**
+  (`dot-343-launchctl-rc5` -> `main`, +1199/-142 across 17 files, mergeable).
+  Not merged: the author runs merges, and the merge-readiness quiz comes first.
 - `wt switch --create` was used first and **refused correctly** (dirty main in
   the shared checkout, `scripts/sync-task-base.py` fails closed); the worktree
   was then created with `git worktree add .worktrees/dot-343-launchctl-rc5 -b
