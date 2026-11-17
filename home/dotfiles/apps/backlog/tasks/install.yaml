@@ -60,13 +60,37 @@
   tags: [backlog, install, upgrade]
 
 - name: "backlog: (re)bootstrap the daemon (Darwin)"
-  # bootout-then-bootstrap from the service recipe: a bootout of a missing
-  # service errors, so it is tolerated; bootstrap then enable converge both.
+  # `launchctl disable` writes a PERSISTENT override in the user's launchd
+  # domain; it survives bootout and reboot. A label left disabled therefore
+  # makes every later `bootstrap` fail with "Bootstrap failed: 5: Input/output
+  # error" and leaves the daemon down (DOT-343, measured 2026-11-17). So:
+  #
+  #   1. enable FIRST, unconditionally — it is the only step that clears the
+  #      override, and it must not sit behind a bootstrap that cannot succeed;
+  #   2. bootout only a label launchd actually reports, so the miss is not
+  #      signalled by exit status (bootout of a missing label returns 3);
+  #   3. WAIT for the label to disappear — bootout returns before teardown
+  #      finishes, and a bootstrap racing it sees the old registration;
+  #   4. bootstrap, then let the health-check task prove the result.
+  #
+  # `enable` on an enabled label is a no-op, so this converges identically
+  # when the service is loaded, half torn down, or absent.
   ansible.builtin.shell:
-    cmd: >-
-      launchctl bootout gui/$(id -u)/{{ backlog_daemon_label }} 2>/dev/null;
+    cmd: |
+      set -u
+      target="gui/$(id -u)/{{ backlog_daemon_label }}"
+
+      launchctl enable "$target" 2>/dev/null || true
+
+      if launchctl print "$target" >/dev/null 2>&1; then
+        launchctl bootout "$target" 2>/dev/null || true
+        for _ in $(seq 1 50); do
+          launchctl print "$target" >/dev/null 2>&1 || break
+          sleep 0.1
+        done
+      fi
+
       launchctl bootstrap gui/$(id -u) {{ backlog_plist_path }}
-      && launchctl enable gui/$(id -u)/{{ backlog_daemon_label }}
   when: ansible_facts['os_family'] == 'Darwin'
   register: backlog_service_load
   changed_when: "'already' not in (backlog_service_load.stderr | default(''))"
