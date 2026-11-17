@@ -122,4 +122,18 @@ verification:
 ```
 Committed the disclosed implementation as cdf7bc6e and made the two ansible-dependent tests CI-safe.
 <!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-4bc80a8e1e8b476db37677549c8d528b
+type: record_run
+actor: opencode-dotagents-adhd
+timestamp: '2026-11-17T18:28:30.025470Z'
+result: succeeded
+task_id: DOT-348
+verification:
+- 9 passed with real ansible-playbook 2.21.6; 7 passed 2 skipped in the CI shape with
+  no ansible; full-suite parity 14 identical failures at base 748ddc9d and branch
+```
+Re-verified all nine focused tests against the machine's restored ansible (core 2.21.6), not only a shim.
+<!-- RUN_HISTORY_ENTRY:END -->
 <!-- SECTION:RUN_HISTORY:END -->
