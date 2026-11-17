@@ -8,6 +8,7 @@ labels:
 - tooling
 - queue-integrity
 priority: high
+updated_date: 2026-11-17 16:49
 ---
 
 ## Description
@@ -135,6 +136,7 @@ done | grep -oE 'dot-[0-9]+' | grep -oE '[0-9]+' | sort -n | tail -1
 It is slower and uglier than the pipx verb this task asks for, and it still
 races if a sibling branch is created between the scan and the commit. Treat
 it as a stopgap that at least reads the same view the guard reads.
+Retro 2026-11-17 (ses_e398d0a9): a third collision shape. Commit 2548c3dd reused DOT-338 while unpushed; the queue check caught it only at the next commit, and hand-picked ids (343+) were then used to avoid a pending rename. Extend the check: an id created in a commit must not already exist on origin/main (git ls-tree origin/main backlog/), failing at commit time. Branch-aware allocation (2.2.0) covers local branches and worktrees, not unpushed-vs-origin.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
