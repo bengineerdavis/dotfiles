@@ -27,7 +27,12 @@ find_script() {
     # The override is checked like any other candidate. Returning it verbatim
     # would turn a typo into a bare `exec: ...: No such file or directory`,
     # which does not say what was wrong or how to fix it.
-    [[ -x "$PII_REDACTOR_SKILL_SCRIPT" ]] || return 2
+    #
+    # `-f` as well as `-x`: a directory passes `-x` (execute on a directory
+    # is search permission), so an override with the last component missing
+    # would validate and then fail at `exec` with "is a directory".
+    [[ -f "$PII_REDACTOR_SKILL_SCRIPT" && -x "$PII_REDACTOR_SKILL_SCRIPT" ]] ||
+      return 2
     printf '%s\n' "$PII_REDACTOR_SKILL_SCRIPT"
     return 0
   fi
