@@ -1,0 +1,105 @@
+# roles/services/tasks/converge.yaml
+#
+# Bring one per-user service to a converged state on whichever init system the
+# host has, then prove it is actually up.
+#
+# THE LAUNCHD TRAP THIS EXISTS TO PREVENT (measured 2026-11-17, DOT-343)
+#
+# `launchctl disable` writes a PERSISTENT override into the user's launchd
+# domain. It survives `bootout` and reboot; only `launchctl enable` clears it.
+# A bootstrap of a disabled label fails with
+#
+#     Bootstrap failed: 5: Input/output error
+#
+# and leaves the service down — and the override is still there afterwards, so
+# every later run fails the same way. The old recipe in docs/TOPIC-RECIPES.md
+# said "bootout, then bootstrap, then enable", with `enable` behind `&&` after
+# a bootstrap that cannot succeed. The one command that fixes the state was
+# unreachable exactly when it was needed.
+#
+# So the order below is not stylistic:
+#   1. enable FIRST, unconditionally — it is the only thing that clears the
+#      override, and it must never be gated on a step that can fail;
+#   2. bootout only a label launchd reports (`launchctl print` exits 0 when
+#      loaded and 113 when absent; `bootout` of a missing label exits 3, so
+#      exit status is the wrong test for presence);
+#   3. WAIT for the label to disappear — `bootout` is documented as
+#      asynchronous, so a bootstrap issued immediately after it can see the
+#      stale registration. NOT REPRODUCED on this host (0 failures in 25
+#      attempts, measured 2026-11-17), so treat the wait as cheap insurance
+#      and a correct reading of the contract, not as a fix for an observed
+#      failure. The loop breaks on its first check in the normal case, so it
+#      costs nothing;
+#   4. bootstrap, then let the health check prove the result rather than
+#      trusting the exit code.
+#
+# Darwin and Debian converge the same way conceptually, so the task is split by
+# `os_family` and both branches end in the same health check.
+
+- name: "services: converge {{ service_label }} (Darwin)"
+  ansible.builtin.shell:
+    cmd: |
+      set -u
+      target="gui/$(id -u)/{{ service_label }}"
+
+      launchctl enable "$target" 2>/dev/null || true
+
+      if launchctl print "$target" >/dev/null 2>&1; then
+        launchctl bootout "$target" 2>/dev/null || true
+        for _ in $(seq 1 {{ service_bootout_wait_ticks }}); do
+          launchctl print "$target" >/dev/null 2>&1 || break
+          sleep {{ service_bootout_wait_seconds }}
+        done
+      fi
+
+      launchctl bootstrap gui/$(id -u) {{ service_unit_path }}
+  when: ansible_facts['os_family'] == 'Darwin'
+  register: service_converge_darwin
+  changed_when: "'already' not in (service_converge_darwin.stderr | default(''))"
+  tags: [install, upgrade]
+
+- name: "services: converge {{ service_label }} (Debian)"
+  ansible.builtin.systemd:
+    name: "{{ service_systemd_name }}"
+    enabled: true
+    state: restarted
+    scope: user
+    daemon_reload: true
+  when: ansible_facts['os_family'] == 'Debian'
+  register: service_converge_debian
+  tags: [install, upgrade]
+
+- name: "services: note the session-only caveat for {{ service_label }}"
+  # A systemd user unit only fires while the user has a session. Report the
+  # fix; never change login behaviour silently (AGENTS.md § Cross-platform).
+  ansible.builtin.debug:
+    msg: >-
+      {{ service_systemd_name }} is a systemd USER unit: it runs only while a
+      session exists. For an always-on service on a headless box, run
+      `loginctl enable-linger {{ ansible_facts['env']['USER'] }}` yourself —
+      this role deliberately does not change login behaviour.
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - service_linger_hint | bool
+  tags: [install, upgrade]
+
+- name: "services: health check {{ service_label }}"
+  # Trust the probe, not the exit status of the step that started it: a
+  # bootstrap can return 0 and still leave nothing running.
+  ansible.builtin.shell:
+    cmd: |
+      for _ in $(seq 1 {{ service_health_attempts }}); do
+        if {{ service_health_command }} >/dev/null 2>&1; then
+          exit 0
+        fi
+        sleep {{ service_health_interval_seconds }}
+      done
+      exit 1
+  register: service_health
+  changed_when: false
+  failed_when: service_health.rc != 0
+  check_mode: false
+  when:
+    - service_health_command | length > 0
+    - not ansible_check_mode
+  tags: [install, upgrade]
