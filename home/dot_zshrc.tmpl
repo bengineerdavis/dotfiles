@@ -64,6 +64,11 @@ export PROJECTS=~/code
   # duplicate — remove it (it won't round-trip into this template) or disable
   # PATH management in Rancher Desktop's settings.
 
+# worktrunk shell init (captured 2026-11-17 from a deployed-only line; the
+# author added it by hand and apply would have removed it). Guarded the same
+# way as the tool inits above: no wt on PATH, no eval.
+if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init zsh)"; fi
+
 {{- end }}
 
 {{- if not .isMac }}
