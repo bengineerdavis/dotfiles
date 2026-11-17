@@ -21,6 +21,15 @@ import yaml
 REPO = PAYLOAD_ROOT.parent
 TOPIC = PAYLOAD_ROOT / "dotfiles" / "apps" / "dotagents"
 
+# The manifest-projection tests shell out to ansible-playbook, which CI does not
+# install (`uv sync --frozen --group test` carries no ansible). Skip there rather
+# than fail, matching tests/topics/test_apt_tasks.py. A machine that *has* a
+# broken ansible still fails these, on purpose: that is a real signal, not a skip.
+needs_ansible = pytest.mark.skipif(
+    shutil.which("ansible-playbook") is None,
+    reason="ansible-playbook not on PATH",
+)
+
 
 def _defaults() -> dict:
     return yaml.safe_load((TOPIC / "defaults" / "main.yaml").read_text())
@@ -132,6 +141,7 @@ def test_topics_keep_corrections_and_authoritative_references():
     assert "skill" in text
 
 
+@needs_ansible
 @pytest.mark.parametrize("ansible_playbook", ["ansible-playbook"])
 def test_manifest_projection_preserves_foreign_declarations(
     ansible_playbook: str, tmp_path: pathlib.Path
@@ -221,6 +231,7 @@ source = "owner/other"
     assert "foreign-skill" in [s["name"] for s in final["skills"]]
 
 
+@needs_ansible
 @pytest.mark.parametrize("ansible_playbook", ["ansible-playbook"])
 def test_empty_projection_cannot_create_a_manifest(
     tmp_path: pathlib.Path, ansible_playbook: str
