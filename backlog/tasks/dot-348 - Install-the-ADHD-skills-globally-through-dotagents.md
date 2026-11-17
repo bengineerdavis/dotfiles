@@ -99,4 +99,41 @@ to_status: todo
 ```
 Implementation and isolated verification are ready for PR review. Releasing this session's stale lease; task remains open for merge and author-approved application.
 <!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-8eb30be3d62d406e8d8c1747aa00ff63
+type: record_run
+actor: opencode-dotagents-adhd
+timestamp: '2026-11-17T17:25:05.340223Z'
+result: succeeded
+task_id: DOT-348
+files:
+- home/dotfiles/apps/dotagents/defaults/main.yaml
+- home/dotfiles/apps/dotagents/tasks/plugin-targets.yaml
+- home/dotfiles/apps/dotagents/tasks/install.yaml
+- home/dotfiles/apps/dotagents/tasks/remove.yaml
+- home/dotfiles/apps/dotagents/README.md
+- home/dotfiles/apps/dotagents/CHANGELOG.md
+- docs/TOPICS.md
+- tests/topics/test_dotagents_sources.py
+verification:
+- Focused 87 passed; CI shape 7 passed 2 skipped; full-suite parity 14 identical failures
+  at base 748ddc9d and branch, zero regressions
+```
+Committed the disclosed implementation as cdf7bc6e and made the two ansible-dependent tests CI-safe.
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-4bc80a8e1e8b476db37677549c8d528b
+type: record_run
+actor: opencode-dotagents-adhd
+timestamp: '2026-11-17T18:28:30.025470Z'
+result: succeeded
+task_id: DOT-348
+verification:
+- 9 passed with real ansible-playbook 2.21.6; 7 passed 2 skipped in the CI shape with
+  no ansible; full-suite parity 14 identical failures at base 748ddc9d and branch
+```
+Re-verified all nine focused tests against the machine's restored ansible (core 2.21.6), not only a shim.
+<!-- RUN_HISTORY_ENTRY:END -->
 <!-- SECTION:RUN_HISTORY:END -->
