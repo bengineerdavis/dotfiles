@@ -50,7 +50,11 @@ Topics are ordered by tier during execution:
 | `runtime-manager` | Manages a subordinate set of versioned tools/models    | `mise`, `ollama`            |
 | `app`             | Normal application; no subordinate state of its own    | everything else             |
 
-Within a tier, topics run in alphabetic order.
+Within a tier, topics run in dependency order: declared providers run before
+consumers, with alphabetical order breaking ties. Dependencies provided by an
+earlier tier are satisfied by tier precedence. A dependency with no provider in
+the current OS run remains subject to the PATH probe below, not a false cycle.
+A dependency cycle fails before any topic runs and names the remaining topics.
 
 ## Lifecycle tags
 
