@@ -1,0 +1,53 @@
+# roles/services/tasks/remove.yaml
+#
+# Stop and remove one per-user service unit. Teardown changes with the thing it
+# creates (spec.md § Layering), so a topic that installs through this role
+# tears down through it too.
+#
+# What is preserved: the log directory. Logs are evidence, and deleting them is
+# a judgement the caller makes explicitly, not a side effect of teardown.
+
+- name: "services: stop {{ service_label }} (Darwin)"
+  # bootout of a label that is not loaded exits 3; that is already the desired
+  # state, so it is tolerated rather than treated as a failure.
+  ansible.builtin.shell:
+    cmd: |
+      set -u
+      target="gui/$(id -u)/{{ service_label }}"
+      if launchctl print "$target" >/dev/null 2>&1; then
+        launchctl bootout "$target" 2>/dev/null || true
+      fi
+  when: ansible_facts['os_family'] == 'Darwin'
+  tags: [remove]
+
+- name: "services: stop {{ service_label }} (Debian)"
+  ansible.builtin.systemd:
+    name: "{{ service_systemd_name }}"
+    enabled: false
+    state: stopped
+    scope: user
+  when: ansible_facts['os_family'] == 'Debian'
+  failed_when: false
+  tags: [remove]
+
+- name: "services: remove the unit for {{ service_label }} (Darwin)"
+  ansible.builtin.file:
+    path: "{{ service_unit_path }}"
+    state: absent
+  when: ansible_facts['os_family'] == 'Darwin'
+  tags: [remove]
+
+- name: "services: remove the unit for {{ service_label }} (Debian)"
+  ansible.builtin.file:
+    path: "{{ service_systemd_unit_path }}"
+    state: absent
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [remove]
+
+- name: "services: name what teardown preserved for {{ service_label }}"
+  ansible.builtin.debug:
+    msg: >-
+      Removed the unit for {{ service_label }}. Preserved:
+      {{ service_log_path | dirname }} (logs are evidence — remove it yourself
+      if you want it gone).
+  tags: [remove]

@@ -34,101 +34,30 @@
   check_mode: false
   tags: [backlog, install, upgrade]
 
-- name: "backlog: install the daemon service unit (Darwin)"
-  ansible.builtin.template:
-    src: backlog-daemon.plist.j2
-    dest: "{{ backlog_plist_path }}"
-    mode: "0644"
-  register: backlog_unit_file
-  when: ansible_facts['os_family'] == 'Darwin'
-  tags: [backlog, install, upgrade]
-
-- name: "backlog: install the daemon service unit (Debian)"
-  ansible.builtin.template:
-    src: backlog-daemon.service.j2
-    dest: "{{ backlog_unit_path }}"
-    mode: "0644"
-  register: backlog_unit_file
-  when: ansible_facts['os_family'] == 'Debian'
-  tags: [backlog, install, upgrade]
-
-- name: "backlog: create the log directory"
-  ansible.builtin.file:
-    path: "{{ backlog_logs_dir }}"
-    state: directory
-    mode: "0755"
-  tags: [backlog, install, upgrade]
-
-- name: "backlog: (re)bootstrap the daemon (Darwin)"
-  # `launchctl disable` writes a PERSISTENT override in the user's launchd
-  # domain; it survives bootout and reboot. A label left disabled therefore
-  # makes every later `bootstrap` fail with "Bootstrap failed: 5: Input/output
-  # error" and leaves the daemon down (DOT-343, measured 2026-11-17). So:
+- name: "backlog: install and converge the daemon service"
+  # The unit rendering and the launchd convergence order live in roles/services,
+  # which is tested against a disabled label (DOT-343). This topic supplies only
+  # its own values: the label, the argv, where logs go, and the health probe.
   #
-  #   1. enable FIRST, unconditionally — it is the only step that clears the
-  #      override, and it must not sit behind a bootstrap that cannot succeed;
-  #   2. bootout only a label launchd actually reports, so the miss is not
-  #      signalled by exit status (bootout of a missing label returns 3);
-  #   3. WAIT for the label to disappear — bootout returns before teardown
-  #      finishes, and a bootstrap racing it sees the old registration;
-  #   4. bootstrap, then let the health-check task prove the result.
-  #
-  # `enable` on an enabled label is a no-op, so this converges identically
-  # when the service is loaded, half torn down, or absent.
-  ansible.builtin.shell:
-    cmd: |
-      set -u
-      target="gui/$(id -u)/{{ backlog_daemon_label }}"
-
-      launchctl enable "$target" 2>/dev/null || true
-
-      if launchctl print "$target" >/dev/null 2>&1; then
-        launchctl bootout "$target" 2>/dev/null || true
-        for _ in $(seq 1 50); do
-          launchctl print "$target" >/dev/null 2>&1 || break
-          sleep 0.1
-        done
-      fi
-
-      launchctl bootstrap gui/$(id -u) {{ backlog_plist_path }}
-  when: ansible_facts['os_family'] == 'Darwin'
-  register: backlog_service_load
-  changed_when: "'already' not in (backlog_service_load.stderr | default(''))"
-  tags: [backlog, install, upgrade]
-
-- name: "backlog: (re)start the daemon (Debian)"
-  ansible.builtin.systemd:
-    name: backlog-daemon
-    enabled: true
-    state: restarted
-    scope: user
-  register: backlog_service_load
-  when: ansible_facts['os_family'] == 'Debian'
-  tags: [backlog, install, upgrade]
-
-- name: "backlog: note the Debian session-only caveat"
-  # A systemd user timer only fires while the user has a session. Report
-  # the fix; never change login behaviour silently (AGENTS.md).
-  ansible.builtin.debug:
-    msg: >-
-      backlog-daemon is a systemd USER unit: it runs only while a session
-      exists. For an always-on daemon on a headless box, run
-      `loginctl enable-linger {{ ansible_facts['env']['USER'] }}` yourself —
-      the topic deliberately does not change login behaviour.
-  when: ansible_facts['os_family'] == 'Debian'
-  tags: [backlog, install, upgrade]
-
-- name: "backlog: health check the daemon"
-  ansible.builtin.shell:
-    cmd: |
-      for i in 1 2 3 4 5; do
-        {{ backlog_bin }} daemon status --json >/dev/null 2>&1 && exit 0
-        sleep 2
-      done
-      exit 1
-  register: backlog_health
-  changed_when: false
-  failed_when: backlog_health.rc != 0
-  check_mode: false
-  when: not ansible_check_mode
+  # The health command is the daemon's own status, so a bootstrap that returns 0
+  # while leaving nothing listening still fails the run rather than passing it.
+  ansible.builtin.import_role:
+    name: "roles/services"
+  vars:
+    service_label: "{{ backlog_daemon_label }}"
+    service_description: "backlog-md-py singleton daemon (queue mutation serialization)"
+    service_program_arguments:
+      - "{{ backlog_bin }}"
+      - daemon
+      - run
+      - --foreground
+      - --host
+      - "{{ backlog_daemon_host }}"
+      - --port
+      - "{{ backlog_daemon_port }}"
+    service_log_path: "{{ backlog_logs_dir }}/daemon.log"
+    service_unit_path: "{{ backlog_plist_path }}"
+    service_systemd_name: "{{ backlog_daemon_label }}"
+    service_systemd_unit_path: "{{ backlog_unit_path }}"
+    service_health_command: "{{ backlog_bin }} daemon status --json"
   tags: [backlog, install, upgrade]

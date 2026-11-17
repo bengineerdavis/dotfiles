@@ -184,19 +184,35 @@ A topic that installs a daemon owns the unit that keeps it running — in the
 same change as the thing that creates it (spec.md § Layering — teardown
 changes with the thing it creates).
 
+**Use `roles/services`.** It renders the unit and converges it on both init
+systems, so the launchd ordering trap below is written once, tested, and not
+re-derived per topic. `import_role: name: "roles/services"` with
+`service_label`, `service_program_arguments`, `service_log_path` and
+`service_health_command`; `--tags remove` tears it down. See
+`home/dotfiles/roles/services/README.md`.
+
 - **Darwin**: a per-user launchd agent under `~/Library/LaunchAgents`,
-  bootstrapped into the `gui` domain (`launchctl bootout gui/$(id -u)/<label>`
-  then `bootstrap` then `enable`), plist from `templates/*.plist.j2`, logs to
-  a state dir, health check after boot. Precedent: `apps/ollama`.
+  bootstrapped into the `gui` domain. **`launchctl enable` comes FIRST, before
+  `bootstrap`, and unconditionally.** `launchctl disable` writes a *persistent*
+  override that survives `bootout` and reboot, and only `enable` clears it, so
+  a bootstrap of a disabled label fails with `Bootstrap failed: 5:
+  Input/output error` and stays failed on every later run. The order
+  "bootout, then bootstrap, then enable" is wrong — it gates `enable` behind a
+  bootstrap that cannot succeed (DOT-343, measured 2026-11-17). Test presence
+  with `launchctl print` (0 when loaded, 113 when absent), never with
+  `bootout` (3 when the label is missing).
 - **Debian**: a systemd **user** unit under `~/.config/systemd/user/` — same
   ownership as the launchd agent, no root. It only fires while the user has a
   session, so report the `loginctl enable-linger` fix rather than silently
-  changing login behaviour. Precedent: `apps/ollama` user units.
+  changing login behaviour.
 - Point `ExecStart`/`ProgramArguments` at a **stable path** (a shim or a
   resolved-at-install absolute path), not a version-pinned install path that
   changes on every upgrade.
 - Teardown: bootout/bootctl disable, remove the unit file, remove logs only if
   they are topic-owned state.
+- A **scheduled** job (calendar or interval) is a different shape from a
+  daemon: it needs `StartCalendarInterval` rather than `KeepAlive`, so those
+  topics keep their own plist and borrow only the convergence rules.
 
 ## Recipe: test-first topic program (swarm + measured judge)
 

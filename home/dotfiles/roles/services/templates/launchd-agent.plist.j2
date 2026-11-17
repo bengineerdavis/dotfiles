@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Managed by roles/services — rendered from launchd-agent.plist.j2.
+     Edits here are overwritten on the next run.
+     {{ service_description }} -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>{{ service_label }}</string>
+
+  <key>ProgramArguments</key>
+  <array>
+{% for argument in service_program_arguments %}
+    <string>{{ argument | e }}</string>
+{% endfor %}
+  </array>
+{% if service_environment %}
+  <key>EnvironmentVariables</key>
+  <dict>
+{% for name, value in service_environment.items() %}
+    <key>{{ name }}</key>
+    <string>{{ value | e }}</string>
+{% endfor %}
+  </dict>
+{% endif %}
+
+  <key>RunAtLoad</key>
+  <{{ service_run_at_load | lower }}/>
+
+  <key>KeepAlive</key>
+  <{{ service_keep_alive | lower }}/>
+{% if service_process_type %}
+  <key>ProcessType</key>
+  <string>{{ service_process_type }}</string>
+{% endif %}
+
+  <key>StandardOutPath</key>
+  <string>{{ service_log_path }}</string>
+  <key>StandardErrorPath</key>
+  <string>{{ service_log_path }}</string>
+</dict>
+</plist>
