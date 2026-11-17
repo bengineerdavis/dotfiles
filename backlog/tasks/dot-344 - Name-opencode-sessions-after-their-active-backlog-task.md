@@ -6,6 +6,7 @@ created_date: 2026-11-10 17:36
 labels:
 - urgent
 priority: high
+updated_date: 2026-11-17 16:49
 ---
 
 ## Description
@@ -33,7 +34,7 @@ Constraints:
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
+Retro 2026-11-17 (ses_e398d0a9), measured cost: over 2026-11-10 to 11-17 a dirty main blocked this session three times (dot-290/dot-342, then dot-140/dot-349/tests/ollama_models, then dot-140/dot-352/dot-367). Finding the owner meant exporting full session JSON and grepping it (opencode session export + grep), and the answer was still inconclusive. Keep this task second in the queue.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
