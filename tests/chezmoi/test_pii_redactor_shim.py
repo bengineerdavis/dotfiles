@@ -131,6 +131,31 @@ def test_a_bad_override_names_the_override_not_the_missing_skill(
     assert "was not found" not in result.stderr
 
 
+def test_a_metacharacter_override_is_printed_as_data(
+    sandbox: pathlib.Path, shell: str, tmp_path: pathlib.Path
+) -> None:
+    """The error message must show what was set, not evaluate it.
+
+    A review flagged the unquoted heredoc as command substitution. It is not:
+    parameter expansion happens once and its result is never re-scanned, so a
+    `$(...)` inside the *value* is printed, not run. That is worth pinning,
+    because the fix for the imagined bug (a quoted heredoc plus printf) would
+    also be correct — and a later reader should be able to tell the two apart
+    from the tests rather than from an argument in a review thread.
+
+    The canary is the assertion: if substitution ever did happen, the file
+    appears.
+    """
+    canary = tmp_path / "canary"
+    hostile = f"/nope/$(touch {canary})"
+
+    result = run_shim(home=sandbox, override=hostile, shell=shell)
+
+    assert result.returncode == 1
+    assert not canary.exists(), "the override was executed, not printed"
+    assert hostile in result.stderr
+
+
 def test_no_candidate_names_what_is_missing_and_how_to_install(
     sandbox: pathlib.Path, shell: str
 ) -> None:
