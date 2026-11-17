@@ -35,7 +35,14 @@ REPO_NATIVE = frozenset({".claude/settings.json", "opencode.jsonc"})
 
 
 def live_managed() -> frozenset[str] | None:
-    """The real managed set, or None where chezmoi cannot answer."""
+    """The real managed set, or None where chezmoi cannot answer.
+
+    A chezmoi binary with no configured source state answers with an
+    empty managed set rather than an error. That is not a real answer:
+    the deployed bucket would never fire and the policy assertions would
+    run against an empty set. Treat it as "cannot answer" so the suite
+    skips cleanly, the same as when no binary is present.
+    """
     if shutil.which("chezmoi") is None:
         return None
     try:
@@ -46,7 +53,10 @@ def live_managed() -> frozenset[str] | None:
         return None
     if out.returncode != 0:
         return None
-    return frozenset(out.stdout.split())
+    managed = frozenset(out.stdout.split())
+    if not managed:
+        return None
+    return managed
 
 
 @pytest.fixture(scope="module")

@@ -109,6 +109,21 @@ jobs:
       - name: Install gita for the gita role tests
         run: uv tool install "gita==0.16.8.2"
 
+      # The Claude credential tests execute the real shell fragment. Ubuntu
+      # runners do not provide zsh, so install it before invoking pytest.
+      - name: Install zsh for the real-shell tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes zsh
+
+      # The profile-deployment test shells out to bare `chezmoi managed`. A
+      # developer machine has it from Homebrew; a runner has nothing, so the
+      # test fails with FileNotFoundError: 'chezmoi'. Install the official
+      # binary at a pinned tag — a floating version in a gate lets a green
+      # commit re-run red. The `-b` target is on the default PATH.
+      - name: Install chezmoi for the deployment test
+        run: sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin -t v2.74.1
+
       # pytest's exit status is nonzero for the known failures, so the run is
       # allowed to finish and the RESULT is judged by which tests failed rather
       # than by the exit code. See `AGENTS.md` § Known failures: green means the

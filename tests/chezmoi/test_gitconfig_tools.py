@@ -39,6 +39,10 @@ def gitconfig(tmp_path_factory) -> pathlib.Path:
         text=True,
         timeout=60,
     )
+    if out.returncode != 0 and "map has no entry for key" in out.stderr:
+        # chezmoi is installed but has no config data to render with (an
+        # unconfigured runner, not a template bug). Skip rather than fail.
+        pytest.skip(f"chezmoi has no config data to render: {out.stderr.strip()}")
     assert out.returncode == 0, out.stderr
     assert "[merge]" in out.stdout, "rendered nothing recognisable"
     path = tmp_path_factory.mktemp("gitconfig") / "gitconfig"

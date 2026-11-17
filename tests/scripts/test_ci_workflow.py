@@ -154,6 +154,56 @@ def test_the_history_a_lint_diff_needs_is_fetched():
     )
 
 
+def _suite_index(steps):
+    return next(
+        index
+        for index, step in enumerate(steps)
+        if "pytest tests tools" in step.get("run", "")
+    )
+
+
+def test_real_zsh_tests_have_a_shell_before_the_suite_runs():
+    """The Ubuntu runner does not provide zsh by default."""
+    steps = _workflow()["jobs"]["tests"]["steps"]
+    suite_index = _suite_index(steps)
+    install_index = next(
+        (
+            index
+            for index, step in enumerate(steps)
+            if "apt-get install" in step.get("run", "")
+        ),
+        None,
+    )
+
+    assert install_index is not None, "CI must install zsh for the real-shell tests"
+    assert install_index < suite_index
+    assert "zsh" in steps[install_index]["run"]
+
+
+def test_chezmoi_is_installed_before_the_suite_runs():
+    """The profile-deployment test shells out to bare `chezmoi`.
+
+    The Ubuntu runner does not provide it, so CI must install it before
+    the suite step, pinned to a version — a floating tool in a gate lets
+    a green commit re-run red.
+    """
+    steps = _workflow()["jobs"]["tests"]["steps"]
+    suite_index = _suite_index(steps)
+    install_index = next(
+        (
+            index
+            for index, step in enumerate(steps)
+            if "get.chezmoi.io" in step.get("run", "")
+        ),
+        None,
+    )
+
+    assert install_index is not None, "CI must install chezmoi for the deployment test"
+    assert install_index < suite_index
+    # Pinned, not floating: `-t vX.Y.Z` rather than tracking latest.
+    assert "-t v" in steps[install_index]["run"]
+
+
 def test_the_install_step_provides_what_the_later_steps_run():
     """A sync that installs nothing makes every later step unrunnable.
 
