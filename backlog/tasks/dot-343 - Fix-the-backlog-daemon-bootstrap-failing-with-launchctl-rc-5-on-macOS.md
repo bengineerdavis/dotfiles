@@ -134,9 +134,11 @@ prove the result.
 
 ### Branch and PR
 
-- Branch `dot-343-launchctl-rc5`, two commits off `c57f945c`:
-  - `4870e876` the fix and its five tests
-  - `290b5c0e` this task record
+- Branch `dot-343-launchctl-rc5`, commits off `c57f945c`:
+  - the fix and its five tests
+  - this task record
+  - branch-state record
+  - `4c536b7` the shared `roles/services` role (see below)
 - PR body drafted, PR not yet opened: the branch needs the author's push first
   (house rule — remote writes are author-tier).
 - `wt switch --create` was used first and **refused correctly** (dirty main in
@@ -145,6 +147,43 @@ prove the result.
   dot-343-launchctl-rc5 origin/main`, per docs/WORKTREES.md § Lifecycle.
 - All nine AC boxes are still unchecked. #1 and #3 are evidenced above and
   left for the author to tick with the merge, since #2 needs the live run.
+
+### Follow-on: the same bug was in the recipe, so it became a shared role
+
+Author-directed during the session: capture this so the next topic cannot
+repeat it. The finding that forced the scope is that
+`docs/TOPIC-RECIPES.md` § service ownership *taught* the broken order —
+"`bootout` then `bootstrap` then `enable`" — so fixing only apps/backlog would
+have left the recipe instructing the next daemon topic to reintroduce DOT-343.
+
+`home/dotfiles/roles/services` now owns the unit templates (launchd agent and
+systemd user unit), the convergence order and the teardown, mirroring
+`roles/guards` (import_role, tasks_from routing, defaults for every parameter).
+`apps/backlog` is the first caller and the proof it works on a real topic: its
+two per-topic templates are deleted, not left unused, because a leftover
+template is the copy a future edit updates by mistake.
+
+The role's tests are split deliberately. Convergence is tested once, against
+the role, by running its own command at throwaway labels — rendering tests
+cannot catch the bug because the buggy command rendered perfectly. The topic
+test now pins only the wiring (label, argv, log path, health probe, teardown
+symmetry), so there is one place to be wrong about the rule rather than two.
+
+Mutations proven on the role: reordering to the original
+`bootout;bootstrap&&enable` chain fails the disabled-label convergence test and
+the order property; gating `enable` behind `&&` fails both as well; dropping
+`--foreground` and drifting the log path each fail the wiring tests.
+
+One honest gap: removing the teardown *wait* survives the suite. The wait is
+documented as asynchronous-bootout insurance, and it was **not reproducible**
+on this host (0 failures in 25 attempts), so the README and the task comment say
+that rather than claiming a race that was never observed.
+
+`apps/backlog`'s systemd unit name changes from `backlog-daemon.service` to
+`com.backlog-py.daemon.service` so both init systems share one stem. A Debian
+host with the old unit needs `systemctl --user disable backlog-daemon.service`
+once; no Debian host here was in that state, and the macOS run is unaffected.
+
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 
