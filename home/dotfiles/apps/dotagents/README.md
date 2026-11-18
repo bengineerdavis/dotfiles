@@ -30,8 +30,12 @@ made an opencode install look required to get skills in any agent.
   afterwards.
 - `dotagents_sources` — approved sources with a `why` and optional `exclude`
   vetoes. Each entry becomes `dotagents trust add` and
-  `dotagents add <source> --all`. Approving a source accepts everything in it,
-  now and in future; `exclude` is the per-skill veto.
+  `dotagents add <source> --all`. A plugin source installs its plugins rather
+  than a wildcard skill set. Approving a source accepts its published
+  artifacts; check the upstream manifest and hooks before changing the list.
+- `dotagents_plugin_targets` — complete declarations for plugins that cannot
+  serve every configured runtime. Ansible manages only this named TOML block.
+  Dotagents owns and validates the rest of `agents.toml`.
 - `dotagents_vendored` — on-disk directories allowed without a declaration.
   Each carries a LICENSE and PROVENANCE note.
 
@@ -62,24 +66,52 @@ skill-upgrade procedure.
 
 ## Plugin sources: what is and is not wired
 
-`mattpocock/skills` is a plugin-marketplace repository. dotagents discovers
-plugins before skills and refuses a named skill from such a source, so the
-source installs as a plugin (`[[plugins]]` in `agents.toml`).
+`mattpocock/skills`, `UditAkhourii/adhd`, and `ayghri/i-have-adhd` are plugin
+sources. Dotagents discovers plugins before skills and refuses a named skill
+from a plugin source. `--all` therefore installs a plugin, not a wildcard skill.
 
-Measured on 2026-10-26:
+Verified with isolated home directories and dotagents 3.4.0 on 2026-11-15:
 
-- Plugin skills are linked into `~/.config/opencode/skills`, so opencode sees
-  them in every repository.
-- dotagents also publishes client marketplaces under `~/.agents/`
-  (`.claude-plugin/marketplace.json`, `.cursor-plugin/`, `.github/plugin/`),
-  but it does **not** point claude, cursor, codex or copilot at them. Those
-  clients do not see the plugin's skills yet.
-- The provenance guard audits `~/.agents/skills`; plugin skills live elsewhere,
-  so they are outside that audit.
+- Dotagents links plugin skills into `~/.config/opencode/skills`.
+- This topic registers generated marketplaces with Claude and Codex and
+  installs the declared plugins into them.
+- Dotagents writes Cursor marketplace files, but this topic does not register
+  them with Cursor. Generated files do not prove client activation.
+- Copilot and VS Code need a case-by-case compatibility check. An absent skill
+  link is not an implicit pass.
+- The provenance guard audits `~/.agents/skills`. Plugin skills live under
+  `~/.agents/plugins/<name>/`, so they are outside that audit.
 
-Per-client marketplace wiring is queued as its own task. Until it lands, treat
-a plugin source as opencode-only and say so, rather than claiming the skill set
-is uniform across agents.
+### The ADHD skill boundary
+
+`UditAkhourii/adhd` supplies its canonical `skills/adhd/SKILL.md`. Its preflight
+rules gate the roughly ten parallel Agent calls and state their cost. This
+topic does not install the optional `adhd-agent` CLI or invoke the skill.
+
+`ayghri/i-have-adhd` contains `hooks/hooks.json`. Dotagents 3.4.0 rejects that
+bundle for Copilot rather than dropping unsupported resources. The author
+approved excluding Copilot for this plugin on 2026-11-15. Copilot stays enabled
+for other sources, and the exclusion is not reported as a successful install.
+
+OpenCode receives the canonical `i-have-adhd` skill in A. Dotagents does not
+link the repository's `.opencode/plugins/*.mjs` setup hook or
+`.opencode/command/i-have-adhd.md` command. The setup hook registers a context
+hook when OpenCode loads it; always-on injection remains opt-in. DOT-349 owns
+that hook, the slash command, and its teardown. Do not mark B complete merely
+because the skill link exists.
+
+### Upstream references
+
+- [Dotagents plugin configuration](https://github.com/getsentry/dotagents/blob/main/plugins/dotagents/skills/dotagents/references/config-schema.md#plugins-section)
+  documents per-plugin `targets`. The 3.4.0 CLI does not expose an exclusion
+  flag, so Ansible manages the named declaration before each refresh.
+- [Dotagents native activation proposal](https://github.com/getsentry/dotagents/pull/178)
+  is open. Recheck it before expanding client wiring.
+- [ADHD installation](https://github.com/UditAkhourii/adhd/blob/main/documentation/install.md)
+  documents the canonical skill and the separate optional CLI.
+- [i-have-adhd installation](https://github.com/ayghri/i-have-adhd/blob/main/INSTALL.md)
+  documents its native OpenCode adapter. DOT-349 also owns the upstream
+  contribution decision; no issue or pull request is published implicitly.
 
 ## Teardown
 

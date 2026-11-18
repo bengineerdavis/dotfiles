@@ -3,8 +3,11 @@
 # sources, sync them, and prove nothing else is installed.
 #
 # Config files are NOT here — chezmoi owns them, and dotagents owns
-# `~/.agents/agents.toml` once it exists. This topic drives the CLI; it does
-# not template the manager's state.
+# `~/.agents/agents.toml` once it exists. This topic drives the CLI and does
+# not template the manager's state, with one carve-out: the per-plugin targets
+# block in tasks/plugin-targets.yaml, because `dotagents add` 3.4.0 has no
+# target-exclusion option. That block is the only manifest edit this topic
+# makes; everything else stays dotagents' to write.
 #
 # Every piece of state created here has a matching teardown in remove.yaml,
 # per the CRUD ownership invariant in docs/TOPICS.md.
@@ -128,6 +131,14 @@
 # dotagents enforces the allow-list itself: validateTrustedSource throws on any
 # source outside the table, at both `add` and `install`. Done via the CLI rather
 # than templating agents.toml, because that file is dotagents' to write.
+
+- name: "Declare only the plugins that need explicit runtime targets"
+  # `dotagents add` has no target-exclusion option in 3.4.0. Declare the
+  # targeted plugin before calling add, so its duplicate check refreshes this
+  # declaration rather than appending a second untargeted one. The refresh does
+  # not rewrite targets. Every foreign declaration stays outside this block.
+  ansible.builtin.import_tasks: plugin-targets.yaml
+  tags: [dotagents_skills, upgrade]
 
 - name: "Declare the approved sources to dotagents"
   # Adding an entry that is already present is a no-op that exits non-zero with
