@@ -23,7 +23,6 @@
 - name: "Prerequisites: install core Homebrew packages"
   community.general.homebrew:
     name:
-      - git
       - curl
       - wget
       - ca-certificates
