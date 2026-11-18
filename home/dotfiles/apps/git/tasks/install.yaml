@@ -1,0 +1,3 @@
+# Package presence is deliberately handled in prerequisites.yaml so dependent
+# topics can use Git during fleet provisioning. Configuration belongs to chezmoi.
+---
