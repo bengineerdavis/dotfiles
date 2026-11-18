@@ -16,16 +16,21 @@ Prefer the `backlog-py-mcp` tools. The CLI is the fallback for verbs the server
 does not expose, not the default. The server is local stdio and resolves the
 project from the session directory.
 
-| Need | MCP tool | CLI fallback |
-|---|---|---|
-| list, search | `task_list`, `task_search` | `backlog-py task list` |
-| read one | `task_view` | `backlog-py task <id>` |
-| create | `task_create` | `backlog-py task create "<title>"` |
-| edit | `task_edit` | `backlog-py task edit <id>` |
+Invoke the CLI through the mise shim (`backlog-py`, or
+`~/.local/share/mise/shims/backlog-py`) — it is on PATH and fast.
+`uvx --from backlog-md-py backlog-py` re-resolves the package every call and
+is the slower fallback when the shim is missing.
+
+| Need           | MCP tool                                                 | CLI fallback                                |
+| -------------- | -------------------------------------------------------- | ------------------------------------------- |
+| list, search   | `task_list`, `task_search`                               | `backlog-py task list`                      |
+| read one       | `task_view`                                              | `backlog-py task <id>`                      |
+| create         | `task_create`                                            | `backlog-py task create "<title>"`          |
+| edit           | `task_edit`                                              | `backlog-py task edit <id>`                 |
 | claim, release | `orchestration_claim_task`, `orchestration_release_task` | `backlog-py orchestration claim`, `release` |
-| close | `task_complete` | `backlog-py task complete <id>` |
-| board, status | `task_board`, `project_status` | `backlog-py board`, `overview` |
-| documents | `document_create`, `document_view` | `backlog-py doc create`, `view` |
+| close          | `task_complete`                                          | `backlog-py task complete <id>`             |
+| board, status  | `task_board`, `project_status`                           | `backlog-py board`, `overview`              |
+| documents      | `document_create`, `document_view`                       | `backlog-py doc create`, `view`             |
 
 The MCP path carries the project lock, ids and typed fields. Piping CLI text
 loses them, so it is a fallback.
