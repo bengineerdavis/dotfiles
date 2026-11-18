@@ -8,7 +8,7 @@ labels:
 - bug
 - testing
 priority: high
-updated_date: 2026-11-10 04:56
+updated_date: 2026-11-18 01:13
 ---
 
 ## Description
@@ -83,7 +83,7 @@ Measured 2026-11-09: with `inject_facts_as_vars = False`, bare
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
+Census re-measured 2026-11-18 (post-DOT-371 machine work): ansible_env expressions 29 across 14 files (loreai 15 across defaults/tasks/templates/molecule, backlog 4, ori 3, lima 1, homebrew migrate playbook 1, loreai molecule 5); ansible_hostname 6 expression hits (4 {{ }} renders + 1 .get() dict key + 1 hostvar deref, all in loreai/tasks/registry-answers.yaml; machines.yml has 2 prose mentions only); ansible_user_dir 1 (roborev/defaults); ansible_date_time 1 (starship/tasks.yaml:117). Totals 37 expression hits vs 44 measured 2026-11-09 — drift is accounted: some loreai counts changed shape during PR #181's registry-answers refactor, machines.yml entries are prose. Constraints unchanged: registry-answers hostname is a dict-key/context case needing the defined-guard treatment per AC #4, not a blind swap.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
