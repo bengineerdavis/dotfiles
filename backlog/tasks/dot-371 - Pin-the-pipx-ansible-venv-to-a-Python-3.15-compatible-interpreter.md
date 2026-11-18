@@ -1,11 +1,11 @@
 ---
 id: DOT-371
 title: Pin the pipx:ansible venv to a Python 3.15-compatible interpreter
-status: To Do
+status: Done
 created_date: 2026-11-17 17:20
 labels:
 - bug
-updated_date: 2026-11-17 22:12
+updated_date: 2026-11-18 00:43
 ---
 
 ## Description
@@ -34,7 +34,7 @@ Constraints:
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-2026-11-17 resolution of the open question: the user states the 2026-11-16 16:00 python 3.14->3.15 write was their own manual command, unplanned. Ruling: deployed config is NOT deliberate; source stays python = "3.14" and chezmoi apply will snap the deployed line back. The --python 3.14 per-tool pin for pipx:ansible is therefore REQUIRED in source (no longer optional). Remaining ship item: land the pin via PR. Companion capture: the wt (worktrunk) shell-init line lives only in deployed ~/.zshrc (not in dot_zshrc.tmpl) — capture or accept its removal at apply time, separate concern from this task.
+Closed 2026-11-18. Full chain verified: PR #182 merged (a0d48a1b), main reconciled and pushed (c970d87f), chezmoi apply --force run (the judgement call on the changed deployed config was the captured ansible pin itself), post-apply: python=3.14, pre-commit entry gone, ansible pin present, ansible-playbook --version green, wt hook preserved, X-Lore-Provider header and formatter block finally deployed (16 days of pending apply drained). Residual: retire-opencode-json.py runs on next apply (R state, normal).
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
