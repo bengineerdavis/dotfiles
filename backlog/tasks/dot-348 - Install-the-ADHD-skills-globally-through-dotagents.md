@@ -136,4 +136,18 @@ verification:
 ```
 Re-verified all nine focused tests against the machine's restored ansible (core 2.21.6), not only a shim.
 <!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-d6c5c71128b04a53bacb5a9d669d7a09
+type: record_run
+actor: opencode-dotagents-adhd
+timestamp: '2026-11-18T03:04:28.647424Z'
+result: succeeded
+task_id: DOT-348
+verification:
+- 14 focused tests pass with real ansible 2.21.6; CI shape 10 passed 4 skipped; ruff
+  clean; pyrefly 0 errors; trees confirmed identical before reset
+```
+Branch agent/dot-348 pushed and in sync at 9e4c7585; no PR yet. A concurrent session shared this branch; reset to the identical remote tree to avoid a force-push.
+<!-- RUN_HISTORY_ENTRY:END -->
 <!-- SECTION:RUN_HISTORY:END -->
