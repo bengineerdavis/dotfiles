@@ -72,12 +72,19 @@ Edges below are marked **verified** (measured this session) or **expected**
   (`defaults/main.yaml:35`) and the provisioning loop (`install.yaml:91`).
   *Verified by grep; no test pins the skeleton.*
 - Chezmoi managed **zero** paths under `~/code` before this. *Verified.*
-- Chezmoi deploys empty directories and leaves non-empty ones alone: a probe
-  declared `code/personal/captures` empty and it appeared; dropping the
-  declaration left a populated directory intact. *Verified by probe.* This is
-  what makes chezmoi the right owner — `personal/captures` and
-  `personal/interviews` are **empty today**, so only a declaration can keep
-  them existing on a fresh machine.
+- Chezmoi **creates but never removes** directories: a probe declared
+  `code/personal/captures` empty and it appeared; undeclaring it left the
+  directory in place; dropping the declaration with a repo inside left the repo
+  intact. *Verified by probe.* This is what makes chezmoi the right owner —
+  `personal/captures` and `personal/interviews` are **empty today**, so only a
+  declaration can keep them existing on a fresh machine.
+- ⚠️ **Correction to the first draft of this section.** I originally recorded
+  this as "chezmoi deploys empty directories and leaves non-empty ones alone",
+  which implied it removes empty ones. It does not. Chezmoi is a **create-only**
+  owner: it cannot remove a directory that the declaration drops. So the
+  decision gives chezmoi authority to *assert* the shape but not to *retract* a
+  directory. If retraction is ever wanted, it must be an explicit task, not an
+  undeclare. *Verified by probe, twice.*
 - ⇒ Consequence: gita's install stops creating directories. Under the CRUD
   ownership invariant (`docs/TOPICS.md:471`) a topic must undo only state it
   created, so `remove.yaml` correctly keeps its hands off the skeleton — it
@@ -120,6 +127,19 @@ Edges below are marked **verified** (measured this session) or **expected**
 
 **The check's own blast radius.**
 
+- ⚠️ **Unresolved — sequencing.** Chezmoi is the **driver**, not a topic:
+  `executable_run-role.sh` calls `ansible-playbook`, and `playbook.yaml` runs
+  `app`-tier topics (gita's tier) after `pkg-manager` and `runtime-manager`.
+  There is no chezmoi topic in `apps/`. So *when* does the declared shape get
+  applied relative to gita's check? *Not measured.* If the skeleton declaration
+  lands during the same `chezmoi apply` that invokes ansible, ordering is a
+  real hazard: gita could check before chezmoi has written the directories.
+  Resolving this is a prerequisite for the loud check, not a detail.
+- ⚠️ **Unresolved — `~/code` itself is undeclared.** Nothing in chezmoi or the
+  topics creates the `~/code` root; `PROJECTS=~/code` is only a shell export in
+  `.zshrc`. A shape declaration manages *inside* `~/code` and presumes the root
+  exists. On a fresh machine that presumption is unmet unless something else
+  supplies the root. *Verified by grep.*
 - A strict check fires on the **second machine**, which DOT-366 records as
   still on the old layout (`projects/…`, 43 entries). *Expected — reasoned from
   DOT-366, not measured.*
@@ -128,6 +148,9 @@ Edges below are marked **verified** (measured this session) or **expected**
 - ⇒ Consequence: the check compares declared-vs-observed **shape**, and its
   failure message must distinguish "drift to reconcile" from "machine not yet
   migrated". Both are mismatches; only one is a defect.
+- ⇒ Consequence: **the check cannot ship before the two unresolved edges
+  close.** A gate that fires because chezmoi has not yet run is worse than no
+  gate — it trains the user to bypass it.
 
 **Out of scope, deliberately.** Work-repo membership stays in the machine-local
 overlay (`machines.local.yaml`); only the *shape* becomes chezmoi-owned.
