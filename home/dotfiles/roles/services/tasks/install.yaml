@@ -1,0 +1,45 @@
+# roles/services/tasks/install.yaml
+#
+# Render and install one per-user service unit, then converge it.
+#
+# Order matters and is not stylistic: the log directory is created BEFORE the
+# unit is rendered, and the unit before converge runs, so a missing directory
+# cannot turn into a silent non-start (launchd does not create it).
+
+- name: "services: refuse to render {{ service_label }} without a program"
+  ansible.builtin.assert:
+    that:
+      - service_label | length > 0
+      - service_program_arguments | length > 0
+    fail_msg: >-
+      roles/services was called without service_label and
+      service_program_arguments. A unit with no program converges to nothing.
+    quiet: true
+  tags: [install, upgrade]
+
+- name: "services: create the log directory for {{ service_label }}"
+  ansible.builtin.file:
+    path: "{{ service_log_path | dirname }}"
+    state: directory
+    mode: "0755"
+  tags: [install, upgrade]
+
+- name: "services: install the unit for {{ service_label }} (Darwin)"
+  ansible.builtin.template:
+    src: launchd-agent.plist.j2
+    dest: "{{ service_unit_path }}"
+    mode: "0644"
+  when: ansible_facts['os_family'] == 'Darwin'
+  tags: [install, upgrade]
+
+- name: "services: install the unit for {{ service_label }} (Debian)"
+  ansible.builtin.template:
+    src: systemd-user.service.j2
+    dest: "{{ service_systemd_unit_path }}"
+    mode: "0644"
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [install, upgrade]
+
+- name: "services: converge {{ service_label }}"
+  ansible.builtin.import_tasks: converge.yaml
+  tags: [install, upgrade]
