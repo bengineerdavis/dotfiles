@@ -4,18 +4,19 @@ title: Gate ansible-core deprecations so a topic cannot land carrying one
 status: To Do
 created_date: 2026-11-10 04:57
 dependencies:
-- DOT-339
+  - DOT-339
 labels:
-- ansible
-- testing
-- tooling
+  - ansible
+  - testing
+  - tooling
 priority: medium
-updated_date: 2026-11-10 04:57
+updated_date: 2026-11-18
 ---
 
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
+
 Measured 2026-11-09: the INJECT_FACTS_AS_VARS deprecation (a bare `ansible_env.HOME`, and every other bare top-level fact) reached a production `update.sh` run. ansible-core 2.24 removes the feature. Nothing in the repo catches this class before it scrolls past in a terminal.
 
 What was probed and does NOT work, so the task does not re-derive it:
@@ -42,14 +43,69 @@ Constraints:
 - The scan must not fire on `ansible_facts[...]`, which is the supported form.
 
 Drafted 2026-11-09.
+
+## Runtime warning check (second layer, amended 2026-11-18)
+
+Author direction: the suite must also check that a given role RUNS without
+emitting these warnings — the static scan covers source text, the runtime
+check covers executed paths. The two faults are different classes: starship's
+`{{ ansible_date_time.iso8601 }}` (tasks.yaml:117) never warns today because
+nothing renders it, and a parse-time or source scan and a bare-expression
+scan both see it, but only a run proves a code path renders clean. Both
+layers stay: the static scan is the primary gate; the runtime check proves
+the paths that actually execute.
+
+Probed live 2026-11-18 (ansible-core 2.21.6, throwaway plays under /tmp —
+so the task does not re-derive):
+
+- `--check` mode DOES fire the warning — a check-mode run is a valid runner
+  for this test, no state mutation needed.
+- The warning goes to STDERR only (grep on merged streams = 1 hit; stdout
+  only = 0).
+- The warning fires once per rendered ORIGIN and is deduplicated per
+  (file, var) pair per run: a play rendering `backlog_logs_dir` reports
+  `Origin: .../apps/backlog/defaults/main.yaml:20:19`; the same play
+  rendering only `backlog_bin` reports line 12; a play with three
+  vars_files (backlog, lima, ori) each rendered reports three distinct
+  Origins.
+- Design unlock: a harness play that loads a topic's defaults as
+  `vars_files` and renders EVERY var in the file surfaces every bare-fact
+  origin in that file, with file:line, on stderr. Assert zero
+  `DEPRECATION WARNING` lines on stderr for a topic = that topic is clean
+  on the executed path.
+
+Shape: extend the existing real-ansible harness
+(`tests/topic_resolution/conftest.py` — builds throwaway plays, runs real
+`ansible-playbook` via subprocess, skips without the binary) with a
+per-topic fixture that pulls the topic's defaults through a vars_files play
+and renders each var, then asserts the empty stderr match. Parametrize over
+topics so the failure names the topic and the file:line origins.
+
+Constraints carried from the probes:
+
+- Cost: one real ansible-playbook invocation per topic per test run; the
+  session-scoped `ansible_playbook` fixture and a parametrized single play
+  per topic keep this bounded (seconds per topic in check mode, measured).
+- The runtime check cannot replace the static scan: it only covers what a
+  render touches (facts-less paths, unrendered conditionals and the
+  registry-answers dict-key context stay invisible to it) — exactly why
+  DOT-339's AC #4 defined-guards matter even after this lands.
+- Same red-on-arrival rule as the scan: land after DOT-339, or baseline it.
+
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
+
 <!-- AC:BEGIN -->
+
 - [ ] #1 A test fails when a file under home/dotfiles/ uses a bare top-level fact in a template expression, and passes on the tree as it stands after DOT-339.
 - [ ] #2 A mutation is recorded in the commit trailers proving the test fails: adding {{ ansible_env.HOME }} to a topic file turns it red, and reverting turns it green.
 - [ ] #3 The allow-list is a named list in the test, each entry with the reason it survives 2.24, and a positive case exercises it so an over-broad allow-list cannot quietly disable the scan.
 - [ ] #4 The test does not report a prose mention of a fact name, and does not report the supported ansible_facts[...] form.
+- [ ] #5 A runtime test runs a real ansible-playbook (check mode) over each topic's defaults with every var rendered, and asserts stderr carries zero DEPRECATION WARNING lines; the failure message names the topic and each offending file:line origin.
+- [ ] #6 The runtime test is parametrized over topics so one topic's regression names that topic, and skips cleanly when ansible-playbook is absent (session-scoped fixture, same as tests/topic_resolution).
+- [ ] #7 A mutation is recorded proving the runtime test fails: re-adding a bare ansible_env read to a topic default turns the runtime test red for that topic, and reverting turns it green.
+
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -65,5 +121,7 @@ Drafted 2026-11-09.
 <!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
+
 <!-- DOD:BEGIN -->
+
 <!-- DOD:END -->
