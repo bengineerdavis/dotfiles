@@ -1,0 +1,35 @@
+# Manage only explicitly targeted plugin declarations in dotagents' manifest.
+# The source approval remains in dotagents_sources. This small block exists
+# because `dotagents add` 3.4.0 cannot set a per-plugin targets list.
+# Leave every other declaration in agents.toml untouched.
+
+- name: "Check whether the dotagents manifest exists"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.agents/agents.toml"
+  register: dotagents_plugin_manifest
+
+- name: "Declare per-plugin runtime targets in the dotagents manifest"
+  # blockinfile with create=false exits rc 257 when the file is missing
+  # (ansible-core 2.22.0). A teardown run on a machine that never installed,
+  # or whose manifest was deleted by hand (remove.yaml's closing comment
+  # contemplates exactly that), must be a clean no-op rather than a hard
+  # failure — so the absent-state task runs only when the file exists.
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_facts['env']['HOME'] }}/.agents/agents.toml"
+    marker: "# {mark} ANSIBLE MANAGED PLUGIN TARGETS"
+    block: |
+      {% for plugin in dotagents_plugin_targets %}
+      [[plugins]]
+      name = {{ plugin.name | to_json }}
+      source = {{ plugin.source | to_json }}
+      targets = {{ plugin.targets | to_json }}
+      {% endfor %}
+    create: "{{ dotagents_plugin_target_state == 'present' and dotagents_plugin_targets | length > 0 }}"
+    state: "{{ dotagents_plugin_target_state }}"
+  # Removal always runs (even with an empty list) so a stale managed block
+  # can never be orphaned; a present-state run still skips when there is
+  # nothing to declare. An absent-state run on a missing file is skipped by
+  # the stat guard above, not by this condition.
+  when: >-
+    (dotagents_plugin_target_state == 'absent' and dotagents_plugin_manifest.stat.exists)
+    or (dotagents_plugin_target_state == 'present' and dotagents_plugin_targets | length > 0)
