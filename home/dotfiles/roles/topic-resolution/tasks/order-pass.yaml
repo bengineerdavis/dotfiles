@@ -1,0 +1,44 @@
+# One Kahn pass. Each fact is assigned separately: set_fact evaluates every
+# value before assigning any, so one new value cannot feed another in the same
+# task. Compare capabilities with capabilities, not scheduled topic names.
+# Append every currently ready topic in name order before starting another
+# pass. That gives a stable topological order: unrelated topics retain their
+# previous relative order when they have no dependency relationship. A later
+# independent topic may finish an earlier pass first.
+# A dependency with no in-run provider belongs to the existing PATH check and
+# cannot create a same-tier scheduling cycle. Use the named outer loop variable
+# so the parent's implicit item never leaks into this computation.
+- name: "Find capabilities satisfied outside this tier"
+  ansible.builtin.set_fact:
+    other_tier_tokens: >-
+      {{ topics_in_run
+         | rejectattr('topic_tier', 'eq', ordering_pass.topic_tier)
+         | map(attribute='topic_provides') | flatten }}
+
+- name: "Find capabilities provided by already-scheduled topics"
+  ansible.builtin.set_fact:
+    scheduled_capability_tokens: >-
+      {{ topics_in_run
+         | selectattr('topic_name', 'in', ordered_topic_names)
+         | map(attribute='topic_provides') | flatten }}
+
+- name: "Combine capabilities satisfied without another same-tier topic"
+  ansible.builtin.set_fact:
+    satisfied_capability_tokens: >-
+      {{ scheduled_capability_tokens + other_tier_tokens + external_dependency_tokens }}
+
+- name: "Find topics whose same-tier providers have run"
+  ansible.builtin.set_fact:
+    ready_topic_names: >-
+      {{ topics_in_run
+         | rejectattr('topic_name', 'in', ordered_topic_names)
+         | selectattr('topic_requires', 'subset', satisfied_capability_tokens)
+         | map(attribute='topic_name') | sort | list }}
+
+# A cycle leaves an empty ready set. The final assertion in main.yaml names
+# every unscheduled topic; do not report the same failure twice here.
+
+- name: "Append the currently ready topics in alphabetical order"
+  ansible.builtin.set_fact:
+    ordered_topic_names: "{{ ordered_topic_names + ready_topic_names }}"
+  when: (ordered_topic_names | length) < (topics_in_run | length)

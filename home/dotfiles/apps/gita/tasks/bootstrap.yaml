@@ -4,5 +4,4 @@
 # App-tier topics leave this empty — dependencies are expressed via
 # topic_requires in topic.yml and resolved by the parent playbook.
 #
-# gita has none of its own: the binary arrives via mise, and git via the
-# apt/homebrew prerequisites.
+# gita has none of its own: the binary arrives via mise, and Git via apps/git.

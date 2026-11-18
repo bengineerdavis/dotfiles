@@ -98,7 +98,8 @@
   # ── Topic execution, ordered by tier ────────────────────────────────────────
   # Each block runs one tier. Within a tier, topics are sorted alphabetically.
   # Lifecycle tags on the inner import_tasks (in each topic's tasks/main.yaml)
-  # filter which phase runs.
+  # filter which phase runs. Within each tier, topic-resolution has already put
+  # declared providers before consumers; alphabetical order breaks ties.
   tasks:
     - name: "Run pkg-manager tier topics"
       ansible.builtin.include_role:
