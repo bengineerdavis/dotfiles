@@ -3,6 +3,32 @@
 Section names come from antsibull-changelog; see `docs/TOPICS.md`
 § "Per-topic changelog and local edge cases".
 
+## 2026-11-15
+
+### minor_changes
+
+- Added the author-approved canonical ADHD skills from `UditAkhourii/adhd` and
+  `ayghri/i-have-adhd`. Both upstream licences and native plugin manifests were
+  verified. The optional `adhd-agent` CLI is not installed.
+- Added a managed per-plugin target declaration. It lets dotagents refresh a
+  plugin that needs runtime exclusions without rewriting foreign declarations.
+
+### known_issues
+
+- `i-have-adhd` contains `hooks/hooks.json`, which dotagents 3.4.0 cannot
+  project to Copilot. The author approved excluding Copilot for this plugin;
+  the exclusion is an explicit unsupported result, not a pass.
+- OpenCode receives the canonical `i-have-adhd` skill but not the upstream
+  setup hook or slash command in this change. DOT-349 owns that integration.
+- Isolated installs on 2026-11-15 proved the OpenCode skill links and the
+  Copilot refusal. They did not prove every native client's activation.
+
+### bugfixes
+
+- Replaced the README's stale opencode-only claim with the measured projection
+  and native-client wiring. Claude and Codex registration belongs to this
+  topic; generated Cursor marketplace files alone do not activate Cursor.
+
 ## 2026-11-01
 
 ### minor_changes
