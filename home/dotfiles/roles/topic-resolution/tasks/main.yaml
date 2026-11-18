@@ -4,7 +4,9 @@
 # the target OS family as role inputs, then emits the host facts the rest of
 # the play — and every topic's remove.yaml — consumes unchanged:
 #
-#   topics_in_run      every topic whose topic_os includes this OS
+#   topics_in_run      every topic whose topic_os includes this OS, in execution
+#                      order: tier precedence, then declared providers before
+#                      consumers within a tier, alphabetically for ties
 #   provides_map_all   provided-name -> providing topic (all topics)
 #   provides_map_run   provided-name -> providing topic (this run only)
 #   requires_map       dep -> every topic that requires it
@@ -98,7 +100,68 @@
   when: item.value | length > 1
   tags: [always]
 
-# ── Sanity check: resolve every topic_requires ───────────────────────────────
+# ── Order topics by declared dependencies within each tier ──────────────────
+# Kahn's algorithm: each pass appends every currently ready topic, sorted by
+# name. Independent topics retain their previous relative order. A dependency
+# outside this tier is covered by tier precedence or the existing
+# PATH/TOPIC_NOT_RUN check; it cannot form
+# a false same-tier cycle. There is no installed topological filter, and role
+# meta/dependencies would bypass this graph and the dynamic tier loop.
+- name: "Identify dependencies that only the PATH probe can satisfy"
+  ansible.builtin.set_fact:
+    external_dependency_tokens: >-
+      {{ topics_in_run | map(attribute='topic_requires') | flatten | unique | sort
+         | difference(provides_map_run | dict2items | map(attribute='key') | list) }}
+  tags: [always]
+
+- name: "Initialize dependency ordering"
+  ansible.builtin.set_fact:
+    ordered_topic_names: []
+  tags: [always]
+
+- name: "Schedule each topic after its same-tier providers"
+  ansible.builtin.include_tasks:
+    file: order-pass.yaml
+    apply:
+      tags: [always]
+  loop: "{{ topics_in_run | sort(attribute='topic_name') }}"
+  loop_control:
+    loop_var: ordering_pass
+  when: (ordered_topic_names | length) < (topics_in_run | length)
+  tags: [always]
+
+- name: "Fail on a dependency cycle instead of dropping topics"
+  ansible.builtin.assert:
+    that:
+      - ordered_topic_names | length == topics_in_run | length
+    fail_msg: >-
+      Dependency cycle among topics:
+      {{ (topics_in_run | map(attribute='topic_name')
+          | difference(ordered_topic_names) | sort) | join(', ') }}.
+      Break the cycle in their topic_requires / topic_provides declarations.
+  tags: [always]
+
+- name: "Initialize the ordered topic records"
+  ansible.builtin.set_fact:
+    dependency_ordered_topics: []
+  tags: [always]
+
+- name: "Collect topic records in dependency execution order"
+  ansible.builtin.set_fact:
+    dependency_ordered_topics: >-
+      {{ dependency_ordered_topics
+         + [(topics_in_run | selectattr('topic_name', 'eq', ordering_name) | first)] }}
+  loop: "{{ ordered_topic_names }}"
+  loop_control:
+    loop_var: ordering_name
+  tags: [always]
+
+- name: "Return topics in dependency execution order"
+  ansible.builtin.set_fact:
+    topics_in_run: "{{ dependency_ordered_topics }}"
+  tags: [always]
+
+
 # For each (topic, required dep) pair we resolve to one of three states:
 #   OK            — provided by a topic in run, or present on PATH
 #   TOPIC_NOT_RUN — a topic provides it, but is not in this run (OS mismatch)

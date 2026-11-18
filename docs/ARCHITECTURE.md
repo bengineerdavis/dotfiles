@@ -51,7 +51,8 @@ reads its metadata, and orders execution by `topic_tier`:
 | `runtime-manager` | Manages a set of versioned tools/models        | `mise`, `ollama`            |
 | `app`             | Normal application, no subordinate state       | everything else             |
 
-Within a tier, topics run alphabetically. Each topic declares the OS families
+Within a tier, declared providers run before consumers, with alphabetical
+order breaking ties. Each topic declares the OS families
 it supports via `topic_os` (`Darwin`, `Debian`); the parent playbook skips
 topics that don't apply to the current host. This is how one capability can
 have different providers per OS — e.g. `docker` is provided by `apps/docker`

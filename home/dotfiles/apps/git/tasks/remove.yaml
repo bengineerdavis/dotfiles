@@ -1,0 +1,49 @@
+# Git is a shared fleet prerequisite. A missing dependency index means
+# "unproven", not "unshared": standalone removal must leave Git installed.
+
+- name: "Remove: identify other topics that require Git"
+  ansible.builtin.set_fact:
+    git_consumers: >-
+      {{ (requires_map | default({})).get('git', [])
+         | reject('equalto', 'git') | list }}
+    git_dependency_index_available: "{{ requires_map is defined }}"
+
+- name: "Remove: uninstall Git via Homebrew when safe and explicitly requested"
+  community.general.homebrew:
+    name: git
+    state: absent
+  register: git_remove_report
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - git_remove_package | bool
+    - git_dependency_index_available | bool
+    - git_consumers | length == 0
+
+- name: "Remove: uninstall Git via apt when safe and explicitly requested"
+  ansible.builtin.apt:
+    name: git
+    state: absent
+    lock_timeout: "{{ apt_lock_timeout | default(300) }}"
+  become: true
+  register: git_remove_report
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - git_remove_package | bool
+    - git_dependency_index_available | bool
+    - git_consumers | length == 0
+
+- name: "Remove: report why Git was kept"
+  ansible.builtin.debug:
+    msg: >-
+      {%- if not (git_remove_package | bool) -%}
+      Git left installed: removal is opt-in. Re-run with -e git_remove_package=true.
+      {%- elif not (git_dependency_index_available | bool) -%}
+      Git left installed: requires_map is unavailable, so no other topic's claim
+      could be ruled out. Run the parent playbook to prove removal is safe.
+      {%- else -%}
+      Git left installed: still required by {{ git_consumers | sort | join(', ') }}.
+      {%- endif -%}
+  when: >-
+    not (git_remove_package | bool)
+    or not (git_dependency_index_available | bool)
+    or git_consumers | length > 0
