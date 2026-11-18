@@ -18,6 +18,9 @@ can point at the wrong build.
 ## Command flags
 
 **BSD and GNU flags differ** for `script`, `stat`, `sed -i` and `mktemp`. Prefer
+non-flag equivalents where they exist. On machines where gnubin `stat` shadows
+`/usr/bin/stat` (coreutils on PATH), `stat -f` fails with a misleading
+"cannot read file system information" — use `stat -x` or GNU syntax there.
 Python over a portability shim, or try both forms.
 
 ## Python floors
