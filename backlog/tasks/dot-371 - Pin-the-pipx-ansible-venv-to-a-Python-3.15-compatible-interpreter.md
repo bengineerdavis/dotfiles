@@ -5,6 +5,7 @@ status: To Do
 created_date: 2026-11-17 17:20
 labels:
 - bug
+updated_date: 2026-11-17 22:12
 ---
 
 ## Description
@@ -33,7 +34,7 @@ Constraints:
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
-
+2026-11-17 resolution of the open question: the user states the 2026-11-16 16:00 python 3.14->3.15 write was their own manual command, unplanned. Ruling: deployed config is NOT deliberate; source stays python = "3.14" and chezmoi apply will snap the deployed line back. The --python 3.14 per-tool pin for pipx:ansible is therefore REQUIRED in source (no longer optional). Remaining ship item: land the pin via PR. Companion capture: the wt (worktrunk) shell-init line lives only in deployed ~/.zshrc (not in dot_zshrc.tmpl) — capture or accept its removal at apply time, separate concern from this task.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
