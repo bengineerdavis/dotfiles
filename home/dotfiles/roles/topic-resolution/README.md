@@ -9,7 +9,9 @@ three states — `OK`, `TOPIC_NOT_RUN`, or `NO_TOPIC` — failing the run when a
 dependency is unresolved.
 
 It is a role, not inline pre_tasks, so `tests/topic_resolution/` can exercise it
-under both OS families without running the whole play. The resolution is the
+under both OS families without running the whole play. Tests that need a tool
+missing from the current host remain conditional on the PATH probe; they do not
+prove that a fresh Debian machine can converge. The resolution is the
 single place that decides whether `apps/opencode`'s `topic_requires: [homebrew]`
 is satisfied: `homebrew` resolves via the `apps/homebrew` topic on Darwin, and
 via the PATH probe for `brew` on Debian (see `dependency_probe_binary` in
@@ -18,3 +20,9 @@ via the PATH probe for `brew` on Debian (see `dependency_probe_binary` in
 Inputs (required): `resolution_topic_metadata`, `resolution_os_family`.
 Outputs (host facts, unchanged from the pre_tasks era): `topics_in_run`,
 `provides_map_all`, `provides_map_run`, `requires_map`.
+
+`topics_in_run` is ordered within each tier: declared providers precede their
+consumers, and alphabetical order breaks ties. The parent playbook retains its
+existing tier precedence. A dependency with no provider in the current run is
+left to the existing PATH probe. A same-tier dependency cycle fails before any
+topic runs and names the topics that could not be scheduled.

@@ -19,7 +19,7 @@ from __future__ import annotations
 from topic_resolution_harness import said
 
 
-def _topic(name, os_family, *, provides=(), requires=(), tier="app"):
+def topic(name, os_family, *, provides=(), requires=(), tier="app"):
     return {
         "topic_name": name,
         "topic_os": os_family,
@@ -33,8 +33,8 @@ def test_ok_when_a_topic_in_run_provides_the_dep(run_role):
     result = run_role(
         resolution_os_family="Darwin",
         resolution_topic_metadata=[
-            _topic("provider", ["Darwin"], provides=["thing"]),
-            _topic("consumer", ["Darwin"], requires=["thing"]),
+            topic("provider", ["Darwin"], provides=["thing"]),
+            topic("consumer", ["Darwin"], requires=["thing"]),
         ],
     )
     assert result.returncode == 0, result.stdout
@@ -46,7 +46,7 @@ def test_ok_when_the_dep_is_on_path_but_provided_by_no_topic(run_role):
     result = run_role(
         resolution_os_family="Darwin",
         resolution_topic_metadata=[
-            _topic("consumer", ["Darwin"], requires=["true"]),
+            topic("consumer", ["Darwin"], requires=["true"]),
         ],
     )
     assert result.returncode == 0, result.stdout
@@ -56,8 +56,8 @@ def test_topic_not_run_when_a_topic_provides_but_is_os_excluded(run_role):
     result = run_role(
         resolution_os_family="Debian",
         resolution_topic_metadata=[
-            _topic("provider", ["Darwin"], provides=["thing"]),
-            _topic("consumer", ["Debian"], requires=["thing"]),
+            topic("provider", ["Darwin"], provides=["thing"]),
+            topic("consumer", ["Debian"], requires=["thing"]),
         ],
     )
     assert result.returncode != 0
@@ -70,7 +70,7 @@ def test_no_topic_when_nothing_provides_and_not_on_path(run_role):
     result = run_role(
         resolution_os_family="Debian",
         resolution_topic_metadata=[
-            _topic("consumer", ["Debian"], requires=["no-such-binary-xyzzy"]),
+            topic("consumer", ["Debian"], requires=["no-such-binary-xyzzy"]),
         ],
     )
     assert result.returncode != 0

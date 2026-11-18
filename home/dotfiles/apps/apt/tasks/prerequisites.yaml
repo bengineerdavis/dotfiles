@@ -24,7 +24,6 @@
 - name: "Prerequisites: install core apt packages"
   ansible.builtin.apt:
     name:
-      - git
       - curl
       - wget
       - ca-certificates

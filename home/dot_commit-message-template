@@ -1,0 +1,9 @@
+# Subject: use a short imperative line that names one reviewable decision.
+# Leave a blank line after the subject.
+#
+# Explain the problem and why this change is the right response.
+# Wrap the body for readable terminal output.
+# Include only relevant trailers, such as Mutation and Failing-test evidence.
+#
+# Every line is a comment, so Git supplies no default commit message.
+# See https://git-scm.com/docs/git-commit for template and cleanup behavior.
