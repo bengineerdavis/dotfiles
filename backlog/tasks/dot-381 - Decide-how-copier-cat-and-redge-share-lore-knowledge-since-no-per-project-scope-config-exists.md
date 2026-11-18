@@ -1,7 +1,7 @@
 ---
 id: DOT-381
-title: Decide how copier-cat and redge share lore knowledge, since no per-project
-  scope config exists
+title: Decide the lore sharing shape for personal projects, now that .lore.json
+  workspaces exists
 status: To Do
 created_date: 2026-11-18 21:42
 updated_date: 2026-11-18 21:43
@@ -11,69 +11,96 @@ updated_date: 2026-11-18 21:43
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
 
-The author asked for copier-cat and redge to share lore knowledge. Investigating
-the surfaces shows there is nothing to edit: lore has **no per-project config
-file at all**. There is no `.lore.toml`, no scope key in the project row, and no
-`lore share` command. So this is a decision, not a config edit.
+> **Corrected 2026-11-18.** The first version of this task claimed lore has "no
+> per-project config file at all" and framed sharing as needing hosted sync. That
+> was wrong, and the error is instructive: a `find -maxdepth 4`/`-maxdepth 6`
+> returned no `.lore.json` on this machine, and *no instance* was misread as *no
+> mechanism*. The mechanism is documented upstream and has two fields that
+> address this task directly. The premise below is rebuilt from
+> `packages/core/src/config.ts` and `packages/website/src/content/docs/docs/configuration.md`
+> in the fork at `3b48e546`, not from a filesystem search.
 
-What actually exists (verified 2026-11-18, lore v0.40.0):
+The author asked for copier-cat and redge to share lore knowledge.
 
-- **`projects` table has no scope/sharing column.** Columns are id, path, name,
-  created_at, git_remote, last_import_at, last_decay_at, last_refcheck_at,
-  scope_id, promotion_policy, tenant_id. `scope_id` exists but is empty on all
-  21 project rows and there is no scope UI for it.
-- **Sharing is hosted-only.** `lore sync status` reports "disabled / not logged
-  in / encryption off". `lore login` + `lore sync enable` is the team path, and
-  the `scopes` / `team_knowledge` / `org_members` tables are all empty locally.
-  Turning that on sends project knowledge to a hosted service — a trust-boundary
-  decision the author owns, not a mechanical config change.
-- **The only local cross-project mechanism is `knowledge.cross_project`**, a
-  per-row boolean. 149 of 4187 rows are flagged; the flagged titles are
-  general preferences and standards (e.g. "Prefer mise-managed tools over brew",
-  "Responses in English only"), not project-specific architecture. Nothing
-  writes that column except lore's own promotion logic.
-- **redge has no project row at all.** It has never been opened in a lore
-  session on this machine, so it contributes and receives nothing today. Its
-  knowledge would start accumulating only after a session runs with it as cwd.
+**`lore.json` does exist and is the per-project config.** It is `.lore.json`, JSONC,
+at each project root. It is loaded by `load(directory)` in
+`packages/core/src/config.ts`, which does `join(directory, ".lore.json")` and
+parses with the Zod `LoreConfig` schema. Nothing existed on this machine simply
+because nobody had created one.
 
-The decision: pick one of —
+Two fields bear on the ask:
 
-(a) **Hosted sync** (`lore login`, `lore sync enable`) — real sharing, but
-knowledge leaves the machine and redge must first be registered by a
-session. Cost: a trust-boundary decision plus a paid/hosted dependency.
-(b) **Local promotion** — flag selected rows `cross_project` so both projects
-can recall them. Cheap and stays local, but there is no CLI to set the flag;
-it would mean writing to lore's DB or finding the promotion path in
-upstream source.
-(c) **Dependency, not memory sharing** — copier-cat records its redge-relevant
-findings in-tree (the existing `backlog/docs/` pattern), and redge reads
-them as research input. No lore coupling at all.
+- **`crossProject`** (`boolean`, default `true`) — include cross-project knowledge
+  in compaction summaries, and auto-promote knowledge recurring across 3+ projects
+  to `cross_project = 1`.
+- **`workspaces`** (`array<string>`, default `[]`) — sub-project paths or
+  single-level globs, relative to the `.lore.json` directory. **"At startup, Lore
+  imports `.lore.md` from each resolved sub-project into the root project's
+  knowledge base"**, and a file watcher re-imports on change.
 
-Recommendation to evaluate first: (c), because the material that needs to cross
-the boundary right now is a small set of design findings, not a standing memory
-stream, and (c) survives a machine rebuild while (a) and (b) depend on state
-outside git.
+Verified constraints that shape what is achievable (2026-11-18, lore 0.40.0):
+
+- **The gateway runs `lore start --local`**, so `LORE_HOSTED_MODE` is unset and
+  `.lore.json` *is* read. In hosted mode the file is skipped as a tampering guard.
+- **Config is loaded per-directory into a process-wide global.** `load()` assigns
+  a module-level `current`; the next call replaces it. No per-request config.
+- **Workspace discovery walks up and stops at the first `.git`**
+  (`discoverWorkspaceRoot()`: a `.lore.json` with non-empty `workspaces` →
+  VCS markers → workspace markers → language markers). A session started inside a
+  repo returns that repo and **never reaches a parent's config**.
+- **`crossProject` promotion is gated on `embedding.isAvailable()`**
+  (`packages/core/src/curator.ts`). No embeddings table exists in the DB and no
+  provider was found in config — suggestive, not conclusive. The runtime's own
+  message when unavailable: *"local embedding provider unavailable — recall will
+  use FTS-only search."* So on this machine, crossProject likely promotes nothing
+  today.
+- **`workspaces` has no exclusion mechanism.** `resolveWorkspaces()` skips only
+  dot-prefixed directories; a glob matching `work/` would import employer
+  knowledge into the same base as personal knowledge.
+- **`~/code` is already a lore project** (path `/Users/ben.davis/code`, 23 entries,
+  own `.lore.md` and lore-managed `AGENTS.md` section) despite not being a git repo.
+- **redge is not cloned and has no lore project row**, so nothing can be imported
+  from it until a session runs there.
+
+Therefore the task is narrower than first thought. It is not "can sharing work",
+it is **which of two mechanisms to use, at which root, and whether the narrower
+copier-cat↔redge goal is achievable at all** — it appears not to be, since both
+sessions live inside repos and the walk-up stops at `.git`.
 
 Ship:
 
-- A decision record choosing (a), (b), or (c), with the trust-boundary
-  consequence stated explicitly if the answer is (a)
-- If (c): the redge-relevant gita findings written where redge can consume them,
-  citing the source decision rather than duplicating its prose
-- If (a) or (b): the mechanism documented and verified end-to-end — a fact
-  learned in copier-cat is recallable from redge, demonstrated rather than
-  assumed
-- redge registered as a lore project (requires a session in that repo, or a
-  direct row insert; the former is the supported path)
+- A `.lore.json` at `~/code` scoped to **personal projects only**, with
+  `workspaces` globs that cannot reach `work/`. The author has asked for personal
+  first; work content must stay out of the shared base by construction, not by
+  review.
+- A decision record stating the root, the exact globs, and what `work/` would
+  have to change for it ever to be included
+- Verification that the import actually happens: an entry from one personal
+  project's `.lore.md` is recallable from a session launched at `~/code`
+  — demonstrated, not assumed
+- A determination on the copier-cat↔redge pair specifically: either a mechanism
+  is found that reaches across two repo-rooted sessions, or the record states
+  plainly that it is not achievable with `.lore.json` and names what would be
+  needed instead
+- Resolution on `crossProject`: measure whether an embedding provider is
+  configured, and either enable one (with its cost) or record that crossProject
+  is inert here and should not be relied on
 
 Constraints:
 
-- Never enable hosted sync without the author's explicit consent — it moves
-  knowledge off the machine and is a one-way trust decision
-- Do not hand-write lore's DB as the first resort; if (b) is chosen, find the
-  supported promotion path in upstream source first
-- redge is third-party-adjacent (Fair Source, FSL-1.1-MIT) — the decision must
-  state whether copier-cat's knowledge crossing into it is acceptable at all
+- **Personal only.** No glob may match `work/`. Employer content staying off any
+  shared or exportable surface is a standing boundary, not a preference.
+- Do not create a `.lore.json` at any repo that already has one, and do not
+  hand-edit lore's DB as a first resort.
+- Never enable hosted sync (`lore login` + `sync enable`) without explicit
+  consent — knowledge leaves the machine.
+- The walk-up behaviour means a `~/code` config does not help in-repo sessions.
+  Any plan that assumes otherwise is wrong; state the limitation in the record
+  rather than discovering it in use.
+- Prefer `.lore.md`-based sharing (git-owned, reviewable) over DB pokes.
+
+Decision 2026-11-18: start with personal projects only, sharing through a
+`~/code` root rather than attempting to bridge individual repos.
 
 <!-- SECTION:DESCRIPTION:END -->
 
@@ -81,12 +108,14 @@ Constraints:
 
 <!-- AC:BEGIN -->
 
-- [ ] #1 A decision record states which sharing mechanism is chosen (hosted sync, local cross_project promotion, or in-tree dependency) and gives the reason
-- [ ] #2 The trust-boundary consequence is stated explicitly when hosted sync is chosen
-- [ ] #3 If in-tree dependency is chosen: redge-relevant gita findings exist where redge can consume them, citing the source decision rather than duplicating its prose
-- [ ] #4 If hosted sync or local promotion is chosen: recallability is demonstrated end-to-end, not assumed — a fact from copier-cat is retrievable from redge
-- [ ] #5 redge appears as a lore project or the task records why it remains unregistered
-- [ ] #6 The board lists DOT-381 with the full description: uvx --from backlog-md-py backlog-py board
+- [ ] #1 A .lore.json exists at ~/code whose workspaces globs are verified to match no path under work/
+- [ ] #2 An entry from one personal project's .lore.md is recallable from a session launched at ~/code, demonstrated rather than assumed
+- [ ] #3 A decision record states the root, the exact globs, and what work/ would have to change to be included
+- [ ] #4 The copier-cat-to-redge pair is resolved: either a mechanism spanning two repo-rooted sessions is named with evidence, or the record states it is not achievable via .lore.json and says what would be needed instead
+- [ ] #5 crossProject is resolved with a measurement: an embedding provider is configured and its cost stated, or the record declares crossProject inert on this machine
+- [ ] #6 No work/ content appears in the ~/code knowledge base: verified by querying for a known employer term after import
+- [ ] #7 The record states the walk-up limitation plainly: a ~/code config does not reach sessions started inside a repo
+- [ ] #8 The board lists DOT-381 with the full description and every criterion: uvx --from backlog-md-py backlog-py board
 <!-- AC:END -->
 
 ## Implementation Notes
