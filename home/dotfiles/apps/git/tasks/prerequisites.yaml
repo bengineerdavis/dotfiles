@@ -1,0 +1,17 @@
+# Git is a fleet prerequisite, but this topic owns its package relationship.
+# Install during prerequisites so consumers see a provided `git` capability.
+# Homebrew and apt upgrade all managed packages in their own upgrade phases.
+
+- name: "Prerequisites: install Git via Homebrew"
+  community.general.homebrew:
+    name: git
+    state: present
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: "Prerequisites: install Git via apt"
+  ansible.builtin.apt:
+    name: git
+    state: present
+    lock_timeout: "{{ apt_lock_timeout | default(300) }}"
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'

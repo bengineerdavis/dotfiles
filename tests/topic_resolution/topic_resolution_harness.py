@@ -33,9 +33,22 @@ HARNESS = """\
         name: "roles/topic-resolution"
 """
 
+# ORDER_HARNESS adds the actual execution order to the synthetic role harness.
 # Real-metadata harness: runs the same discovery the parent playbook uses —
 # find apps/*/topic.yml, slurp each, b64decode, from_yaml — then imports the
 # role. `resolution_os_family` and `topic_apps_dir` are supplied via -e.
+ORDER_HARNESS = (
+    HARNESS
+    + """\
+    - name: "Report the execution order"
+      ansible.builtin.debug:
+        msg: >-
+          TOPIC_EXECUTION_ORDER={{
+            topics_in_run | map(attribute='topic_name') | join(',')
+          }}
+"""
+)
+
 DISCOVERY_HARNESS = """\
 - name: "topic-resolution against real topic metadata"
   hosts: localhost
@@ -80,6 +93,13 @@ DISCOVERY_HARNESS = """\
     - name: "Resolve topic dependencies"
       ansible.builtin.import_role:
         name: "roles/topic-resolution"
+
+    - name: "Report the execution order"
+      ansible.builtin.debug:
+        msg: >-
+          TOPIC_EXECUTION_ORDER={{
+            topics_in_run | map(attribute='topic_name') | join(',')
+          }}
 """
 
 

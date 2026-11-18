@@ -60,8 +60,8 @@ def run_role(ansible_playbook, tmp_path):
     `resolution_os_family` (a string) are passed straight through as extra vars.
     """
 
-    def _run(**extra_vars) -> subprocess.CompletedProcess:
-        return _invoke(ansible_playbook, tmp_path, HARNESS, extra_vars)
+    def _run(harness=HARNESS, **extra_vars) -> subprocess.CompletedProcess:
+        return _invoke(ansible_playbook, tmp_path, harness, extra_vars)
 
     return _run
 

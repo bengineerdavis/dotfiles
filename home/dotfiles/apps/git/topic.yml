@@ -1,0 +1,15 @@
+# apps/git/topic.yml — topic metadata read by the parent playbook.
+# See docs/TOPICS.md.
+topic_name: git
+
+# Git is a shared capability: gita and Chrome declare it in topic_requires.
+# Package installation stays in prerequisites.yaml, not in the managers'
+# duplicated core-package lists.
+topic_provides: [git]
+
+# No homebrew requirement: it would make this topic unschedulable on Debian.
+# The OS-specific package-manager tasks are guarded in prerequisites.yaml.
+topic_requires: []
+
+topic_os: [Darwin, Debian]
+topic_tier: app
