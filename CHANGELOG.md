@@ -18,6 +18,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 <!-- scriv-insert-here -->
 
+## PR #184 — 2026-11-18
+
+### Added
+
+- The global dotagents topic declares the approved `adhd` and `i-have-adhd`
+  skills. It preserves the canonical upstream files, excludes Copilot only for
+  the incompatible `i-have-adhd` bundle, and documents which native OpenCode
+  pieces remain for the follow-up integration.
+- Topic documentation now carries verified corrections and upstream references
+  with the affected topic, so future maintainers and topic skills can use them.
+
 ## PR #177 — 2026-11-17
 
 ### Changed
