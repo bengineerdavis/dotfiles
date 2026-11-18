@@ -132,9 +132,11 @@ testpaths = ["tests", "tools"]
 pythonpath = ["tools/skill-trust"]
 python_files = ["test_*.py"]
 # Model-calling tests are opt-in. Run with `pytest -m llm_judge` to override.
-addopts = ["-m", "not llm_judge"]
+# dotagents_cli tests run the real binary in an isolated HOME (networked).
+addopts = ["-m", "not llm_judge and not dotagents_cli"]
 markers = [
     "llm_judge: tests that call real LLM APIs — slow, costs tokens (run with -m llm_judge)",
+    "dotagents_cli: tests that run the pinned dotagents binary in an isolated HOME — networked, run with -m dotagents_cli",
 ]
 
 [tool.pyrefly]
