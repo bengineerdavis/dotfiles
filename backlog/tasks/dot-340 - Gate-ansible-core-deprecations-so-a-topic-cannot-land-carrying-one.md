@@ -92,6 +92,71 @@ Constraints carried from the probes:
   DOT-339's AC #4 defined-guards matter even after this lands.
 - Same red-on-arrival rule as the scan: land after DOT-339, or baseline it.
 
+## Ecosystem research (2026-11-18, review-best-practices pass)
+
+The requirement: catch the class before 2.24 with a mechanism that fails a
+gate. Searched three source kinds — tooling (ansible-lint, pytest-ansible,
+molecule), standards (porting guides, config docs), practitioner reports
+(forum threads, upstream issue trackers). Probed the installed tooling rather
+than trusting recall.
+
+**Why the gate is built here instead of adopted: the ecosystem gap is
+verified, not assumed.**
+
+- ansible-lint cannot see injected-fact usage. Three upstream reports agree:
+  RFE #1611 (open since 2021), discussion #3457 (2023, also asked for
+  autofix), bug #4857 (filed Nov 2025 against the 2.20 deprecation, still
+  open at 26.11.0 — checked the 26.9–26.11 release notes, no such rule).
+- Re-probed the installed linter 2026-11-18 (ansible-lint 26.11.0 +
+  ansible-core 2.21.6): a minimal play reading `{{ ansible_env.HOME }}`
+  passes `--strict` with exit 0 ("Passed: 0 failure(s) … profile
+  'production'"); its only findings in other probes were name[casing] /
+  name[play] style rules. The lint-gap claim in the task's own 2026-11-09
+  description holds against today's artifact.
+- Runtime harnesses exist (pytest-ansible, molecule) but none ship a
+  deprecation gate; molecule's own RFE #2619 (2020) closed without shipping
+  one.
+- What practitioners actually do: read the porting guide before upgrading
+  (the official mechanism — Ansible 13's guide documents
+  INJECT_FACTS_AS_VARS verbatim), rely on the runtime warning as the
+  detector ("with ansible-core 2.20+, it will tell you when you run … which
+  places use the old way" — felixfontein, forum #44886), and hand-roll CI
+  grep/fail gates on the warning output. No standard tool does this; the
+  bespoke gate IS the community practice.
+
+**Revisit trigger:** if ansible-lint ships an injected-facts rule (#4857 /
+#1611 — open, no movement as of 26.11.0), the static scan can retire in
+favor of the ecosystem tool. Check those issues before re-deriving the scan.
+
+**Dependency rationale (author question 2026-11-18: "isn't it
+counterproductive to use ansible while also detecting the notices and
+artifacts ansible creates?")**
+
+No — with the following record, so the ruling does not need re-deriving:
+
+- The warning is the dependency communicating, not misbehaving. The
+  alternative is a silent breaking change at 2.24; ansible instead gave
+  ~1 year of runway and machine-readable file:line origins.
+- The debt is bounded and measured: 37 expression hits (DOT-339 census,
+  refreshed 2026-11-18), one migration task, one gate. After DOT-339,
+  `inject_facts_as_vars = False` makes future fact-injection deprecations
+  structurally impossible in this repo — prevented, not merely detected.
+- The same tax exists for every actively-developed dependency (this
+  session's actual outage was the Python↔ansible version matrix —
+  Python 3.15 removing `dataclasses._is_type` broke ansible-core 2.21 —
+  not deprecation noise). The question is whether the tool earns its cost,
+  not whether it emits notices.
+- What would genuinely be counterproductive: hand-rolling per-machine
+  package/system state management to avoid deprecation notices — more
+  bespoke code, no ecosystem tooling, and no warnings at all when it
+  breaks. AGENTS.md's one-concern-per-layer ruling (ansible owns system
+  state) already decided this; the gate is what keeps the dependency
+  maintainable across releases.
+- Cost acknowledged: the tax is recurring across many axes (conditionals,
+  module_utils, callbacks — forums document collection-level warning
+  spam). The gate converts each upgrade from "surprise every 2–3 years"
+  to "did the gate catch anything".
+
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
