@@ -6,13 +6,14 @@ created_date: 2026-11-15 22:08
 priority: high
 updated_date: 2026-11-15 22:09
 dependencies:
-- DOT-171
-- DOT-172
+  - DOT-171
+  - DOT-172
 ---
 
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
+
 `docs/LAYOUT.md:14` requires the named subdirs to sit inside `personal/`,
 never as siblings at the top level. Measured on L37V3P6GQ3 2026-11-16: seven
 template repos sit at `~/code/templates/`, `try/` holds three repos and
@@ -48,16 +49,20 @@ Constraints:
   repair or defer those repos
 - The second machine needs the same end state, so record what it must run
   rather than assuming it is already correct
+
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
+
 <!-- AC:BEGIN -->
-- [ ] #1 templates/, try/ and captures/ sit under personal/ on this machine, and the empty personal/templates/ duplicate is gone
-- [ ] #2 Catalogue paths match where repos actually live, with the stale projects/ prefix resolved
-- [ ] #3 gita ll reports the moved paths, with no registration pointing at a vanished location
+
+- [x] #1 templates/, try/ and captures/ sit under personal/ on this machine, and the empty personal/templates/ duplicate is gone
+- [x] #2 Catalogue paths match where repos actually live, with the stale projects/ prefix resolved
+- [x] #3 gita ll reports the moved paths, with no registration pointing at a vanished location
 - [ ] #4 A check fails when a declared repo's path does not match its catalogue entry
-- [ ] #5 Live worktrees under moved repos are repaired or the move is deferred, with no broken gitdir pointer left behind
-- [ ] #6 The second machine's required end state is recorded, not assumed
+- [x] #5 Live worktrees under moved repos are repaired or the move is deferred, with no broken gitdir pointer left behind
+- [x] #6 The second machine's required end state is recorded, not assumed
+
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -89,15 +94,51 @@ the `~/code` layout. Whether to rewrite those 43 entries to the current shape
 or treat the prefix as a machine-local root is a contract question owned by
 DOT-171; this task should not invent an answer.
 
-
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
 
+**Done on the Mac, 2026-11-19.** Four of six ACs hold with evidence; #4 is
+handed off as its own task (DOT-388), #5 verified by inspection.
+
+- **#1 — moved and verified.** `~/code` is `AGENTS.md, forks, personal, work`
+  (measured 2026-11-19); templates (7 repos) and try (3) sit under
+  `personal/`; `captures/` and `interviews/` exist under `personal/` (both
+  were empty — the moves renamed the dirs). The top-level `templates/` husks
+  (two AGENTS.md-only dirs from a partial earlier migration) were removed with
+  the author's approval.
+- **#2 — PR #177 merged** (`f95af948`, 2026-11-17): catalogue re-pointed to the
+  type dirs; **PR #183 merged** (`583de54b`, 2026-11-19): final nesting —
+  `personal/templates/…`, `personal/try/…`, `tutorial/` re-homed. 49
+  declarations, no stale top-level refs, `tests/gita` 17 passed on both.
+- **#3 — live state reconciled.** Topic install run 2026-11-19 re-registered
+  the moved repos; the run's blind `gita add` left 7 duplicate-name rows in
+  repos.csv (old path + new path per name, 87 rows / 78 repos) — repaired by
+  hand (`gita rm` + `gita add` per name, verified 0 dupes, 78 rows). That
+  defect is DOT-387, not left in the topic.
+- **#5 — nested worktrees survived.** `git worktree list` inside the moved
+  `copier-template-copier-template` shows its two `.worktrees/` checkouts
+  resolving at the new path and `git status` runs clean inside them (gitdir
+  pointers are relative; measured 2026-11-19).
+- **#4 — NOT done; handed off as DOT-388** (a check that fails when a
+  declared repo's path does not match its catalogue entry). Next session
+  picks it up there.
+- **#6 — recorded:** the Linux box needs the same three mv steps plus a topic
+  install run; its catalogue will report ~44 declared-but-not-cloned until its
+  own migration lands (docs/LAYOUT.md phase 5, DOT-306).
+
+Remaining live-state note: `ai-prompt-library-escalation-writing` is a gita
+registration and catalogue entry whose repo was deleted from disk after
+2026-11-12 — the author decided to keep it declared (flagged in PR #183), so
+it reports declared-but-not-cloned by design until DOT-172 (G3) or a future
+sweep resolves it.
+
 <!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
+
 <!-- DOD:BEGIN -->
+
 <!-- DOD:END -->
