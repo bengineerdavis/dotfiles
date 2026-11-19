@@ -75,3 +75,67 @@ queued in `TASKS.md` § Planned rather than folded into the feature set:
   stopgap's shell-outs disappear.
 - The **backlog-md-py + worktrunk migration**, which is the prerequisite that
   gates the mise module.
+## Breakage observed in the gita stopgap (2026-11-18)
+
+The 2026-11-17/18 reconciliation of the duplicate `~/code/templates/` tree
+produced failure evidence that bears on redge's design. Each item states what
+broke and what it implies for redge. Source: dotfiles
+`backlog/decisions/decision-7 - Chezmoi-owns-the-home-subdirectory-tree-and-gita-fails-loudly-on-drift.md`.
+
+- **A registration whose path vanishes becomes unremovable.** Six entries in
+  gita's `repos.csv` pointed at deleted directories. gita filters missing paths
+  out of *every* operation, including `gita rm`'s choice list, so the rows could
+  not be pruned through the CLI at all — only by hand-editing the CSV. **redge
+  must offer an explicit "remove a registration whose path is gone" path, or it
+  inherits a permanently polluted store.** This is the single strongest finding
+  here: the failure is silent, permanent, and unfixable by the tool that owns it.
+
+- **A path-keyed store silently accumulates ghosts.** gita keys its CSV by
+  absolute path. Any move creates a new registration and orphans the old one;
+  nothing detects the duplicate. Two clones of one repo register as two
+  independent repos with the same name. Observed duplicates on this machine:
+  `sentry` (two employer orgs), `symbolicator`, `sillysnakes-python-sdk-…`.
+  **redge's R2 requirement — "membership SHALL cite paths under the type
+  directory, never bare basenames (a known collision source)" — already names
+  half this defect.** The other half is that path identity is not *stable*
+  identity across a move. Consider recording the remote as the stable key and
+  the path as an attribute, not the primary key.
+
+- **Nothing detects that declared and observed disagree.** The repos moved into
+  `personal/templates/`; the catalogue still declared top-level `templates/`;
+  gita registered neither. No component reported an error. The drift was found
+  by a human noticing a directory looked wrong. **A loud declared-vs-observed
+  check is worth more than any single feature here**, because every consumer of
+  this state fails silently: the catalogue stops resolving, the CSV keeps dead
+  rows, worktree `gitdir` pointers break, and lore keeps writing to the old
+  location. redge should fail loudly at the point of mismatch rather than
+  auto-reconcile — reconciliation moves repos, and moving repos breaks live
+  worktrees (21 needed repair across four repos in this incident).
+
+- **Ownership of the shape belongs outside the repo manager.** The decision
+  reached in this incident: chezmoi declares the `~/code` shape; redge (and
+  gita before it) consumes it and halts on mismatch. A repo manager that both
+  declares and mutates the tree is the tool that notices drift *and* the tool
+  that silently fixes it. **redge's role should be to read a declared shape and
+  compare, never to own it** — this is consistent with redge's existing
+  "moving files is explicitly out of base".
+
+- **Chezmoi is a create-only owner, which redge must account for.** Probing
+  showed chezmoi creates declared directories and never removes them: undeclaring
+  an empty directory leaves it in place. So a declared shape can *assert* a
+  directory but cannot *retract* one. **redge must not assume a declared-but-
+  absent directory implies "should not exist"** — it may be retained state.
+
+- **`tree.yaml` was documented as feeding redge's SPEC R1/R2; neither names it.**
+  The in-repo comment in `apps/gita/tasks/install.yaml` claims the layout capture
+  feeds redge. Checked: R1 covers the declarative catalogue, R2 covers named
+  groups; neither mentions the capture file. **Recorded as intent, not
+  contract** — if redge is meant to consume a layout capture, that requirement
+  needs to be written into the spec rather than assumed by a comment in another
+  repo.
+
+### What this suggests for redge ordering
+
+The loud declared-vs-observed check is a prerequisite for the migration/repair
+tooling, not a follow-on: without it, "repair" has no signal to act on. It is
+also cheap relative to the rest of the feature set — it compares two lists.
