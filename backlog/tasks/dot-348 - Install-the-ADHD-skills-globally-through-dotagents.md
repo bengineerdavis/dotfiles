@@ -1,14 +1,14 @@
 ---
 id: DOT-348
 title: Install the ADHD skills globally through dotagents
-status: To Do
+status: Done
 created_date: 2026-11-10 20:55
 assignee:
 - opencode-dotagents-adhd
 orchestration:
   status_key: todo
   version: 2
-updated_date: 2026-11-16 04:36
+updated_date: 2026-11-19 20:54
 ---
 
 ## Description
@@ -62,7 +62,7 @@ Focused checks: 87 passed across the source, tag, and guard suites. Documentatio
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-
+Merged via PR #188 (merge commit f867d548) on 2026-11-19. Both ADHD sources live on origin/main; plugin-targets.yaml hardened per roborev jobs 142/143 (all findings resolved, reviews closed). Branch agent/dot-348 and worktrees retired. Live install still pending: author runs chezmoi apply from main, then bash home/dotfiles/executable_run-role.sh dotagents. DOT-349 (native OpenCode adapter) remains the queued follow-up.
 <!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
