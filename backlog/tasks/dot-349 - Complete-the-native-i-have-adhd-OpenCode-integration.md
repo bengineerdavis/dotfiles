@@ -7,10 +7,8 @@ dependencies:
 - DOT-348
 updated_date: 2026-11-19 20:44
 orchestration:
-  status_key: inprogress
-  lease_owner: opencode-dot349
-  lease_expires_at: '2026-11-18T05:11:55.206230Z'
-  version: 1
+  status_key: todo
+  version: 2
 ---
 
 ## Description
@@ -96,6 +94,18 @@ from_status: todo
 to_status: inprogress
 metadata:
   lease_ttl_seconds: '3600'
+```
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-327acafbe4914f1aa01dc7d6d9471348
+type: release_task
+actor: opencode-dot349
+timestamp: '2026-11-19T20:45:50.088948Z'
+result: succeeded
+task_id: DOT-349
+from_status: inprogress
+to_status: todo
 ```
 <!-- RUN_HISTORY_ENTRY:END -->
 <!-- SECTION:RUN_HISTORY:END -->
