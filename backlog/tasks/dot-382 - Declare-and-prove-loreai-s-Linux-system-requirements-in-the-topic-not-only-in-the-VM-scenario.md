@@ -10,102 +10,126 @@ created_date: 2026-11-19 08:47
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
 
-The loreai topic declares `topic_requires: []` and declares no system
-packages. Its Debian behaviour is real but **unowned**: the only place Linux
-dependencies appear is `molecule/debian-lima/prepare.yml`, which installs
-`gzip` and `curl` so the *test* can run.
+The VM scenarios prove the *configuration logic* runs. They do not establish
+that the guest resembles the machine the topic will actually live on, and the
+two are measurably different. So a green scenario currently means "the role
+converged in a 4 GiB, 2-CPU, Debian-only sandbox" — not "this will work on the
+host or on the fleet this is extended to."
 
-That is backwards. A scenario installing what the role needs hides the
-requirement from every consumer except the scenario. A real Debian host
-running the topic — not the molecule harness — has no such step.
+**Measured 2026-11-19, host versus `debian-lima` guest:**
 
-Measured 2026-11-19 in `apps/loreai`:
+| Property | Host | Guest |
+|---|---|---|
+| OS | macOS (darwin-arm64) | Debian 12 (linux-x64 or arm64) |
+| CPUs | 14 | 2 |
+| Memory | 36 GB | 4 GiB |
+| Service manager | `launchd` | `systemd` |
+| Embedding cap | 1067 tokens (learned after OOM backoff) | ~2735 tokens (computed from ~3 GB free) |
 
-- `topic.yml` states `topic_requires: []` and `topic_os: [Darwin, Debian]`.
-- No `ansible.builtin.apt` task anywhere in `tasks/`; only `prepare.yml`
-  installs `gzip` and `curl`, with a comment saying Lima's guest "already has
-  Python and CA certificates".
-- The install path fetches a gzip-compressed release asset and unpacks it to
-  `~/.local/bin/lore`. Standalone executable — no node, no python runtime, no
-  bundled ORT is needed on the *host*, because the binary is self-contained.
-- The gateway uses `sqlite-vec` and native `onnxruntime-node`, both extracted
-  from the binary into a temp dir at runtime — so the shared-library
-  prerequisites of those (glibc floor, libstdc++, libgcc) are load-bearing on
-  Linux and are nowhere declared.
-- The molecule README states plainly what is *not* covered: "this is not
-  LLM-inference, Linux-host, or macOS-guest-on-Linux coverage."
+That last row is the concrete case where a passing guest proves the wrong
+thing. `memoryModelEmbedCap()` derives the token cap from *free memory*
+(`freeBytes × 0.5 − 680 MiB`, then a square root). A 4 GiB guest computes a
+**higher** cap than the 36 GB host's persisted learned cap, because the host's
+1067 is a *learned* value after OOM backoff, not the model output. A guest run
+therefore exercises a different code path and different memory pressure than
+the host ever does.
 
-So there are two gaps, and they are different in kind:
+**Other divergences found while writing this:**
 
-1. **Declared requirements are absent.** What the topic genuinely needs on
-   Debian — unpacking tools, and the C/C++ runtime the bundled ONNX and vec0
-   libraries link against — is not stated in the role.
-1. **Coverage is a single image.** `debian-lima` pins one Debian 12 cloud
-   image. Debian 13, Ubuntu LTS, and any non-glibc distribution are untested,
-   and there is no expectation recorded either way.
+- **`topic_requires: []` and no `apt` tasks.** The role declares no system
+  packages. Its only Debian dependencies live in
+  `molecule/debian-lima/prepare.yml`, which installs `gzip` and `curl` so the
+  *test* can run — hiding the requirement from every consumer except the
+  scenario. A real Debian host gets no such step.
+- **Native library floor undeclared.** The binary extracts `onnxruntime-node`
+  and `sqlite-vec` into a temp dir at runtime. Both link against glibc,
+  libstdc++, libgcc — a requirement stated nowhere and satisfied on the guest
+  only because the image happens to have it.
+- **One image is not Linux coverage.** `debian-lima` pins a single Debian 12
+  cloud image with `cpus: 2, memory: 4GiB` from the shared adapter. Debian 13,
+  Ubuntu LTS, and non-glibc distributions are untested with no expectation
+  recorded.
+- **Service-manager paths diverge entirely.** `service.yaml` branches on
+  `Darwin` (launchctl) versus `Debian` (systemd). The guest proves only the
+  systemd branch; the launchd branch — what the host actually runs — is never
+  exercised by any VM.
+- **Environment deliberately differs.** The guest runs with
+  `propagateProxyEnv: false`, `mounts: []`, `forwardAgent: false`,
+  `loreai_telemetry: 0`, `loreai_inference: none` — no credentials, no
+  inference, no mounts. That isolation is *correct for a test* and *wrong as a
+  preview*; the task is to know which divergences are deliberate and which are
+  defects.
 
-The author's request is to state the system requirements in the module and
-prove them by installing the topic and its dependencies in a VM. This task
-scopes that; the fleet-matrix design is DOT-255 and the existing Linux proof
-is DOT-265, so this must not duplicate either.
+The author's framing: configuration logic and installation are **incomplete
+unless all dependencies are accounted for**. A scenario that satisfies
+dependencies the role never declares has proven the harness, not the role.
 
 Ship:
 
-- The loreai role declares what it needs on Debian through the ordinary
-  topic mechanism (`ansible.builtin.apt` with `when: os_family == 'Debian'`,
-  as `apps/mise` does), replacing the scenario-only installs in
-  `molecule/debian-lima/prepare.yml` with the role's own prerequisite tasks
-- `topic_requires` and `topic_os` are corrected to whatever the investigation
-  proves, rather than the current aspirational `[]`
-- A written requirements table in the topic README stating, per platform, the
-  minimum OS version, the C/C++ runtime floor the bundled native libraries
-  demand, and what is explicitly unsupported
-- A VM scenario that installs **the topic and its declared dependencies from
-  a bare image** — not a scenario that pre-installs them — so the proof
-  exercises the declaration
-- An explicit statement of which distributions are tested and which are
-  untested-but-expected, since one Debian image is not Linux coverage
+- **An inventory of host-versus-guest divergences**, each classified as
+  *deliberate isolation* (credentials, inference, mounts) or *defect* (memory
+  shape, CPU count, undeclared packages, missing library floor). Written into
+  the topic README so the distinction is reviewable.
+- **A reviewable recommendation per defect**: fix the role, change the guest
+  shape, or declare the requirement — with the reason, and what breaks if
+  ignored. Surfaced for the author to decide, not resolved silently.
+- **The role declares Debian prerequisites itself** (`ansible.builtin.apt`
+  with `when: os_family == 'Debian'`, the `apps/mise` precedent), replacing
+  the scenario-only installs in `molecule/debian-lima/prepare.yml`.
+- **`topic_requires` and `topic_os` corrected to measured reality.**
+- **A requirements table** in the topic README: minimum OS per platform, the
+  native C/C++ runtime floor, memory and CPU needed for the embedding path to
+  reach a usable cap, and what is explicitly unsupported.
+- **A VM scenario that installs the topic and its declared dependencies from
+  a bare image**, so the declaration is what gets exercised.
+- **At least one tested-versus-untested statement per distribution**, with no
+  distribution claimed working unless a scenario ran against it.
+- **A guest shape decision**: either bring the guest close enough to be a
+  preview (realistic memory, both service managers where feasible), or state
+  plainly that it is a proving ground only and name what it cannot prove.
 
 Constraints:
 
 - Do not duplicate DOT-255 (fleet matrix) or DOT-265 (LoreAI on Linux via the
-  shared Lima adapter). This task owns *declaring and proving the
-  requirements*; those own the broader matrix.
-- Configs must work off macOS — a standing house rule. A requirement stated
-  only in a molecule file does not meet it.
-- The topic must stay a standalone executable with no runtime dependency. If
-  the investigation finds a host library genuinely required, that is a
-  finding to record, not a licence to add node or python.
-- Idempotence and teardown properties already proven by `debian-lima` must not
-  regress; the remove-twice and sentinel-preservation checks stay.
-- Requirements must be **measured on a bare guest**, not inferred from the
-  host. A missing library that happens to be present on the developer's
-  machine is exactly the defect this task exists to catch.
-- No claim that a distribution works unless a scenario ran against it. State
-  untested platforms as untested.
+  shared Lima adapter). This owns *dependencies declared, divergences
+  surfaced, requirements proven*; those own the broader matrix.
+- **The guest is compared to the host, not just asserted.** A scenario that
+  never states its divergence from the target machine cannot be a preview, and
+  the comparison must be measured, not assumed.
+- Requirements must be measured **on a bare guest** — a library present on the
+  developer's machine is exactly the defect this exists to catch.
+- Deliberate isolation (no credentials, no inference, no mounts) is a feature
+  and must be preserved; do not "fix" it into a preview by mounting the host.
+- Existing `debian-lima` properties must not regress: idempotence, remove-twice,
+  planted-sentinel preservation, the X-Lore-Provider header assertion.
+- Findings go to the author for review with recommendations and reasons. This
+  task surfaces differences; it does not unilaterally reconcile them.
 
-Scoped deliberately loose. The author asked to keep this as a task to flesh
-out later: the investigation decides the actual package list and how many
-distributions are worth proving. The Ship bullets above are the shape; the
-detail belongs in implementation.
+Scoped deliberately loose per the author's request: "keep that as a task to
+flesh out more later." The investigation settles the package list, how many
+distributions are worth proving, and which divergences are defects.
 
-Decision 2026-11-19: system requirements belong in the module and are proven
-in a VM that installs the topic's dependencies, rather than being satisfied by
-the test harness.
+Decision 2026-11-19: VM testing must establish that the guest is a faithful
+preview of the target — or state clearly what it cannot prove — because
+installation is incomplete unless every dependency is accounted for.
 
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 
-- [ ] #1 The loreai role installs its Debian prerequisites through ansible.builtin.apt with when: os_family == 'Debian', following the apps/mise precedent, and molecule/debian-lima/prepare.yml no longer pre-installs what the role should own
-- [ ] #2 topic_requires and topic_os reflect what the investigation measured, replacing the current topic_requires: []
-- [ ] #3 The topic README states a requirements table: per platform the minimum OS, the C/C++ runtime floor the bundled native libraries need, and what is explicitly unsupported
-- [ ] #4 A VM scenario installs the topic and its declared dependencies from a bare image, so the declaration itself is what gets exercised
-- [ ] #5 Tested versus untested-but-expected distributions are stated explicitly; no distribution is claimed to work without a scenario having run against it
-- [ ] #6 The native-library floor is measured on a bare guest, not inferred from a developer machine where the library happens to exist
-- [ ] #7 Existing debian-lima properties do not regress: idempotence, remove-twice, and planted-sentinel preservation still pass
-- [ ] #8 The board lists DOT-382 with the full description and every criterion: uvx --from backlog-md-py backlog-py board
+- [ ] #1 A host-versus-guest divergence inventory exists in the topic README, each entry classified as deliberate isolation or defect, with the measurements behind it
+- [ ] #2 Every defect carries a recommendation with its reason and consequence, surfaced for author review rather than resolved silently
+- [ ] #3 The loreai role installs its Debian prerequisites via ansible.builtin.apt with when: os_family == 'Debian', and molecule/debian-lima/prepare.yml no longer pre-installs what the role should own
+- [ ] #4 topic_requires and topic_os reflect measured reality, replacing topic_requires: []
+- [ ] #5 The README requirements table states, per platform: minimum OS, the native C/C++ runtime floor, the memory and CPU needed for a usable embedding cap, and what is unsupported
+- [ ] #6 A VM scenario installs the topic and its declared dependencies from a bare image, so the declaration itself is exercised
+- [ ] #7 The embedding-cap divergence is resolved or explained: the guest computes a different cap than the host's learned 1067, and the record says which behaviour the proof represents
+- [ ] #8 A guest-shape decision is recorded: bring the guest close enough to be a preview, or state plainly what it cannot prove
+- [ ] #9 Tested versus untested-but-expected distributions are stated per distribution, with no claim for one that never ran
+- [ ] #10 Deliberate isolation is preserved and named: no credentials, inference, mounts, or agent forwarding are added to the guest
+- [ ] #11 Existing debian-lima properties do not regress: idempotence, remove-twice, planted-sentinel preservation, X-Lore-Provider header assertion
+- [ ] #12 The board lists DOT-382 with the full description and every criterion: uvx --from backlog-md-py backlog-py board
 <!-- AC:END -->
 
 ## Implementation Notes
