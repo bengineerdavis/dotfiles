@@ -158,6 +158,12 @@ deployed tree, and one machine. Most work never collides — in practice the onl
 real conflict so far came from two sessions rewriting the same large file at once.
 These are the cases that do need care.
 
+**Before reconciling the shared checkout, read `docs/WORKTREES.md`
+§ Reconcile a dirty shared checkout.** Filter sessions by exact checkout. A
+session in another worktree is independent; it is not a reason to wait. Leave
+unrelated dirty files in place. If the incoming change touches a dirty file,
+stop and ask its owner instead of restoring or replacing that file.
+
 **Check the tool surface before asserting what a tool does.** A named tool in
 working memory can be stale three ways: retired (`.pre-commit-config.yaml` →
 `prek.toml`), versioned past its docs (Lima's `sudo`/`ssh` subcommands never
@@ -509,6 +515,12 @@ override, so nothing is changed for the human running it by hand.
 `czd` also exits **1 when drift exists and 2 on error**, because `chezmoi diff`
 exits 0 either way. A drift check that cannot fail is indistinguishable from one
 that passed, so a caller can branch on `$?` rather than parse output.
+
+If `czd` is not deployed, use `chezmoi diff --use-builtin-diff -- ~/.gitconfig`
+for a read-only text diff. Name an absolute target path, and scope the diff so
+unrelated files cannot expose their contents. This fallback does not change
+chezmoi's exit status: use `czd` when a script needs to branch on drift. The
+author can deploy it with `chezmoi apply ~/bin/czd`.
 
 The reason for the ordering is structural: there is one deployed tree and it
 cannot be branched. `~/dotfiles` is a single set of files no matter how many
@@ -920,6 +932,8 @@ Read by name when the work touches them:
 - **`docs/CROSS-PLATFORM.md`** — traps that have bitten on macOS and Debian.
 - **`docs/BACKLOG-MIGRATION.md`** — the queue's migration record.
 - **`docs/BACKLOG-UPSTREAM-CONFIG.md`** — upstream backlog configuration.
+- **`docs/CHERRY-PICK-RECONCILIATION.md`** — why a shared checkout's local
+  `main` can hold duplicates of merged work, and the safe way to reconcile it.
 
 ## Tests
 

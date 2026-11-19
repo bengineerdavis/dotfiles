@@ -23,7 +23,8 @@ dirty by design and the change is committed as the capture.
 ## Scope, and what it deliberately does not do
 
 - **Registers at catalogue paths.** `config/repos.yaml` paths follow the
-  `docs/LAYOUT.md` type dirs (`personal/`, `forks/`, `templates/`, `try/`).
+  `docs/LAYOUT.md` type dirs (`personal/`, `forks/`, and the named subdirs
+  that nest inside `personal/`).
   `install.yaml` registers each repo where it is and gives it the group the
   catalogue declares. The physical migration into the type dirs is LAYOUT
   phase 4; this Mac is migrated, the second machine is not, so it reports
