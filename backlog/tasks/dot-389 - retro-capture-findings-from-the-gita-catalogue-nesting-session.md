@@ -1,7 +1,7 @@
 ---
 id: DOT-389
 title: 'retro: capture findings from the gita catalogue-nesting session'
-status: To Do
+status: Done
 created_date: 2026-11-19 21:00
 ---
 
