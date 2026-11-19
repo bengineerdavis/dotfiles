@@ -95,8 +95,10 @@ What a Linux guest *can* warrant about the macOS parent:
   platform-independent unless they branch on platform.
 - **The installed artefact's own dependencies**, because the binary is the
   same download on both platforms and its `DT_NEEDED` set is per-ELF, so the
-  Linux floor transfers to any Linux host, including a Linux member of the
-  fleet — not to macOS.
+  Linux floor transfers to any Linux host, including `pop-os` — the fleet's
+  Linux member in `machines.yml` — but not to macOS. That is the concrete
+  machine the Linux half of this task is for, so the requirements table must
+  be true of it, not only of the Debian guest.
 
 What it *cannot* warrant, and the failure this task exists to catch:
 
@@ -207,9 +209,10 @@ the role's undeclared packages are in scope.
 - [ ] #11 Environment differences (RAM, CPU count, embedding-cap divergence, launchd-vs-systemd coverage) are inventoried and classified as deliberate difference or defect, not treated as blockers
 - [ ] #12 Every defect carries a recommendation with its reason and consequence, surfaced for author review rather than resolved silently
 - [ ] #13 Tested versus untested-but-expected distributions are stated per distribution, with no claim for one that never ran
-- [ ] #14 Deliberate isolation is preserved and named: no credentials, inference, mounts, or agent forwarding added to the guest
-- [ ] #15 Existing debian-lima properties do not regress: idempotence, remove-twice, planted-sentinel preservation, X-Lore-Provider header assertion
-- [ ] #16 The board lists DOT-382 with the full description and every criterion: uvx --from backlog-md-py backlog-py board
+- [ ] #14 The requirements are stated as true of pop-os, the fleet's Linux member, not only of the Debian guest image
+- [ ] #15 Deliberate isolation is preserved and named: no credentials, inference, mounts, or agent forwarding added to the guest
+- [ ] #16 Existing debian-lima properties do not regress: idempotence, remove-twice, planted-sentinel preservation, X-Lore-Provider header assertion
+- [ ] #17 The board lists DOT-382 with the full description and every criterion: uvx --from backlog-md-py backlog-py board
 <!-- AC:END -->
 
 ## Implementation Notes

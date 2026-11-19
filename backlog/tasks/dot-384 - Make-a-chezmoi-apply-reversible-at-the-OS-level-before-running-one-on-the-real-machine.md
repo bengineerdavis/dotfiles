@@ -38,6 +38,25 @@ that deploys a broken unit, replaces a config a later tool depended on, or
 half-completes between two tasks. Recovery today means reconstructing intent
 from memory, or restoring from a backup that is older than the change.
 
+**Rollback is not backup, and the repo already has a backup design.**
+
+DOT-56 (BK1) chose borg 1.4.x with borgmatic; DOT-177 (BK2) proves local
+recovery and DOT-178 (BK3) proves off-host append-only recovery. DOT-167 owns
+the broader state-backup path. Those answer *"the machine is gone or a file is
+lost — restore it"*, measured in hours, from another device.
+
+This task answers a narrower question: *"the apply I just ran was wrong —
+put the machine back the way it was five minutes ago."* That is local, fast,
+and pre-apply. Conflating them produces a design that is too slow to be a
+rollback and too weak to be a backup.
+
+They can share a substrate. A pre-apply `borg create` archive is a legitimate
+rollback primitive — borg deduplicates, so successive pre-apply archives are
+cheap — and it works on any filesystem, which matters because the Linux
+answer cannot assume btrfs. The alternative is a filesystem snapshot
+(btrfs/ZFS/LVM), which is instant but only exists where the volume supports
+it. The task must pick per platform and say which property each provides.
+
 Ship:
 
 - **A snapshot-before-apply mechanism** with a defined restore path, proven
@@ -49,9 +68,22 @@ Ship:
 - **A pre-apply gate or hook** so the snapshot is taken by the act of
   applying, not by remembering to ask for one. A manual-only path is the
   failure mode this is meant to prevent
-- **A documented answer for Linux**, or an explicit statement that the macOS
-  mechanism is macOS-only and what the Linux equivalent would be (Linux
-  members of the fleet exist, per DOT-382)
+- **A Linux mechanism, not a footnote.** `pop-os` is a real fleet member
+  (`machines.yml`), so the Linux answer is required, not optional. The
+  candidates differ in kind and must be chosen against the filesystem actually
+  in use there: btrfs/ZFS snapshots (instant, only if the volume is btrfs or
+  ZFS), LVM snapshots (instant, needs LVM), or a pre-apply `borg create`
+  archive (works on any filesystem, slower, deduplicated). Measure pop-os's
+  filesystem before choosing; do not assume ext4 or btrfs
+- **The relationship to the BK backup series settled explicitly.** DOT-56
+  (BK1) already chose borg 1.4.x with borgmatic, and DOT-177/DOT-178 (BK2/BK3)
+  prove local and off-host recovery. Those are *backup*: off-machine,
+  append-only, retention-bounded, hours to restore. Rollback is a different
+  property — local, fast, pre-apply, minutes. They must not be conflated, but
+  they can share a substrate: a pre-apply `borg create` is a legitimate
+  rollback primitive because borg archives are deduplicated snapshots. State
+  which of the two each mechanism provides, and whether one tool serves both
+  or the design needs two
 - **Interaction with Time Machine settled**: either configure a destination so
   local snapshots are taken continuously, or record why an on-demand snapshot
   is sufficient without one
@@ -90,13 +122,15 @@ for running a topic on the real machine, not a later convenience.
 - [ ] #2 The recovery bound is stated: which state the snapshot restores and what it does not cover
 - [ ] #3 The snapshot is taken by the act of applying via a pre-apply gate or hook, not by remembering to request one
 - [ ] #4 Topic remove.yaml is explicitly not treated as rollback, with the reason recorded: teardown is not an inverse of a partial apply
-- [ ] #5 A Linux answer exists, or the record states plainly that the mechanism is macOS-only and names what the Linux equivalent would be
-- [ ] #6 Time Machine interaction is settled: either a destination is configured for continuous local snapshots, or the record explains why an on-demand snapshot suffices without one
-- [ ] #7 The restore is exercised, not just the snapshot; an untested restore path is not accepted as protection
-- [ ] #8 No destructive restore is run against the live machine during development without explicit author approval and a verified second copy of unrecoverable data
-- [ ] #9 The mechanism is in place before the first real apply, with ordering relative to DOT-383 recorded
-- [ ] #10 The limits are stated: state a snapshot cannot see (open files, in-flight sessions, external services) is not claimed as protected
-- [ ] #11 The board lists DOT-384 with the full description and every criterion: uvx --from backlog-md-py backlog-py board
+- [ ] #5 A Linux mechanism is chosen for pop-os, measured against its actual filesystem rather than assumed, covering btrfs/ZFS snapshots, LVM snapshots, or a pre-apply borg archive
+- [ ] #6 The rollback-versus-backup boundary is stated: which property each mechanism provides, and whether one tool serves both or two are needed
+- [ ] #7 The relationship to DOT-56/DOT-177/DOT-178 is recorded, so rollback does not duplicate or contradict the borg backup design
+- [ ] #8 Time Machine interaction is settled: either a destination is configured for continuous local snapshots, or the record explains why an on-demand snapshot suffices without one
+- [ ] #9 The restore is exercised, not just the snapshot; an untested restore path is not accepted as protection
+- [ ] #10 No destructive restore is run against the live machine during development without explicit author approval and a verified second copy of unrecoverable data
+- [ ] #11 The mechanism is in place before the first real apply, with ordering relative to DOT-383 recorded
+- [ ] #12 The limits are stated: state a snapshot cannot see (open files, in-flight sessions, external services) is not claimed as protected
+- [ ] #13 The board lists DOT-384 with the full description and every criterion: uvx --from backlog-md-py backlog-py board
 <!-- AC:END -->
 
 ## Implementation Notes
