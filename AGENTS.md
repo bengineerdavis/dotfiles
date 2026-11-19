@@ -932,6 +932,8 @@ Read by name when the work touches them:
 - **`docs/CROSS-PLATFORM.md`** — traps that have bitten on macOS and Debian.
 - **`docs/BACKLOG-MIGRATION.md`** — the queue's migration record.
 - **`docs/BACKLOG-UPSTREAM-CONFIG.md`** — upstream backlog configuration.
+- **`docs/CHERRY-PICK-RECONCILIATION.md`** — which commits on a stranded local
+  `main` are duplicates of work already on `origin`, and how to tell.
 
 ## Tests
 
