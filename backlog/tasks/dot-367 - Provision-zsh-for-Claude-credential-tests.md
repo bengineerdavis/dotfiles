@@ -3,7 +3,7 @@ id: DOT-367
 title: Provision zsh for Claude credential tests
 status: In Progress
 created_date: 2026-11-16 05:36
-updated_date: 2026-11-19 21:56
+updated_date: 2026-11-19 22:31
 orchestration:
   status_key: todo
   version: 2
@@ -98,6 +98,7 @@ git merge --no-edit origin/main
 gh pr checks 185
 
 Retro remains DOT-393 / PR #196. DOT-314 owns the baseline, DOT-305 owns lore corruption, DOT-386 owns wrong-project sessions. Shared main checkout remains mid-merge with foreign changes; leave it untouched.
+Latest CI evidence (run 44623835378, 2026-11-19): 1 failed, 1639 passed, 109 skipped, 9 deselected in 298.12s. The checksum-pinned chezmoi install succeeded. The sole failure is tests/docs/test_lore_md_rules_survive.py::test_rule_survives_redistillation[uv --frozen], absent from the known-failure baseline owned by DOT-314. Merge authorization was given, but the required check remains red; do not merge until DOT-314 baseline resolution or the lore repair makes it green. PR #185 remains open at 158fde10. PR #196 (retro) remains open at 6157c5f with its own red CI from the missing prerequisites. No worktree or branch cleanup is permitted before confirmed merges.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
