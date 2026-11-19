@@ -1,12 +1,16 @@
 ---
 id: DOT-367
 title: Provision zsh for Claude credential tests
-status: To Do
+status: In Progress
 created_date: 2026-11-16 05:36
-updated_date: 2026-11-17 18:14
+updated_date: 2026-11-19 21:44
 orchestration:
   status_key: todo
   version: 2
+assignee:
+- ci-credential-session
+references:
+- https://github.com/bengineerdavis/dotfiles/pull/185
 ---
 
 ## Description
@@ -40,6 +44,44 @@ Constraints:
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
 Final checks after type guard: 17 focused tests passed, ruff and formatting passed, pyrefly 0 errors, three mutation tests went red on intended assertions. Repair commit 2a9b9c7 has all applicable prek hooks passing. Ubuntu apt execution remains CI verification; no local apt or live-home mutation performed.
+Wrap-up handoff (2026-11-19):
+
+Repo: /Users/ben.davis/.local/share/chezmoi
+Branch: agent/claude_credential_path
+Worktree: /Users/ben.davis/.local/share/chezmoi/.worktrees/claude-credential-path
+PR: #185 https://github.com/bengineerdavis/dotfiles/pull/185
+Pushed head: 9b1dd984307683dc8272a401c67b19b1f6e36e3f
+Implementation commits: d73b20208736c013f42525cc89daa05276003694 and 024014dc477f6e1ceb1b26832bea580401e5766a; subsequent commits merge the remote main-sync updates.
+
+Owned implementation files: .github/workflows/tests.yml; tests/claude_credentials/claude_credentials_harness.py; tests/claude_credentials/test_harness.py; tests/scripts/test_ci_workflow.py; tests/merge_gates/test_real_managed.py; tests/chezmoi/test_gitconfig_tools.py; changelog.d/20261116_claude_credential_zsh.md. This task record is also updated here. Untracked .review-artifacts/ is session-local; it is not committed.
+
+Checks actually run:
+- Focused pytest: 30 passed.
+- Ruff check and format on touched test files: passed.
+- uv tool run --from pyrefly==1.3.2 pyrefly check: 0 errors.
+- Full suite uv run --frozen pytest tests tools -q: 3 failed, 1738 passed, 6 skipped, 9 deselected in 527.29s. All three are DOT-305 lore-anchor failures; no CI-prerequisite failure remains.
+- Isolated unconfigured-chezmoi probe: 3 passed, 7 skipped. A real configured machine still exercises the live-policy suite.
+- Source-existence guard and checksum guard mutations failed the named tests.
+- CI run 44621622426 is queued at 9b1dd984; its result is Not verified.
+- Fresh roborev review job 164 is queued; its verdict is Not verified.
+
+Remaining before merge:
+1. Read job 164 and resolve actionable findings. Do not reintroduce the host-PATH fallback.
+2. Verify the checksum-pinned archive install and the Tests check in CI run 44621622426.
+3. DOT-314 owns the known-failure baseline update; do not edit it here or take over agent/retro-ci-guard. Current main baseline lacks the DOT-305 lore anchors, so CI may still report unexpected failures despite the repaired prerequisites.
+4. Merge only with review findings resolved, required checks green, no conflicts, and the branch current with main. The repository quiz gate is unresolved: the earlier "A or C" answer was not a clean pass because A is the host-PATH fallback removed by this work.
+
+Resume commands:
+cd /Users/ben.davis/.local/share/chezmoi/.worktrees/claude-credential-path
+git fetch origin main agent/claude_credential_path
+git status --short --branch
+git merge --no-edit origin/agent/claude_credential_path
+git merge --no-edit origin/main
+roborev job wait --job 164
+gh pr checks 185
+
+Retro: DOT-393 / PR #196 https://github.com/bengineerdavis/dotfiles/pull/196.
+Foreign shared main checkout: mid-merge with uncommitted and staged changes belonging to other sessions. Do not commit, restore, reset, or clean it. A foreign DOT-392 collision was avoided by moving this session retro to DOT-393. No process or database cleanup was performed.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
