@@ -3,7 +3,7 @@ id: DOT-367
 title: Provision zsh for Claude credential tests
 status: In Progress
 created_date: 2026-11-16 05:36
-updated_date: 2026-11-19 21:44
+updated_date: 2026-11-19 21:56
 orchestration:
   status_key: todo
   version: 2
@@ -82,6 +82,22 @@ gh pr checks 185
 
 Retro: DOT-393 / PR #196 https://github.com/bengineerdavis/dotfiles/pull/196.
 Foreign shared main checkout: mid-merge with uncommitted and staged changes belonging to other sessions. Do not commit, restore, reset, or clean it. A foreign DOT-392 collision was avoided by moving this session retro to DOT-393. No process or database cleanup was performed.
+Wrap-up final update (2026-11-19 13:56 -0800):
+
+Latest pushed head: 8db630f9906efaf5fb52049c9b3e87679a574d05.
+Roborev job 164: PASS; no high or medium findings. Its low missing-gitconfig-skip-test finding is fixed by 8db630f9. Direct guard test: 4 passed normally, intended failure on the stderr-match mutation, 4 passed after restore. Full focused suite: 31 passed; ruff and format passed.
+
+Job 164 did not inspect 8db630f9; a fresh review of that commit is Not verified. Latest CI result is Not verified. Previous CI run 44622666803 was still IN_PROGRESS when checked; do not treat it as green. PR #185 remains open and must not merge until its required tests check passes, current code is reviewed, the branch is current with main, and the repository quiz gate is satisfied.
+
+Resume:
+cd /Users/ben.davis/.local/share/chezmoi/.worktrees/claude-credential-path
+git fetch origin main agent/claude_credential_path
+git status --short --branch
+git merge --no-edit origin/agent/claude_credential_path
+git merge --no-edit origin/main
+gh pr checks 185
+
+Retro remains DOT-393 / PR #196. DOT-314 owns the baseline, DOT-305 owns lore corruption, DOT-386 owns wrong-project sessions. Shared main checkout remains mid-merge with foreign changes; leave it untouched.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
