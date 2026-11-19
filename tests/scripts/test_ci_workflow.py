@@ -180,12 +180,15 @@ def test_real_zsh_tests_have_a_shell_before_the_suite_runs():
     assert "zsh" in steps[install_index]["run"]
 
 
-def test_chezmoi_is_installed_before_the_suite_runs():
-    """The profile-deployment test shells out to bare `chezmoi`.
+CHEZMOI_SHA256 = "ae01c66b1a6dbf563667c63fbbd9986b3cfa3c98dd266ddee732f63e8af2e9d1"
 
-    The Ubuntu runner does not provide it, so CI must install it before
-    the suite step, pinned to a version — a floating tool in a gate lets
-    a green commit re-run red.
+
+def test_chezmoi_is_installed_before_the_suite_runs():
+    """CI installs a pinned, checksum-verified chezmoi before pytest.
+
+    The Ubuntu runner provides no chezmoi. This hash was read from
+    the v2.74.1 release's chezmoi_2.74.1_checksums.txt on 2026-11-19;
+    update both the version and this value together.
     """
     steps = _workflow()["jobs"]["tests"]["steps"]
     suite_index = _suite_index(steps)
@@ -193,15 +196,17 @@ def test_chezmoi_is_installed_before_the_suite_runs():
         (
             index
             for index, step in enumerate(steps)
-            if "get.chezmoi.io" in step.get("run", "")
+            if "chezmoi_2.74.1_linux_amd64.tar.gz" in step.get("run", "")
         ),
         None,
     )
 
-    assert install_index is not None, "CI must install chezmoi for the deployment test"
+    assert install_index is not None, "CI must install chezmoi for its consumers"
     assert install_index < suite_index
-    # Pinned, not floating: `-t vX.Y.Z` rather than tracking latest.
-    assert "-t v" in steps[install_index]["run"]
+    command = steps[install_index]["run"]
+    assert CHEZMOI_SHA256 in command
+    assert "shasum --algorithm 256 --check" in command
+    assert "get.chezmoi.io" not in command
 
 
 def test_the_install_step_provides_what_the_later_steps_run():
