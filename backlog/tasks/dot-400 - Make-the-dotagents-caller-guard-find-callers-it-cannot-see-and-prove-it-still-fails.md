@@ -1,5 +1,5 @@
 ---
-id: DOT-390
+id: DOT-400
 title: Make the dotagents-caller guard find callers it cannot see, and prove it still fails
 status: To Do
 created_date: 2026-11-19 21:01

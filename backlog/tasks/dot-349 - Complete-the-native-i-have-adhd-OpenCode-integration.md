@@ -99,7 +99,7 @@ BLOCKERS: none technical. Merge is the author's by house rule.
 
 RESUME: cd .worktrees/dot-349 && git fetch origin && git rebase origin/agent/dot-349 && gh pr view 187 --repo bengineerdavis/dotfiles
 
-DURABLE HANDOFF: this task record (nothing lives only in chat). Related queued work: DOT-390 (guard hardening), DOT-305 (.lore.md loss).
+DURABLE HANDOFF: this task record (nothing lives only in chat). Related queued work: DOT-400 (guard hardening), DOT-305 (.lore.md loss).
 
 <!-- SECTION:PLAN:END -->
 
