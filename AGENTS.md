@@ -755,11 +755,11 @@ Two suites failed on a clean checkout before DOT-73, for reasons outside the
 code. Expect this shape in older baselines, and do not spend a session proving
 they are not yours:
 
-| Suite                                      | Count | Why                                                                                                                                                     |
-| ------------------------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tests/clipped`                            | ~10   | Drives the real clipboard through subprocesses; needs a live `wl-copy`/`wl-paste` and a TTY.                                                            |
-| `tests/restart_stale`                      | 2     | Exercises launchd/systemd role behaviour that the test host does not have.                                                                              |
-| `tests/docs/test_lore_md_rules_survive.py` | 2     | Trunk red after the 2026-11 `.lore.md` re-distillation rewrites; verified on pristine origin/main 2026-11-19. Owning task refreshes or fixes the guard. |
+| Suite                 | Count | Why                                                                                                                                                                                            |
+| --------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/clipped`       | ~10   | Drives the real clipboard through subprocesses; needs a live `wl-copy`/`wl-paste` and a TTY.                                                                                                   |
+| `tests/restart_stale` | 2     | Exercises launchd/systemd role behaviour that the test host does not have.                                                                                                                     |
+| `tests/docs`          | 2     | Only `test_lore_md_rules_survive.py` — trunk red after the 2026-11 `.lore.md` re-distillation rewrites; verified on pristine origin/main 2026-11-19. Owning task refreshes or fixes the guard. |
 
 The `claude_credentials` profile tests fail in CI for a different reason — the
 runner lacks zsh and chezmoi. That is an environment gap with an open fix
