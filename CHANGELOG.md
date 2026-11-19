@@ -18,6 +18,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 <!-- scriv-insert-here -->
 
+## PR #183 — 2026-11-19
+
+### Changed
+
+- **`config/repos.yaml` follows the final nesting.** `templates/` and
+  `try/` moved inside `personal/` (docs/LAYOUT.md § Structure: named
+  subdirs live inside personal, never as top-level siblings), and the
+  stray `tutorial/` entry re-homed under `personal/`. The repo set is
+  unchanged; only the paths moved.
+
 ## PR #178 — 2026-11-18
 
 ### Added
