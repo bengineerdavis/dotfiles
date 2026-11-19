@@ -1,0 +1,78 @@
+# roles/services/defaults/main.yaml
+#
+# Defaults for every service in this role. A caller overrides them with `vars:`
+# on the import — see roles/services/README.md.
+#
+# Nothing here is machine-specific. A caller supplies the label, the program,
+# the log path and the health command, and the role resolves the rest from
+# facts on the target at run time (AGENTS.md § Machine-specific values are
+# resolved, never written out).
+
+# ── Identity ─────────────────────────────────────────────────────────────────
+
+# The launchd label / systemd unit name stem. One value, used by both init
+# systems, so the two never drift apart.
+service_label: ""
+
+# Human-readable one-liner. Lands in the plist comment, the systemd
+# Description, and the task names, so a run log reads plainly.
+service_description: "{{ service_label }}"
+
+# ── What to run ──────────────────────────────────────────────────────────────
+
+# The argv of the service, as a list. First element is the binary.
+# Point the binary at a STABLE path — a shim or a resolved-at-install absolute
+# path — never a version-pinned install path that changes on every upgrade
+# (docs/TOPIC-RECIPES.md, service ownership).
+service_program_arguments: []
+
+# Environment for the process. Empty by default: a service that needs PATH
+# set should say so explicitly rather than inherit whatever the run had.
+service_environment: {}
+
+# ── Where things live ────────────────────────────────────────────────────────
+
+# Log destination. The parent directory is created by install.yaml, because
+# launchd does not create it and a missing directory is a silent non-start.
+service_log_path: "{{ ansible_facts['env']['HOME'] }}/.local/state/{{ service_label }}/service.log"
+
+# Rendered unit destination, per init system.
+service_unit_path: >-
+  {{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents/{{ service_label }}.plist
+service_systemd_name: "{{ service_label }}.service"
+service_systemd_unit_path: >-
+  {{ ansible_facts['env']['HOME'] }}/.config/systemd/user/{{ service_label }}.service
+
+# ── launchd behaviour ────────────────────────────────────────────────────────
+
+# KeepAlive restarts the process when it exits; correct for a daemon, wrong for
+# a one-shot scheduled job (use a StartCalendarInterval plist for those).
+service_keep_alive: true
+service_run_at_load: true
+
+# ProcessType is optional. "Interactive" suits a long-running server that must
+# not be throttled; leave empty to accept launchd's default.
+service_process_type: ""
+
+# How long to wait for `bootout` to actually finish before bootstrapping.
+# bootout returns before teardown completes, and a bootstrap racing it sees the
+# stale registration. 50 ticks of 0.1s = 5s, generous for a user agent.
+service_bootout_wait_ticks: 50
+service_bootout_wait_seconds: "0.1"
+
+# ── systemd behaviour ────────────────────────────────────────────────────────
+
+service_systemd_restart: always
+service_systemd_restart_sec: 3
+
+# Report the linger hint on Debian. On by default because it is the difference
+# between "works while I am logged in" and "works", and it costs one debug line.
+service_linger_hint: true
+
+# ── Health check ─────────────────────────────────────────────────────────────
+
+# The command that proves the service is really up. Empty disables the check —
+# prefer a real probe: a bootstrap can return 0 and still leave nothing running.
+service_health_command: ""
+service_health_attempts: 5
+service_health_interval_seconds: 2

@@ -1,0 +1,19 @@
+{# Managed by roles/services — rendered from systemd-user.service.j2.
+   Edits here are overwritten on the next run.
+   {{ service_description }} #}
+[Unit]
+Description={{ service_description }}
+After=default.target
+
+[Service]
+ExecStart={{ service_program_arguments | join(' ') }}
+{% if service_environment %}
+{% for name, value in service_environment.items() %}
+Environment="{{ name }}={{ value }}"
+{% endfor %}
+{% endif %}
+Restart={{ service_systemd_restart }}
+RestartSec={{ service_systemd_restart_sec }}
+
+[Install]
+WantedBy=default.target

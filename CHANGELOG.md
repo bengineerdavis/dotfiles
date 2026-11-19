@@ -18,6 +18,49 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 <!-- scriv-insert-here -->
 
+## PR #178 — 2026-11-18
+
+### Added
+
+- Git now has a cross-platform topic. It installs Git during fleet
+  prerequisites and provides the dependency used by gita and Chrome.
+- Global excludes and comment-only commit-message guidance join the existing
+  chezmoi-managed Git configuration. Git identity still comes from the
+  existing chezmoi prompts, not a machine-specific value in the repository.
+
+### Changed
+
+- Git package ownership moved out of the Homebrew and apt core package lists.
+  Their system-wide upgrade passes continue to keep Git current.
+
+### Security
+
+- Removing the Git topic does not remove Git by default. Package removal needs
+  explicit opt-in and is refused while another topic requires Git or the
+  dependency index is unavailable.
+
+## PR #184 — 2026-11-18
+
+### Added
+
+- The global dotagents topic declares the approved `adhd` and `i-have-adhd`
+  skills. It preserves the canonical upstream files, excludes Copilot only for
+  the incompatible `i-have-adhd` bundle, and documents which native OpenCode
+  pieces remain for the follow-up integration.
+- Topic documentation now carries verified corrections and upstream references
+  with the affected topic, so future maintainers and topic skills can use them.
+
+## PR #177 — 2026-11-17
+
+### Changed
+
+- **`config/repos.yaml` paths are re-pointed at the type dirs.** The
+  catalogue still named the pre-migration `projects/…` layout, so a run on
+  the migrated machine matched nothing and reported every repo as
+  declared-but-not-cloned. Paths now follow `docs/LAYOUT.md` (`personal/`,
+  `forks/`, `templates/`, `try/`), and the repos added since the last settle
+  are in it.
+
 ## PR #131 — 2026-11-09
 
 ### Added

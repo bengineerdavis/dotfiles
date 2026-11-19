@@ -5,6 +5,7 @@ status: To Do
 created_date: 2026-11-10 20:55
 dependencies:
 - DOT-348
+updated_date: 2026-11-16 01:17
 ---
 
 ## Description
@@ -42,7 +43,9 @@ Decision record: Approved by the author 2026-11-10 as the queued B follow-up to 
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
+Measured 2026-11-15 in isolated dotagents 3.4.0 fixtures: targeting only OpenCode installs ~/.agents/plugins/i-have-adhd and links ~/.config/opencode/skills/i-have-adhd to the canonical skill. It creates no .opencode plugin or command output. The upstream .opencode/plugins/i-have-adhd.mjs setup hook registers a context hook on load; always-on injection remains flag-gated. B must prove the native setup hook and command explicitly; an installed skill link is not evidence that B is complete.
 
+Author ruling 2026-11-15: A stays skill-only for OpenCode. B retains the setup hook and command work, with always-on opt-in.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
