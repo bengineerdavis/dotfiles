@@ -6,16 +6,22 @@ via `lore setup <app>` — and it records sessions, distills them in the
 background, and injects curated knowledge into later ones. The memory
 database stays on the machine (`~/.local/share/lore/lore.db`).
 
+**Start here for anything about lore's own behaviour:** [`DOCS.md`](DOCS.md) —
+what the project is, where each documentation page lives (they are Markdown in
+the fork at `~/code/forks/loreai`, not a separate wiki), and how to tell which
+source wins when docs, source, and the installed binary disagree. Regenerate its
+doc index with `scripts/lore-docs-index.sh`; `--check` fails on drift.
+
 ## Install
 
 Standalone executable, checksum-verified — no node, bun, or python runtime.
 
-| | |
-|---|---|
-| Source | `BYK/loreai` GitHub releases |
-| Asset | `lore-{darwin,linux}-{arm64,x64}.gz` (auto-detected) |
-| Destination | `~/.local/bin/lore` (on PATH via `files/zsh/path.zsh`, no sudo) |
-| Verification | SHA256 from the GitHub API's per-asset `digest` |
+|              |                                                                 |
+| ------------ | --------------------------------------------------------------- |
+| Source       | `BYK/loreai` GitHub releases                                    |
+| Asset        | `lore-{darwin,linux}-{arm64,x64}.gz` (auto-detected)            |
+| Destination  | `~/.local/bin/lore` (on PATH via `files/zsh/path.zsh`, no sudo) |
+| Verification | SHA256 from the GitHub API's per-asset `digest`                 |
 
 Why not the hosted `curl … | bash`? It is only a downloader plus a
 shell-profile edit. Doing the download natively keeps it idempotent and
@@ -59,7 +65,7 @@ registry has not settled, and saves the result to
 1. **Telemetry** — production builds send privacy-filtered operational
    telemetry to Sentry by default
    ([details](https://withlore.ai/docs/install/#operational-telemetry)).
-2. **Worker inference** — where background workers run: `openrouter`
+1. **Worker inference** — where background workers run: `openrouter`
    (default when a key is detectable), `local` (ollama, when found), or
    `none` (workers follow the session provider).
 
@@ -78,19 +84,18 @@ divergence. *Demote* (shared → machine) removes the shared default, so future
 machines re-answer instead of inheriting a choice that is no longer
 universal. Reverting a machine to fleet behaviour is deleting its override.
 
-
 ## Agent extensions
 
 Each supported agent is an extension, configured only when detected (a CLI
 on PATH; codex also counts an existing `~/.codex/config.toml`):
 
-| Agent | Mechanism | What it writes |
-|---|---|---|
-| claude-code | `lore setup claude-code` | `~/.claude/settings.json` |
-| codex | `lore setup codex` | `~/.codex/config.toml` |
-| pi | `lore setup pi` | `~/.pi/agent/models.json` |
-| hermes | `lore setup hermes` | `~/.hermes/.env` |
-| opencode | **chezmoi fragment + `opencode plugin add`** | `~/.config/opencode/opencode.jsonc` + plugin package |
+| Agent       | Mechanism                                    | What it writes                                       |
+| ----------- | -------------------------------------------- | ---------------------------------------------------- |
+| claude-code | `lore setup claude-code`                     | `~/.claude/settings.json`                            |
+| codex       | `lore setup codex`                           | `~/.codex/config.toml`                               |
+| pi          | `lore setup pi`                              | `~/.pi/agent/models.json`                            |
+| hermes      | `lore setup hermes`                          | `~/.hermes/.env`                                     |
+| opencode    | **chezmoi fragment + `opencode plugin add`** | `~/.config/opencode/opencode.jsonc` + plugin package |
 
 opencode is the exception because chezmoi owns its config here — and when
 both `opencode.json` and `.jsonc` exist the `.jsonc` wins, so
@@ -361,14 +366,14 @@ Prices are volatile; re-check the catalog before switching. These are
 subcommand it is not parsed as help at all — it falls through to the normal
 argument parser, and what happens next depends on the command:
 
-| Command | Behaviour |
-| --- | --- |
+| Command                     | Behaviour                                              |
+| --------------------------- | ------------------------------------------------------ |
 | `lore help` / `lore --help` | **The real help.** Every subcommand is documented here |
-| `lore setup --help` | **Runs `setup`** — rewrites agent configs |
-| `lore data export --help` | **Runs the export** — rewrites `.lore.md` |
-| `lore doctor --help` | **Runs `doctor`** — prints the setup inventory |
-| `lore data list --help` | Fails: `Unknown type "(none)"`, exit 1 |
-| `lore recall --help` | Fails: prints usage on stderr, exit 1 |
+| `lore setup --help`         | **Runs `setup`** — rewrites agent configs              |
+| `lore data export --help`   | **Runs the export** — rewrites `.lore.md`              |
+| `lore doctor --help`        | **Runs `doctor`** — prints the setup inventory         |
+| `lore data list --help`     | Fails: `Unknown type "(none)"`, exit 1                 |
+| `lore recall --help`        | Fails: prints usage on stderr, exit 1                  |
 
 Measured against lore 0.40.0 on 2026-11-07, each command run once and its
 output and exit status recorded. The two commands that **execute** are the
