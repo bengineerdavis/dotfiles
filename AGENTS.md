@@ -939,6 +939,8 @@ Read by name when the work touches them:
 - **`docs/CROSS-PLATFORM.md`** — traps that have bitten on macOS and Debian.
 - **`docs/BACKLOG-MIGRATION.md`** — the queue's migration record.
 - **`docs/BACKLOG-UPSTREAM-CONFIG.md`** — upstream backlog configuration.
+- **`docs/CHERRY-PICK-RECONCILIATION.md`** — why a shared checkout's local
+  `main` can hold duplicates of merged work, and the safe way to reconcile it.
 
 ## Tests
 
