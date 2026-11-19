@@ -3,6 +3,7 @@ id: DOT-382
 title: Declare and prove loreai's Linux system requirements in the topic, not only
   in the VM scenario
 status: To Do
+parent_task_id: DOT-385
 created_date: 2026-11-19 08:47
 ---
 
@@ -190,6 +191,9 @@ distributions are worth proving.
 Decision 2026-11-19: a VM proves dependency satisfaction, not environment
 parity. Hardware capacity and GPU are out of scope; the shared-library floor and
 the role's undeclared packages are in scope.
+
+
+**Part of DOT-385** — the umbrella for the machine-config lifecycle. Sibling tasks: DOT-383 (macOS coverage) and DOT-384 (rollback). Shared assumptions (what "proven" means, which machines are targets, and that `run-role.sh` is the only runner) are settled there, not here.
 
 <!-- SECTION:DESCRIPTION:END -->
 
