@@ -3,6 +3,7 @@ id: DOT-383
 title: Give macOS real test coverage, since no VM scenario proves the branch the parent
   actually runs
 status: To Do
+parent_task_id: DOT-385
 created_date: 2026-11-19 09:02
 ---
 
@@ -94,6 +95,9 @@ VM path is worth taking and how many topics get a macOS scenario first.
 Decision 2026-11-19: macOS needs real test coverage. A Linux guest proving the
 6-task Debian branch while the parent runs the 8-task Darwin branch is not
 coverage of the topic.
+
+
+**Part of DOT-385** — the umbrella for the machine-config lifecycle. Sibling tasks: DOT-382 (Linux dependencies) and DOT-384 (rollback). Shared assumptions (what "proven" means, which machines are targets, and that `run-role.sh` is the only runner) are settled there, not here.
 
 <!-- SECTION:DESCRIPTION:END -->
 

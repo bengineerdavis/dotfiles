@@ -3,6 +3,7 @@ id: DOT-384
 title: Make a chezmoi apply reversible at the OS level before running one on the real
   machine
 status: To Do
+parent_task_id: DOT-385
 created_date: 2026-11-19 09:02
 ---
 
@@ -112,6 +113,9 @@ bound, and whether Time Machine is configured as part of it.
 
 Decision 2026-11-19: OS-level rollback to the pre-apply state is a prerequisite
 for running a topic on the real machine, not a later convenience.
+
+
+**Part of DOT-385** — the umbrella for the machine-config lifecycle. Sibling tasks: DOT-382 (Linux dependencies) and DOT-383 (macOS coverage). Shared assumptions (what "proven" means, which machines are targets, and that `run-role.sh` is the only runner) are settled there, not here.
 
 <!-- SECTION:DESCRIPTION:END -->
 
