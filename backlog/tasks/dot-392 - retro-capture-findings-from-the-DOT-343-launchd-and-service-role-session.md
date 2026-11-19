@@ -1,5 +1,5 @@
 ---
-id: DOT-390
+id: DOT-392
 title: 'retro: capture findings from the DOT-343 launchd and service-role session'
 status: To Do
 created_date: 2026-11-19 21:30
@@ -58,14 +58,18 @@ successes.
    `origin/main` for the id after creation. Lesson: allocation is bounded by
    what is *pushed* — verify a new id against `origin/main`, not the local
    tree, and pass `--id` when a collision is plausible.
-1. **The same trap fired a second time, on the recovered commit.** The
-   recovered DOT-387 was written while local `main` was the only copy; by the
-   time it reached a pushed branch, another session had already published a
-   *different* DOT-387 (`gita: re-register by name…`, 2 hours later). Two task
-   files claimed the id. Renumbered mine to DOT-391, which was verified free
-   on both `origin/main` and the local tree before use. Lesson: a task id
-   assigned on an unpushed branch is a reservation nobody can see — re-verify
-   it against `origin/main` at push time, and again after any merge from main.
+1. **The same trap fired a second and third time.** The recovered DOT-387 was
+   written while local `main` was the only copy; by the time it reached a
+   pushed branch, another session had published a *different* DOT-387
+   (`gita: re-register by name…`, 2 hours later). Renumbered to DOT-391,
+   verified free on `origin/main`. Then DOT-390 collided the same way —
+   another session published `resolve-the-backlog-id-collision-between-origin-and-the-local-main-checkout`
+   under DOT-390 while this retro sat on a branch — so the retro became
+   DOT-392. Lesson: a task id assigned on an unpushed branch is a reservation
+   nobody can see. Re-verify the id against `origin/main` *after* the merge
+   that publishes it, not before, and expect to renumber. That another session
+   had to queue a task about this exact collision class is the strongest
+   evidence the allocation mechanism is the defect, not the sessions hitting it.
 
 **Negative results**
 
