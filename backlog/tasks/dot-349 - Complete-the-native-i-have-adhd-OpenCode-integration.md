@@ -5,7 +5,7 @@ status: To Do
 created_date: 2026-11-10 20:55
 dependencies:
 - DOT-348
-updated_date: 2026-11-18 07:10
+updated_date: 2026-11-19 20:44
 orchestration:
   status_key: inprogress
   lease_owner: opencode-dot349
@@ -49,6 +49,19 @@ Decision record: Approved by the author 2026-11-10 as the queued B follow-up to 
 
 <!-- SECTION:PLAN:BEGIN -->
 2026-11-17 progress (branch agent/dot-349, commit 2848cf71): measured that dotagents 3.4.0 installs the plugin's FULL upstream tree including .opencode/plugins/i-have-adhd.mjs but projects only skill links into OpenCode — so no vendored clone is needed and option (a) reduced to a 38-line loader rather than a third-party tree. OpenCode 2.3.1 on this box; the plugin exports setup(ctx), the V2 API, so the Lore V1-API failure does not repeat here. Verified OpenCode auto-discovers ~/.config/opencode/plugins/*.js via `opencode plugin list`, which lists herdr-agent-state.js as a loaded local plugin — so the loader needs no plugins-array entry in opencode.jsonc. Shipped: templates/i-have-adhd-loader.js.j2 (re-exports upstream, resolves its dependency from os.homedir() at load time — no machine-specific literal), install.yaml probe-then-write with the fix named (run the dotagents topic), remove.yaml teardown of loader + flag only, and the always-on flag file by author request 2026-11-17 (upstream's alwaysOnInjection() returns null without it, so the loader alone is a no-op). 16 tests in tests/topics/test_opencode_adhd_loader.py, 10 mutations each seen failing. Gate: full suite 3 failed / 1720 passed / 6 skipped, all 3 pre-existing on main (2 lore rules + test_guard_wiring dotagents-stderr, the latter confirmed failing at HEAD~1 too). Ruff clean, skillet Valid. REMAINING before the task is done: push, PR, author merge, then chezmoi apply + run-role opencode from main and confirm the hook injects. Deliberately NOT done: upstream dotagents proposal (task's third Ship bullet) — publication needs separate author approval per its Constraints.
+2026-11-19 HANDOFF — PR #187 open, unmerged. Branch agent/dot-349, commit 31ceada8 (rebased onto origin/main fb141d52; the branch was rebuilt clean because the worktree had inherited a stale merge commit and a leftover DOT-348 backlog commit from the previous session — both never pushed, so no history was rewritten).
+
+WHAT IS DONE: all three code pieces ship and are green. templates/i-have-adhd-loader.js.j2 (38 lines) re-exports upstream's plugin, resolving the dependency from os.homedir() at load time; install.yaml probes for the dotagents tree then writes the loader, failing with the fix named; remove.yaml tears down the loader AND the always-on flag; defaults/main.yaml carries opencode_adhd_plugin, opencode_adhd_plugin_source, opencode_adhd_plugins_dir, opencode_plugin_dir, opencode_adhd_loader_name, opencode_adhd_always_on, opencode_adhd_always_on_flag. Always-on defaults TRUE by author request 2026-11-17. 16 tests in tests/topics/test_opencode_adhd_loader.py, 10 mutations each observed failing.
+
+WHAT A NEW SESSION PICKS UP:
+1. PR #187 needs author merge. Do not self-merge (AGENTS.md — deferred-tree file).
+2. AFTER MERGE, from the MAIN checkout only (never a worktree): `chezmoi apply ~/dotfiles/apps/opencode` then `bash dotfiles/executable_run-role.sh opencode`. Both need author approval per the apply rule.
+3. CONFIRM the hook actually fires — this is the acceptance check nobody has run yet. The loader and flag are verified to exist and to load under node, but NOT verified to inject into a live session. A running OpenCode must be restarted first. Evidence to gather: ~/.config/opencode/.i-have-adhd-always exists, `opencode plugin list` shows i-have-adhd as a local plugin, and a reply in a fresh session carries the ADHD ruleset.
+4. Fallback if the loader does not load: check ~/.local/share/opencode/log/opencode.log for the plugin id; the loreai topic's tasks/agents/opencode.yaml has the classifier pattern for loader rejections.
+
+STILL OPEN IN THIS TASK: the third Ship bullet (upstream dotagents proposal). The measured finding is that NO upstream change is needed — dotagents already delivers the full tree and simply does not project plugin files into OpenCode. Publishing that as an issue needs separate author approval; nothing is written to upstream.
+
+ALSO FOUND, NOT FIXED (separate tasks): (a) tests/guards/test_guard_wiring.py::test_every_dotagents_caller_reports_stderr fails on main AND at HEAD~1 — it matches the word 'dotagents' in comments, so apps/opencode/tasks/install.yaml trips it; pre-existing, not this branch. (b) DOT-305's two missing .lore.md rules still fail. (c) lore doctor reports OpenCode 'file missing' because it looks for opencode.json while this fleet deploys opencode.jsonc — a false negative in a diagnostic.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
