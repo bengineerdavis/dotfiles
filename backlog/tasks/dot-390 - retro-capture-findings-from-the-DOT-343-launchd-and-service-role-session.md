@@ -58,6 +58,14 @@ successes.
    `origin/main` for the id after creation. Lesson: allocation is bounded by
    what is *pushed* — verify a new id against `origin/main`, not the local
    tree, and pass `--id` when a collision is plausible.
+1. **The same trap fired a second time, on the recovered commit.** The
+   recovered DOT-387 was written while local `main` was the only copy; by the
+   time it reached a pushed branch, another session had already published a
+   *different* DOT-387 (`gita: re-register by name…`, 2 hours later). Two task
+   files claimed the id. Renumbered mine to DOT-391, which was verified free
+   on both `origin/main` and the local tree before use. Lesson: a task id
+   assigned on an unpushed branch is a reservation nobody can see — re-verify
+   it against `origin/main` at push time, and again after any merge from main.
 
 **Negative results**
 
