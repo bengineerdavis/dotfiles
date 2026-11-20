@@ -20,3 +20,55 @@ opencode_tap: anomalyco/tap
 # pieces of state; revoking trust while the tap is still present would break
 # anything else installed from it. See tasks/remove.yaml.
 opencode_remove_tap: false
+
+# ── The i-have-adhd plugin loader ────────────────────────────────────────────
+# `apps/dotagents` installs the plugin's full upstream tree, including
+# `.opencode/plugins/i-have-adhd.mjs`, but dotagents does not project it into
+# OpenCode: it delivers skill links only (measured 2026-11-17, dotagents 3.4.0).
+# This topic closes that gap with one loader file in the global plugin
+# directory, which OpenCode auto-discovers.
+#
+# Off switch. Setting this false leaves any existing loader file in place rather
+# than deleting it, because the loader is also what a hand-install would leave
+# behind; teardown is `--tags remove`, not this flag.
+opencode_adhd_plugin: true
+
+# Always-on injection. The plugin registers the context hook either way; this
+# flag is what makes the hook DO something. Upstream's hook is a no-op unless
+# ~/.config/opencode/.i-have-adhd-always exists (verified 2026-11-17 in
+# .opencode/plugins/i-have-adhd.mjs: alwaysOnInjection() returns null when the
+# flag file is absent).
+#
+# Default ON, by author request 2026-11-17: the point of installing this was
+# that agents shape output for an ADHD reader on every reply, which is what the
+# flag buys. DOT-349's brief said not to enable it implicitly — this is the
+# explicit enable it asked for, not an implicit default.
+#
+# Set false to go back to on-demand only: `/i-have-adhd` still works, and
+# `stop adhd mode` still turns it off for a session while the flag is present.
+opencode_adhd_always_on: true
+
+# The path upstream's hook reads for the always-on flag. Kept beside the plugin
+# settings because the two are one feature: the loader makes the hook exist, the
+# flag makes it act.
+opencode_adhd_always_on_flag: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/.i-have-adhd-always"
+
+# The plugin source that `apps/dotagents` must provide. Named here rather than
+# read from the dotagents role so the loader's description of its dependency
+# lives beside the loader.
+opencode_adhd_plugin_source: i-have-adhd
+
+# The skill directory `apps/dotagents` installs the plugin tree into. Resolved
+# from the user's home at deploy time (AGENTS.md § Machine-specific values) —
+# never a literal, which would be wrong on any other machine.
+opencode_adhd_plugins_dir: "{{ ansible_facts['env']['HOME'] }}/.agents/plugins"
+
+# Where OpenCode discovers global plugins. It auto-loads `*.js`/`*.ts` files
+# directly, so the loader needs no `plugins` array entry in opencode.jsonc —
+# verified with `opencode plugin list`, which lists a local file from this
+# directory as a loaded plugin (2026-11-17).
+opencode_plugin_dir: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/plugins"
+
+# The loader filename. It must end in `.js` for discovery, and it must not
+# collide with the plugin's own name in `opencode plugin list` output.
+opencode_adhd_loader_name: i-have-adhd.js
