@@ -23,15 +23,12 @@
 #     `bt-import` is not a fork (`fork: false`) → `personal`.
 #
 # 2026-10-22 re-point (L37V3P6GQ3): the LAYOUT phase-4 migration landed on this
-# machine — the `projects/…` prefixes are gone and repos live in the type dirs.
-# 2026-11-17 re-point (both machines' end state): templates/ and try/ moved
-# INSIDE personal/ per docs/LAYOUT.md § Structure (named subdirs nest under
-# personal/, never top-level siblings); the stray top-level tutorial/ entry is
-# re-homed under personal/ (a personal repo, whatever its topic). Paths below
-# are the final shape; the entries are the same set. Entries marked `no
-# remote` or `gitlab` are declarative on this machine — nothing clones them
-# here; the gita topic reports them as declared-but-not-cloned by design.
-# `work` repos are named only in the machine-local overlay at
+# machine — the `projects/…` prefixes are gone and repos live in the type dirs
+# (`personal/`, `forks/`, `templates/`, `try/`). Paths below are re-pointed to
+# that layout; the entries are the same set. Entries marked `no remote` or
+# `gitlab` are declarative on this machine — nothing clones them here; the
+# gita topic reports them as declared-but-not-cloned by design. `work` repos
+# are named only in the machine-local overlay at
 # ~/.local/state/layout/machines.local.yaml, never here.
 
 repos:
@@ -57,16 +54,16 @@ repos:
   - { path: personal/bad-python-app, group: personal }            # own fork, interviews
   - { path: personal/job-hunt, group: personal }
   - { path: personal/gists/install-spd-piper.sh, group: personal }  # no remote
-  - { path: personal/try/xerror, group: personal }                 # own fork
-  - { path: personal/try/git-ai-plugin, group: personal }          # no remote
-  - { path: personal/try/python/freethreaded, group: personal }    # no remote
-  - { path: personal/fastapi-graphql, group: personal }            # no remote
-  - { path: personal/templates/agentic-project-template, group: personal }
-  - { path: personal/templates/copier-cat, group: personal }
-  - { path: personal/templates/copier-mise-sandbox, group: personal }
-  - { path: personal/templates/copier-template-copier-template, group: personal }
-  - { path: personal/templates/dotfile-topic-copier, group: personal }
-  - { path: personal/templates/python-project-template, group: personal }  # no remote
+  - { path: try/xerror, group: personal }                         # own fork
+  - { path: try/git-ai-plugin, group: personal }                   # no remote
+  - { path: try/python/freethreaded, group: personal }             # no remote
+  - { path: tutorial/fastapi-graphql, group: personal }           # no remote
+  - { path: templates/agentic-project-template, group: personal }
+  - { path: templates/copier-cat, group: personal }
+  - { path: templates/copier-mise-sandbox, group: personal }
+  - { path: templates/copier-template-copier-template, group: personal }
+  - { path: templates/dotfile-topic-copier, group: personal }
+  - { path: templates/python-project-template, group: personal }  # no remote
 
   # — forks: third-party clones, not owned, not an employer —
   - { path: forks/WikiSQL, group: forks }             # salesforce
@@ -86,4 +83,4 @@ repos:
   - { path: forks/gitignore, group: forks }           # github
   - { path: forks/nerd-dictation, group: forks }      # ideasman42
   - { path: forks/open-model-council, group: forks }  # sanky369
-  - { path: personal/templates/Best-README-Template, group: forks }  # fork of othneildrew (registered pre-catalogue)
+  - { path: templates/Best-README-Template, group: forks }  # fork of othneildrew (registered pre-catalogue)

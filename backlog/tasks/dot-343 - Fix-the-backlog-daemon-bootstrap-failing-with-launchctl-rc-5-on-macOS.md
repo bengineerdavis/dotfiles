@@ -1,15 +1,15 @@
 ---
 id: DOT-343
 title: Fix the backlog daemon bootstrap failing with launchctl rc 5 on macOS
-status: Done
+status: To Do
 created_date: 2026-11-10 17:36
 labels:
 - bug
 priority: high
-updated_date: 2026-11-17 22:39
+updated_date: 2026-11-18 04:08
 orchestration:
-  status_key: done
-  version: 2
+  status_key: todo
+  version: 4
 ---
 
 ## Description
@@ -219,6 +219,32 @@ event_id: run-c35a9cce41fd4828a0ab9caced07c890
 type: release_task
 actor: opencode-dot-343-launchctl-rc5
 timestamp: '2026-11-17T21:02:43.440106Z'
+result: succeeded
+task_id: DOT-343
+from_status: inprogress
+to_status: todo
+```
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-41b491e2db71466b9293e74aaf648712
+type: claim_task
+actor: opencode-dot343-wrapup
+timestamp: '2026-11-18T04:08:57.409181Z'
+result: succeeded
+task_id: DOT-343
+from_status: todo
+to_status: inprogress
+metadata:
+  lease_ttl_seconds: '3600'
+```
+<!-- RUN_HISTORY_ENTRY:END -->
+<!-- RUN_HISTORY_ENTRY:BEGIN -->
+```yaml
+event_id: run-54444747f56649569cfaf9afddb4cd4a
+type: release_task
+actor: opencode-dot343-wrapup
+timestamp: '2026-11-19T20:55:31.326699Z'
 result: succeeded
 task_id: DOT-343
 from_status: inprogress
