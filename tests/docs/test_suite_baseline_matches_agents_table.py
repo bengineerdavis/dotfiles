@@ -18,7 +18,9 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 AGENTS = REPO / "AGENTS.md"
 BASELINE = REPO / "scripts" / "check_suite_baseline.py"
 
-TABLE_ROW = re.compile(r"^\| `(?P<suite>[^`]+)` \| (?P<count>[~\d]+) \|", re.MULTILINE)
+TABLE_ROW = re.compile(
+    r"^\|\s*`(?P<suite>[^`]+)`\s*\|\s*(?P<count>[~\d]+)\s*\|", re.MULTILINE
+)
 
 
 def load_baseline() -> frozenset[str]:

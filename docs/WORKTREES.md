@@ -23,8 +23,7 @@ neither `chezmoi managed` nor `chezmoi status`), so they never deploy.
 **The main checkout stays on `main` — it is shared state, and chezmoi acts on
 it.** chezmoi resolves its source dir to the main checkout
 (`~/.local/share/chezmoi`) unless `-S "$PWD"` points at a worktree, and every
-command that reads or writes source — `git pull`, `chezmoi apply`, `chezmoi
-status`, `chezmoi diff` — acts on whichever branch is checked out there. A task
+command that reads or writes source — `git pull`, `chezmoi apply`, `chezmoi status`, `chezmoi diff` — acts on whichever branch is checked out there. A task
 branch left checked out there poisons each of them:
 
 - `git pull` reconciles the wrong branch ("main is behind" reads the task
@@ -67,9 +66,9 @@ empty claims board is not an answer — `AGENTS.md` § Branches and integration
 explains why it cannot be. Three signals, cheapest first:
 
 1. **A claim** on the covering task (`backlog-py orchestration claims`).
-2. **A live worktree** for the branch — `git worktree list`, plus whether its
+1. **A live worktree** for the branch — `git worktree list`, plus whether its
    working tree has uncommitted edits.
-3. **A recent PR update** — `gh pr view <n> --json updatedAt`. Treat a PR
+1. **A recent PR update** — `gh pr view <n> --json updatedAt`. Treat a PR
    updated within roughly the last 30 minutes as owned. Measured 2026-11-09: a
    branch whose claim board was empty had landed a review-fix commit at 08:35Z,
    and only `updatedAt` distinguished it from three idle siblings. Merging
@@ -101,8 +100,8 @@ inspection:
    clean `main` is fetched and fast-forwarded before the branch is created.
    Dirty or diverged `main` stops creation; existing task branches and stacked
    parents are not reset. See `docs/BRANCH-SYNC.md`.
-2. **Fan-out** — sub-worktrees off the parent branch, named as above.
-3. **Provision** — venvs with `UV_LINK_MODE=copy`; consumers offline
+1. **Fan-out** — sub-worktrees off the parent branch, named as above.
+1. **Provision** — venvs with `UV_LINK_MODE=copy`; consumers offline
    (`UV_OFFLINE=1 --frozen`), provisioners serialised. Before a rebase,
    commit `.lore.md` as a lore-sync commit (7b16160 and d346429 are
    this): a background process owns its content, `git stash` moves it
@@ -111,28 +110,27 @@ inspection:
    the rule moot.
 
 The same rule covers ordinary commits, because the pre-commit hook
-   stashes too. When a commit aborts with "Stashed changes conflicted
-   with hook auto-fixes" while the hook's own tests passed, the cause is
-   usually `.lore.md` churn mid-run: commit `.lore.md` alone first, then
-   the real commit. Measured 2026-11-09 across four failed commits; the
-   hook's message names test failures, so the real cause is invisible
-   unless the ordering is known.
-4. **Bucket** — when finished work needs more reviewable merges than the task
-   planned, split it into buckets before publishing. See § Bucketing below.
-5. **Collect** — merge serially, suite after each, ordered inert → behaviour →
-   activating. Merging uses an **ephemeral scratch worktree**
-   `.worktrees/<sid>_merge_<n>`, recreated per attempt from (base + input
-   SHAs): re-running `git merge` in a conflicted tree is not idempotent;
-   rebuilding from SHAs is.
-6. **Reap** — a branch is deleted only after you have proven the work landed
-   on `main`. Never `git branch -D` before that check. `git merge-base
-   --is-ancestor <branch> main` proves it only for a real merge commit; the
-   repo squashes PRs, and squash rewrites every commit SHA, so the branch tip
-   is never an ancestor and the check reports "not merged" even after the PR
-   merged. Verify by content instead: the squashed files and lines are present
-   on `main` (`git show main:<path>`), or `git cherry main <branch>` — every
-   line starting `-` means that patch is already on `main`. Crash recovery is
-   `git worktree remove --force <path>` plus `git worktree prune`.
+stashes too. When a commit aborts with "Stashed changes conflicted
+with hook auto-fixes" while the hook's own tests passed, the cause is
+usually `.lore.md` churn mid-run: commit `.lore.md` alone first, then
+the real commit. Measured 2026-11-09 across four failed commits; the
+hook's message names test failures, so the real cause is invisible
+unless the ordering is known.
+4\. **Bucket** — when finished work needs more reviewable merges than the task
+planned, split it into buckets before publishing. See § Bucketing below.
+5\. **Collect** — merge serially, suite after each, ordered inert → behaviour →
+activating. Merging uses an **ephemeral scratch worktree**
+`.worktrees/<sid>_merge_<n>`, recreated per attempt from (base + input
+SHAs): re-running `git merge` in a conflicted tree is not idempotent;
+rebuilding from SHAs is.
+6\. **Reap** — a branch is deleted only after you have proven the work landed
+on `main`. Never `git branch -D` before that check. `git merge-base    --is-ancestor <branch> main` proves it only for a real merge commit; the
+repo squashes PRs, and squash rewrites every commit SHA, so the branch tip
+is never an ancestor and the check reports "not merged" even after the PR
+merged. Verify by content instead: the squashed files and lines are present
+on `main` (`git show main:<path>`), or `git cherry main <branch>` — every
+line starting `-` means that patch is already on `main`. Crash recovery is
+`git worktree remove --force <path>` plus `git worktree prune`.
 
 ## Reconcile a dirty shared checkout
 
@@ -171,17 +169,16 @@ agent, or automation:
    branch is already checked out elsewhere — the authoring session may still
    hold it — fall back to the sub-branch form: `.worktrees/<sid>_sub_<slug>`,
    branching off the PR branch.
-2. **Claim.** An orchestration lease names the task and the worktree,
+1. **Claim.** An orchestration lease names the task and the worktree,
    so a live authoring session sees it before it pushes.
-3. **Work and push.** Feedback applied on the PR branch — or on a sub-branch
+1. **Work and push.** Feedback applied on the PR branch — or on a sub-branch
    merged back into it — updates the PR on push. Merge gates apply to what
    the push contains, not to who asked for it.
-4. **Reap** as in the lifecycle: a PR branch becomes an ancestor of `main`
+1. **Reap** as in the lifecycle: a PR branch becomes an ancestor of `main`
    when its PR merges, and is then deleted like any other.
 
 Pull requests go into `main` and nowhere else — see § Bucketing step 6 for
 the failure that rule prevents.
-
 
 ## Bucketing
 
@@ -201,16 +198,16 @@ single commit.
 
 1. **Bucket.** Sort the commits by outcome. Split a commit that fails the
    test. Keep a commit's tests in the same bucket as the commit.
-2. **Order.** Classify each bucket's dependency (`docs/PROCESS.md` § What kind of
+1. **Order.** Classify each bucket's dependency (`docs/PROCESS.md` § What kind of
    dependency is it). A bucket that stands alone branches from `main`; one
    that needs another's code branches from that bucket's branch. Stack two
    deep freely.
-3. **Build.** Give each bucket its own branch and worktree, named for its
+1. **Build.** Give each bucket its own branch and worktree, named for its
    outcome, and copy commits in with `git cherry-pick -x` so each records its
    original SHA. Revise the task so each bucket has its own task file.
-4. **Check each alone.** Every commit passes its focused tests, so
+1. **Check each alone.** Every commit passes its focused tests, so
    `git bisect` works across the bucket. The tip passes the full suite.
-5. **Check them together.** Merge every open bucket with `git merge-tree`,
+1. **Check them together.** Merge every open bucket with `git merge-tree`,
    which writes no refs and touches no worktree, in more than one order.
    Every order must produce the same tree. Run the full suite on that tree in
    a scratch worktree. When the buckets replace an existing branch, diff the
@@ -219,7 +216,7 @@ single commit.
    Expect one kind of conflict: task lines that two buckets appended to the
    the queue. Keep both tasks; the bucket that merges
    second resolves it.
-6. **Publish.** Pull requests go into `main` and nowhere else. Feature
+1. **Publish.** Pull requests go into `main` and nowhere else. Feature
    branches may take commits and merges from each other freely, with no PR.
    A PR opened against another feature branch merges into that branch, not
    `main`: PR #12 did, after its parent #11 had landed, and had to be
@@ -231,7 +228,7 @@ single commit.
      into it), re-run step 4, then open its PR against `main`.
    - To let the reviewer see a child early, link its branch from the parent's
      PR description, for reading only.
-7. **Supersede.** Close whatever the buckets replace, with links to them;
+1. **Supersede.** Close whatever the buckets replace, with links to them;
    update handoffs; reap with `git cherry` as in step 6 of the lifecycle.
 
 PR #5 (split into #11 and #12 on 2026-09-24) is the worked example.
@@ -250,3 +247,65 @@ The deployed tree cannot be branched — `~/bin/<script>` is one file no matter
 how many branches hold versions of it — so agents never run `chezmoi apply`
 from a worktree (or at all; applying is main-only, by the author or a session
 holding the apply claim).
+
+### If you already applied from a worktree
+
+The damage is bounded and recoverable, and both halves need doing. Applying from
+a branch deploys that branch's files over the shared tree; the tree is now a
+mix of branches, and the source of truth for the other files is still `main`.
+
+1. Re-deploy the affected paths from `main`'s source, so the shared tree matches
+   the only branch it is allowed to hold:
+   `chezmoi apply <those deployed paths>` from the main checkout.
+1. Remove any file the branch deployed that `main` has no source for. Compare
+   the deployed directory against `main`'s source tree — a directory that exists
+   on the branch and not on `main` leaves an orphan behind that nothing will
+   clean up, because chezmoi only manages what it knows about.
+
+Before removing an orphan, confirm it is yours: check its mtime against the time
+of your apply, and check `chezmoi managed` — an unmanaged file was created by
+something else and is not yours to delete.
+
+Measured 2026-11-19: an agent ran `chezmoi apply ~/dotfiles/apps/opencode` from
+a worktree, deploying a branch-only template into the shared tree. Restoring the
+three tracked files from `main` took one command; the orphaned template's
+directory needed a separate removal, and `trash-put` (not `rm`) kept it
+recoverable.
+
+## Verifying a pre-existing failure
+
+A test that fails on your branch is not automatically pre-existing, and the
+comparison that answers the question is narrower than it looks.
+
+The only commit that answers "did my change cause this?" is the **actual parent
+of the commit under test**. Three comparisons that look right and are not:
+
+- **Against `main`.** Your branch may carry many commits past `main`, so a
+  failure that `main` does not have can still predate your change.
+- **Against a base from before a rebase.** A rebase replays your commits onto
+  different parents; an answer computed before it tested a parent that no longer
+  exists.
+- **Against a file you stashed by hand.** It tests the file contents, not the
+  commit, and misses any other edit the commit made.
+
+The procedure that does work: check out the parent, run the one failing test,
+restore, and run it again.
+
+```bash
+git checkout <commit>~1 -- <path/to/file>
+pytest <failing node id> -q      # expect PASS if your change caused it
+git checkout HEAD -- <path/to/file>
+pytest <failing node id> -q      # expect FAIL
+```
+
+Measured 2026-11-19: a session reported three failures as pre-existing, having
+compared against `main` and against a pre-rebase base. Two were genuinely
+pre-existing; the third, `test_every_dotagents_caller_reports_stderr`, passed at
+the real parent and failed at the commit under test — it was a regression the
+session had introduced. CI caught it; a reviewer reading "all three pre-existing"
+would not have.
+
+When a run reports several failures, split them: read each one's evidence
+separately rather than checking one and generalizing. In that same run, eight
+other failures were confirmed pre-existing by reading `main`'s own failing CI run
+and matching the exact node IDs.
