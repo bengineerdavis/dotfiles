@@ -1,9 +1,10 @@
 ---
-id: DOT-387
+id: DOT-393
 title: Prove whether a subagent can write a file, since ours returned its own session
   log
 status: To Do
 created_date: 2026-11-19 19:00
+updated_date: 2026-11-20 16:42
 ---
 
 ## Description
@@ -104,7 +105,7 @@ before changing how subagents are used.
 - [ ] #7 No fix is scoped here; if a root cause is found it is filed as its own task with the evidence
 - [ ] #8 Subagents are not disabled as part of this work, since 119 of 193 children function
 - [ ] #9 The artifact is verified on disk, never the subagent's reply
-- [ ] #10 The board lists DOT-387 with the full description and every criterion: uvx --from backlog-md-py backlog-py board
+- [ ] #10 The board lists DOT-393 with the full description and every criterion: uvx --from backlog-md-py backlog-py board
 <!-- AC:END -->
 
 ## Implementation Notes

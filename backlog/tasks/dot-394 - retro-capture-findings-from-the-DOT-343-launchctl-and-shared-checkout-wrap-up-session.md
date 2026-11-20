@@ -1,8 +1,10 @@
 ---
-id: DOT-390
-title: 'retro: capture findings from the DOT-343 launchctl and shared-checkout wrap-up session'
+id: DOT-394
+title: 'retro: capture findings from the DOT-343 launchctl and shared-checkout wrap-up
+  session'
 status: To Do
 created_date: 2026-11-19 21:15
+updated_date: 2026-11-20 16:42
 ---
 
 ## Description
@@ -25,7 +27,7 @@ that cost work, and because two live sessions were editing the same checkout.
   red, including live convergence against throwaway launchd labels. The merged
   claim holds.
 - `preserve/queue-2026-11-19` (2 commits) carries the two artifacts that existed
-  nowhere else: `docs/CHERRY-PICK-RECONCILIATION.md` and the DOT-387 task.
+  nowhere else: `docs/CHERRY-PICK-RECONCILIATION.md` and the DOT-393 task.
 
 **What went wrong (corrections)**
 
@@ -83,7 +85,7 @@ that cost work, and because two live sessions were editing the same checkout.
   be cut from committed main. This session hit it on every `wt switch --create`.
 - DOT-378: reconcile a dirty shared checkout without moving another session's work.
 - DOT-386: recover sessions orphaned by the directory move.
-- DOT-387: whether a subagent can write a file (queued by another session).
+- DOT-393: whether a subagent can write a file (queued by another session).
 
 <!-- SECTION:DESCRIPTION:END -->
 
