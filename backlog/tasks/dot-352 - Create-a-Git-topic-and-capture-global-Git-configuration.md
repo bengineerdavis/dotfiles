@@ -1,7 +1,7 @@
 ---
 id: DOT-352
 title: Create a Git topic and capture global Git configuration
-status: To Do
+status: Done
 created_date: 2026-11-12 02:54
 assignee:
 - OpenCode
@@ -14,7 +14,9 @@ orchestration:
   version: 5
   lease_owner: OpenCode git-topic session
   lease_expires_at: '2026-11-16T05:51:57.249327Z'
-updated_date: 2026-11-16 06:28
+updated_date: 2026-11-19 21:28
+documentation:
+- https://github.com/bengineerdavis/dotfiles/pull/178
 ---
 
 ## Description
@@ -41,17 +43,17 @@ Agreed with the maintainer 2026-11-11: the Git topic owns both the package and c
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Git package installation moves from Homebrew and apt core prerequisites into the Git topic's prerequisites phase, with OS-specific guards and system-role upgrades preserved.
-- [ ] #2 The Git topic declares Darwin and Debian support and has lifecycle wiring tests, including remove only under explicit removal.
-- [ ] #3 chezmoi manages the existing global Git config, global excludes, and a commit-message template whose guidance is entirely commented.
-- [ ] #4 Rendered Git identity accepts the existing chezmoi identity data rather than a hard-coded machine-specific identity.
-- [ ] #5 DOT-134 describes only the remaining git-ai and shell-integration work and no longer says Git configuration is unmanaged.
-- [ ] #6 Git teardown is opt-in, skips while another topic requires Git, and skips when the dependency index is unavailable; both safe-removal directions have tests.
-- [ ] #7 The topic and template tests pass, and each new test has been observed failing against a deliberately broken copy.
-- [ ] #8 uv run --frozen pytest tests/chezmoi tests/topics -q completes with only the 12 pre-existing OpenCode template failures.
-- [ ] #9 skillet validate . exits 0 with no errors.
-- [ ] #10 General dependency-aware scheduling orders each existing tier with declared providers before consumers, keeps stable relative order for independent topics, and fails with topic names on cycles.
-- [ ] #11 uv run --frozen pytest tests/topic_resolution -q passes; the scheduler's ordering and cycle tests have each been observed failing against deliberately broken copies.
+- [x] #1 Git package installation moves from Homebrew and apt core prerequisites into the Git topic's prerequisites phase, with OS-specific guards and system-role upgrades preserved.
+- [x] #2 The Git topic declares Darwin and Debian support and has lifecycle wiring tests, including remove only under explicit removal.
+- [x] #3 chezmoi manages the existing global Git config, global excludes, and a commit-message template whose guidance is entirely commented.
+- [x] #4 Rendered Git identity accepts the existing chezmoi identity data rather than a hard-coded machine-specific identity.
+- [x] #5 DOT-134 describes only the remaining git-ai and shell-integration work and no longer says Git configuration is unmanaged.
+- [x] #6 Git teardown is opt-in, skips while another topic requires Git, and skips when the dependency index is unavailable; both safe-removal directions have tests.
+- [x] #7 The topic and template tests pass, and each new test has been observed failing against a deliberately broken copy.
+- [x] #8 uv run --frozen pytest tests/chezmoi tests/topics -q completes with only the 12 pre-existing OpenCode template failures.
+- [x] #9 skillet validate . exits 0 with no errors.
+- [x] #10 General dependency-aware scheduling orders each existing tier with declared providers before consumers, keeps stable relative order for independent topics, and fails with topic names on cycles.
+- [x] #11 uv run --frozen pytest tests/topic_resolution -q passes; the scheduler's ordering and cycle tests have each been observed failing against deliberately broken copies.
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -66,12 +68,13 @@ Mutations observed sequentially and restored byte-for-byte: an uncommented commi
 Not performed: no chezmoi apply, no live package install/removal, no live playbook convergence, no fresh Debian VM run, no push or merge. The removal-relenting test substitutes a temporary fail-if-called module in a copy of remove.yaml, so no package was removed. The commit-template test initializes only a temporary repository.
 
 Review split: stable dependency scheduling in one commit; Git package ownership and global configuration capture in a following commit. The Git topic consumes the scheduling behavior, so they remain on the same task branch but can be reviewed separately.
+Close-out on 2026-11-18: the earlier not-performed note described pre-merge verification. PR #178 has since merged, and the author applied only its reviewed chezmoi targets. The deployed commit-message template, global excludes, and Git topic were verified; unrelated Claude settings and the OpenCode retirement script were not applied. No Ansible convergence or live package change was performed. Queue-wrap-up on 2026-11-19: the stale remote task record did not contain the local merged close-out. This preserves the merged task outcome while leaving other sessions unpublished history on the shared main checkout untouched.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-
+PR #178 merged on 2026-11-18: Git package ownership moved to the app-tier git topic on Darwin and Debian, global excludes and a commented commit-message template are chezmoi-managed, and topic scheduling orders providers before consumers within each tier. The scoped configuration deployment is verified; no Ansible convergence or package installation/removal ran. Final verification: 216 tests in tests/chezmoi and tests/topics passed, 15 tests in tests/topic_resolution passed, and skillet validate . exited 0. Mutation evidence is recorded in commits 648caeb9 and 95d10905. Debian convergence was not performed.
 <!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done

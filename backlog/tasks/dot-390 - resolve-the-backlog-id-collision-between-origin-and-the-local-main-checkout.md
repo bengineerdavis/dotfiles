@@ -1,8 +1,9 @@
 ---
 id: DOT-390
-title: 'Resolve the backlog id collision between origin and the local main checkout'
+title: Resolve the backlog id collision between origin and the local main checkout
 status: To Do
 created_date: 2026-11-19 21:02
+updated_date: 2026-11-19 21:29
 ---
 
 ## Description
@@ -64,7 +65,21 @@ origin/preserve/dot349-handoff, a3278e00 is on no remote).
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
+Git-topic wrap-up, 2026-11-19:
 
+The shared main checkout /Users/ben.davis/.local/share/chezmoi has an unresolved merge of origin/main a42039eff4c98ce05e9500d96af03425de760e84 into local main. Local main is at a3278e00381fe7245cd1260dba5adb92d43bdba8; the checkout contains many other sessions commits. Do not reset, clean, or sweep them.
+
+The only unresolved path is backlog/tasks/dot-381 - Decide-how-copier-cat-and-redge-share-lore-knowledge-since-no-per-project-scope-config-exists.md. The incoming version adds the author ruling dated 2026-11-19, superseding the workspaces proposal with per-repo lore import in each own session. Preserve the incoming decision when the task owner resolves it.
+
+.lore.md contains conflict markers from the interrupted merge. Do not hand-edit them; use Lore own merge/import tooling and verify knowledge by entry ID. Both versions have disjoint Lore entry IDs, so choosing one would discard entries from the other.
+
+DOT-352 differs across local and remote main: local main has the merged close-out; the remote task file before this queue PR retained an older in-progress lease. The queue PR carries the merged close-out without the unrelated local history.
+
+queue-backup-dot-353 at c00f2ab39ed8c520f0246883913e8106b5dbb529 remains unmerged. It contains 12 unique queue commits and must not be deleted as cleanup. DOT-353 is Done for the scanner-disable repair, not for deleting the backup.
+
+Owned foreign dirty paths to leave alone: backlog/tasks/dot-140*, dot-343*, dot-348*, dot-349*, tests/ollama_models/test_{adopt_command,comment_preservation,rewrite_units}.py. Other sessions have been writing during the wrap-up; re-inventory before any reconciliation.
+
+The isolated queue publication branch is agent/git-topic-queue-wrapup at .worktrees/git-topic-queue-wrapup. It is based on origin/main and contains only the task records and retro fragment for the Git-topic session.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
 ## Final Summary
