@@ -35,16 +35,32 @@ REPO_NATIVE = frozenset({".claude/settings.json", "opencode.jsonc"})
 
 
 def live_managed() -> frozenset[str] | None:
-    """The real managed set, or None where chezmoi cannot answer."""
+    """The real managed set, or None where chezmoi cannot answer.
+
+    An unconfigured chezmoi reports a source directory that does not
+    exist and answers `managed` with an empty set. That is not a real
+    answer, so skip. If the source directory exists but the managed set
+    is empty, return the empty set: the nonempty assertion must fail
+    rather than passing a broken deployment as an unavailable check.
+    """
     if shutil.which("chezmoi") is None:
         return None
     try:
+        source = subprocess.run(
+            ["chezmoi", "source-path"],
+            capture_output=True,
+            text=True,
+            cwd=REPO,
+            timeout=60,
+        )
         out = subprocess.run(
             MANAGED_CMD, capture_output=True, text=True, cwd=REPO, timeout=60
         )
     except (OSError, subprocess.TimeoutExpired):
         return None
-    if out.returncode != 0:
+    if source.returncode != 0 or out.returncode != 0:
+        return None
+    if not pathlib.Path(source.stdout.strip()).is_dir():
         return None
     return frozenset(out.stdout.split())
 
@@ -60,6 +76,47 @@ def managed() -> frozenset[str]:
 def test_deployed_membership_set_is_nonempty(managed):
     """An empty answer would leave the deployed bucket never firing."""
     assert managed
+
+
+def test_live_managed_skips_only_when_no_source_directory_exists(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+):
+    """An existing source must not turn an empty answer into a skip."""
+    monkeypatch.setattr("shutil.which", lambda _name: "/bin/chezmoi")
+
+    def answer(command, **_kwargs):
+        stdout = f"{tmp_path}\n" if command[1] == "source-path" else ""
+        return subprocess.CompletedProcess([], 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(subprocess, "run", answer)
+    assert live_managed() == frozenset()
+
+    def missing_source(command, **_kwargs):
+        stdout = f"{tmp_path / 'missing'}\n" if command[1] == "source-path" else ""
+        return subprocess.CompletedProcess([], 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(subprocess, "run", missing_source)
+    assert live_managed() is None
+
+
+def test_live_managed_preserves_a_real_membership_answer(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+):
+    """The source probe must not discard a nonempty managed set."""
+    monkeypatch.setattr("shutil.which", lambda _name: "/bin/chezmoi")
+
+    def answer(command, **_kwargs):
+        stdout = (
+            f"{tmp_path}\n"
+            if command[1] == "source-path"
+            else "dot_zshrc.tmpl\nbin/executable_triage\n"
+        )
+        return subprocess.CompletedProcess([], 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(subprocess, "run", answer)
+    assert live_managed() == frozenset({"dot_zshrc.tmpl", "bin/executable_triage"})
 
 
 def test_home_git_paths_normalize_to_managed_paths(m):
