@@ -9,6 +9,34 @@
     name: "{{ opencode_tap }}/opencode-v2"
     state: absent
 
+# ── The i-have-adhd plugin loader ───────────────────────────────────────────
+# Mirrors install.yaml's template task, per the CRUD ownership invariant.
+#
+# Only the loader is removed. The plugin's upstream tree under
+# ~/.agents/plugins/ is apps/dotagents' state and is torn down by that topic;
+# deleting it here would break a machine that keeps dotagents but drops this
+# topic.
+#
+# The file is removed unconditionally rather than behind opencode_adhd_plugin:
+# that flag gates INSTALL, and a teardown that honoured it would leave the
+# loader behind on exactly the machine that had turned the flag off after
+# installing it. `state: absent` no-ops when the file is already gone, so the
+# task is idempotent on a machine that never installed it.
+
+- name: "Remove the i-have-adhd plugin loader"
+  ansible.builtin.file:
+    path: "{{ opencode_plugin_dir }}/{{ opencode_adhd_loader_name }}"
+    state: absent
+
+# Mirrors install.yaml's always-on flag. Removed unconditionally for the same
+# reason as the loader: the flag is state this topic created, and gating its
+# removal on opencode_adhd_always_on would strand the file on the machine that
+# turned the flag off after enabling it.
+- name: "Remove the i-have-adhd always-on flag"
+  ansible.builtin.file:
+    path: "{{ opencode_adhd_always_on_flag }}"
+    state: absent
+
 - name: "Untap {{ opencode_tap }}"
   community.general.homebrew_tap:
     name: "{{ opencode_tap }}"
