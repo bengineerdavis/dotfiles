@@ -26,6 +26,14 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+def _skip_unconfigured_chezmoi(out: subprocess.CompletedProcess) -> None:
+    if out.returncode != 0 and "map has no entry for key" in out.stderr:
+        # chezmoi is installed but has no config data to render with (an
+        # unconfigured runner, not a template bug). Skip rather than fail.
+        pytest.skip(f"chezmoi has no config data to render: {out.stderr.strip()}")
+    assert out.returncode == 0, out.stderr
+
+
 @pytest.fixture(scope="module")
 def gitconfig(tmp_path_factory) -> pathlib.Path:
     out = subprocess.run(
@@ -39,11 +47,28 @@ def gitconfig(tmp_path_factory) -> pathlib.Path:
         text=True,
         timeout=60,
     )
-    assert out.returncode == 0, out.stderr
+    _skip_unconfigured_chezmoi(out)
     assert "[merge]" in out.stdout, "rendered nothing recognisable"
     path = tmp_path_factory.mktemp("gitconfig") / "gitconfig"
     path.write_text(out.stdout, encoding="utf-8")
     return path
+
+
+def test_unconfigured_chezmoi_skips_but_a_template_error_does_not(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Only missing config data is an unavailable prerequisite."""
+    missing_config = subprocess.CompletedProcess(
+        [], 1, stdout="", stderr='map has no entry for key "email"'
+    )
+    with pytest.raises(pytest.skip.Exception, match="no config data"):
+        _skip_unconfigured_chezmoi(missing_config)
+
+    broken_template = subprocess.CompletedProcess(
+        [], 1, stdout="", stderr="template: unexpected token"
+    )
+    with pytest.raises(AssertionError, match="unexpected token"):
+        _skip_unconfigured_chezmoi(broken_template)
 
 
 def _get(cfg: pathlib.Path, key: str) -> str:
