@@ -154,6 +154,61 @@ def test_the_history_a_lint_diff_needs_is_fetched():
     )
 
 
+def _suite_index(steps):
+    return next(
+        index
+        for index, step in enumerate(steps)
+        if "pytest tests tools" in step.get("run", "")
+    )
+
+
+def test_real_zsh_tests_have_a_shell_before_the_suite_runs():
+    """The Ubuntu runner does not provide zsh by default."""
+    steps = _workflow()["jobs"]["tests"]["steps"]
+    suite_index = _suite_index(steps)
+    install_index = next(
+        (
+            index
+            for index, step in enumerate(steps)
+            if "apt-get install" in step.get("run", "")
+        ),
+        None,
+    )
+
+    assert install_index is not None, "CI must install zsh for the real-shell tests"
+    assert install_index < suite_index
+    assert "zsh" in steps[install_index]["run"]
+
+
+CHEZMOI_SHA256 = "ae01c66b1a6dbf563667c63fbbd9986b3cfa3c98dd266ddee732f63e8af2e9d1"
+
+
+def test_chezmoi_is_installed_before_the_suite_runs():
+    """CI installs a pinned, checksum-verified chezmoi before pytest.
+
+    The Ubuntu runner provides no chezmoi. This hash was read from
+    the v2.74.1 release's chezmoi_2.74.1_checksums.txt on 2026-11-19;
+    update both the version and this value together.
+    """
+    steps = _workflow()["jobs"]["tests"]["steps"]
+    suite_index = _suite_index(steps)
+    install_index = next(
+        (
+            index
+            for index, step in enumerate(steps)
+            if "chezmoi_2.74.1_linux_amd64.tar.gz" in step.get("run", "")
+        ),
+        None,
+    )
+
+    assert install_index is not None, "CI must install chezmoi for its consumers"
+    assert install_index < suite_index
+    command = steps[install_index]["run"]
+    assert CHEZMOI_SHA256 in command
+    assert "shasum --algorithm 256 --check" in command
+    assert "get.chezmoi.io" not in command
+
+
 def test_the_install_step_provides_what_the_later_steps_run():
     """A sync that installs nothing makes every later step unrunnable.
 
