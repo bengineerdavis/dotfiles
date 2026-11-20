@@ -102,20 +102,37 @@ Constraints:
 Decision 2026-11-18: start with personal projects only, sharing through a
 `~/code` root rather than attempting to bridge individual repos.
 
+**Superseded 2026-11-19.** No `~/code/.lore.json` will be created, and no
+`workspaces` globs are wanted. The author's ruling: each repo imports its own
+knowledge with `lore import` **in its own session**. Having one repo's session
+run `lore import` on another repo's behalf is not a good idea right now — the
+imports would land in a session whose context is about different work, and the
+walk-up behaviour means the mechanism only ever helped sessions launched at a
+root nobody actually works from.
+
+This removes the whole `workspaces` branch of the task. What remains is the
+narrower, answerable question: whether copier-cat and redge can share anything
+at all, given both sessions live inside their own repos and the walk stops at
+`.git`. The in-tree channel (`docs/research/redge-feature-notes.md`) is the
+answer that works today; hosted sync stays off and unconsidered.
+
+Consequence for the backlog: do not configure lore's sharing surface. If a
+future need appears, it starts from this decision rather than re-running the
+`workspaces` analysis.
+
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
 
-- [ ] #1 A .lore.json exists at ~/code whose workspaces globs are verified to match no path under work/
-- [ ] #2 An entry from one personal project's .lore.md is recallable from a session launched at ~/code, demonstrated rather than assumed
-- [ ] #3 A decision record states the root, the exact globs, and what work/ would have to change to be included
-- [ ] #4 The copier-cat-to-redge pair is resolved: either a mechanism spanning two repo-rooted sessions is named with evidence, or the record states it is not achievable via .lore.json and says what would be needed instead
-- [ ] #5 crossProject is resolved with a measurement: an embedding provider is configured and its cost stated, or the record declares crossProject inert on this machine
-- [ ] #6 No work/ content appears in the ~/code knowledge base: verified by querying for a known employer term after import
-- [ ] #7 The record states the walk-up limitation plainly: a ~/code config does not reach sessions started inside a repo
-- [ ] #8 The board lists DOT-381 with the full description and every criterion: uvx --from backlog-md-py backlog-py board
+- [ ] #1 No lore sharing config is created: no ~/code/.lore.json and no workspaces globs, matching the 2026-11-19 ruling
+- [ ] #2 The decision records that each repo imports its own knowledge with lore import in its own session
+- [ ] #3 The copier-cat-to-redge pair is resolved: either a mechanism spanning two repo-rooted sessions is named with evidence, or the record states it is not achievable via .lore.json and says what would be needed instead
+- [ ] #4 crossProject is resolved with a measurement: with embeddings verified active (1056 vectors, 1051 live rows), the record states whether promotion is enabled and its threshold
+- [ ] #5 The in-tree channel is confirmed as the working answer: docs/research/redge-feature-notes.md exists where redge can consume it
+- [ ] #6 The walk-up limitation is recorded plainly: a parent config does not reach sessions started inside a repo
+- [ ] #7 The board lists DOT-381 with the full description and every criterion: uvx --from backlog-md-py backlog-py board
 <!-- AC:END -->
 
 ## Implementation Notes
