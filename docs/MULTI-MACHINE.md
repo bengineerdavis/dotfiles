@@ -80,10 +80,12 @@ makes sense about *this* author's machines, it generalizes or moves local.
   The deployed permission baseline denies agents this path — deliberate.
 - **`~/.local/state/chezmoi/handoff/`** — the ZDR handover store. One file per
   engagement, written locally, discardable, never committed raw. Promotion
-  workflow: draft → pseudo-anonymize with `bin/pii-redactor` (this repo's
-  three-layer tool) → author selects what survives → sanitized text enters
-  committed documents through normal review → local copy discarded or retained
-  per the engagement's retention rule. `private-tasks.md` falls under these
+  workflow: draft → pseudo-anonymize with `pii-redactor` (the implementation
+  lives with the `pii-redaction` skill in `ai-prompt-library`;
+  `bin/pii-redactor` is this repo's shim over it) → author selects what survives
+  → sanitized text enters committed documents through normal review → local copy
+  discarded or retained per the engagement's retention rule. `private-tasks.md`
+  falls under these
   rules; its § Private tasks pointer gets rewritten to a bounded one.
 - **Claims stay duration-bound and content-bound.** § Claimed keeps in-flight
   claims only (timestamp — what — paths; no machine, no session narration).

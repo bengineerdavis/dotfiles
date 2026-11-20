@@ -34,7 +34,17 @@ from pathlib import Path
 #   ERROR tests/x.py::test_y - RuntimeError: ...
 # Errors are collection and fixture failures. They are not failures in the
 # summary's "N failed" count, so they must be parsed separately or they vanish.
-OUTCOME_LINE = re.compile(r"^(?P<kind>FAILED|ERROR) (?P<nodeid>\S+)", re.MULTILINE)
+#
+# The node ID cannot be matched as `\S+`: a parametrised test's ID carries the
+# parameter text, which may contain spaces —
+#   FAILED tests/docs/test_x.py::test_y[requires_map undefined skips removal]
+# `\S+` stops at the first space and yields a node ID that matches nothing in
+# EXPECTED_FAILURES, so a baselined failure is reported as unexpected forever.
+# pytest separates the ID from its message with " - ", and an ID with no message
+# ends the line, so split there instead of on whitespace.
+OUTCOME_LINE = re.compile(
+    r"^(?P<kind>FAILED|ERROR) (?P<nodeid>.+?)(?: - .*)?$", re.MULTILINE
+)
 SUMMARY_LINE = re.compile(
     r"^=*\s*(?:\d+ (?:failed|passed|error)|no tests ran)",
     re.MULTILINE,
@@ -57,6 +67,18 @@ EXPECTED_FAILURES = frozenset(
         "tests/clipped/test_clipped_cli.py::test_copy_handles_non_utf8_bytes",
         "tests/restart_stale/test_role.py::test_a_missing_kind_fails_before_anything_runs",
         "tests/restart_stale/test_role.py::test_the_defaults_leave_the_role_inert",
+        # Known content loss in .lore.md, tracked by DOT-305. The guard is
+        # working: both rules are genuinely absent from the file as committed,
+        # and both still describe live behaviour (remove.yaml gates uninstall on
+        # `requires_map is defined`; work repos stay out of the committed
+        # catalogue). They are baselined rather than hand-edited back because
+        # .lore.md is a managed projection — an edit races the next rewrite and
+        # each heal has minted new defects. Remove these entries when Lore
+        # restores the rules; the baseline reports them as stale until then.
+        "tests/docs/test_lore_md_rules_survive.py::test_rule_survives_redistillation"
+        "[requires_map undefined skips removal]",
+        "tests/docs/test_lore_md_rules_survive.py::test_rule_survives_redistillation"
+        "[work repos never committed]",
     }
 )
 

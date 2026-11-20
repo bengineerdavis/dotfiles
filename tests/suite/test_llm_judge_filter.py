@@ -17,12 +17,16 @@ import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 
-# Both files carry a module-level `pytestmark = pytest.mark.llm_judge`, so a
-# default run must collect nothing from them and an explicit `-m llm_judge`
-# must collect some. Sourcing them by path keeps the nested run fast.
+# Carries a module-level `pytestmark = pytest.mark.llm_judge`, so a default run
+# must collect nothing from it and an explicit `-m llm_judge` must collect
+# some. Sourcing it by path keeps the nested run fast.
+#
+# `tests/pii_redactor/test_pii_redactor_llm.py` used to be the second entry.
+# That suite moved with the pii-redactor script into the pii-redaction skill
+# (2026-11-11), so this repo no longer owns it. One file still proves both
+# directions; a second only widened the sample.
 MODEL_TEST_FILES = [
     "tests/binned/test_binned_llm_judge.py",
-    "tests/pii_redactor/test_pii_redactor_llm.py",
 ]
 
 

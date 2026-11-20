@@ -300,11 +300,14 @@ first.
 
 - `home/bin/executable_fetchurl` — actively developed; caused the only real merge
   conflict so far.
-- `home/bin/executable_pii-redactor` — ported to Python, then extended with layered
-  redaction by another session. Suite is 63 tests; run it after any change.
-  Its conftest default mock is a *working* model, not `cat`: a pass-through mock
-  plus exit-status assertions is green exactly when the tool leaks, which is the
-  defect the layers exist to prevent. Ask for `mock_llm("cat")` explicitly.
+- `home/bin/executable_pii-redactor` — a shim. The implementation and its suite
+  moved to the `pii-redaction` skill in `ai-prompt-library`
+  (`skills/pii-redaction/scripts/pii-redactor`), because the skill specifies the
+  tool. This repo keeps only the wrapper that makes it callable as
+  `pii-redactor`; run the suite from that repository. Its conftest default mock
+  is a *working* model, not `cat`: a pass-through mock plus exit-status
+  assertions is green exactly when the tool leaks, which is the defect the
+  layers exist to prevent. Ask for `mock_llm("cat")` explicitly.
 - `home/bin/executable_model-bench` — multi-case judge suite; the reference scorecards
   in `CASES` must be re-derived if a case script changes.
 - `home/dotfiles/apps/mise/files/config.toml` — two sessions edited it within an hour
@@ -743,24 +746,29 @@ almost nothing — the `binned_module` fixture skips without `typer`/`questionar
 
 ### Known failures
 
-**This table is stale post-DOT-73 (PR #114): both suites below now pass.**
 The table and `scripts/check_suite_baseline.py` `EXPECTED_FAILURES` move
-together — DOT-314 owns that update as part of `agent/retro-ci-guard`'s rebase.
-Until then, read the table as the pre-#114 baseline, not current behaviour.
+together. A node ID in one and not the other is the drift this section exists
+to prevent.
 
-Two suites failed on a clean checkout before DOT-73, for reasons outside the
-code. Expect this shape in older baselines, and do not spend a session proving
-they are not yours:
+Failures on a clean checkout, by cause:
 
 | Suite | Count | Why |
 |---|---|---|
-| `tests/clipped` | ~10 | Drives the real clipboard through subprocesses; needs a live `wl-copy`/`wl-paste` and a TTY. |
+| `tests/clipped` | 10 | Drives the real clipboard through subprocesses; needs a live `wl-copy`/`wl-paste` and a TTY. |
 | `tests/restart_stale` | 2 | Exercises launchd/systemd role behaviour that the test host does not have. |
+| `tests/docs` | 2 | Two load-bearing rules are genuinely absent from `.lore.md` as committed — Lore's re-distillation dropped them. The guard is working, not broken. Tracked by DOT-305. |
 
-A full run on the reference host read **12 failed, 1093 passed, 20 skipped**
-pre-#114; measured 2026-11-08 post-#114, the same host reads **zero failed**
-from these suites (1426 passed, 20 skipped) once the `.molecule` scratch trap
-(DOT-310) is cleared. Tracked in DOT-73 (Done) and DOT-314 (baseline refresh).
+The lore pair is baselined rather than hand-edited back: `.lore.md` is a managed
+projection, so an edit races the next rewrite and each heal has minted new
+defects. Both rules still describe live behaviour — `remove.yaml` gates uninstall
+on `requires_map is defined`, and work repos stay out of the committed
+catalogue. Remove those two entries when Lore restores the rules; the baseline
+reports them as stale until then.
+
+The clipped and restart_stale entries are from the pre-#114 baseline. Measured
+2026-11-08 post-#114, the reference host reads zero failures from those two
+suites once the `.molecule` scratch trap (DOT-310) is cleared, so expect them to
+be reported as stale and delete them with that change (DOT-314).
 
 Two ways to keep this cheap, in order of preference:
 
@@ -953,7 +961,7 @@ Layout: `tests/<script>/conftest.py` plus `test_*.py` split by concern. Mark tes
 that call real models with `llm_judge` so they stay out of the default run.
 
 A port is a chance to test what bash could not. `default_output()` in
-`home/bin/pii-redactor` was previously only reachable by running the whole CLI and seeing
+`pii-redactor` was previously only reachable by running the whole CLI and seeing
 which file appeared; called directly, the path edge cases became explicit. Platform
 dispatch in `home/bin/clipped` could only be exercised by mocking `uname` on `PATH`, so
 in practice only the host platform was ever tested.
