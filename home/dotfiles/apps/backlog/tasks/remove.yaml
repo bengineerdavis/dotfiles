@@ -9,6 +9,7 @@
   # created (spec.md § Layering). It names the log directory it preserved.
   ansible.builtin.import_role:
     name: "roles/services"
+    tasks_from: remove.yaml
   vars:
     service_label: "{{ backlog_daemon_label }}"
     service_program_arguments:

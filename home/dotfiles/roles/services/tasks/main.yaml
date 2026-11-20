@@ -1,21 +1,27 @@
 # roles/services/tasks/main.yaml
 #
-# Entry point. Routes by lifecycle tag so a caller can `import_role` once and
-# let `--tags install` / `--tags remove` select the phase.
+# This file deliberately FAILS. Import the phase you want, by name:
 #
-# Mirrors roles/guards: a static import makes these tasks visible at parse time,
-# so tag selection works without an `apply:` block.
+#     ansible.builtin.import_role:
+#       name: "roles/services"
+#       tasks_from: install.yaml     # or: remove.yaml
+#
+# Why a guard instead of a router: a whole-role import pulls in BOTH phases and
+# the importing task's tags are inherited by everything underneath. The parent
+# tag then overrides this role's own `never`, so `--tags install` ran the
+# teardown too — measured 2026-11-20, where a tagged install run deleted the
+# live plist and left the daemon down with `ProgramArguments: [shim]` only,
+# because remove.yaml's thinner vars re-rendered the unit last.
+#
+# `never` cannot fix that: `never` only skips a task when nothing else selects
+# it, and an inherited `install` tag does select it. The only reliable fix is
+# to not import the phase that must not run.
 
-- name: "services: install"
-  ansible.builtin.import_tasks: install.yaml
-  tags: [install, upgrade]
-
-- name: "services: remove"
-  ansible.builtin.import_tasks: remove.yaml
-  # `never` makes teardown opt-in: skipped by a bare run and by
-  # `--tags install`, runs only with an explicit `--tags remove`. Without it a
-  # bare run executes teardown after install and takes the service down —
-  # measured 2026-11-19 on the backlog topic, where a bare `run-role.sh backlog`
-  # deleted the live plist. The topic routers carry `[remove, never]`; this role
-  # exists so topics stop re-deriving the order, so it must carry it too.
-  tags: [remove, never]
+- name: "services: refuse a whole-role import"
+  ansible.builtin.fail:
+    msg: >-
+      Import roles/services with tasks_from: install.yaml or tasks_from:
+      remove.yaml. A whole-role import selects both phases, and the caller's
+      tags override this role's `never`, so `--tags install` would also run
+      the teardown.
+  tags: [always]

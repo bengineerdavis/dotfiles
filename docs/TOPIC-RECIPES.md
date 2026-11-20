@@ -20,12 +20,12 @@ the module search that came up empty.
 
 ### The support grade (four checks, all verifiable offline from the installed copy)
 
-| # | Check | How to verify |
-|---|---|---|
-| 1 | **Maintained** | Named maintainer(s) in the module docstring, and recent upstream activity touching the module or its utils — changelog entries in the collection's `changelogs/changelog.yaml` within ~12 months |
-| 2 | **Tested** | The collection ships an integration target: `tests/integration/targets/<module>/` exists in the installed tree |
-| 3 | **Supported tier** | Not marked for removal or orphaned: no entry in the collection's `meta/runtime.yml` removals/redirects, no "unsupported" note in `ansible-doc` output |
-| 4 | **Interface honesty** | `check_mode` documented in the module's ATTRIBUTES, and a source read of what it actually runs and mutates (docstrings lie; the launchd "privileged" note hid that it runs unprivileged and finds per-user plists first) |
+| #   | Check                 | How to verify                                                                                                                                                                                                            |
+| --- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | **Maintained**        | Named maintainer(s) in the module docstring, and recent upstream activity touching the module or its utils — changelog entries in the collection's `changelogs/changelog.yaml` within ~12 months                         |
+| 2   | **Tested**            | The collection ships an integration target: `tests/integration/targets/<module>/` exists in the installed tree                                                                                                           |
+| 3   | **Supported tier**    | Not marked for removal or orphaned: no entry in the collection's `meta/runtime.yml` removals/redirects, no "unsupported" note in `ansible-doc` output                                                                    |
+| 4   | **Interface honesty** | `check_mode` documented in the module's ATTRIBUTES, and a source read of what it actually runs and mutates (docstrings lie; the launchd "privileged" note hid that it runs unprivileged and finds per-user plists first) |
 
 For **roles** (vendored playbook code — weigh heavier than modules): the same
 four minus #2, substituted with "the role carries its own tests or is
@@ -66,7 +66,7 @@ allowed **without a fresh ask per command**, when both hold:
 1. **No module support exists** for the task — the ladder above is still
    checked first, and the new command gets the same one-line comment citing
    this rule.
-2. **It makes the topic durable** — it serves the topic's ability to do its
+1. **It makes the topic durable** — it serves the topic's ability to do its
    job reliably: converge, stay idempotent, survive upgrades and removals.
    Durability is the gate, not convenience: an extension that adds state
    still owes its teardown counterpart in the same change (spec.md §
@@ -80,13 +80,13 @@ for any new galaxy dependency at any time.
 
 Two questions decide it: **which machines run it** and **who upgrades it**.
 
-| Mechanism | Choose when | Who upgrades | Gotchas |
-|---|---|---|---|
-| Homebrew formula | Official formula exists; Darwin-only fleet | System role (`apps/homebrew`) | Debian coverage only via linuxbrew; a daemon installed through linuxbrew is odd. `topic_requires: [homebrew]` resolves on Debian through the probe alias (`roles/topic-resolution`) |
-| Apt repository | Upstream publishes a signed repo; Debian-native | System role (`apps/apt`) | Needs `become: true`; verify the key before use, never trust blind; URL path *and* suite can change per channel (claude-code precedent) |
-| mise entry | Cross-OS GitHub-release CLI; per-user is fine | `mise upgrade` (apps/mise upgrade tasks) | The entry lives in `apps/mise/files/config.toml`, which is a listed cross-session hazard. Follow the `github:` backend convention there — never `ubi:` |
-| Release artifact | Full topic control; no manager carries it | The topic itself, `[install, upgrade]`-tagged with checksums | Verify checksums are actually published before choosing; v0.x churn means frequent bumps |
-| npm/pipx/cargo | Part of an existing mise-managed family | `mise upgrade` | Belongs in `apps/mise/files/config.toml`, not a private install; declare the dependency, do not install directly |
+| Mechanism        | Choose when                                     | Who upgrades                                                 | Gotchas                                                                                                                                                                             |
+| ---------------- | ----------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Homebrew formula | Official formula exists; Darwin-only fleet      | System role (`apps/homebrew`)                                | Debian coverage only via linuxbrew; a daemon installed through linuxbrew is odd. `topic_requires: [homebrew]` resolves on Debian through the probe alias (`roles/topic-resolution`) |
+| Apt repository   | Upstream publishes a signed repo; Debian-native | System role (`apps/apt`)                                     | Needs `become: true`; verify the key before use, never trust blind; URL path *and* suite can change per channel (claude-code precedent)                                             |
+| mise entry       | Cross-OS GitHub-release CLI; per-user is fine   | `mise upgrade` (apps/mise upgrade tasks)                     | The entry lives in `apps/mise/files/config.toml`, which is a listed cross-session hazard. Follow the `github:` backend convention there — never `ubi:`                              |
+| Release artifact | Full topic control; no manager carries it       | The topic itself, `[install, upgrade]`-tagged with checksums | Verify checksums are actually published before choosing; v0.x churn means frequent bumps                                                                                            |
+| npm/pipx/cargo   | Part of an existing mise-managed family         | `mise upgrade`                                               | Belongs in `apps/mise/files/config.toml`, not a private install; declare the dependency, do not install directly                                                                    |
 
 **Rust is a mise entry, not a toolchain topic.** `rust = "latest"` in
 `apps/mise/files/config.toml` installs rustup itself — the `core:rust` backend
@@ -132,10 +132,10 @@ data the playbook and topics read. Precedent: `home/dotfiles/config/editors.yaml
 The threshold for earning a new catalogue file (all four must hold):
 
 1. A distinct domain of shared truth exists — a new *kind*, not more of the same.
-2. A subscriber exists or its wiring is queued — no speculative catalogues.
-3. The truth is domain-owned, not topic-private — one topic's private wants
+1. A subscriber exists or its wiring is queued — no speculative catalogues.
+1. The truth is domain-owned, not topic-private — one topic's private wants
    stay in that topic's own defaults.
-4. It cannot join an existing catalogue without mixing domains.
+1. It cannot join an existing catalogue without mixing domains.
 
 Fold-back: when a catalogue's last subscriber goes, the file goes with it.
 
@@ -186,17 +186,19 @@ changes with the thing it creates).
 
 **Use `roles/services`.** It renders the unit and converges it on both init
 systems, so the launchd ordering trap below is written once, tested, and not
-re-derived per topic. `import_role: name: "roles/services"` with
+re-derived per topic. Import **one phase**, `tasks_from: install.yaml` from
+your `install.yaml` and `tasks_from: remove.yaml` from your `remove.yaml`, with
 `service_label`, `service_program_arguments`, `service_log_path` and
-`service_health_command`; `--tags remove` tears it down. See
+`service_health_command`. Do not import the whole role: the caller's tags are
+inherited by both phases, so `--tags install` would run the teardown too, and
+`never` does not prevent it. See
 `home/dotfiles/roles/services/README.md`.
 
 - **Darwin**: a per-user launchd agent under `~/Library/LaunchAgents`,
   bootstrapped into the `gui` domain. **`launchctl enable` comes FIRST, before
   `bootstrap`, and unconditionally.** `launchctl disable` writes a *persistent*
   override that survives `bootout` and reboot, and only `enable` clears it, so
-  a bootstrap of a disabled label fails with `Bootstrap failed: 5:
-  Input/output error` and stays failed on every later run. The order
+  a bootstrap of a disabled label fails with `Bootstrap failed: 5: Input/output error` and stays failed on every later run. The order
   "bootout, then bootstrap, then enable" is wrong — it gates `enable` behind a
   bootstrap that cannot succeed (DOT-343, measured 2026-11-17). Test presence
   with `launchctl print` (0 when loaded, 113 when absent), never with
@@ -221,13 +223,13 @@ judge half lives in `docs/JUDGE-SELECTION.md`.
 
 1. **Queue the task before building** — TASKS.md lines with done-conditions,
    committed immediately; claim any § Cross-session-hazards file.
-2. **Write the design down before anyone tests it.** The decisions live in a
+1. **Write the design down before anyone tests it.** The decisions live in a
    topic README (the instance) and, where they generalize, in this file. A
    swarm can only deduce from written artifacts.
-3. **Calibrate the judges before using them** — small injected-defect set
+1. **Calibrate the judges before using them** — small injected-defect set
    derived from the topic contract; score catch-rate and false-positive rate;
    never assert judge quality.
-4. **Swarm authors the suite before the implementation exists.** Fresh-context
+1. **Swarm authors the suite before the implementation exists.** Fresh-context
    agents read the written artifacts only (spec, TOPICS.md, task lines,
    README, upstream docs) — never the implementation, never each other — and
    author failing-first suites along four dimensions:
@@ -238,14 +240,13 @@ judge half lives in `docs/JUDGE-SELECTION.md`.
      flows the author runs;
    - **edge/stress**: malformed catalogue, consumer absent, partial
      integrations, stale service state.
-5. **Implement to green**, then prove the tests fail: mutate the mechanism and
+1. **Implement to green**, then prove the tests fail: mutate the mechanism and
    watch the suite go red on the right tests (spec.md § Verification). A guard
    is proven to relent both ways.
-6. **Judge rounds**: a single cheap judge mid-rounds, a fusion panel for final
+1. **Judge rounds**: a single cheap judge mid-rounds, a fusion panel for final
    sign-off, capped rounds, converged when two consecutive rounds surface no
    new high-severity gaps. Dissent is recorded, not averaged away.
-7. **Real-machine passes are the author's** — agents never run `chezmoi
-   apply`/`run-role.sh`; the suite states honestly what was not exercised.
+1. **Real-machine passes are the author's** — agents never run `chezmoi apply`/`run-role.sh`; the suite states honestly what was not exercised.
 
 ## See also
 

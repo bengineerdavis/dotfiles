@@ -43,6 +43,7 @@
   # while leaving nothing listening still fails the run rather than passing it.
   ansible.builtin.import_role:
     name: "roles/services"
+    tasks_from: install.yaml
   vars:
     service_label: "{{ backlog_daemon_label }}"
     service_description: "backlog-md-py singleton daemon (queue mutation serialization)"

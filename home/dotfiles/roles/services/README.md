@@ -12,10 +12,14 @@ into `docs/TOPIC-RECIPES.md`, and was rediscovered the hard way (DOT-343,
 
 ## Calling it
 
+Import **one phase at a time**, by name:
+
 ```yaml
+# the install phase
 - name: "backlog: install the daemon service"
   ansible.builtin.import_role:
     name: "roles/services"
+    tasks_from: install.yaml
   vars:
     service_label: "com.backlog-py.daemon"
     service_description: "backlog-md-py singleton daemon (queue serialization)"
@@ -29,13 +33,35 @@ into `docs/TOPIC-RECIPES.md`, and was rediscovered the hard way (DOT-343,
       - "--port"
       - "{{ backlog_daemon_port }}"
     service_health_command: "{{ backlog_bin }} daemon status --json"
-  tags: [backlog, install, upgrade, remove]
+  tags: [backlog, install, upgrade]
 ```
 
-`import_role` (static), not `include_role` (dynamic) — the lifecycle in
-`tasks/main.yaml` routes by tag, and a static import makes the role's tasks
-visible at parse time so `--tags install` / `--tags remove` keep selecting them
-without an `apply:` block. Same reasoning as `roles/guards`.
+```yaml
+# the teardown phase, in a file tagged `never`
+- name: "backlog: remove the daemon service"
+  ansible.builtin.import_role:
+    name: "roles/services"
+    tasks_from: remove.yaml
+  vars:
+    service_label: "com.backlog-py.daemon"
+  tags: [backlog, remove, never]
+```
+
+**Do not import the whole role.** Doing so pulls in both phases, and the
+importing task's tags are inherited by everything underneath — so
+`--tags install` selects the teardown as well. `never` does not save you:
+`never` skips a task only when nothing else selects it, and the inherited
+`install` tag does select it.
+
+Measured 2026-11-20: a tagged install run stopped the daemon, deleted its
+plist, and left a replacement whose `ProgramArguments` was `[shim]` alone —
+because `remove.yaml`'s thinner vars re-rendered the unit last. The daemon
+was down and the plist named a program with no subcommand.
+
+`tasks/main.yaml` therefore **fails on purpose**. A caller that forgets
+`tasks_from` gets a loud error naming the correct form, rather than a run that
+tears down a live service. Do not delete it: a role with no `tasks/main.yaml`
+is treated as having no tasks, which would turn the bug into a silent no-op.
 
 `defaults/main.yaml` supplies every parameter, so a caller overrides only what
 it cares about.
@@ -51,26 +77,26 @@ it cares about.
    and the override survives, so every later run fails identically. Gating
    `enable` behind a `bootstrap` that cannot succeed is the bug: the one command
    that fixes the state becomes unreachable exactly when it is needed.
-2. **Boot out only a label launchd reports.** `launchctl print` exits 0 when
+1. **Boot out only a label launchd reports.** `launchctl print` exits 0 when
    loaded and 113 when absent; `bootout` of a missing label exits 3, so exit
    status is the wrong presence test.
-3. **Wait for teardown.** `bootout` is documented as asynchronous, so a
+1. **Wait for teardown.** `bootout` is documented as asynchronous, so a
    bootstrap issued immediately after it can see the stale registration. This
    was **not reproduced** on the reference host (0 failures in 25 attempts,
    measured 2026-11-17), so the wait is cheap insurance rather than a fix for
    an observed failure — it breaks on its first check in the normal case.
-4. **Bootstrap, then prove it with a health check.** A bootstrap can return 0
+1. **Bootstrap, then prove it with a health check.** A bootstrap can return 0
    and still leave nothing running, so the exit code is not evidence.
 
 Measured 2026-11-17 with throwaway labels, one variable at a time:
 
-| State before the run | Old recipe | This role |
-|---|---|---|
-| absent | PASS | PASS |
-| loaded + running | PASS | PASS |
-| disabled + absent | **FAIL rc 5** | PASS |
-| loaded + disabled | **FAIL rc 5** | PASS |
-| twice in a row | PASS | PASS |
+| State before the run | Old recipe    | This role |
+| -------------------- | ------------- | --------- |
+| absent               | PASS          | PASS      |
+| loaded + running     | PASS          | PASS      |
+| disabled + absent    | **FAIL rc 5** | PASS      |
+| loaded + disabled    | **FAIL rc 5** | PASS      |
+| twice in a row       | PASS          | PASS      |
 
 ## What the role deliberately does not do
 
