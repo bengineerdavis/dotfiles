@@ -18,6 +18,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 <!-- scriv-insert-here -->
 
+## PR #185 — 2026-11-20
+
+### Fixed
+
+- The Claude credential tests no longer require macOS's `/bin/zsh`. CI installs
+  zsh explicitly, and the harness finds it on the supplied `PATH`, so Ubuntu
+  runs the same real-shell profile tests instead of failing on a missing path.
+- The profile-deployment test no longer fails on a missing `chezmoi` binary.
+  CI installs the pinned chezmoi release before the suite runs, matching how a
+  developer machine already provides it.
+
 ## PR #187 — 2026-11-20
 
 ### Added
