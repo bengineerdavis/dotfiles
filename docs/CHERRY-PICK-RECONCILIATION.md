@@ -40,18 +40,49 @@ One extra commit exists only on origin: `efc0fdc3` — "DOT-381 — each repo im
 its own lore knowledge, no shared config". It was made on the branch after the
 cherry-pick and has no old-SHA counterpart.
 
-## The other 8 commits on local `main` are NOT duplicates
+## The other commits on local `main` are NOT duplicates
 
 They were excluded from the cherry-pick because they belong to other sessions.
-Local `main` is 8+ commits ahead of origin in *their* work, not just mine:
+Local `main` is 31 commits ahead of origin in *their* work, not just mine
+(measured 2026-11-20; re-measure with `git rev-list --count origin/main..main`
+before trusting this number).
 
-| Commits                                        | Branch holding them                                            |
-| ---------------------------------------------- | -------------------------------------------------------------- |
-| `74fc1daf`, `85b8f99b`                         | `origin/dot-343-bare-lifecycle`                                |
-| `765f04a3`, `92ba48c2`, `5c306422`, `b3fb10ac` | `agent/retro-git-topic-local`, `origin/dot-343-bare-lifecycle` |
+**Read this before resetting anything.** A commit is only safe to drop if it is
+reachable from a branch that outlives the reset. Three are not:
 
-They are recoverable by branch name if local `main` is reset. **Do not delete
-those branches** as part of reconciling `main`.
+| Group                            | Count | Where it lives        | Safe if `main` is reset?     |
+| -------------------------------- | ----- | --------------------- | ---------------------------- |
+| `origin/preserve/dot349-handoff` | 20    | pushed                | yes                          |
+| `origin/dot-343-bare-lifecycle`  | 8     | pushed                | yes                          |
+| **stranded**                     | **3** | **local `main` only** | **NO — reset destroys them** |
+
+The three stranded commits, each reachable from `main` and from nothing else:
+
+- `a3278e00` — backlog: hand off inherited docs failures after retro fixes
+- `c25b94c4` — backlog: release the DOT-343 wrap-up claim; capture `.lore.md`
+  re-distillation
+- `9ec504aa` — backlog: close DOT-348 — ADHD skills merged via PR #188
+
+If you are about to reset, **re-run the classification** rather than trusting
+this table; commits land on `main` between the measurement and the reset:
+
+```sh
+# Commits ahead of origin/main that no remote branch contains.
+for c in $(git rev-list origin/main..main); do
+  [ -z "$(git branch -r --contains "$c" | head -1)" ] &&
+    git log -1 --format='STRANDED %h %s' "$c"
+done
+```
+
+An empty result is the precondition for a safe reset. A non-empty result means
+those commits need a branch (or a PR) before anything destructive happens.
+
+## Branches that must outlive the reset
+
+`agent/retro-git-topic-local` and `handoff/local-main-2026-11-19` hold the same
+commits as the pushed branches above, but they are **local-only** — pushing the
+commits is what makes them survive, not the local branch names. Do not delete a
+branch that appears in the classification output without checking it is pushed.
 
 ## What was lost in the divergence
 
@@ -64,11 +95,20 @@ or the changelog entry disappears again.**
 
 ## Reconciling
 
-The safe move is `git reset --hard origin/main` after confirming the 8
-other-session commits are on their branches (they are, above). That is a
-destructive operation on shared local state — **it belongs to the author, not
-to an agent**, and it should not happen while any session has uncommitted work
-in this checkout.
+A `git reset --hard origin/main` is only safe **after** the classification above
+returns no stranded commits. As measured on 2026-11-20 it returns three, so the
+precondition does not currently hold — resetting now would destroy them.
+
+Sequence, in order:
+
+1. Run the stranded-commit loop above. If it prints anything, get those commits
+   onto a branch (a PR is the usual way) and re-run until it prints nothing.
+1. Confirm no session has uncommitted work in this checkout.
+1. Reset.
+
+That is a destructive operation on shared local state — **it belongs to the
+author, not to an agent**, and it should not happen while any session has
+uncommitted work in this checkout.
 
 Related: DOT-386 covers the broader problem of sessions orphaned by the
 `~/code/templates` → `~/code/personal/templates` move.
