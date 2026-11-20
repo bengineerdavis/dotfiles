@@ -132,31 +132,6 @@ on `main` (`git show main:<path>`), or `git cherry main <branch>` — every
 line starting `-` means that patch is already on `main`. Crash recovery is
 `git worktree remove --force <path>` plus `git worktree prune`.
 
-## Reconcile a dirty shared checkout
-
-Global session activity is not a reason to wait. A session in another worktree
-has its own files; it can run while you reconcile the shared checkout.
-
-List sessions in the repository with `opencode session list --format json`.
-Match each record's `directory` to the exact shared-checkout path. A session
-whose directory is another worktree is independent. Use `/api/session/active`
-only to distinguish currently running sessions from idle ones.
-
-Inspect the OpenCode worktree inventory with `/api/worktree` and the current
-project's ID. Check for a lock or active writer on the shared checkout. Either
-stops the merge; a session in an unrelated checkout does not.
-
-Inspect `git status --short` and compare each dirty path with
-`git diff --name-only <merge-base> <incoming>`. Unrelated dirty files can stay
-dirty through the merge. If an incoming path is dirty, stop and ask that file's
-owner. Do not restore, stash, commit, or replace it. Even a byte-for-byte
-restore temporarily removes another writer's work.
-
-Keep `.lore.md` and other queue files in that comparison. A completed task or
-quiet session does not make its dirty files safe to move. After the merge,
-verify that the unrelated dirty paths and unpublished commits remain. Leave
-their publication to their owners.
-
 ## Arriving from a PR
 
 A session can be summoned by a PR instead of the queue — a review comment, a
