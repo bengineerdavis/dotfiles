@@ -1,0 +1,5 @@
+# apps/agentsview/vars/main.yaml
+#
+# Empty — everything overridable lives in defaults/main.yaml; nothing here
+# is internal state. The directory exists so the topic scaffold matches
+# every other app topic and later internal vars have a home.
