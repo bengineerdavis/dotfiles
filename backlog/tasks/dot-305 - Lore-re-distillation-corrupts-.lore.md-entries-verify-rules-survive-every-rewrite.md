@@ -7,6 +7,7 @@ created_date: 2026-11-07 22:16
 orchestration:
   status_key: todo
   version: 2
+updated_date: 2026-11-18 04:12
 ---
 
 ## Description
@@ -18,6 +19,12 @@ Two consecutive roborev reviews of agent/retro-docs (jobs 463 and 479) failed on
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+2026-11-17 measurement (import cadence question): whether running `lore import` around a merge/rebase helps is UNPROVEN and DESCENDS FROM this task, not separate. Measured today: (1) two anchors are ALREADY missing from .lore.md while still true in the tree — 'skip the removal rather than assume it is harmless' (remove.yaml:18-21 still gates ffmpeg removal on requires_map being defined) and the work-repos-never-committed anchor — so the drift test fails 2 of 5 on current HEAD, on main and on a fresh worktree alike; this is content loss surviving every import cycle so far, not a one-off. (2) The daemon rewrites .lore.md on roughly a 3-4 day cadence (last commits 11-15 20:49, 11-15 20:34, 11-12 14:54, 11-12 14:09, 11-11 21:17), i.e. BETWEEN merges rather than during them, and it left the checkout dirty on every observed occasion. More frequent import therefore cannot be assumed to help: the observed loss mode is the rewrite itself, so importing more often plausibly multiplies the opportunity for loss rather than preventing it. Closing this task's open question requires proving which it is before any cadence change is adopted. (3) `lore import --help` HANGS (>120s, SIGTERM) — the documented --help trap (DOT-298) blocks auditing the importer's behaviour from its own interface; audit it on a fixture copy of .lore.md instead.
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 
