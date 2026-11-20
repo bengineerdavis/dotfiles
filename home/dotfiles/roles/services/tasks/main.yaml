@@ -12,4 +12,10 @@
 
 - name: "services: remove"
   ansible.builtin.import_tasks: remove.yaml
-  tags: [remove]
+  # `never` makes teardown opt-in: skipped by a bare run and by
+  # `--tags install`, runs only with an explicit `--tags remove`. Without it a
+  # bare run executes teardown after install and takes the service down —
+  # measured 2026-11-19 on the backlog topic, where a bare `run-role.sh backlog`
+  # deleted the live plist. The topic routers carry `[remove, never]`; this role
+  # exists so topics stop re-deriving the order, so it must carry it too.
+  tags: [remove, never]

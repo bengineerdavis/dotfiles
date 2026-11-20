@@ -194,6 +194,56 @@ def test_a_missing_variable_fails_loudly(template_name):
         render(template_name, **variables)
 
 
+# ── Routing: a bare run must never tear the service down ────────────────────
+
+
+def test_remove_import_is_never_tagged():
+    """`remove` must carry `never`, or a bare run executes teardown.
+
+    Measured 2026-11-19: `executable_run-role.sh backlog` with no `--tags`
+    ran the role's remove phase after its install phase. Ansible runs every
+    task whose tags it does not have to skip; `never` is what makes a tag
+    opt-in. The topic routers already carry `[remove, never]` — the shared
+    role, which exists so topics stop re-deriving this, shipped `[remove]`.
+
+    The consequence is not cosmetic: the bare run deleted the live plist and
+    left the daemon down.
+    """
+    router = (ROLE / "tasks" / "main.yaml").read_text()
+    parsed = yaml.safe_load(router)
+    remove_tasks = [
+        task
+        for task in parsed
+        if str(task.get("ansible.builtin.import_tasks", "")).startswith("remove")
+    ]
+    assert remove_tasks, "the router must import remove.yaml"
+    for task in remove_tasks:
+        tags = task.get("tags") or []
+        assert "remove" in tags, f"{task['name']} must be tagged remove"
+        assert "never" in tags, (
+            f"{task['name']} is tagged {tags} — without `never` a bare run "
+            "executes teardown and takes the service down"
+        )
+
+
+def test_install_import_is_not_never_tagged():
+    """The install phase must stay reachable by a bare run."""
+    router = (ROLE / "tasks" / "main.yaml").read_text()
+    parsed = yaml.safe_load(router)
+    install_tasks = [
+        task
+        for task in parsed
+        if str(task.get("ansible.builtin.import_tasks", "")).startswith("install")
+    ]
+    assert install_tasks, "the router must import install.yaml"
+    for task in install_tasks:
+        tags = task.get("tags") or []
+        assert "never" not in tags, (
+            f"{task['name']} is tagged {tags} — a bare run must converge, so "
+            "install cannot be opt-in"
+        )
+
+
 # ── Convergence: the DOT-343 bug, pinned ────────────────────────────────────
 
 
