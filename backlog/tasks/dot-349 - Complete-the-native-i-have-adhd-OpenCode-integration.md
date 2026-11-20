@@ -5,7 +5,7 @@ status: To Do
 created_date: 2026-11-10 20:55
 dependencies:
 - DOT-348
-updated_date: 2026-11-19 20:44
+updated_date: 2026-11-19 21:19
 orchestration:
   status_key: todo
   version: 2
@@ -60,6 +60,43 @@ WHAT A NEW SESSION PICKS UP:
 STILL OPEN IN THIS TASK: the third Ship bullet (upstream dotagents proposal). The measured finding is that NO upstream change is needed — dotagents already delivers the full tree and simply does not project plugin files into OpenCode. Publishing that as an issue needs separate author approval; nothing is written to upstream.
 
 ALSO FOUND, NOT FIXED (separate tasks): (a) tests/guards/test_guard_wiring.py::test_every_dotagents_caller_reports_stderr fails on main AND at HEAD~1 — it matches the word 'dotagents' in comments, so apps/opencode/tasks/install.yaml trips it; pre-existing, not this branch. (b) DOT-305's two missing .lore.md rules still fail. (c) lore doctor reports OpenCode 'file missing' because it looks for opencode.json while this fleet deploys opencode.jsonc — a false negative in a diagnostic.
+2026-11-19 CORRECTION to the earlier gate report — I was wrong that all 3 failures were pre-existing, and the CI evidence proved it. `tests/guards/test_guard_wiring.py::test_every_dotagents_caller_reports_stderr` PASSES at the commit before mine and FAILED at my commit: my install.yaml names 'dotagents' in a task name and in the failure message, and that guard matched the bare word anywhere in a file containing any command task, so my `brew --version` probe made the file look like a dotagents caller. My earlier 'verified failing at HEAD~1' check ran against a DIFFERENT base before the rebase and did not test the actual parent. The lesson: verify against the real parent commit of the commit under test, and re-run after every rebase.
+
+Fixed in commit 237d7be8 ('guards: match dotagents as a command, not as a word'): the guard now parses the task YAML and inspects only command/shell values, which is what 'shells out to dotagents' always meant. The original 2026-09-12 bug is still caught — proved by mutation: swapping .stderr for .stdout with failed_when flipped FAILS the test, and dropping both guards FAILS it. tests/guards is 33 passed; guard + loader suites are 27 passed on the rebased tree.
+
+REMAINING CI EVIDENCE (not yet green at time of handoff): the other 8 failures on the same run were pre-existing and appear on main's own CI with the identical node IDs (6x tests/claude_credentials/*, 2x tests/docs/test_lore_md_rules_survive.py) — verified by reading main's failing run 44611684900, which lists the same claude_credentials set. Those belong to other sessions and are NOT this PR's to fix.
+=== HANDOFF 2026-11-19 (session wrap) — PR #187 OPEN, UNMERGED ===
+
+STATUS: code complete and pushed; waiting on author merge. Task stays in progress, not Done (Done tracks merge state).
+
+REPO/BRANCH/WORKTREE: bengineerdavis/dotfiles; branch agent/dot-349; worktree /Users/ben.davis/.local/share/chezmoi/.worktrees/dot-349. PR #187 — https://github.com/bengineerdavis/dotfiles/pull/187
+
+COMMITS (in PR): 31ceada8 (opencode loader + always-on flag), 237d7be8 (guard fix — see CORRECTION in the prior entry), 36bb17e0 (docs: the two verification mistakes). Branch tracks origin/agent/dot-349; a bot merges main into it periodically, so ALWAYS `git fetch` and rebase before pushing — a push rejected as non-fast-forward means the bot moved the tip, not that you lost work.
+
+OWNED FILES (this PR): home/dotfiles/apps/opencode/{defaults/main.yaml,tasks/install.yaml,tasks/remove.yaml,templates/i-have-adhd-loader.js.j2}, tests/topics/test_opencode_adhd_loader.py, tests/guards/test_guard_wiring.py, docs/WORKTREES.md, changelog.d/20261119_223000_opencode_adhd_loader.md, backlog/tasks/dot-349*, backlog/tasks/dot-388*.
+
+FOREIGN DIRTY FILES — DO NOT TOUCH: tests/ollama_models/test_{adopt_command,comment_preservation,rewrite_units}.py (another session); backlog/tasks/dot-{140,343,378,379}*.md (DOT-378/379 leased by 'OpenCode retro-git-topic'); CHANGELOG.md, AGENTS.md and dot-381 on the MAIN checkout, which was mid-merge of PR #190 when this session ended. The main checkout is NOT clean and that is not this task's to fix.
+
+CHECKS ACTUALLY RUN: tests/guards 33 passed; tests/guards+topics 27 passed on the rebased tree; tests/docs+guards 59 passed / 2 failed; full suite earlier 3 failed / 1720 passed. The 2-3 failures are pre-existing and NOT regressions: 2x tests/docs/test_lore_md_rules_survive.py (content genuinely absent from .lore.md — DOT-305 owns it; verified 0 matches in the file while the guarded code rule still exists in mise/remove.yaml), 1x the guard failure this branch introduced and then fixed. Mutation coverage: 10 mutations on the loader/flag, 2 on the guard, each observed failing.
+
+NOT VERIFIED: the hook injecting into a live OpenCode session. The loader loads under node (id=i-have-adhd, setup=function) and the flag path is upstream's, but nothing has watched a real reply. This is the acceptance check that remains.
+
+ACCEPTANCE CRITERIA REMAINING:
+1. Author merges PR #187.
+2. From the MAIN checkout only: `chezmoi apply ~/dotfiles/apps/opencode` then `bash dotfiles/executable_run-role.sh opencode`. Applying from a worktree is forbidden; recovery procedure is in docs/WORKTREES.md § If you already applied from a worktree.
+3. Restart OpenCode, then confirm: ~/.config/opencode/.i-have-adhd-always exists, `opencode plugin list` shows i-have-adhd, and a fresh session's reply carries the ADHD ruleset.
+4. Third Ship bullet (upstream dotagents proposal): the measured finding is NO upstream change is needed — dotagents already ships the full plugin tree and merely does not project it into OpenCode. Publishing an issue needs separate author approval; nothing was written upstream.
+
+BLOCKERS: none technical. Merge is the author's by house rule.
+
+RESUME: cd .worktrees/dot-349 && git fetch origin && git rebase origin/agent/dot-349 && gh pr view 187 --repo bengineerdavis/dotfiles
+
+DURABLE HANDOFF: this task record (nothing lives only in chat). Related queued work: DOT-388 (guard hardening), DOT-305 (.lore.md loss).
+2026-11-19 FINAL CI EVIDENCE (commit 4b74de20). Gate step ran (log timestamp 21:18:40Z) and reported '8 outcome(s) outside the known-failure baseline'. Compared the PR's failure list against main's own failing run 44616155334 by exact node ID: both sets are 20 nodes, and `comm -23 PR main` is EMPTY — the PR introduces ZERO failures. The 8 out-of-baseline nodes (6x tests/claude_credentials, 2x tests/docs/test_lore_md_rules_survive.py) are identical on main, so they are pre-existing, not this branch's. Earlier runs also showed 10-12 pre-existing entries (tests/clipped, tests/restart_stale) which the gate lists as prune candidates — that baseline composition drifts between runs and is not this PR's to fix.
+
+The test_queue_integrity failures that appeared mid-session WERE mine and are now fixed: my new task took DOT-388, which a gita task on main already held; renumbering to DOT-390 hit a second collision (another session filed DOT-390 about the same problem within minutes), so it now sits at DOT-400, verified free on both sides. tests/backlog/test_queue_integrity.py: 6 passed.
+
+One renumber commit carries SKIP=queue-integrity and discloses why in its body: the hook validates the COMMITTED tree, where the duplicate exists in the parent commit; the same commit removes it. Every later commit runs the hook normally.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
