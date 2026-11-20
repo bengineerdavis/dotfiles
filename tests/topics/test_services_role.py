@@ -194,6 +194,106 @@ def test_a_missing_variable_fails_loudly(template_name):
         render(template_name, **variables)
 
 
+# ── Routing: a tagged install must never select teardown ────────────────────
+#
+# These run the REAL playbook through `--list-tasks`, because the bug they pin
+# is a tag-inheritance consequence that no amount of reading the YAML reveals.
+# `--list-tasks` prints each selected task with its effective tag set, which is
+# exactly the question: "does `--tags install` select a remove task?"
+
+PLAYBOOK = PAYLOAD_ROOT / "dotfiles" / "apps" / "backlog" / "playbook.yaml"
+
+
+def list_tasks(*tags: str) -> list[str]:
+    """The tasks `ansible-playbook --list-tasks` selects, one per line."""
+    ansible = shutil.which("ansible-playbook")
+    if not ansible:
+        pytest.skip("ansible-playbook is not on PATH")
+    command = [ansible, "-i", "localhost,", str(PLAYBOOK), "--list-tasks"]
+    if tags:
+        command += ["--tags", ",".join(tags)]
+    completed = subprocess.run(
+        command, capture_output=True, text=True, cwd=PAYLOAD_ROOT / "dotfiles"
+    )
+    # A non-zero exit is a real failure, not an unavailable tool: ansible is
+    # installed. Skipping here would report the suite green while the routing
+    # this file exists to pin was never examined.
+    assert completed.returncode == 0, (
+        f"ansible-playbook --list-tasks failed ({completed.returncode}):\n"
+        f"{completed.stderr[-2000:]}"
+    )
+    return [line.strip() for line in completed.stdout.splitlines() if "TAGS:" in line]
+
+
+def test_install_tag_does_not_select_teardown():
+    """`--tags install` must not select a remove task.
+
+    Measured 2026-11-20 (the live failure): a tagged install run stopped the
+    daemon and deleted its plist. The cause is tag inheritance, not a missing
+    `never`: the topic's install phase imports the WHOLE role, so the role's
+    remove phase sits underneath and inherits `install` from the importing
+    task. `never` only skips a task when nothing else selects it, and the
+    inherited tag does select it.
+
+    The fix is structural — callers import one phase via `tasks_from` — so
+    this pins the outcome rather than the spelling.
+    """
+    selected = list_tasks("install")
+    assert selected, "the install tag selected nothing at all"
+    teardown = [
+        line for line in selected if "remove the unit" in line or "stop " in line
+    ]
+    assert not teardown, (
+        "`--tags install` selected teardown:\n  "
+        + "\n  ".join(teardown)
+        + "\n\nThe install phase imports the whole role, so the remove phase "
+        "inherits the install tag. Import one phase with tasks_from instead."
+    )
+
+
+def test_a_bare_run_does_not_select_teardown():
+    """A bare run converges and stops; it must not tear the service down."""
+    selected = list_tasks()
+    assert selected, "the bare run selected nothing at all"
+    teardown = [
+        line for line in selected if "remove the unit" in line or "stop " in line
+    ]
+    assert not teardown, "a bare run selected teardown:\n  " + "\n  ".join(teardown)
+
+
+def test_remove_tag_still_selects_teardown():
+    """The fix must not make teardown unreachable — `--tags remove` still runs it."""
+    selected = list_tasks("remove")
+    teardown = [line for line in selected if "remove the unit" in line]
+    assert teardown, "`--tags remove` selected no teardown task"
+
+
+def test_remove_tag_does_not_select_install():
+    """`--tags remove` must not re-install as a side effect."""
+    selected = list_tasks("remove")
+    install = [line for line in selected if "install the unit" in line]
+    assert not install, "`--tags remove` selected install:\n  " + "\n  ".join(install)
+
+
+def test_whole_role_import_is_refused_loudly():
+    """A whole-role import must fail, not silently run both phases.
+
+    Ansible treats a role with no `tasks/main.yaml` as having no tasks, so
+    deleting the router would turn the bug into a silent no-op — the opposite
+    of failing closed. The router stays, and fails.
+    """
+    router = ROLE / "tasks" / "main.yaml"
+    assert router.exists(), "the router must exist so a whole-role import fails loudly"
+    parsed = yaml.safe_load(router.read_text())
+    assert parsed, "the router must carry the guard task"
+    fails = [task for task in parsed if "ansible.builtin.fail" in task]
+    assert fails, "the router must fail, rather than route both phases"
+    for task in fails:
+        assert "always" in (task.get("tags") or []), (
+            "the guard must be tagged `always`, or a tag-limited run skips it"
+        )
+
+
 # ── Convergence: the DOT-343 bug, pinned ────────────────────────────────────
 
 
