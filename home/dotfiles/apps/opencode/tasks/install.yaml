@@ -100,3 +100,96 @@
   community.general.homebrew:
     name: "{{ opencode_tap }}/opencode-v2"
     state: present
+
+# ── The i-have-adhd plugin loader ───────────────────────────────────────────
+# The skill set and the plugin's upstream tree belong to `apps/dotagents`; this
+# topic only connects the tree to OpenCode's loader. See defaults/main.yaml and
+# templates/i-have-adhd-loader.js.j2 for why the connection is a file rather
+# than a `plugins` entry.
+#
+# Ordering is deliberate: the source check runs before the copy so a machine
+# that never installed the plugin fails with the fix named, rather than
+# writing a loader that resolves to nothing and reports "plugin not loaded".
+
+- name: "Check that dotagents installed the ADHD plugin tree"
+  # Read-only probe. `failed_when: false` keeps it a probe; the next task owns
+  # the failure, so the message can name the fix.
+  ansible.builtin.stat:
+    path: >-
+      {{ opencode_adhd_plugins_dir }}/{{ opencode_adhd_plugin_source
+         }}/.opencode/plugins/{{ opencode_adhd_plugin_source }}.mjs
+  register: opencode_adhd_plugin_probe
+  when: opencode_adhd_plugin | bool
+
+- name: "Fail with the fix when the ADHD plugin tree is absent"
+  # The tree is apps/dotagents' state, so the fix is that topic's, not a file
+  # this topic can invent. Naming the missing topic keeps the failure
+  # actionable: dotagents is what installs it, and it is what re-installs it.
+  ansible.builtin.fail:
+    msg: >-
+      apps/dotagents did not install the {{ opencode_adhd_plugin_source }}
+      plugin tree, so OpenCode has nothing to load. Expected at
+      {{ opencode_adhd_plugin_probe.stat.path }}. Fix: run the dotagents topic
+      (`bash dotfiles/executable_run-role.sh dotagents`), which declares the
+      plugin, then re-run this topic. Nothing was written.
+  when:
+    - opencode_adhd_plugin | bool
+    - not opencode_adhd_plugin_probe.stat.exists
+
+- name: "Ensure the OpenCode plugin directory exists"
+  # OpenCode creates this directory on demand, but not before the first run on
+  # a fresh box, and the copy below would fail without it.
+  ansible.builtin.file:
+    path: "{{ opencode_plugin_dir }}"
+    state: directory
+    mode: "0755"
+  when:
+    - opencode_adhd_plugin | bool
+    - opencode_adhd_plugin_probe.stat.exists
+
+- name: "Install the i-have-adhd plugin loader"
+  # The loader re-exports upstream's implementation; it carries no plugin logic
+  # of its own, so an upstream change lands by re-running apps/dotagents.
+  #
+  # mode 0644: OpenCode reads the file, and nothing executes it directly. It is
+  # not a script and gains nothing from the exec bit.
+  ansible.builtin.template:
+    src: i-have-adhd-loader.js.j2
+    dest: "{{ opencode_plugin_dir }}/{{ opencode_adhd_loader_name }}"
+    mode: "0644"
+  when:
+    - opencode_adhd_plugin | bool
+    - opencode_adhd_plugin_probe.stat.exists
+
+# ── Always-on injection ─────────────────────────────────────────────────────
+# Upstream's hook is registered by the loader but injects nothing until this
+# flag file exists: alwaysOnInjection() returns null when it is absent
+# (verified 2026-11-17 in .opencode/plugins/i-have-adhd.mjs). Creating the file
+# is therefore the whole difference between "installed" and "every reply is
+# shaped for an ADHD reader".
+#
+# `state: touch` rather than `copy` with empty content: the file's contents are
+# never read, only its existence, so an empty file and a touched one are
+# equivalent, and touch leaves an existing file's mtime alone on unchanged runs
+# only when the file is already fresh enough — either way the flag has no
+# content to go stale.
+
+- name: "Enable i-have-adhd always-on injection"
+  ansible.builtin.file:
+    path: "{{ opencode_adhd_always_on_flag }}"
+    state: touch
+    mode: "0644"
+  when:
+    - opencode_adhd_plugin | bool
+    - opencode_adhd_always_on | bool
+    - opencode_adhd_plugin_probe.stat.exists
+
+- name: "Report that always-on is disabled"
+  ansible.builtin.debug:
+    msg: >-
+      The i-have-adhd loader is installed, so /i-have-adhd works on demand,
+      but always-on injection is off (opencode_adhd_always_on is false). Set
+      it true to have every reply shaped without invoking the command.
+  when:
+    - opencode_adhd_plugin | bool
+    - not opencode_adhd_always_on | bool

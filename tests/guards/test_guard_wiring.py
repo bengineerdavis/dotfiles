@@ -27,6 +27,7 @@ import pathlib
 import re
 
 import pytest
+import yaml
 
 # pyrefly: ignore [missing-import]
 from guard_harness import DOTFILES, GUARDS
@@ -52,6 +53,54 @@ def _code(path: pathlib.Path) -> str:
         for line in path.read_text(encoding="utf-8").splitlines()
         if not line.lstrip().startswith("#")
     )
+
+
+# dotagents as a shell command, not as a word. Prose that merely mentions the
+# tool — a task name, a failure message telling the operator to run the topic,
+# a Jinja variable called dotagents_plugin_targets — is not a caller and has no
+# stderr to surface. Inspecting the parsed command values is what tells the two
+# apart; a text search cannot, and matching the word turned the gate red for a
+# change that never invoked dotagents (measured 2026-11-19 on
+# apps/opencode/tasks/install.yaml).
+_DOTAGENTS_COMMAND = re.compile(r"(?:^|[\s/])dotagents(?![-\w])")
+
+
+def _command_values(node: object) -> list[str]:
+    """Every shell command string under an ansible command/shell task.
+
+    Reads structured YAML rather than the file text, so a name or a message
+    that mentions dotagents is not mistaken for an invocation. Only the
+    `command` and `shell` modules can run a CLI, so only their values count.
+    """
+    found: list[str] = []
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key in {
+                "ansible.builtin.command",
+                "ansible.builtin.shell",
+                "command",
+                "shell",
+            }:
+                if isinstance(value, str):
+                    found.append(value)
+                elif isinstance(value, dict):
+                    for inner in ("cmd", "argv"):
+                        cmd = value.get(inner)
+                        if isinstance(cmd, str):
+                            found.append(cmd)
+                        elif isinstance(cmd, list):
+                            found.extend(str(part) for part in cmd)
+            found.extend(_command_values(value))
+    elif isinstance(node, list):
+        for item in node:
+            found.extend(_command_values(item))
+    return found
+
+
+def _runs_dotagents(path: pathlib.Path) -> bool:
+    """Whether the task file invokes the dotagents CLI."""
+    tasks = yaml.safe_load(path.read_text(encoding="utf-8")) or []
+    return any(_DOTAGENTS_COMMAND.search(cmd) for cmd in _command_values(tasks))
 
 
 # --- the guard is wired in ----------------------------------------------------
@@ -195,11 +244,19 @@ def test_every_dotagents_caller_reports_stderr():
     dotagents exits 1 with its message on stderr and nothing on stdout. A task
     that neither defers the failure nor reads `.stderr` converts every dotagents
     error into "The command exited with a non-zero return code."
+
+    The check matches dotagents as a COMMAND, not the bare word. Matching the
+    word flagged files that merely talk about dotagents — a task named "Check
+    that dotagents installed the tree", or a message telling the operator to run
+    the dotagents topic — as if they shelled out to it. That false positive
+    turned the gate red for a change that never invoked it (measured
+    2026-11-19 on apps/opencode/tasks/install.yaml), which is the failure mode
+    that teaches everyone to ignore a red gate.
     """
     offenders = []
     for path in _task_files():
         text = _code(path)
-        if "dotagents" not in text or "ansible.builtin.command" not in text:
+        if not _runs_dotagents(path):
             continue
         # Any reference counts: `.stderr`, `map(attribute='stderr')`, …
         if "failed_when: false" not in text or "stderr" not in text:
@@ -216,11 +273,7 @@ def test_the_rule_has_something_to_check():
     """Guards against the test above passing vacuously if the tasks are renamed
     or the topic is removed.
     """
-    callers = [
-        p
-        for p in _task_files()
-        if "dotagents" in _code(p) and "ansible.builtin.command" in _code(p)
-    ]
+    callers = [p for p in _task_files() if _runs_dotagents(p)]
     assert callers, "no task file shells out to dotagents — did the topic move?"
 
 
