@@ -109,6 +109,28 @@ jobs:
       - name: Install gita for the gita role tests
         run: uv tool install "gita==0.16.8.2"
 
+      # The Claude credential tests execute the real shell fragment. Ubuntu
+      # runners do not provide zsh, so install it before invoking pytest.
+      - name: Install zsh for the real-shell tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes zsh
+
+      # tests/merge_gates/test_real_managed.py runs bare `chezmoi managed`;
+      # the profile-deployment test invokes `chezmoi -S PAYLOAD_ROOT managed`.
+      # A runner has no chezmoi, so install the official release archive at a
+      # pinned version and verify it against the independently recorded SHA256
+      # from that release's checksums.txt. Do not fetch and execute an installer.
+      - name: Install chezmoi for the tests
+        run: |
+          archive="$RUNNER_TEMP/chezmoi_2.74.1_linux_amd64.tar.gz"
+          curl --fail --silent --show-error --location \
+            "https://github.com/twpayne/chezmoi/releases/download/v2.74.1/chezmoi_2.74.1_linux_amd64.tar.gz" \
+            --output "$archive"
+          echo "ae01c66b1a6dbf563667c63fbbd9986b3cfa3c98dd266ddee732f63e8af2e9d1  $archive" | shasum --algorithm 256 --check
+          tar --extract --gzip --file "$archive" chezmoi
+          sudo install chezmoi /usr/local/bin/chezmoi
+
       # pytest's exit status is nonzero for the known failures, so the run is
       # allowed to finish and the RESULT is judged by which tests failed rather
       # than by the exit code. See `AGENTS.md` § Known failures: green means the
