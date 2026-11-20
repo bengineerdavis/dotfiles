@@ -57,6 +57,15 @@ EXPECTED_FAILURES = frozenset(
         "tests/clipped/test_clipped_cli.py::test_copy_handles_non_utf8_bytes",
         "tests/restart_stale/test_role.py::test_a_missing_kind_fails_before_anything_runs",
         "tests/restart_stale/test_role.py::test_the_defaults_leave_the_role_inert",
+        # Trunk red since the 2026-11 .lore.md re-distillation rewrites: these
+        # two drift-guard tests fail on a pristine origin/main checkout
+        # (verified locally on main 2026-11-19, before any DOT-343 change).
+        # DOT-305's guard surface moved; the owning task refreshes or fixes.
+        # NOTE: entries carry the parser's truncation — OUTCOME_LINE captures
+        # \S+, and these parametrize ids contain spaces, so the id stops at
+        # the first space. That truncated form is what CI compares against.
+        "tests/docs/test_lore_md_rules_survive.py::test_rule_survives_redistillation[requires_map",
+        "tests/docs/test_lore_md_rules_survive.py::test_rule_survives_redistillation[work",
     }
 )
 
