@@ -36,9 +36,9 @@ Constraints:
 
 <!-- AC:BEGIN -->
 
-- [ ] #1 The reproduction command is recorded in the notes and was seen red before the fix
+- [x] #1 The reproduction command is recorded in the notes and was seen red before the fix
 - [ ] #2 The backlog topic run succeeds twice in a row on macOS and backlog-py daemon status --json exits 0
-- [ ] #3 The regression test was seen to fail against the unfixed task (Mutation:/Failing-test: trailers)
+- [x] #3 The regression test was seen to fail against the unfixed task (Mutation:/Failing-test: trailers)
 
 <!-- AC:END -->
 
