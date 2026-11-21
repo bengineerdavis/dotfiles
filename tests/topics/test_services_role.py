@@ -404,3 +404,66 @@ def test_presence_is_tested_with_print_not_bootout():
     assert re.search(r'if launchctl print "\$target"', command), (
         "bootout must be guarded by a launchctl print presence check"
     )
+
+
+# ── Bare runs must not run the lifecycle end to end ─────────────────────────
+
+
+def _role_router_tags() -> dict[str, list[str]]:
+    """The tag lists on the role's static imports, keyed by task name."""
+    tasks = yaml.safe_load((ROLE / "tasks" / "main.yaml").read_text())
+    return {task["name"]: task["tags"] for task in tasks}
+
+
+def test_remove_import_is_never_tagged():
+    """A bare run (no --tags) must converge, not converge-then-teardown.
+
+    Ansible runs every task except `never`-tagged ones when no tags are
+    requested. Measured 2026-11-17: with the router's remove import tagged
+    only [remove], `run-role.sh backlog` converged the daemon healthy, passed
+    its own health check, then bootout and deleted the unit it had just
+    converged. The topic routers tag their remove imports [remove, never]
+    (docs/TOPICS.md: remove is opt-in); the shared role must enforce the same
+    contract, because every caller's bare run goes through it.
+    """
+    tags = _role_router_tags()
+    remove_tags = tags.get("services: remove")
+    assert remove_tags is not None, "the router must still import remove.yaml"
+    assert "never" in remove_tags, (
+        "services: remove must be tagged never — a bare run runs the full "
+        "lifecycle without it (converge, then teardown; measured on "
+        "com.backlog-py.daemon)"
+    )
+    assert "remove" in remove_tags, (
+        "explicit --tags remove must still reach the remove phase"
+    )
+
+
+def test_remove_vars_are_not_the_install_vars():
+    """The teardown caller must not double as an install caller.
+
+    apps/backlog's remove.yaml passes service_program_arguments = [backlog_bin]
+    — enough for the role's own assert, but if its install phase ever renders
+    with those vars the unit carries argv = [shim] and the daemon
+    help-text-crash-loops (the 2026-11-17 plist state, 797 bytes, one argv
+    element). The remove import being `never` (previous test) is the guard;
+    this pins the shape that made the failure legible.
+    """
+    remove_tasks = yaml.safe_load(
+        (
+            PAYLOAD_ROOT / "dotfiles" / "apps" / "backlog" / "tasks" / "remove.yaml"
+        ).read_text()
+    )
+    import_task = next(t for t in remove_tasks if "ansible.builtin.import_role" in t)
+    argv = import_task["vars"]["service_program_arguments"]
+    assert len(argv) == 1, "teardown passes only the binary, no subcommand"
+    # The install caller passes the full daemon argv; these must differ, so a
+    # leak of remove vars into an install render is detectable.
+    install_tasks = yaml.safe_load(
+        (
+            PAYLOAD_ROOT / "dotfiles" / "apps" / "backlog" / "tasks" / "install.yaml"
+        ).read_text()
+    )
+    install_task = next(t for t in install_tasks if "ansible.builtin.import_role" in t)
+    install_argv = install_task["vars"]["service_program_arguments"]
+    assert argv != install_argv
