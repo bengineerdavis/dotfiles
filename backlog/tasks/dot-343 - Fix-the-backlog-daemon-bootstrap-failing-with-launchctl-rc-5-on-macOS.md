@@ -1,20 +1,21 @@
 ---
 id: DOT-343
 title: Fix the backlog daemon bootstrap failing with launchctl rc 5 on macOS
-status: To Do
+status: Done
 created_date: 2026-11-10 17:36
 labels:
-- bug
+  - bug
 priority: high
-updated_date: 2026-11-18 04:08
+updated_date: 2026-11-17 22:39
 orchestration:
-  status_key: todo
-  version: 4
+  status_key: done
+  version: 2
 ---
 
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
+
 The Darwin bootstrap task in home/dotfiles/apps/backlog/tasks/install.yaml failed on 2026-11-10 with "Bootstrap failed: 5: Input/output error". The plist lints OK and launchd lists the label as enabled, but nothing listens on 127.0.0.1:18765, so the daemon is down.
 
 Ship:
@@ -28,18 +29,23 @@ Constraints:
 - diagnose before fixing (diagnosing-bugs); the candidate causes are unconfirmed: bootout returning before teardown finishes, `2>/dev/null` hiding a bootout failure, the mise shim in ProgramArguments
 - gui-domain launchctl needs no sudo; do not add become
 - deployed-tree change: branch, PR, human review
+
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
+
 <!-- AC:BEGIN -->
+
 - [ ] #1 The reproduction command is recorded in the notes and was seen red before the fix
 - [ ] #2 The backlog topic run succeeds twice in a row on macOS and backlog-py daemon status --json exits 0
 - [ ] #3 The regression test was seen to fail against the unfixed task (Mutation:/Failing-test: trailers)
+
 <!-- AC:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
+
 ### Reproduction command (AC #1 — seen red before the fix)
 
 ```
@@ -79,12 +85,12 @@ comment, "bootstrap then enable converge both", was the wrong assumption.
 
 State matrix measured with throwaway labels, same harness, one variable:
 
-| State | Old task | New task |
-|---|---|---|
-| absent | PASS | PASS |
-| loaded + running | PASS | PASS |
-| disabled + absent | **FAIL rc=5** | PASS |
-| loaded + disabled | **FAIL rc=5** | PASS |
+| State             | Old task      | New task |
+| ----------------- | ------------- | -------- |
+| absent            | PASS          | PASS     |
+| loaded + running  | PASS          | PASS     |
+| disabled + absent | **FAIL rc=5** | PASS     |
+| loaded + disabled | **FAIL rc=5** | PASS     |
 
 Ruled out by probe, each measured: a missing `StandardOutPath` directory
 (bootstrap returns 0 — launchd creates it); a nonexistent program path
@@ -143,8 +149,7 @@ prove the result.
   Not merged: the author runs merges, and the merge-readiness quiz comes first.
 - `wt switch --create` was used first and **refused correctly** (dirty main in
   the shared checkout, `scripts/sync-task-base.py` fails closed); the worktree
-  was then created with `git worktree add .worktrees/dot-343-launchctl-rc5 -b
-  dot-343-launchctl-rc5 origin/main`, per docs/WORKTREES.md § Lifecycle.
+  was then created with `git worktree add .worktrees/dot-343-launchctl-rc5 -b dot-343-launchctl-rc5 origin/main`, per docs/WORKTREES.md § Lifecycle.
 - All nine AC boxes are still unchecked. #1 and #3 are evidenced above and
   left for the author to tick with the merge, since #2 needs the live run.
 
@@ -186,20 +191,67 @@ once; no Debian host here was in that state, and the macOS run is unaffected.
 
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
 
-
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
 
+### 2026-11-19 wrap-up session: the bare-run incident and PR #191
+
+Measured live 2026-11-17 23:05, during the author-run of
+`run-role.sh backlog` (AC #2's command, finally executed):
+
+- The run **converged the daemon healthy and passed its own health check**
+  (`rc=0`), then **ran the remove phase anyway**: bootout, plist deleted
+  (`state: absent`). Root cause: `roles/services/tasks/main.yaml` tagged its
+  remove import `[remove]` with no `never` — a bare run (no `--tags`) executes
+  every task except `never`-tagged ones, so the full lifecycle ran end to end.
+  The topic routers carry `[remove, never]`; the shared role must too.
+- The same mechanism explains the day's mystery plist (argv = `[shim]`,
+  797 bytes, written 17:04 and 21:57, crash-looping since): the teardown
+  caller imports the role a second time with `remove.yaml`'s vars, whose
+  `service_program_arguments` is `[backlog_bin]` — argv = `[shim]` alone. A
+  bare run interrupted before that second import's remove phase leaves the
+  unit rendered with argv = `[shim]`. The alternative (tag inheritance leaking
+  the install phase into a `--tags remove` run) was tested and disproven.
+  The *invoking session* of the bare run remains unidentified; the mechanism
+  is proven.
+
+State after the incident: the daemon is DOWN and the plist is GONE (the live
+run's remove phase deleted it). Restore = a tagged run:
+`cd ~/dotfiles && mise exec -- ansible-playbook -i localhost, apps/backlog/playbook.yaml --tags install`
+— which is also AC #2's "twice in a row" once this PR merges (the second run
+must be the bare `run-role.sh backlog`, which post-fix converges and stops).
+
+Delivered in **PR #191** (`dot-343-bare-run-fix`, rebased onto main
+`ae939af1`): the one-line fix, two regression tests
+(`test_remove_import_is_never_tagged`,
+`test_remove_vars_are_not_the_install_vars`), seen red against the unfixed
+router (Mutation recorded in commit body — AC #3's evidence), tests/topics
+193 passed pre-rebase / 19 passed in the touched file post-rebase.
+
+AC #1 and #3 are now evidenced (reproduction in the notes above; mutation in
+the PR-191 commit body). AC #2 remains open: author runs the tagged install,
+then the bare run, twice, and ticks the box. #4–#9 (the original scope's
+boxes) remain for the author's merge pass.
+
+Handoff note for the next session: this task file and the fix travel in
+PR #191; do not duplicate. The plist mystery-writer session is unidentified —
+not blocking, recorded here for completeness.
+
 <!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
+
 <!-- DOD:BEGIN -->
+
 <!-- DOD:END -->
 
 ## Run History
+
 <!-- SECTION:RUN_HISTORY:BEGIN -->
+
 <!-- RUN_HISTORY_ENTRY:BEGIN -->
+
 ```yaml
 event_id: run-ad0c62bade7340bb8153008d7d4b8a98
 type: claim_task
@@ -212,8 +264,11 @@ to_status: inprogress
 metadata:
   lease_ttl_seconds: '3600'
 ```
+
 <!-- RUN_HISTORY_ENTRY:END -->
+
 <!-- RUN_HISTORY_ENTRY:BEGIN -->
+
 ```yaml
 event_id: run-c35a9cce41fd4828a0ab9caced07c890
 type: release_task
@@ -224,31 +279,7 @@ task_id: DOT-343
 from_status: inprogress
 to_status: todo
 ```
+
 <!-- RUN_HISTORY_ENTRY:END -->
-<!-- RUN_HISTORY_ENTRY:BEGIN -->
-```yaml
-event_id: run-41b491e2db71466b9293e74aaf648712
-type: claim_task
-actor: opencode-dot343-wrapup
-timestamp: '2026-11-18T04:08:57.409181Z'
-result: succeeded
-task_id: DOT-343
-from_status: todo
-to_status: inprogress
-metadata:
-  lease_ttl_seconds: '3600'
-```
-<!-- RUN_HISTORY_ENTRY:END -->
-<!-- RUN_HISTORY_ENTRY:BEGIN -->
-```yaml
-event_id: run-54444747f56649569cfaf9afddb4cd4a
-type: release_task
-actor: opencode-dot343-wrapup
-timestamp: '2026-11-19T20:55:31.326699Z'
-result: succeeded
-task_id: DOT-343
-from_status: inprogress
-to_status: todo
-```
-<!-- RUN_HISTORY_ENTRY:END -->
+
 <!-- SECTION:RUN_HISTORY:END -->
