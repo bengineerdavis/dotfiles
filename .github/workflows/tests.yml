@@ -135,13 +135,21 @@ jobs:
       # allowed to finish and the RESULT is judged by which tests failed rather
       # than by the exit code. See `AGENTS.md` § Known failures: green means the
       # failure LIST matches. The compare step below is the gate.
+      #
+      # The report is JUnit XML, not the log. pytest's human-readable output has
+      # no reliable delimiter between a node ID and its explanation and no
+      # unambiguous summary line, which made the text-parsing gate wrong in four
+      # ways (roborev job 853). `junit_family=xunit1` is required: it emits the
+      # `file` attribute that turns a testcase back into a node ID.
       - name: Tests
         run: |
           set -o pipefail
-          uv run --frozen pytest tests tools -q 2>&1 | tee "$RUNNER_TEMP/pytest.log" || true
+          uv run --frozen pytest tests tools -q \
+            --junitxml "$RUNNER_TEMP/pytest.xml" \
+            -o junit_family=xunit1 2>&1 | tee "$RUNNER_TEMP/pytest.log" || true
 
       - name: Compare failures against the known-failure baseline
-        run: uv run --frozen python scripts/check_suite_baseline.py "$RUNNER_TEMP/pytest.log"
+        run: uv run --frozen python scripts/check_suite_baseline.py "$RUNNER_TEMP/pytest.xml"
 
       # Attach the full log either way. A red job whose output is gone sends the
       # next person back to a laptop to reproduce a failure CI already saw.
