@@ -47,10 +47,18 @@ Every disqualifier was tested against real pytest 9.1.1 output:
 | Exact file path | printed in the id | `file=` attribute under `junit_family=xunit1` |
 
 The `file` attribute is the reason to use **xunit1**, not xunit2: under xunit1
-pytest emits `file`, `line`, `classname`, `name`, so the node ID is assembled from
-`file` + `::` + `name` rather than inferred by turning dots back into slashes.
-That inference would work today (no dotted filenames exist in `tests/` or
-`tools/`), but it is a guess that a future `test_v1.2.py` would silently break.
+pytest emits `file`, `line`, `classname`, `name`, so the path is READ rather than
+inferred by turning dots back into slashes. That inference would work today (no
+dotted filenames exist in `tests/` or `tools/`), but it is a guess that a future
+`test_v1.2.py` would silently break.
+
+`classname` supplies the class part of the id, so the full shape is
+`file` + `::` + class components joined by `::` + `::` + `name`, with the class
+absent for a module-level test. Both traps here were measured, not reasoned
+about: dropping the class made `TestOne.test_same`, `TestTwo.test_same` and a
+module-level `test_same` collapse into one id, and keeping the class but leaving
+its dots in place emitted `TestOuter.TestInner` where pytest prints
+`TestOuter::TestInner` (jobs 856 and 864).
 
 ## Ranking, leading with the disqualifying capability
 
@@ -67,16 +75,27 @@ That inference would work today (no dotted filenames exist in `tests/` or
    explanation containing ` - ` from an ID boundary in principle.
 4. **Exit codes only** — disqualified: no node IDs, so it cannot implement an
    allowlist at all.
-5. **Third-party reporter action** (`dorny/test-reporter`, `EnricoMi/publish-unit-test-result-action`)
-   — disqualified for *this* purpose: they publish results into the UI, which is
-   a different requirement. The gate needs to make a decision and exit nonzero.
+5. **Third-party reporter actions** (`dorny/test-reporter`, `EnricoMi/publish-unit-test-result-action`)
+   — **partly capable, and the earlier draft of this document was wrong about
+   that.** Both provide gating controls: `dorny/test-reporter` has
+   `fail-on-error` and `fail-on-empty` (verified in its README, 2026-11-24), and
+   EnricoMi's action has `action_fail` and `action_fail_on_inconclusive`.
+   Disqualified for *this* requirement on the narrower, accurate ground:
+   **neither compares exact node IDs against `EXPECTED_FAILURES`.** They decide
+   "did anything fail", which is precisely the rule `AGENTS.md` § Known failures
+   rejects — a change is green when the failure LIST matches, not when the count
+   does. An allowlist would still need custom comparison logic, and the action
+   would become a second, partial implementation of the same judgement.
 
 ## Decision
 
 Parse `--junitxml` output written by the test step, with `junit_family=xunit1`.
 The gate becomes structural: assert a report file exists, read counts from the
-`testsuite` element, build node IDs from `file` + `name`, and compare the failure
-set to `EXPECTED_FAILURES`. Delete the text parsers entirely rather than leaving
+`testsuite` element, build node IDs from `file` + class components + `name`, and
+compare the failure set to `EXPECTED_FAILURES`. It also takes pytest's exit
+status, because a report written by an interrupted run is well-formed and partial
+— measured: `pytest.exit(returncode=2)` after one passing test wrote
+`tests="1"`, and no XML can distinguish that from a complete run. Delete the text parsers entirely rather than leaving
 them as a fallback — a fallback that still has the ambiguity is how the old
 behaviour comes back.
 

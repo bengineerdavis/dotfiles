@@ -131,25 +131,23 @@ jobs:
           tar --extract --gzip --file "$archive" chezmoi
           sudo install chezmoi /usr/local/bin/chezmoi
 
-      # pytest's exit status is nonzero for the known failures, so the run is
-      # allowed to finish and the RESULT is judged by which tests failed rather
-      # than by the exit code. See `AGENTS.md` § Known failures: green means the
-      # failure LIST matches. The compare step below is the gate.
-      #
-      # The report is JUnit XML, not the log. pytest's human-readable output has
-      # no reliable delimiter between a node ID and its explanation and no
-      # unambiguous summary line, which made the text-parsing gate wrong in four
-      # ways (roborev job 853). `junit_family=xunit1` is required: it emits the
-      # `file` attribute that turns a testcase back into a node ID.
+      # pytest's exit status decides whether the run COMPLETED: 0 and 1 do,
+      # anything else means it was interrupted, and no XML can say so. The
+      # status is written to a file because the steps are separate shells.
       - name: Tests
         run: |
           set -o pipefail
           uv run --frozen pytest tests tools -q \
             --junitxml "$RUNNER_TEMP/pytest.xml" \
-            -o junit_family=xunit1 2>&1 | tee "$RUNNER_TEMP/pytest.log" || true
+            -o junit_family=xunit1 2>&1 | tee "$RUNNER_TEMP/pytest.log"
+          echo "${PIPESTATUS[0]}" > "$RUNNER_TEMP/pytest.status"
+          exit 0
 
       - name: Compare failures against the known-failure baseline
-        run: uv run --frozen python scripts/check_suite_baseline.py "$RUNNER_TEMP/pytest.xml"
+        run: |
+          uv run --frozen python scripts/check_suite_baseline.py \
+            "$RUNNER_TEMP/pytest.xml" \
+            --pytest-exit-code "$(cat "$RUNNER_TEMP/pytest.status")"
 
       # Attach the full log either way. A red job whose output is gone sends the
       # next person back to a laptop to reproduce a failure CI already saw.

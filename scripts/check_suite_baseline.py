@@ -116,7 +116,13 @@ def node_id(case: ET.Element) -> str:
             f"is neither {module!r} nor an extension of it. Its class cannot be "
             "determined without guessing."
         )
-    return f"{path}::{classname.removeprefix(prefix)}::{name}"
+    # pytest separates nesting levels of a class with "::", and `classname`
+    # carries them as dots: TestOuter > TestInner is
+    # `file.py::TestOuter::TestInner::test_method`. Emitting
+    # `TestOuter.TestInner` instead produced an id pytest never prints, so a
+    # correct baseline entry failed to match (measured 2026-11-24, job 864).
+    classes = classname.removeprefix(prefix).replace(".", "::")
+    return f"{path}::{classes}::{name}"
 
 
 def failed_ids(root: ET.Element) -> set[str]:
@@ -136,6 +142,33 @@ def failed_ids(root: ET.Element) -> set[str]:
 def total_tests(root: ET.Element) -> int:
     """How many test cases the report claims to have run."""
     return sum(int(suite.get("tests") or 0) for suite in root.iter("testsuite"))
+
+
+def claimed_outcomes(root: ET.Element) -> int:
+    """How many failures plus errors the report's own tallies claim.
+
+    `--junitxml` writes the failing testcases, so this normally equals the count
+    of failure/error children. Comparing the two is what catches a report that
+    was written but did not describe the whole run.
+    """
+    return sum(
+        int(suite.get("failures") or 0) + int(suite.get("errors") or 0)
+        for suite in root.iter("testsuite")
+    )
+
+
+def failure_events(root: ET.Element) -> int:
+    """How many failure/error children the report actually carries.
+
+    Counted as events, not distinct ids: a test that fails in its body and
+    errors in teardown legitimately contributes two.
+    """
+    return sum(
+        1
+        for case in root.iter("testcase")
+        for child in case
+        if child.tag in {"failure", "error"}
+    )
 
 
 def judge(root: ET.Element) -> tuple[set[str], frozenset[str]]:
@@ -167,7 +200,28 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="JUnit XML file written by `pytest --junitxml`.",
     )
+    parser.add_argument(
+        "--pytest-exit-code",
+        type=int,
+        default=None,
+        help=(
+            "pytest's own exit status. 0 (all passed) and 1 (some failed) mean "
+            "the run finished; anything else means it was interrupted, so the "
+            "report cannot be judged. Required for a gate that can distinguish "
+            "an interrupted run from a complete one — the XML alone cannot."
+        ),
+    )
     args = parser.parse_args(argv)
+
+    if args.pytest_exit_code not in (None, 0, 1):
+        print(
+            f"error: pytest exited {args.pytest_exit_code}, which is not a "
+            "completed run (0 = passed, 1 = tests failed). It was interrupted or "
+            "aborted, so tests that never ran are missing from the report\n"
+            "entirely — a regression among them would go unseen.",
+            file=sys.stderr,
+        )
+        return 2
 
     try:
         root = load_report(args.report)
@@ -182,6 +236,18 @@ def main(argv: list[str] | None = None) -> int:
             "error: the report holds no test cases. Zero tests executed is not a\n"
             "green run — a selection that matched nothing cannot prove the code\n"
             "is healthy.",
+            file=sys.stderr,
+        )
+        return 2
+
+    claimed = claimed_outcomes(root)
+    observed = failure_events(root)
+    if claimed != observed:
+        print(
+            f"error: the report's own tallies claim {claimed} failure(s)/error(s) "
+            f"but it carries {observed}. The file was written\n"
+            "without the detail it promises, so the failure list cannot be "
+            "trusted.",
             file=sys.stderr,
         )
         return 2

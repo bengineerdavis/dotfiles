@@ -394,3 +394,103 @@ def test_a_class_failure_does_not_inherit_a_module_level_baseline_entry(
     assert check.main([str(report)]) == 1
     err = capsys.readouterr().err
     assert "test_fixture.py::TestOne::test_same" in err
+
+
+def test_a_nested_class_id_uses_double_colons(tmp_path):
+    """Finding from job 864: pytest nests classes with `::`, not dots.
+
+    `classname` carries `TestOuter.TestInner`; emitting `TestOuter.TestInner`
+    produced an id pytest never prints, so a CORRECT baseline entry failed to
+    match and the run went red for the wrong reason.
+    """
+    report = _report_with(
+        tmp_path,
+        """
+        class TestOuter:
+            class TestInner:
+                def test_method(self):
+                    assert False, "boom"
+        """,
+    )
+    ids = check.failed_ids(check.load_report(report))
+    assert ids == {"test_fixture.py::TestOuter::TestInner::test_method"}
+
+
+def test_a_nested_class_entry_in_the_baseline_is_accepted(
+    tmp_path, monkeypatch, capsys
+):
+    """The nested-class id must match what a human would write in the baseline."""
+    monkeypatch.setattr(
+        check,
+        "EXPECTED_FAILURES",
+        frozenset({"test_fixture.py::TestOuter::TestInner::test_method"}),
+    )
+    report = _report_with(
+        tmp_path,
+        """
+        class TestOuter:
+            class TestInner:
+                def test_method(self):
+                    assert False, "boom"
+        """,
+    )
+    assert check.main([str(report)]) == 0
+
+
+def test_an_interrupted_run_is_not_green(tmp_path, capsys):
+    """Finding from job 864: an interruption leaves a well-formed, partial report.
+
+    `pytest.exit(returncode=2)` after one passing test writes `tests="1"` — a
+    report that looks complete. Tests after it never ran, so a regression among
+    them would pass CI unseen. pytest's exit status is what says so.
+    """
+    report = _report_with(
+        tmp_path,
+        """
+        import pytest
+
+        def test_one():
+            assert True
+
+        def test_two():
+            pytest.exit("interrupted", returncode=2)
+
+        def test_three():
+            assert False, "never runs"
+        """,
+    )
+    # Without the status the gate cannot tell, which is why CI must pass it.
+    assert check.main([str(report)]) == 0
+    assert check.main([str(report), "--pytest-exit-code", "2"]) == 2
+    assert "interrupted or" in capsys.readouterr().err
+
+
+def test_a_completed_run_passes_either_finishing_status(tmp_path, monkeypatch, capsys):
+    """0 and 1 both mean the run finished; only the failure list decides."""
+    monkeypatch.setattr(check, "EXPECTED_FAILURES", frozenset())
+    report = _report_with(
+        tmp_path,
+        """
+        def test_ok():
+            assert True
+        """,
+    )
+    assert check.main([str(report), "--pytest-exit-code", "0"]) == 0
+    capsys.readouterr()
+    assert check.main([str(report), "--pytest-exit-code", "1"]) == 0
+
+
+def test_a_report_whose_tallies_exceed_its_detail_is_not_green(tmp_path, capsys):
+    """A truncated report claims failures it does not list."""
+    report = tmp_path / "short.xml"
+    report.write_text(
+        """<?xml version="1.0"?>
+<testsuites><testsuite name="pytest" tests="3" failures="2" errors="0">
+  <testcase file="t.py" name="test_a" classname="t">
+    <failure message="boom" />
+  </testcase>
+</testsuite></testsuites>
+"""
+    )
+    assert check.main([str(report)]) == 2
+    assert "carries 1" in capsys.readouterr().err
