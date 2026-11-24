@@ -100,3 +100,57 @@ def test_a_regression_exits_one(tmp_path, capsys):
     )
     assert check.main([str(report)]) == 1
     assert "tests/things/test_thing.py::test_x" in capsys.readouterr().err
+
+
+def test_a_node_id_containing_spaces_is_parsed_whole():
+    r"""A parametrize id is arbitrary text, and it can contain spaces.
+
+    Capturing \S+ cut the id at the first space, and the baseline was
+    then edited to match the truncated form. That is a silent-pass
+    shape: a different test whose id shares the prefix truncates to the
+    same entry and passes unseen.
+    """
+    nodeid = "tests/x/test_y.py::test_z[a //// b-a //// b]"
+    _, _, saw = check.judge(
+        f"FAILED {nodeid} - AssertionError: boom\n1 failed, 2 passed\n"
+    )
+    assert saw
+    assert check.parse_outcomes(f"FAILED {nodeid} - AssertionError: boom\n") == {nodeid}
+
+
+def test_a_truncation_alias_does_not_inherit_the_baseline_entry():
+    """The old bug: an id sharing a known entry's prefix passed free.
+
+    The baseline carries the full id for `[work repos never
+    committed]`. A DIFFERENT id that merely starts the same way must be
+    reported, never absorbed.
+    """
+    known = "tests/docs/test_lore_md_rules_survive.py::test_rule_survives_redistillation[work repos never committed]"
+    assert known in check.EXPECTED_FAILURES
+    impostor = "tests/docs/test_lore_md_rules_survive.py::test_rule_survives_redistillation[work repos never committed NEW PROSE]"
+    unexpected, _, _ = check.judge(_report([impostor]))
+    assert unexpected == {impostor}
+
+
+def test_a_summary_claiming_failures_without_outcome_lines_is_not_green(
+    tmp_path, capsys
+):
+    """The empty-run hole: 'no tests ran' also prints a summary line."""
+    report = tmp_path / "r.txt"
+    report.write_text("3 failed, 10 passed in 1.0s\n")
+    assert check.main([str(report)]) == 2
+    assert "incomplete" in capsys.readouterr().err
+
+
+def test_an_empty_selection_is_not_green(tmp_path, capsys):
+    """A pytest exit of 5 with 'no tests ran' is not a pass."""
+    report = tmp_path / "r.txt"
+    report.write_text("no tests ran in 0.01s\n")
+    assert check.main([str(report)]) == 2
+
+
+def test_an_all_pass_run_is_still_green(tmp_path, capsys):
+    """The count check must not punish a legitimate clean run."""
+    report = tmp_path / "r.txt"
+    report.write_text("0 failed, 1206 passed, 21 skipped in 646.24s\n")
+    assert check.main([str(report)]) == 0

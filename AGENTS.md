@@ -747,7 +747,20 @@ they are not yours:
 | --------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tests/clipped`       | ~10   | Drives the real clipboard through subprocesses; needs a live `wl-copy`/`wl-paste` and a TTY.                                                                                                   |
 | `tests/restart_stale` | 2     | Exercises launchd/systemd role behaviour that the test host does not have.                                                                                                                     |
-| `tests/docs`          | 2     | Only `test_lore_md_rules_survive.py` — trunk red after the 2026-11 `.lore.md` re-distillation rewrites; verified on pristine origin/main 2026-11-19. Owning task refreshes or fixes the guard. |
+| `tests/docs`          | 2     | Only `test_lore_md_rules_survive.py` — trunk red after the 2026-11 `.lore.md` re-distillation rewrites; verified on pristine origin/main 2026-11-19 and in CI run 45331112024 (2026-11-24). Owning task refreshes or fixes the guard. |
+
+CI on 2026-11-24 measured **2 failed, 1658 passed, 109 skipped**, and the gate
+passed — every failing test was one the baseline already knew about. The first
+two suites above no longer fail; their entries are stale but nonfatal.
+
+**Three failure classes are local to a developer machine, not trunk, and must
+never be added to the baseline** — that would blind the gate on a configured box:
+
+| Local-only class | Why it fails here | Fix the cause, not the baseline |
+|---|---|---|
+| `tests/claude_credentials` (5) | The test pins `PATH=/usr/bin:/bin`; zsh is at `/usr/local/bin/zsh` | Put zsh on `/usr/bin`, or teach the harness the mise path |
+| `tests/pii_redactor` (3) | The harness prefers the deployed `~/bin/pii-redactor`, which is stale | `chezmoi apply ~/bin/pii-redactor` |
+| `tests/guards` antigravity (1) | Drift test reads a cached npx dotagents that declares `~/.gemini/config` | DOT-401 |
 
 The `claude_credentials` profile tests fail in CI for a different reason — the
 runner lacks zsh and chezmoi. That is an environment gap with an open fix

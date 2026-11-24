@@ -34,10 +34,26 @@ from pathlib import Path
 #   ERROR tests/x.py::test_y - RuntimeError: ...
 # Errors are collection and fixture failures. They are not failures in the
 # summary's "N failed" count, so they must be parsed separately or they vanish.
-OUTCOME_LINE = re.compile(r"^(?P<kind>FAILED|ERROR) (?P<nodeid>\S+)", re.MULTILINE)
+#
+# The node ID can contain SPACES: a parametrize id is arbitrary text, so
+# `test_x[a //// b-a //// b]` is one ID, not a truncated `test_x[a`. Capturing
+# \S+ cut those at the first space, and the baseline was hand-edited to match
+# the truncated form — a silent-pass shape, because a NEW test whose id shares
+# that prefix would truncate to the same entry and pass unseen. The ID is
+# extracted by _node_id() below rather than by the regex.
+OUTCOME_LINE = re.compile(r"^(?P<kind>FAILED|ERROR) (?P<rest>\S.*)$", re.MULTILINE)
 SUMMARY_LINE = re.compile(
     r"^=*\s*(?:\d+ (?:failed|passed|error)|no tests ran)",
     re.MULTILINE,
+)
+# `no tests ran` is pytest's exit-5 message for an empty selection. It IS a
+# summary line, which is why a summary-presence check alone let it through: the
+# gate reported green on a run that executed nothing.
+NO_TESTS_RAN = re.compile(r"^=*\s*no tests ran", re.MULTILINE)
+
+# The summary carries the counts that an outcome list must account for.
+SUMMARY_COUNTS = re.compile(
+    r"^=*\s*(?:(\d+) failed)?,?\s*(?:(\d+) error)?", re.MULTILINE
 )
 
 # Suites that fail on a clean checkout, by exact node ID. Keep in step with
@@ -59,20 +75,54 @@ EXPECTED_FAILURES = frozenset(
         "tests/restart_stale/test_role.py::test_the_defaults_leave_the_role_inert",
         # Trunk red since the 2026-11 .lore.md re-distillation rewrites: these
         # two drift-guard tests fail on a pristine origin/main checkout
-        # (verified locally on main 2026-11-19, before any DOT-343 change).
-        # DOT-305's guard surface moved; the owning task refreshes or fixes.
-        # NOTE: entries carry the parser's truncation — OUTCOME_LINE captures
-        # \S+, and these parametrize ids contain spaces, so the id stops at
-        # the first space. That truncated form is what CI compares against.
-        "tests/docs/test_lore_md_rules_survive.py::test_rule_survives_redistillation[requires_map",
-        "tests/docs/test_lore_md_rules_survive.py::test_rule_survives_redistillation[work",
+        # (verified locally on main 2026-11-19, before any DOT-343 change; and
+        # observed in CI run 45331112024 on 3be68f75, 2026-11-24). DOT-305's
+        # guard surface moved; the owning task refreshes or fixes.
+        #
+        # FULL ids, including the spaces inside the parametrize text. Older
+        # versions of this file carried the truncated forms because OUTCOME_LINE
+        # captured \S+; that made a new id sharing the prefix indistinguishable
+        # from this one (DOT-314).
+        "tests/docs/test_lore_md_rules_survive.py::test_rule_survives_redistillation[requires_map undefined skips removal]",
+        "tests/docs/test_lore_md_rules_survive.py::test_rule_survives_redistillation[work repos never committed]",
     }
 )
 
 
+def _node_id(rest: str) -> str:
+    """The node ID from the text after FAILED, keeping interior spaces.
+
+    pytest separates the ID from the explanation with " - ", so a space inside
+    the ID is safe to keep. Falling back to the whole line when the separator is
+    absent is deliberate: an unusual format must surface as an unexpected ID,
+    not vanish from the outcome set.
+    """
+    return rest.split(" - ", 1)[0].rstrip()
+
+
 def parse_outcomes(report: str) -> set[str]:
     """Every node ID pytest reported as FAILED or ERROR."""
-    return {match.group("nodeid") for match in OUTCOME_LINE.finditer(report)}
+    return {_node_id(m.group("rest")) for m in OUTCOME_LINE.finditer(report)}
+
+
+def claimed_outcome_count(report: str) -> int:
+    """How many failures+errors the summary claims.
+
+    Used to catch the empty-run hole from the other side: pytest exiting 5 on an
+    empty selection prints "no tests ran" and zero outcome lines. A summary that
+    CLAIMS failures while no outcome line was parsed is incomplete evidence, not
+    a clean run — and it stays distinguishable from an all-pass run, which
+    claims none.
+
+    Returns 0 when the summary claims no failures, so a legitimate all-pass run
+    is not punished.
+    """
+    for match in SUMMARY_COUNTS.finditer(report):
+        failed = int(match.group(1) or 0)
+        errored = int(match.group(2) or 0)
+        if failed or errored:
+            return failed + errored
+    return 0
 
 
 def judge(report: str) -> tuple[set[str], frozenset[str], bool]:
@@ -109,6 +159,25 @@ def main(argv: list[str] | None = None) -> int:
         print(
             "error: the captured output has no pytest summary line. The suite\n"
             "did not complete, so its result is unknown rather than green.",
+            file=sys.stderr,
+        )
+        return 2
+
+    claimed = claimed_outcome_count(report)
+    outcomes = parse_outcomes(report)
+    if NO_TESTS_RAN.search(report) and not outcomes:
+        print(
+            "error: the suite ran no tests ('no tests ran') and reported no\n"
+            "outcomes. Zero tests executed is not a green run; a selection that\n"
+            "matched nothing cannot prove the code is healthy.",
+            file=sys.stderr,
+        )
+        return 2
+    if claimed > len(outcomes):
+        print(
+            f"error: the summary claims {claimed} failed/error test(s) but only "
+            f"{len(outcomes)} outcome line(s) could be parsed. The log is\n"
+            "incomplete, so the failure list cannot be compared.",
             file=sys.stderr,
         )
         return 2
