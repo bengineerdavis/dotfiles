@@ -79,7 +79,9 @@ tasks created with `orchestration_split_task`; declare blockers with
 
 ### `autoCommit: false` means a write is not a save
 
-`draft create` and `task create` write to disk and do **not** commit; nothing
+A draft created with `backlog-py draft create "<title>"`, and a task created
+with `backlog-py task --id <id> --title "<title>"`, write to disk and do
+**not** commit; nothing
 survives until the `backlog/` commit lands. A draft left uncommitted is
 indistinguishable from a draft that was never filed — and a report saying "the
 draft is done" while it sits untracked is a silent loss, the same shape this
