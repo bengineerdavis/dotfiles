@@ -124,6 +124,41 @@ def test_decision_ids_are_unique():
     )
 
 
+TASK_STATUSES = {"To Do", "In Progress", "Done"}
+
+
+def test_task_statuses_use_the_canonical_spellings():
+    """A task whose `status:` drifts from the canonical set fragments the board.
+
+    `backlog-py board` groups by the exact `status:` string, so one task filed as
+    `todo` or `complete` renders in its own orphan column — or nowhere — while
+    `doctor` stays green. The canonical set is the tool's own default
+    (`backlog_py/core/init.py` ships `statuses: ["To Do", "In Progress", "Done"]`);
+    a spelling outside it is a hand-edit or an older tool version, never a third
+    state. Measured 2026-11-09: the shared checkout carried eight spellings of
+    one status while it sat on a stale branch; the live tree is clean, and this
+    test keeps it that way.
+    """
+    tasks = (REPO_ROOT / "backlog" / "tasks").glob("*.md")
+    offenders: dict[str, list[str]] = {}
+    for path in tasks:
+        front_matter = path.read_text(encoding="utf-8").split("---")[1]
+        status = yaml.safe_load(front_matter).get("status")
+        if status not in TASK_STATUSES:
+            offenders.setdefault(str(status), []).append(path.name)
+
+    assert not offenders, (
+        "task statuses outside the canonical set "
+        f"{sorted(TASK_STATUSES)} fragment `backlog-py board`:\n"
+        + "\n".join(
+            f"  {status!r}:\n" + "\n".join(f"    {n}" for n in names)
+            for status, names in sorted(offenders.items())
+        )
+        + "\nRename to one of the canonical spellings with "
+        "`backlog-py task edit <id> -s <status>`."
+    )
+
+
 def test_no_shadowed_task_ids():
     """A shadowed id is a task file invisible everywhere, and only a warning says so.
 

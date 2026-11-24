@@ -11,7 +11,31 @@ install that used to shadow them.
 | Ansible | the `claude` CLI, from a Homebrew cask              | this topic |
 | Ansible | `Claude.app`, from cask `claude`                    | this topic |
 | Ansible | removal of the orphaned mise `claude` shim          | this topic |
-| nobody  | `~/.claude/`, `~/.claude.json` — settings, credentials, session history | machine-local, not versioned |
+| chezmoi | `files/zsh/claude.zsh` — direct and Lore profile selection | this topic |
+| chezmoi | `~/.claude-direct/settings.json` — clears inherited provider variables | this topic |
+| nobody  | `~/.claude-direct/`, `~/.claude/`, `~/.claude.json` — settings, credentials, session history | machine-local, not versioned |
+
+## Credential profiles
+
+Normal `claude` uses direct Anthropic OAuth in `~/.claude-direct`. The wrapper
+unsets inherited `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`,
+`ANTHROPIC_BASE_URL`, and `CLAUDE_CODE_OAUTH_TOKEN` for this profile, so a
+stale gateway or provider key cannot outrank OAuth. Claude natively refreshes
+its OAuth login and warns three days before it expires; no 1Password secret is
+needed for interactive use or Skillet's `claude` subprocess. The exported
+`CLAUDE_CONFIG_DIR` reaches subprocesses as well as interactive wrappers.
+The profile's `settings.json` clears those inherited variables for direct
+subprocesses that bypass the wrapper. It contains no credential, hook, or
+machine-local session state. A different `CLAUDE_CONFIG_DIR` does not read it.
+
+`claude-lore` preserves the legacy `~/.claude` profile and its gateway
+credentials. It does not replace those credentials with the direct login. Set
+`CLAUDE_CONFIG_DIR` explicitly for a separate work account or CI profile; that
+explicit selection overrides the direct default. An API-key/1Password helper
+is for a separately named headless API profile, not the OAuth profile.
+
+An existing `~/.localrc` can still export an Anthropic API key for other tools.
+The direct wrapper does not edit or delete that machine-local secret.
 
 ## Channels, not versions
 

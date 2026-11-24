@@ -1,0 +1,3 @@
+# Git is a shared system package. Removal needs both an explicit opt-in and
+# proof from the parent's reverse dependency index that no topic requires it.
+git_remove_package: false

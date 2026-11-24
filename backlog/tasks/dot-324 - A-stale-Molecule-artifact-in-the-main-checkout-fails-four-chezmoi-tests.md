@@ -2,13 +2,13 @@
 id: DOT-324
 title: A stale Molecule artifact in the main checkout fails four chezmoi tests and
   is not in the CI baseline
-status: To Do
+status: Done
 created_date: 2026-11-08 17:15
 labels:
 - bug
 - testing
 priority: high
-updated_date: 2026-11-09 15:50
+updated_date: 2026-11-10 14:30
 ---
 
 ## Description
@@ -157,3 +157,16 @@ Watch for it coming back — a Molecule run from the main checkout recreates `.m
 <!-- DOD:BEGIN -->
 - [ ] #1 `uv run --frozen pytest tests/chezmoi` is green on this host, and a broken symlink in the source can no longer fail four unrelated-looking tests
 <!-- DOD:END -->
+
+**Closed 2026-11-10 — premise no longer holds.** The artifact is gone: the
+directory `home/dotfiles/apps/lima/molecule/debian/.molecule/` no longer exists
+and `uv run --frozen pytest tests/chezmoi` passes **34/34**. DOT-238 was closed
+as a stale artifact in `8a7dc4617`, which is the plausible cause.
+
+The durable half was worth keeping and is not closed by the above: a broken
+symlink inside the chezmoi source is **invisible** to `chezmoi managed` and
+`chezmoi status` (both rc=0, measured in an isolated scratch source) and fails
+only `apply` and `execute-template`. So four unrelated-looking tests break with
+a message naming `templates`, not Molecule. DOT-303's relocation removes the
+source of such symlinks but not the observability gap — if a guard is still
+wanted, it belongs there, not here.

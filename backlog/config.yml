@@ -11,7 +11,9 @@ autoOpenBrowser: true
 remoteOperations: false
 autoCommit: false
 bypassGitHooks: false
-checkActiveBranches: true
+# Temporary DOT-353 repair: stale queue records on other sessions' branches
+# shadow current tasks. DOT-286 owns the scanner fix and safe re-enablement.
+checkActiveBranches: false
 activeBranchDays: 30
 prefixes:
   task: DOT

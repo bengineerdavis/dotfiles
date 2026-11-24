@@ -72,6 +72,45 @@ dotagents_sources:
       that does and does not wire.
     exclude: []
 
+  - source: UditAkhourii/adhd
+    why: >-
+      MIT (verified 2026-11-15 via the upstream LICENSE and GitHub repository
+      metadata). The author approved the canonical skill, unchanged. Its
+      .claude-plugin/manifest and skills/adhd/SKILL.md make this a plugin
+      source, not a wildcard skill source. The skill explicitly gates parallel
+      Agent calls and states their cost; its optional adhd-agent CLI is not
+      installed by this topic.
+    exclude: []
+
+  - source: ayghri/i-have-adhd
+    why: >-
+      MIT (verified 2026-11-15 via the upstream LICENSE and GitHub repository
+      metadata; copyright Ayoub Ghriss). The author approved the canonical
+      skill, unchanged. Its .claude-plugin/manifest makes it a plugin source.
+      See dotagents_plugin_targets and the topic README for the measured
+      Copilot exclusion and the OpenCode skill-only boundary.
+    exclude: []
+
+# Target lists for plugins whose bundle cannot serve every configured runtime.
+# Each entry supplies the name, source, and targets for one [[plugins]] table.
+# JSON string and array literals are valid TOML. blockinfile manages one named
+# declaration without parsing or rewriting the rest of dotagents' manifest.
+#
+# i-have-adhd contains hooks/hooks.json. dotagents 3.4.0 rejects that bundle
+# for Copilot rather than projecting only its supported parts. The author
+# approved excluding Copilot for this plugin on 2026-11-15, while leaving it
+# enabled globally. Claude and Codex retain native registration through this
+# topic; Cursor remains a projection limitation. OpenCode receives the
+# canonical skill only until DOT-349.
+dotagents_plugin_targets:
+  - name: i-have-adhd
+    source: ayghri/i-have-adhd
+    targets: [claude, cursor, codex, opencode]
+
+# Teardown shares the install file. Only the named block is removed; foreign
+# plugin and skill declarations remain dotagents' state.
+dotagents_plugin_target_state: present
+
 # On-disk skill directories allowed to exist without being declared. Each needs
 # a reason a human can check, which in practice means a LICENSE and a
 # PROVENANCE note in the directory itself. Vendoring is a deliberate act;

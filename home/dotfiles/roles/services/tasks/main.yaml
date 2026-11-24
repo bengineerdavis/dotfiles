@@ -1,0 +1,23 @@
+# roles/services/tasks/main.yaml
+#
+# Entry point. Routes by lifecycle tag so a caller can `import_role` once and
+# let `--tags install` / `--tags remove` select the phase.
+#
+# Mirrors roles/guards: a static import makes these tasks visible at parse time,
+# so tag selection works without an `apply:` block.
+#
+# `never` on the remove import is load-bearing: a bare run (no --tags) executes
+# every task except `never`-tagged ones, so without it the full lifecycle runs —
+# converge, health-check, then teardown. Measured 2026-11-17: run-role.sh
+# backlog converged the daemon healthy and then bootout + deleted the unit.
+# Same day, the interrupted-teardown fingerprint (second import's install phase
+# re-rendered argv = [shim]) was the backlog plist's broken state. The topic
+# routers carry the same [remove, never] pair; the shared role must too.
+
+- name: "services: install"
+  ansible.builtin.import_tasks: install.yaml
+  tags: [install, upgrade]
+
+- name: "services: remove"
+  ansible.builtin.import_tasks: remove.yaml
+  tags: [remove, never]

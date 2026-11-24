@@ -18,6 +18,96 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 <!-- scriv-insert-here -->
 
+## PR #185 — 2026-11-20
+
+### Fixed
+
+- The Claude credential tests no longer require macOS's `/bin/zsh`. CI installs
+  zsh explicitly, and the harness finds it on the supplied `PATH`, so Ubuntu
+  runs the same real-shell profile tests instead of failing on a missing path.
+- The profile-deployment test no longer fails on a missing `chezmoi` binary.
+  CI installs the pinned chezmoi release before the suite runs, matching how a
+  developer machine already provides it.
+
+## PR #187 — 2026-11-20
+
+### Added
+
+- `docs/WORKTREES.md` § Verifying a pre-existing failure: the check that must
+  run before reporting a test failure as "pre-existing". Comparing against
+  `main`, or against a base from before a rebase, does not answer the question.
+  The only commit that answers it is the **actual parent of the commit under
+  test**, and a rebase invalidates any earlier answer. This session reported
+  three failures as pre-existing and was wrong about one of them; CI caught it,
+  the reviewer would not have.
+
+### Fixed
+
+- The dotagents-caller guard now matches dotagents as a **command**, not as a
+  word. `test_every_dotagents_caller_reports_stderr` matched the bare string
+  anywhere in a task file that contained any `command`/`shell` task, so a task
+  named "Check that dotagents installed the tree" — or a failure message telling
+  the operator to run the dotagents topic — was treated as a caller that
+  discards stderr. That turned the gate red for a change that never invoked
+  dotagents (`apps/opencode/tasks/install.yaml`). The guard now parses the task
+  YAML and inspects only command/shell values, which is what "shells out to
+  dotagents" has always meant. The original 2026-09-12 bug is still caught:
+  swapping `.stderr` for `.stdout`, or dropping `failed_when: false`, still
+  fails the test.
+
+## PR #183 — 2026-11-19
+
+### Changed
+
+- **`config/repos.yaml` follows the final nesting.** `templates/` and
+  `try/` moved inside `personal/` (docs/LAYOUT.md § Structure: named
+  subdirs live inside personal, never as top-level siblings), and the
+  stray `tutorial/` entry re-homed under `personal/`. The repo set is
+  unchanged; only the paths moved.
+
+## PR #178 — 2026-11-18
+
+### Added
+
+- Git now has a cross-platform topic. It installs Git during fleet
+  prerequisites and provides the dependency used by gita and Chrome.
+- Global excludes and comment-only commit-message guidance join the existing
+  chezmoi-managed Git configuration. Git identity still comes from the
+  existing chezmoi prompts, not a machine-specific value in the repository.
+
+### Changed
+
+- Git package ownership moved out of the Homebrew and apt core package lists.
+  Their system-wide upgrade passes continue to keep Git current.
+
+### Security
+
+- Removing the Git topic does not remove Git by default. Package removal needs
+  explicit opt-in and is refused while another topic requires Git or the
+  dependency index is unavailable.
+
+## PR #184 — 2026-11-18
+
+### Added
+
+- The global dotagents topic declares the approved `adhd` and `i-have-adhd`
+  skills. It preserves the canonical upstream files, excludes Copilot only for
+  the incompatible `i-have-adhd` bundle, and documents which native OpenCode
+  pieces remain for the follow-up integration.
+- Topic documentation now carries verified corrections and upstream references
+  with the affected topic, so future maintainers and topic skills can use them.
+
+## PR #177 — 2026-11-17
+
+### Changed
+
+- **`config/repos.yaml` paths are re-pointed at the type dirs.** The
+  catalogue still named the pre-migration `projects/…` layout, so a run on
+  the migrated machine matched nothing and reported every repo as
+  declared-but-not-cloned. Paths now follow `docs/LAYOUT.md` (`personal/`,
+  `forks/`, `templates/`, `try/`), and the repos added since the last settle
+  are in it.
+
 ## PR #131 — 2026-11-09
 
 ### Added

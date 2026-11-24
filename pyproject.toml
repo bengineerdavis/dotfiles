@@ -132,9 +132,11 @@ testpaths = ["tests", "tools"]
 pythonpath = ["tools/skill-trust"]
 python_files = ["test_*.py"]
 # Model-calling tests are opt-in. Run with `pytest -m llm_judge` to override.
-addopts = ["-m", "not llm_judge"]
+# dotagents_cli tests run the real binary in an isolated HOME (networked).
+addopts = ["-m", "not llm_judge and not dotagents_cli"]
 markers = [
     "llm_judge: tests that call real LLM APIs — slow, costs tokens (run with -m llm_judge)",
+    "dotagents_cli: tests that run the pinned dotagents binary in an isolated HOME — networked, run with -m dotagents_cli",
 ]
 
 [tool.pyrefly]
@@ -144,7 +146,7 @@ markers = [
 # [tool.pytest] pythonpath; pyrefly needs it named here so the prek
 # hook's environment - which differs from a login shell - resolves the same
 # modules the same way).
-search-path = ["tests/restart_stale", "tests/ollama_gpu_confirm", "tests/run_molecule", "tests/loreai", "tools/skill-trust"]
+search-path = ["tests/restart_stale", "tests/ollama_gpu_confirm", "tests/run_molecule", "tests/loreai", "tests/claude_credentials", "tools/skill-trust"]
 project-includes = [
     "**/*.py*",
     "**/*.ipynb",

@@ -77,8 +77,21 @@ updated_date: 2026-10-27 22:21
     a retried `git add` after a partially applied operation stages a
     *different* set — the retry is the bug, not the lock; and hook frameworks
     that stash unstaged changes can eat or resurrect a concurrent writer's
-    work in the same tree (benign here, since this repo's hooks only check,
-    but not in ai-prompt-library where formatters run).
+    work in the same tree (~~benign here, since this repo's hooks only check~~
+    — **corrected 2026-11-12: not benign here either.** prek 0.5.10 saves
+    unstaged changes to `~/.cache/prek/patches/<id>.patch` and restores them
+    after a failed hook, and the restore twice re-applied edits a session had
+    deliberately backed out: a mis-targeted DOT-244 edit after it was removed,
+    and another session's DOT-140 edit after it was unstaged. The hazard is not
+    formatters rewriting content, it is the restore silently undoing a
+    deliberate correction — the hooks only checking is what makes it look
+    benign. `prek run --help` exposes no flag to disable the save/restore, so
+    documentation and the worktree split are the only levers; the patches also
+    accumulate unbounded, 635 files and 32 MB dating to August 10. Detection
+    recipe for the shared-sessions docs: run `git status --short` immediately
+    after any failed hook run, since the restore announces itself only as
+    `Restored unstaged changes from …`. ai-prompt-library, where formatters
+    run, is worse still).
   - **(c) The real parallel ceiling is the machine, not git.** A worktree
     virtualizes the source, not the host. Anything touching `$HOME` is
     unparallelizable regardless of git — and in a dotfiles repo that is most
@@ -359,6 +372,67 @@ updated_date: 2026-10-27 22:21
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
+
+**Third recurrence, and the carve-out that causes it (2026-11-11):** the
+shared-index contamination this task names as its motivating defect happened
+again. `f5ac99f7` ("backlog: record the temporary queue-scan repair") was
+titled as a DOT-353 change and also carried another session's in-progress
+DOT-140 edit; it needed the corrective `4176bd27` ("backlog: restore DOT-140 to
+its owner") to put the task file back and leave the owner's edit staged. That
+makes three — `b3ad740`, `5692a86`, and now `f5ac99f7` — against a rule
+(`git commit -o <paths>`, AGENTS.md § Working alongside other sessions) that
+has been written down since August. Rule-only enforcement has now failed three
+times in three months, which is the evidence this task's worktree-per-session
+structure was proposed on.
+
+The new detail is **where** it keeps happening. All three contaminated commits
+landed on `main`, none in a worktree, and that is structural rather than
+coincidental: worktrees already have private indexes (`.git/worktrees/<name>/index`,
+separate files, verified 2026-11-11), so the isolation this task specifies
+already works everywhere it is in force. The exception is the `backlog/`
+carve-out (AGENTS.md:398, author ruling 2026-10-23) sending queue writes
+straight to `main` — the one path that puts sessions back in the shared index.
+So the carve-out needs an answer inside this task's design, not beside it:
+"a queue mutation does not deserve a branch" is true, but it does not follow
+that it must share the main checkout's index. A persistent `backlog/`-only
+worktree on `main` would keep queue commits unbranched and still isolated.
+
+A third symptom, cheaper to miss: working in the shared checkout forces
+constant re-probing. This session ran `git status` and `git log` more than a
+dozen times, often back to back, because concurrent sessions kept changing the
+tree between calls — the churn was real, not careless probing. The retro first
+proposed a combined status script, which measures at 0.12s and would have been
+a workaround made permanent: the cost is tokens and turns, not wall clock, and
+it exists only because the tree has other writers. In an isolated worktree one
+probe stays valid until the session itself changes something. Recorded here as
+evidence for the worktree split rather than queued as tooling.
+
+**Author ruling 2026-11-15: this is priority one, and the check stands in the
+meantime.** Worktree management and session isolation outrank the other
+queued work. The measurement above argued against a status script on its own
+merits, and that argument holds only once isolation is proven; until then a
+standing check is the cheaper error. So: keep a deterministic guard against
+commits made from the shared main checkout while the carve-out exists, and
+retire it when isolation is conclusively resolved — not before. Isolation
+means the worktree *and its environment*, which is sub-item (c)'s `$HOME`
+problem, not the index alone. It must also leave a sane override for working
+directly from main, since the author does so deliberately; an override is
+recorded with its reason rather than silently permitted.
+
+**`autoCommit` is a complement to that, not a substitute (measured 2026-11-11).**
+backlog-py's auto-commit is more careful than its name suggests — it stages a
+restricted pathspec (`backlog/` plus the config file, never `git add -A`),
+snapshots git state before the mutation, and refuses to commit when the project
+was already dirty (`runtime/git.py:59-100`). But its safety gate and its
+usefulness are inversely related, and this repo sits at the bad end: a status
+probe scoped to `backlog/` returned eight dirty paths from concurrent sessions
+(two modified task files, six untracked new tasks), so the clean-before gate
+would skip the commit and emit only a log warning. It would also still commit
+from the shared main-checkout index, narrowing the blast radius without moving
+the blast. Order therefore matters: isolate queue writes to their own worktree
+first, which makes that tree reliably clean, and `autoCommit` becomes
+attractive afterwards rather than a non-deterministic half-measure now.
+Keep `autoCommit: false` until then.
 
 **Agent policy → agentic-project-template (author, 2026-11-08):** this
 coordination layer (worktrees, frozen leases, risk-tiered merge gates) and the

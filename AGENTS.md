@@ -69,10 +69,10 @@ Resolve it at the highest layer that already knows the value:
 
 1. **The consuming tool**, where it expands paths itself — `~` in a shell script, or
    in an opencode permission pattern. Nothing to render and nothing to drift.
-2. **chezmoi**, for anything it deploys: `{{ .chezmoi.homeDir }}`, `.chezmoi.os`,
+1. **chezmoi**, for anything it deploys: `{{ .chezmoi.homeDir }}`, `.chezmoi.os`,
    `.chezmoi.arch`, `.chezmoi.username`, `.chezmoi.hostname`. The file becomes
    `*.tmpl`; the target path is unaffected.
-3. **Ansible**, for values only a provisioning run can discover or must persist —
+1. **Ansible**, for values only a provisioning run can discover or must persist —
    the resolved brew prefix, a fact gathered from the machine, a path written into
    state another run reads back.
 
@@ -105,10 +105,10 @@ code, agents do not build it here. The ladder, in order:
 1. **Outsource.** Route the work to its home and do it there. AI work —
    skills, evals, policy, tooling — goes to `ai-prompt-library` (impromptu
    eventually), per the author's 2026-09-12 scoping decision.
-2. **Notify and ask.** If the destination is unclear or the author is present,
+1. **Notify and ask.** If the destination is unclear or the author is present,
    say what would need building and where it could live, and ask before
    anything is created.
-3. **Refuse.** If the author declines outsourcing, the build does not happen.
+1. **Refuse.** If the author declines outsourcing, the build does not happen.
    There is no middle ground where the tool quietly gets built here anyway.
 
 Machine-specific granularity is part of the question, not an afterthought:
@@ -219,8 +219,10 @@ provenance trail (61 notes, the git-ai tooling writing its own namespace);
 it is fetched locally as its own unowned ref and merged into nothing. One
 namespace per producer; never force-overwrite a notes ref.
 
-    git commit -o <paths> -F -    # --only: commit exactly these, ignore the rest
-    git show --stat HEAD          # verify before pushing
+```
+git commit -o <paths> -F -    # --only: commit exactly these, ignore the rest
+git show --stat HEAD          # verify before pushing
+```
 
 **For a co-edited file** — a shared governance doc is the likeliest — the sequence is
 `git add -p`, then a **bare** `git commit` with nothing else staged, then
@@ -275,8 +277,7 @@ chezmoi -S "$PWD" add ~/bin/<script>     # -S is required, see below
   `docs/WORKTREES.md` § Main-checkout for what a stale branch fakes.
 
 **Claim hot files with an orchestration lease** before touching anything listed
-under § Cross-session hazards below: `backlog-py orchestration claim DOT-N
---actor <you> --expected-version <v>` on the covering task (or claim the task
+under § Cross-session hazards below: `backlog-py orchestration claim DOT-N --actor <you> --expected-version <v>` on the covering task (or claim the task
 you are doing, which covers its own files). Leases expire on their own;
 `orchestration stale-leases` replaces the abandoned-claim check. The lease is
 the lock's record — the rule itself is unchanged: one session, one writer,
@@ -294,13 +295,16 @@ first.
 
 - `home/bin/executable_fetchurl` — actively developed; caused the only real merge
   conflict so far.
+
 - `home/bin/executable_pii-redactor` — ported to Python, then extended with layered
   redaction by another session. Suite is 63 tests; run it after any change.
   Its conftest default mock is a *working* model, not `cat`: a pass-through mock
   plus exit-status assertions is green exactly when the tool leaks, which is the
   defect the layers exist to prevent. Ask for `mock_llm("cat")` explicitly.
+
 - `home/bin/executable_model-bench` — multi-case judge suite; the reference scorecards
   in `CASES` must be re-derived if a case script changes.
+
 - `home/dotfiles/apps/mise/files/config.toml` — two sessions edited it within an hour
   on 2026-09-11 (`b038cbe` removed two broken pipx tools, `907f3d0` pinned
   skillet). It rebased cleanly because the edits were in different regions, but
@@ -316,6 +320,7 @@ first.
   tree (reverted; the pin is deliberate, see the comment above the fabric
   line) and the `npm:@openai/codex` install failed with Permission denied
   (os error 13) on `/tmp/fslock/...`. Standing machine issue, not a one-off.
+
 - `pyproject.toml` / `uv.lock` — the root project's declaration pair. A
   lockfile conflict is resolved by merging `pyproject.toml` and re-running
   `uv lock`, never by editing the lock. Both are ignored by chezmoi (never
@@ -425,8 +430,7 @@ never commits to `main` directly, even when the author has recently done so.
 **A fork inherits and must leave.** A forked or spawned session — opencode
 `/fork`, a claude code spawn, a second cursor window aimed at the same
 worktree — starts inside its parent's worktree, on its parent's branch.
-Before its first commit it creates its own worktree and branch — `git
-worktree add .worktrees/<sid> -b <group>-<item>`, off main, or off the parent
+Before its first commit it creates its own worktree and branch — `git worktree add .worktrees/<sid> -b <group>-<item>`, off main, or off the parent
 branch only when the stacking rules above say so. One exception, deliberate:
 the author told the fork, in its instructions, to continue the parent's task
 on the parent's branch. The rule binds through each tool's instruction
@@ -489,8 +493,7 @@ treat an empty § Claimed as "no claims I can see", not "no claims exist".
 
 ### Applying is main-only
 
-**An agent runs `chezmoi apply` only from `main`, after showing `chezmoi
-status` and `chezmoi diff`, and only when the author approves the prompt.** The
+**An agent runs `chezmoi apply` only from `main`, after showing `chezmoi status` and `chezmoi diff`, and only when the author approves the prompt.** The
 permission is `ask`; the prompt is the approval step, not a formality. Read-only
 `chezmoi status` and `chezmoi diff` are expected and encouraged — an agent that
 never checks drift is how twenty days of uncaptured work accumulated in
@@ -740,10 +743,15 @@ Two suites failed on a clean checkout before DOT-73, for reasons outside the
 code. Expect this shape in older baselines, and do not spend a session proving
 they are not yours:
 
-| Suite | Count | Why |
-|---|---|---|
-| `tests/clipped` | ~10 | Drives the real clipboard through subprocesses; needs a live `wl-copy`/`wl-paste` and a TTY. |
-| `tests/restart_stale` | 2 | Exercises launchd/systemd role behaviour that the test host does not have. |
+| Suite                 | Count | Why                                                                                                                                                                                            |
+| --------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/clipped`       | ~10   | Drives the real clipboard through subprocesses; needs a live `wl-copy`/`wl-paste` and a TTY.                                                                                                   |
+| `tests/restart_stale` | 2     | Exercises launchd/systemd role behaviour that the test host does not have.                                                                                                                     |
+| `tests/docs`          | 2     | Only `test_lore_md_rules_survive.py` — trunk red after the 2026-11 `.lore.md` re-distillation rewrites; verified on pristine origin/main 2026-11-19. Owning task refreshes or fixes the guard. |
+
+The `claude_credentials` profile tests fail in CI for a different reason — the
+runner lacks zsh and chezmoi. That is an environment gap with an open fix
+(PR #185), not a baseline entry; adding it here would mask that PR's work.
 
 A full run on the reference host read **12 failed, 1093 passed, 20 skipped**
 pre-#114; measured 2026-11-08 post-#114, the same host reads **zero failed**
@@ -791,8 +799,7 @@ Without `pyyaml`, `tests/policy` drops from 22 tests to 15 passed / 1 skipped, a
 the skipped module is the one asserting the policy layers grant no permissions —
 so the check that matters most is the one that disappears quietest.
 
-The `llm-ctx` half of `tests/policy/test_logging_guards.py` needs `--with llm
---with files-to-prompt` on top, because it imports the script and the script
+The `llm-ctx` half of `tests/policy/test_logging_guards.py` needs `--with llm --with files-to-prompt` on top, because it imports the script and the script
 declares those. Without them those five tests SKIP — quietly, and they are the
 ones proving a policy guard relents. They are left out of the command above
 because those two pull 34 transitive packages onto every run, which is a real
@@ -906,6 +913,8 @@ Read by name when the work touches them:
   before adopting one.
 - **`docs/LAYOUT.md`** — the `~/code` taxonomy. Cite it, do not paste absolute
   paths into queue prose.
+- **`docs/AGENTIC-REPOS.md`** — which personal repositories carry agent
+  instructions or a queue. Re-survey before relying on the count.
 - **`docs/LANGUAGES.md`** — language inventory and per-language tool profile.
 - **`docs/GLOSSARY.md`** — project terminology, linked on first use.
 - **`docs/LINK-CHECKING.md`** — the Lychee cadence and its security boundary.
@@ -918,6 +927,8 @@ Read by name when the work touches them:
 - **`docs/CROSS-PLATFORM.md`** — traps that have bitten on macOS and Debian.
 - **`docs/BACKLOG-MIGRATION.md`** — the queue's migration record.
 - **`docs/BACKLOG-UPSTREAM-CONFIG.md`** — upstream backlog configuration.
+- **`docs/CHERRY-PICK-RECONCILIATION.md`** — why a shared checkout's local
+  `main` can hold duplicates of merged work, and the safe way to reconcile it.
 
 ## Tests
 

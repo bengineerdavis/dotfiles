@@ -1,0 +1,8 @@
+{
+  "env": {
+    "ANTHROPIC_API_KEY": "",
+    "ANTHROPIC_AUTH_TOKEN": "",
+    "ANTHROPIC_BASE_URL": "",
+    "CLAUDE_CODE_OAUTH_TOKEN": ""
+  }
+}

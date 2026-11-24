@@ -24,6 +24,12 @@
   changed_when: "'Removed' in dotagents_skill_remove.stdout"
   when: dotagents_remove_skills | bool
 
+- name: "Remove only the targeted plugin declaration"
+  ansible.builtin.import_tasks: plugin-targets.yaml
+  vars:
+    dotagents_plugin_target_state: absent
+  when: dotagents_remove_skills | bool
+
 - name: "Stop trusting each approved source"
   # The trust entries are state this topic created, so the CRUD invariant in
   # docs/TOPICS.md says it tears them down. Gated behind the same flag: leaving

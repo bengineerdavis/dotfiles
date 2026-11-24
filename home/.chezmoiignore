@@ -1,3 +1,7 @@
+# Claude's direct profile: only its credential-free settings deploy.
+.claude-direct/*
+!.claude-direct/settings.json
+
 # Ignore payload artifacts related to Ansible tasks.
 dotfiles/apps/starship/preset_choice.yml
 crontab

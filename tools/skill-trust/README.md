@@ -93,6 +93,30 @@ quietly mislabelling declared skills. You can also supply an inventory as a
 file with `--declared-json FILE` — never as `-`, because resolve's stdin is
 the prompt channel.
 
+### Changing your mind: `resolve --revisit`
+
+A denial recorded in the store is binding until it is removed, and `resolve`
+never re-asks a recorded decision. `resolve --revisit` is the change-of-mind
+workflow: it walks the store's `deny_sources` and `deny_skills` entries, shows
+each with its `why` and `decided` date, and offers three choices per entry:
+
+- **keep** — leave the denial as it is;
+- **retract** — remove the denial, so the next run judges on merits;
+- **approve instead** — remove the denial *and* record the reverse (a denied
+  source becomes an `approved_sources` entry; a denied skill becomes
+  `vendored`), each with a fresh `why` recording the change of mind.
+
+An entry whose target is gone from disk is marked `[gone from disk]`: a denied
+skill directory that no longer exists, or a denied source no installed skill's
+declared inventory still matches (checked the same way `resolve` obtains its
+inventory — without an inventory, a denied source is shown unmarked, because
+its absence cannot be asserted). Repo-level denials from the composed
+`rules.yaml` are reported read-only with their topic caller, never retracted
+from the store — the store layers *under* the repo rules, so it could not
+overturn them anyway; reversing a repo ban is an edit to the topic that
+declares it. Exclusions stay retractable via `trust remove --exclude`, not
+`--revisit`.
+
 ## Hidden directories
 
 A dot-prefixed directory in the skills store is not a skill load path for any

@@ -1,12 +1,14 @@
 ---
 id: DOT-329
-title: Main is red because the gita role needs a `mise install` the CI runner cannot supply
-status: To Do
+title: Main is red because the gita role needs a `mise install` the CI runner cannot
+  supply
+status: Done
 created_date: 2026-11-08 18:05
 labels:
 - bug
 - testing
 priority: high
+updated_date: 2026-11-10 14:30
 ---
 
 ## Description
