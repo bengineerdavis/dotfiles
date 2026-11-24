@@ -98,10 +98,12 @@ def test_a_failure_in_the_baseline_is_accepted(tmp_path, monkeypatch, capsys):
     report.write_text(
         f"""<?xml version="1.0"?>
 <testsuites><testsuite name="pytest" tests="2" failures="1" errors="0">
-  <testcase file="{known.split("::")[0]}" name="{known.split("::")[1]}">
+  <testcase file="{known.split("::")[0]}" name="{known.split("::")[1]}"
+            classname="{known.split("::")[0].removesuffix(".py").replace("/", ".")}">
     <failure message="boom" />
   </testcase>
-  <testcase file="tests/other/test_x.py" name="test_ok" />
+  <testcase file="tests/other/test_x.py" name="test_ok"
+            classname="tests.other.test_x" />
 </testsuite></testsuites>
 """
     )
@@ -334,3 +336,61 @@ def test_the_real_baseline_entries_are_shaped_like_pytest_ids(known):
     """Guard against a baseline entry that pytest could never emit."""
     assert "::" in known
     assert not known.endswith(".py")
+
+
+def test_a_class_method_is_not_confused_with_a_module_level_test(tmp_path):
+    """Finding from job 856: the class is part of the node ID.
+
+    pytest reports `file.py::TestClass::test_method`. Dropping the class
+    collapsed a module-level `test_same` together with `TestOne.test_same` and
+    `TestTwo.test_same` into one id, so a class-based regression could alias a
+    module-level baseline entry and pass unseen.
+    """
+    report = _report_with(
+        tmp_path,
+        """
+        class TestOne:
+            def test_same(self):
+                assert False, "boom"
+
+        class TestTwo:
+            def test_same(self):
+                assert False, "boom"
+
+        def test_same():
+            assert False, "boom"
+        """,
+    )
+    ids = check.failed_ids(check.load_report(report))
+    assert ids == {
+        "test_fixture.py::TestOne::test_same",
+        "test_fixture.py::TestTwo::test_same",
+        "test_fixture.py::test_same",
+    }
+
+
+def test_a_class_failure_does_not_inherit_a_module_level_baseline_entry(
+    tmp_path, monkeypatch, capsys
+):
+    """The alias itself: only the module-level test is known, so the class fails.
+
+    Before the fix both ids rendered as `test_fixture.py::test_same`, the run
+    looked known, and the gate passed.
+    """
+    monkeypatch.setattr(
+        check, "EXPECTED_FAILURES", frozenset({"test_fixture.py::test_same"})
+    )
+    report = _report_with(
+        tmp_path,
+        """
+        class TestOne:
+            def test_same(self):
+                assert False, "boom"
+
+        def test_same():
+            assert False, "boom"
+        """,
+    )
+    assert check.main([str(report)]) == 1
+    err = capsys.readouterr().err
+    assert "test_fixture.py::TestOne::test_same" in err

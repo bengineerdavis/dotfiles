@@ -83,18 +83,40 @@ class ReportError(Exception):
 def node_id(case: ET.Element) -> str:
     """The repository-relative pytest node ID for one testcase element.
 
-    xunit1 carries `file`, so the id is assembled rather than inferred by
-    turning dots back into slashes — an inference that would break on a test
-    file with a dot in its name.
+    xunit1 carries `file`, so the path is read rather than inferred by turning
+    dots back into slashes — an inference that would break on a test file with a
+    dot in its name.
+
+    The CLASS must be kept. pytest reports a class method as
+    `file.py::TestClass::test_method`, and `classname` carries it as
+    `<dotted module>.<TestClass>`. Dropping it collapsed `TestOne.test_same`,
+    `TestTwo.test_same` and a module-level `test_same` into one id — which would
+    let a class-based regression alias a module-level baseline entry and pass
+    (measured 2026-11-24, roborev job 856).
+
+    The class is derived from `classname` by stripping the module path implied
+    by `file`, never by guessing: a `classname` that is neither the module path
+    nor an extension of it is reported as unidentifiable.
     """
     path = case.get("file")
     name = case.get("name")
-    if not path or not name:
+    classname = case.get("classname")
+    if not path or not name or not classname:
         raise ReportError(
-            "a testcase has no file/name attribute, so it cannot be identified. "
-            "Run pytest with -o junit_family=xunit1."
+            "a testcase has no file/name/classname attribute, so it cannot be "
+            "identified. Run pytest with -o junit_family=xunit1."
         )
-    return f"{path}::{name}"
+    module = path.removesuffix(".py").replace("/", ".")
+    if classname == module:
+        return f"{path}::{name}"
+    prefix = f"{module}."
+    if not classname.startswith(prefix):
+        raise ReportError(
+            f"testcase {name!r} in {path} reports classname {classname!r}, which "
+            f"is neither {module!r} nor an extension of it. Its class cannot be "
+            "determined without guessing."
+        )
+    return f"{path}::{classname.removeprefix(prefix)}::{name}"
 
 
 def failed_ids(root: ET.Element) -> set[str]:
