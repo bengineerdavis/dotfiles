@@ -106,19 +106,22 @@ tests/docs/test_lore_md_rules_survive.py::test_rule_survives_redistillation[requ
 1 failed, 4 passed
 ```
 
-**What happened.** Commit `732eaa550` ("backlog: record DOT-341 outcome and PR
-#172") rewrote `.lore.md` — 68 lines changed — and silently dropped the entry
-`lore:01a1bf7f-db90-77fd-8fad-43094b413e14`. That entry carried the rule
-"when you are unsure whether a test-owned artifact is safe to remove, skip the
-removal rather than assume it is harmless", which is exactly what
-`tests/docs/test_lore_md_rules_survive.py` asserts on.
+**What happened.** Commit `77d3f57e0` ("lore: sync session memory", the direct
+child of `696af7bae`) replaced the entry
+`lore:01a1bf7f-db90-77fd-8fad-43094b413e14` with an unrelated backlog-queue
+entry — 68 lines of `.lore.md` rewritten in one commit. The dropped entry
+carried the rule "when you are unsure whether a test-owned artifact is safe to
+remove, skip the removal rather than assume it is harmless", which is exactly
+what `tests/docs/test_lore_md_rules_survive.py` asserts on.
 
 **Verified, not inferred** — the rule's presence by commit:
 
 | Commit | Rule present |
 |---|---|
 | `696af7bae` | yes |
-| `732eaa550` | **no** — the rewrite |
+| `77d3f57e0` | **no** — the rewrite that replaced the entry |
+| `4eeb071b0` | no — carries the loss forward |
+| `732eaa550` | no — carries the loss forward |
 | `a9ee7892a` | no — the merge carried the loss forward |
 
 **A fix was written and deliberately discarded.** A commit restoring the block
@@ -144,6 +147,7 @@ The second is cheaper and catches the class rather than one instance.
 
 **Reproduction for whoever takes this:** `uv run --frozen pytest
 tests/docs/test_lore_md_rules_survive.py` on a clean `origin/main`. Then
-`git show 732eaa550 -- .lore.md` to see the rewrite that dropped it. Restoring
+`git show 77d3f57e0 -- .lore.md` to see the rewrite that replaced the entry.
+Restoring
 the block is a valid first move, but it leaves the class open and `main` red
 again at the next rewrite.
