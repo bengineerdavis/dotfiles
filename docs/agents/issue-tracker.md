@@ -25,10 +25,10 @@ is the slower fallback when the shim is missing.
 | -------------- | -------------------------------------------------------- | ------------------------------------------- |
 | list, search   | `task_list`, `task_search`                               | `backlog-py task list`                      |
 | read one       | `task_view`                                              | `backlog-py task <id>`                      |
-| create         | `task_create`                                            | `backlog-py task create "<title>"`          |
+| create         | `task_create`                                            | `backlog-py task --id <id> --title "<title>"` |
 | edit           | `task_edit`                                              | `backlog-py task edit <id>`                 |
 | claim, release | `orchestration_claim_task`, `orchestration_release_task` | `backlog-py orchestration claim`, `release` |
-| close          | `task_complete`                                          | `backlog-py task complete <id>`             |
+| close          | `task_complete`                                          | `backlog-py task edit <id> -s Done`         |
 | board, status  | `task_board`, `project_status`                           | `backlog-py board`, `overview`              |
 | documents      | `document_create`, `document_view`                       | `backlog-py doc create`, `view`             |
 
@@ -40,6 +40,11 @@ The CLI has no `view` subcommand. Task reads are the bare positional
 errors `Unknown task command: 'view'`. The CLI's own `task --help` opens with
 "View tasks", which invites exactly that wrong subcommand — treat the "View
 tasks" line as a description, not a verb name.
+
+The CLI has no `complete` subcommand either. Closing a task is the `-s` flag
+on the bare positional: `backlog-py task <id> -s Done` (or `task edit <id> -s
+Done`). `task complete <id>` falls through to the generic `task --help`, the
+same way `view` does.
 
 ## Spec-driven flow
 
@@ -74,7 +79,9 @@ tasks created with `orchestration_split_task`; declare blockers with
 
 ### `autoCommit: false` means a write is not a save
 
-`draft create` and `task create` write to disk and do **not** commit; nothing
+A draft created with `backlog-py draft create "<title>"`, and a task created
+with `backlog-py task --id <id> --title "<title>"`, write to disk and do
+**not** commit; nothing
 survives until the `backlog/` commit lands. A draft left uncommitted is
 indistinguishable from a draft that was never filed — and a report saying "the
 draft is done" while it sits untracked is a silent loss, the same shape this
