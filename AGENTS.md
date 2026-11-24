@@ -947,6 +947,8 @@ Read by name when the work touches them:
 - **`docs/TOPICS.md`** — topic structure, lifecycle, dependency and ownership.
 - **`docs/TRUST-LADDER.md`** — rungs, incident classes, promotion and ageing.
 - **`docs/TESTING.md`** — mutation proving, properties and fuzzing.
+- **`docs/REPORT-SUITE-RESULTS.md`** — why the suite gate reads JUnit XML
+  rather than the pytest log, and the result formats rejected.
 - **`docs/CROSS-PLATFORM.md`** — traps that have bitten on macOS and Debian.
 - **`docs/BACKLOG-MIGRATION.md`** — the queue's migration record.
 - **`docs/BACKLOG-UPSTREAM-CONFIG.md`** — upstream backlog configuration.
