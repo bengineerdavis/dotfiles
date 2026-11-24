@@ -4,6 +4,7 @@ title: Update the stale known-failures baseline and AGENTS.md table together —
   into agent/retro-ci-guard's rebase
 status: To Do
 created_date: 2026-11-08 20:55
+updated_date: 2026-11-24 06:56
 ---
 
 ## Description
@@ -19,9 +20,12 @@ Both hand-maintained copies of the known-failures list are stale post-#114 (DOT-
 ## Implementation Notes
 
 <!-- SECTION:IMPLEMENTATION_NOTES:BEGIN -->
+MEASURED 2026-11-24 by a session doing the work. Fold directive IMPRACTICAL: origin/agent/retro-ci-guard is 3 ahead / 542 BEHIND main, and its only unique delta on scripts/check_suite_baseline.py is REMOVING the two tests/docs entries — main already contains everything else the branch adds (191ed9b, fe61f44, fec0c13, cec25c5, 7adfa35, 08c1f14 all landed or superseded). Folding into a 542-commit-stale branch costs more than it saves; retire or rebase that branch separately.
 
+Split of the 11 failures: only 2 are trunk red and CI-visible (tests/docs, confirmed in CI run 45331112024: '2 failed, 1658 passed, 109 skipped'). The other 9 are LOCAL-ONLY and must never enter EXPECTED_FAILURES, because that blinds the gate on a machine where the cause is fixed: 5x claude_credentials (test pins PATH=/usr/bin:/bin; zsh is at /usr/local/bin/zsh), 3x pii_redactor (harness prefers the STALE deployed ~/bin/pii-redactor from Sep 15 while repo source is Nov 23 — fix is 'chezmoi apply ~/bin/pii-redactor'), 1x guards antigravity (DOT-401).
+
+Shipped instead as PR #201 (branch dot314-baseline): empty-selection hole closed ('no tests ran' IS a summary line, so the gate passed a run that executed nothing); node-id truncation fixed (\S+ cut parametrize ids at the first space and the baseline was hand-edited to match — a silent-pass shape); AGENTS.md table now separates trunk red from the three local-only classes. 14 tests, 3 mutations caught.
 <!-- SECTION:IMPLEMENTATION_NOTES:END -->
-
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
