@@ -2,14 +2,14 @@
 id: DOT-341
 title: Make dotagents client wiring tolerate an absent CLI, and fail loudly on real
   errors
-status: To Do
+status: Done
 created_date: 2026-11-10 06:04
 orchestration:
   status_key: inprogress
   lease_owner: dotagents-optional-clients
   lease_expires_at: '2026-11-10T07:04:22.697723Z'
   version: 1
-updated_date: 2026-11-10 06:16
+updated_date: 2026-11-24 06:43
 ---
 
 ## Description
