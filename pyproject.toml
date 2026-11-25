@@ -99,6 +99,9 @@ max-doc-length = 72
 # against — the long line IS the data. Same reason as the fixtures above.
 "scripts/check_suite_baseline.py" = ["E501"]
 "tests/scripts/**" = ["W505"]
+# The doc-line campaign grandfather; each entry shrinks as the file is next
+# edited to the standard.
+"tests/merge_gates/**" = ["W505", "D205"]
 # ── doc-line campaign grandfather (2026-10-01) ──────────────────────────
 # W505 (72-col doc lines) and D205 (blank line after summary) are selected
 # and enforced; these paths still fail them. Each entry shrinks as the

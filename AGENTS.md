@@ -791,12 +791,25 @@ can run). A change is green when the failure LIST matches, not when the count
 does.
 
 **CI applies that rule mechanically.** `.github/workflows/tests.yml` runs the
-full suite on every pull request and every push to `main`, then feeds the
-captured log to `scripts/check_suite_baseline.py`. That script compares the
-failure node IDs against the table above and fails on anything outside it, so a
-count that stays at 12 while one suite is fixed and another regresses is caught.
-It also refuses to pass when the log holds no pytest summary — a run that died
-before reporting has an unknown result, not a green one.
+full suite on every pull request and every push to `main`, writes a JUnit XML
+report, and passes that report *plus pytest's recorded exit status* to
+`scripts/check_suite_baseline.py`. The script compares the failure node IDs
+against the table above and fails on anything outside it, so a count that stays
+at 12 while one suite is fixed and another regresses is caught.
+
+It refuses to judge a run it cannot trust, and each refusal has a reason:
+
+- **Malformed or missing XML** — the run did not finish, or the file is
+  truncated, so there is no result rather than a green one.
+- **Zero test cases** — a selection that matched nothing proves nothing.
+- **A status other than 0 or 1** — pytest was interrupted, and tests after the
+  interruption are absent from the report entirely.
+- **Tallies that exceed the failure detail** — the report claims failures it
+  does not list.
+
+The status is a **required** argument, not an optional one: a default would read
+as "probably fine", so a hand-run gate would fail open on exactly the run it
+cannot judge.
 
 The baseline is a list of exact node IDs, never of directories. An earlier
 version matched `tests/clipped/` as a prefix, so a brand-new regression beside a
