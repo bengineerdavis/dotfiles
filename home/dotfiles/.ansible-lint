@@ -1,0 +1,65 @@
+---
+# ansible-lint configuration for the payload.
+#
+# Run from this directory. The config file's location is what sets the
+# project path; a config found elsewhere makes the linter treat that
+# directory as the project and report "0 files processed", exit 0 — a
+# silent pass (measured 2026-11-24).
+#
+# Measured 2026-11-24 across the payload: 454 findings at the default
+# profile. That number is mostly this repo disagreeing with upstream
+# convention on purpose, so the skips below are convention rulings, not
+# debt being hidden. After them, 49 findings remain and every one is real.
+#
+# Not adopted, and why — so a later session does not re-derive it:
+#
+# - The upstream pre-commit hook is not used. It builds its own virtualenv
+#   and would create a second ansible install beside mise's `pipx:ansible`,
+#   which this repo keeps as one venv so the controller and its collections
+#   cannot skew. `language: system` in prek.toml calls the mise install.
+# - `ansible-test sanity` is not used. It is collection-only and this repo
+#   is not a collection.
+# - yamllint is not installed separately. The `yaml` rule bundles it, so a
+#   second config file would be a second thing to keep in step. ansible-lint
+#   refuses to run with a non-compliant yamllint config rather than ignoring
+#   it, which is why the two noisy sub-rules are skipped here instead.
+# - `--progressive` is gone: removed upstream in 6.16.0 for false negatives.
+#   The ignore file has no use here either, because the gate lints changed
+#   files and the tree is not red on arrival for what this covers.
+profile: basic
+use_default_rules: true
+
+# The custom rule that catches the INJECT_FACTS_AS_VARS deprecation. Stock
+# ansible-lint cannot see it: measured 2026-11-09, a play reading
+# {{ ansible_env.HOME }} passed clean at the `production` profile, and its
+# five `deprecations` rules cover other things.
+rulesdir:
+  - .ansible-lint-rules
+
+# Required, not decorative. `profile:` filters the default rules to its
+# ladder and drops custom ones silently: without this entry the rule loads,
+# appears in `--list-rules`, and is never invoked — a gate that reports
+# nothing and exits 0. Measured 2026-11-24. `test_the_config_opts_the_custom_
+# rule_into_the_profile` asserts this line stays.
+enable_list:
+  - injected-fact-vars
+
+# Each entry is a convention this repo chose, not a finding being ignored.
+skip_list:
+  # Task names are lowercased "<topic>: <verb>" by long convention
+  # ("backlog: probe the mise entry"). Upstream wants sentence case.
+  # 222 findings.
+  - name[casing]
+  # Playbooks import roles by relative path inside the payload; upstream
+  # prefers collection-style names. 72 findings.
+  - role-name[path]
+  # Grandfathered variable names that predate any linting. Named here so it
+  # stays visible as debt rather than being forgotten; clearing it is its
+  # own change, not a rider on this one. 65 findings.
+  - var-naming
+  # Aligned-column tables are deliberate in this repo — ollama's model
+  # performance table and the apt source inventory read as columns, and
+  # yamllint's spacing rules fight the alignment. 176 findings, 170 of them
+  # in two ollama files.
+  - yaml[commas]
+  - yaml[colons]
