@@ -43,3 +43,10 @@ bin/READMD.archive.md
 # and re-running the topic. See apps/loreai/README.md and decision-1.
 .config/loreai
 .config/loreai/**
+
+# Repository-only tooling that happens to live inside the payload tree.
+# ansible-lint's config and its custom rule are how this repo gates ansible
+# changes; they are development tooling, not files a target machine needs, and
+# deploying them would drop a linter config into ~/dotfiles.
+dotfiles/.ansible-lint
+dotfiles/.ansible-lint-rules

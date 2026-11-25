@@ -31,7 +31,14 @@ open.
 | Python | ruff (enforced on commit) | ruff (enforced on commit) | pyrefly 1.3.2 (enforced on commit) | pytest + hypothesis; xdoctest (queued) | pyrefly + ruff (wired in the repo `opencode.jsonc`) |
 | bash | — | shellcheck | — | bats | bash-language-server (TBD) |
 | zsh | — | shellcheck (bash standard, interim) | — | — | — |
-| YAML / Ansible | — | — | — | molecule (queued) | yaml-ls (TBD) |
+| YAML / Ansible | ansible-lint `--fix` (not wired) | ansible-lint 26.11.0 (enforced on commit and in CI) | — | molecule (queued) | yaml-ls (TBD) |
+
+Ansible detail: the linter reads `home/dotfiles/.ansible-lint` and loads one
+custom rule from `home/dotfiles/.ansible-lint-rules/`. Both are development
+tooling, so `home/.chezmoiignore` keeps them out of the deployed tree, and
+`tests/chezmoi/test_ansible_owned_paths.py` asserts that. The gate runs on
+changed files only, in `prek.toml` and in `.github/workflows/tests.yml`; a
+whole-tree run reports pre-existing debt the change did not cause.
 
 Notes:
 
