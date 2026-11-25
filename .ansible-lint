@@ -1,15 +1,24 @@
 ---
-# ansible-lint configuration for the payload.
+# ansible-lint configuration for the Ansible payload.
 #
-# Run from this directory. The config file's location is what sets the
-# project path; a config found elsewhere makes the linter treat that
-# directory as the project and report "0 files processed", exit 0 — a
-# silent pass (measured 2026-11-24).
+# Run it FROM `home/dotfiles`, not from the repo root. The config lives here
+# at the repo root because that keeps development tooling out of the payload
+# tree; ansible-lint walks up to find it and then treats THIS directory as the
+# project. That is fine — verified 2026-11-25: running from `home/dotfiles`
+# with the config here produces byte-identical results to keeping the config
+# beside the payload (85 findings, 0 syntax-check failures).
 #
-# Measured 2026-11-24 across the payload: 454 findings at the default
-# profile. That number is mostly this repo disagreeing with upstream
-# convention on purpose, so the skips below are convention rulings, not
-# debt being hidden. After them, 49 findings remain and every one is real.
+# Running from the repo root is what breaks. There, ansible-lint resolves
+# role paths relative to the repo root, so all 43 `role: apps/<topic>` imports
+# fail to resolve and it reports 128 findings instead of 85 — 43 of them
+# `syntax-check[specific]: The role 'apps/1password' was not found`. It also
+# pulls `backlog/config.yml` in as Ansible content. `prek.toml` and the CI
+# step both `cd home/dotfiles` for this reason.
+#
+# Measured 2026-11-25 across the payload: 490 findings before the convention
+# skips below. That number is mostly this repo disagreeing with upstream
+# convention on purpose, so the skips are convention rulings, not debt being
+# hidden. After them, 49 findings remain and every one is real.
 #
 # Not adopted, and why — so a later session does not re-derive it:
 #
@@ -33,6 +42,8 @@ use_default_rules: true
 # ansible-lint cannot see it: measured 2026-11-09, a play reading
 # {{ ansible_env.HOME }} passed clean at the `production` profile, and its
 # five `deprecations` rules cover other things.
+#
+# Relative to this config file, not to the working directory.
 rulesdir:
   - .ansible-lint-rules
 

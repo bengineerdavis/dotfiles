@@ -82,33 +82,3 @@ def test_ansible_owned_destination_is_declared(tmp_path):
         "Declare it in home/.chezmoiignore under the Ansible-owned block: both "
         f"'{DECLARED}' and '{DECLARED}/**'."
     )
-
-
-# Repository-only tooling that lives inside the payload tree. It is not a
-# destination any target needs, so deploying it would drop development tooling
-# into `~/dotfiles`.
-TOOLING_PATHS = (
-    "dotfiles/.ansible-lint",
-    "dotfiles/.ansible-lint-rules/injected_fact.py",
-)
-
-
-def test_repository_tooling_inside_the_payload_is_not_deployed(tmp_path):
-    """ansible-lint's config and rule are dev tooling, not deployable files.
-
-    They sit under `home/dotfiles/` because that is the Ansible project root
-    ansible-lint must run from, which also puts them inside the chezmoi source
-    tree. Without a declaration they deploy to `~/dotfiles/.ansible-lint`,
-    putting a linter config on every machine that installs the dotfiles.
-    """
-    found = unmanaged_in(tmp_path, *TOOLING_PATHS, f"{UNDECLARED}/thing.conf")
-
-    assert UNDECLARED in found, (
-        "the ignore rules are too broad for this check to prove anything"
-    )
-    for path in TOOLING_PATHS:
-        assert path not in found, (
-            f"{path} is deployed. It is development tooling, not a target "
-            "machine's file. Declare it in home/.chezmoiignore under the "
-            "repository-only tooling block."
-        )

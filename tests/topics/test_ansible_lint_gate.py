@@ -20,9 +20,14 @@ fires on the deprecated form and stays silent on everything else, which is the
 property a rule that matches nothing would also "pass".
 
 Why a subprocess rather than importing the rule: the contract under test is
-that `home/dotfiles/.ansible-lint` actually wires the rule in. Importing the
+that the repo's `.ansible-lint` actually wires the rule in. Importing the
 class would test the class while leaving the wiring — the part that silently
 broke during development — untested.
+
+The config sits at the repo root, outside the payload, so the lint tooling
+never reaches a target machine's `~/dotfiles`. ansible-lint walks up to find
+it; the runs below therefore use `home/dotfiles` as the working directory,
+which is where the Ansible project root is and where role paths resolve.
 """
 
 from __future__ import annotations
@@ -36,6 +41,7 @@ from payload_seam import PAYLOAD_ROOT
 import pytest
 
 DOTFILES = PAYLOAD_ROOT / "dotfiles"
+CONFIG = PAYLOAD_ROOT.parent / ".ansible-lint"
 
 pytestmark = pytest.mark.skipif(
     shutil.which("ansible-lint") is None,
@@ -61,14 +67,19 @@ def _lint(tmp_path, body: str) -> subprocess.CompletedProcess[str]:
     """Lint one throwaway playbook against the repo's real lint config.
 
     The play is written under `tmp_path` so a failure cannot leave the payload
-    dirty. But `ansible-lint` must run from the payload root and be pointed at
-    that config explicitly: the config's location is what sets the project
-    path, and a config that lives elsewhere makes the linter treat its own
-    directory as the project and lint nothing. Measured 2026-11-24 — a config
-    under `tmp_path` reported "0 files processed of 1 encountered" and exited
-    clean, which reads as a pass.
+    dirty; the config under test is the repo's, and only the play is
+    temporary.
 
-    So the config under test is the repo's, and only the play is temporary.
+    `-c` is passed explicitly rather than left to discovery because the play
+    lives outside the repo, and discovery walks up from the play's location.
+    An earlier version wrote a config beside the play instead, which made
+    ansible-lint treat `tmp_path` as the project and report "0 files processed
+    of 1 encountered" with exit 0 — a silent pass (measured 2026-11-24).
+
+    `cwd=DOTFILES` because that is the Ansible project root. Running from the
+    repo root instead resolves `role: apps/<topic>` imports against the wrong
+    directory and reports 43 spurious `syntax-check[specific]` failures
+    (measured 2026-11-25).
     """
     play = tmp_path / "play.yml"
     play.write_text(body, encoding="utf-8")
@@ -76,7 +87,7 @@ def _lint(tmp_path, body: str) -> subprocess.CompletedProcess[str]:
         [
             "ansible-lint",
             "-c",
-            str(DOTFILES / ".ansible-lint"),
+            str(CONFIG),
             "-f",
             "pep8",
             str(play),
@@ -182,7 +193,7 @@ def test_the_config_opts_the_custom_rule_into_the_profile():
     entry. That is a silent pass — the exact failure mode the gate exists to
     prevent — so the wiring is asserted rather than assumed.
     """
-    config = DOTFILES / ".ansible-lint"
+    config = CONFIG
     assert config.is_file(), f"{config} is missing, so no rule is wired in"
 
     text = config.read_text(encoding="utf-8")
