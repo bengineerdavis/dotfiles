@@ -1,0 +1,237 @@
+# apps/agentsview/tasks/install.yaml
+#
+# Two surfaces on both platforms, each through its native channel:
+#
+#   Darwin — the homebrew-core cask. One cask artifact carries both
+#            surfaces: AgentsView.app lands in /Applications and the cask
+#            links its CLI binary into $HOMEBREW_PREFIX/bin. No third-party
+#            tap, so none of the trust machinery apps/roborev needed.
+#
+#   Debian — two checksum-verified GitHub-release assets:
+#            `agentsview_<version>_linux_<arch>.tar.gz` (the CLI, extracted
+#            to ~/.local/bin) and, under
+#            agentsview_install_desktop_appimage, the
+#            `AgentsView_<version>_<arch>.AppImage` desktop app, which the
+#            upstream cask itself targets at $HOME/Applications on Linux.
+#            `apt upgrade` cannot reach a GitHub release, so this topic
+#            owns its own currency: every task carries the upgrade tag, and
+#            a resolved release whose tag already matches the recorded
+#            installed-tag stamp is a genuine no-op.
+#
+# Checksums come from the releases API's per-asset `digest` field —
+# published by upstream when the release is uploaded — so verification
+# never trusts the URL the file was fetched from.
+#
+# Every piece of state created here has a matching teardown in remove.yaml,
+# per the CRUD ownership invariant in docs/TOPICS.md.
+
+# ── Darwin: cask carries both surfaces ──────────────────────────────────────
+- name: "Install the AgentsView cask (desktop app and CLI binary)"
+  community.general.homebrew_cask:
+    name: agentsview
+    state: present
+  when: ansible_facts['os_family'] == 'Darwin'
+  tags: [agentsview, install, upgrade]
+
+# ── Debian: resolve the release once, for both assets ───────────────────────
+- name: "Debian: resolve the latest agentsview release"
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/kenn-io/agentsview/releases/latest
+    return_content: true
+    headers:
+      Accept: application/vnd.github+json
+  register: agentsview_release_api
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - agentsview_release_tag == 'latest'
+  tags: [agentsview, install, upgrade]
+
+- name: "Debian: resolve the release tag to install"
+  # 'latest' takes the tag from the API response above; a pinned tag is
+  # used as-is. The conditional only evaluates the branch it takes, so a
+  # pinned run never touches agentsview_release_api (which does not exist
+  # there).
+  ansible.builtin.set_fact:
+    agentsview_resolved_tag: "{{ agentsview_release_api.json.tag_name if agentsview_release_tag == 'latest' else agentsview_release_tag }}"
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [agentsview, install, upgrade]
+
+- name: "Debian: derive the version and architecture"
+  # The stamp and asset names use the tag without the leading v. One
+  # set_fact per value on purpose: a value set in the same call cannot be
+  # referenced by a sibling value, and the check-mode simulation surfaced
+  # that as "'X' is undefined" rather than a real failure — the trap
+  # apps/roborev documented for the same pattern.
+  ansible.builtin.set_fact:
+    agentsview_version: "{{ agentsview_resolved_tag | regex_replace('^v', '') }}"
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [agentsview, install, upgrade]
+
+- name: "Debian: map the architecture to each asset's naming"
+  # The two assets disagree deliberately: the CLI tarball says linux_arm64,
+  # the AppImage says aarch64 — same machine. Mapping both here keeps the
+  # naming difference visible instead of buried in a template.
+  ansible.builtin.set_fact:
+    agentsview_tarball_arch: "{{ 'arm64' if ansible_facts['architecture'] in ['arm64', 'aarch64'] else 'amd64' }}"
+    agentsview_appimage_arch: "{{ 'aarch64' if ansible_facts['architecture'] in ['arm64', 'aarch64'] else 'amd64' }}"
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [agentsview, install, upgrade]
+
+- name: "Debian: build the asset URLs"
+  ansible.builtin.set_fact:
+    agentsview_tarball_url: "https://github.com/kenn-io/agentsview/releases/download/{{ agentsview_resolved_tag }}/agentsview_{{ agentsview_version }}_linux_{{ agentsview_tarball_arch }}.tar.gz"
+    agentsview_tarball_name: "agentsview_{{ agentsview_version }}_linux_{{ agentsview_tarball_arch }}.tar.gz"
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [agentsview, install, upgrade]
+
+- name: "Debian: build the AppImage URL"
+  ansible.builtin.set_fact:
+    agentsview_appimage_name: "AgentsView_{{ agentsview_version }}_{{ agentsview_appimage_arch }}.AppImage"
+    agentsview_appimage_url: "https://github.com/kenn-io/agentsview/releases/download/{{ agentsview_resolved_tag }}/AgentsView_{{ agentsview_version }}_{{ agentsview_appimage_arch }}.AppImage"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - agentsview_install_desktop_appimage | bool
+  tags: [agentsview, install, upgrade]
+
+# ── Debian: resolve checksums from the API digest field ─────────────────────
+- name: "Debian: resolve the tarball checksum"
+  # With agentsview_release_tag: latest, the checksum is the asset's
+  # `digest` field from the same API response. A pinned release pins
+  # agentsview_sha256 instead.
+  ansible.builtin.set_fact:
+    agentsview_tarball_sha256_resolved: >-
+      {{ agentsview_sha256 if agentsview_release_tag != 'latest'
+         else (agentsview_release_api.json.assets
+               | selectattr('name', 'equalto', agentsview_tarball_name)
+               | map(attribute='digest') | first | regex_replace('^sha256:', '')) }}
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [agentsview, install, upgrade]
+
+- name: "Debian: resolve the AppImage checksum"
+  ansible.builtin.set_fact:
+    agentsview_appimage_sha256_resolved: >-
+      {{ agentsview_release_api.json.assets
+         | selectattr('name', 'equalto', agentsview_appimage_name)
+         | map(attribute='digest') | first | regex_replace('^sha256:', '') }}
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - agentsview_install_desktop_appimage | bool
+    - agentsview_release_tag == 'latest'
+  tags: [agentsview, install, upgrade]
+
+- name: "Debian: fail with the fix if no tarball checksum could be resolved"
+  # Fail closed: a download without a verified checksum is not an install
+  # this topic performs.
+  ansible.builtin.assert:
+    that: agentsview_tarball_sha256_resolved | length == 64
+    fail_msg: >-
+      Could not resolve a SHA256 for {{ agentsview_tarball_name }}. With
+      agentsview_release_tag: latest the checksum comes from the release
+      API's per-asset digest; with a pinned tag, set agentsview_sha256 to
+      the published checksum. Nothing was downloaded or installed.
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [agentsview, install, upgrade]
+
+# ── Debian: the CLI, from the tarball ───────────────────────────────────────
+- name: "Debian: read the installed agentsview tag stamp"
+  # rc 1 means "not installed" — that is the install case, not a failure.
+  # The stamp is topic state: written below, removed by remove.yaml.
+  ansible.builtin.command: "cat {{ agentsview_cache_dir }}/installed_tag"
+  register: agentsview_installed_tag
+  changed_when: false
+  failed_when: false
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [agentsview, install, upgrade]
+
+- name: "Debian: ensure the cache directory exists"
+  # Created by this topic, deleted by remove.yaml (CRUD invariant).
+  ansible.builtin.file:
+    path: "{{ agentsview_cache_dir }}"
+    state: directory
+    mode: "0755"
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [agentsview, install, upgrade]
+
+- name: "Debian: fetch the tarball (checksum-verified)"
+  # Skipped entirely when the recorded installed tag already matches the
+  # resolved release — a multi-megabyte download and a reinstall on every
+  # run is not idempotence. get_url additionally verifies the on-disk file
+  # against the checksum whenever it would download.
+  ansible.builtin.get_url:
+    url: "{{ agentsview_tarball_url }}"
+    dest: "{{ agentsview_cache_dir }}/{{ agentsview_tarball_name }}"
+    mode: "0644"
+    checksum: "sha256:{{ agentsview_tarball_sha256_resolved }}"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - agentsview_installed_tag.stdout | default('') != agentsview_resolved_tag
+  tags: [agentsview, install, upgrade]
+
+- name: "Debian: unpack the tarball into the cache directory"
+  # Upstream's install.sh expects a single agentsview binary at the
+  # archive root — confirmed against scripts/install.sh for v0.45.0.
+  ansible.builtin.unarchive:
+    src: "{{ agentsview_cache_dir }}/{{ agentsview_tarball_name }}"
+    dest: "{{ agentsview_cache_dir }}"
+    remote_src: true
+    mode: "0755"
+  register: agentsview_unpack
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - agentsview_installed_tag.stdout | default('') != agentsview_resolved_tag
+  tags: [agentsview, install, upgrade]
+
+- name: "Debian: install the agentsview CLI into ~/.local/bin"
+  ansible.builtin.copy:
+    src: "{{ agentsview_cache_dir }}/agentsview"
+    dest: "{{ agentsview_install_dir }}/agentsview"
+    mode: "0755"
+    remote_src: true
+  register: agentsview_cli_install
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - agentsview_installed_tag.stdout | default('') != agentsview_resolved_tag
+  tags: [agentsview, install, upgrade]
+
+# ── Debian: the desktop app, from the AppImage ──────────────────────────────
+- name: "Debian: ensure the Applications directory exists"
+  # The upstream cask targets $HOME/Applications for its Linux AppImage
+  # artifact; this topic places it in the same spot so both platforms agree.
+  ansible.builtin.file:
+    path: "{{ agentsview_appimage_path | dirname }}"
+    state: directory
+    mode: "0755"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - agentsview_install_desktop_appimage | bool
+  tags: [agentsview, install, upgrade]
+
+- name: "Debian: download the AppImage (checksum-verified)"
+  # get_url verifies against the API digest and skips the download when the
+  # on-disk AppImage already matches — the fetch's own idempotence does the
+  # work the stamp does for the tarball.
+  ansible.builtin.get_url:
+    url: "{{ agentsview_appimage_url }}"
+    dest: "{{ agentsview_appimage_path }}"
+    mode: "0755"
+    checksum: "sha256:{{ agentsview_appimage_sha256_resolved }}"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - agentsview_install_desktop_appimage | bool
+  tags: [agentsview, install, upgrade]
+
+- name: "Debian: record the installed tag stamp"
+  ansible.builtin.copy:
+    content: "{{ agentsview_resolved_tag }}"
+    dest: "{{ agentsview_cache_dir }}/installed_tag"
+    mode: "0644"
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [agentsview, install, upgrade]
+
+- name: "Report the agentsview install state"
+  ansible.builtin.debug:
+    msg: >-
+      agentsview is installed; on next use run `agentsview serve` to
+      discover sessions and start the web UI — it binds to loopback only
+      and needs no agent CLI to drive.
+  tags: [agentsview, install, upgrade]
