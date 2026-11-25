@@ -96,6 +96,54 @@ jobs:
       - name: Type check
         run: uv tool run --from pyrefly==1.3.2 pyrefly check
 
+      # Ansible lint, over the payload files this change touches.
+      #
+      # Same shape as the ruff step above and for the same reason: the tree
+      # carries 49 pre-existing findings after the convention skips in
+      # `home/dotfiles/.ansible-lint`, so a whole-tree gate would be red on
+      # arrival and teach everyone to ignore it.
+      #
+      # The version is pinned hard. mise's `pipx:ansible` bundles ansible-lint
+      # through `--with ansible-lint` with no version of its own, so the local
+      # hook floats while this gate does not. That asymmetry is deliberate: a
+      # floating tool in a gate means a green commit and a red re-run of the
+      # same commit. When mise's bundle moves far enough that the two disagree,
+      # this pin is what makes the disagreement visible.
+      #
+      # `--offline` is deliberate: CI cannot reach this repo's collections, and
+      # without it ansible-lint tries to install from Galaxy and the
+      # syntax-check stage reports load failures that are network noise rather
+      # than findings.
+      - name: Install ansible-lint for the payload gate
+        run: uv tool install "ansible-lint==26.11.0"
+
+      - name: Lint changed Ansible files
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            echo "::error::Base commit ${base} is not in this clone; cannot compute the changed-file list."
+            exit 1
+          fi
+          git diff --name-only --diff-filter=ACMR "$base" HEAD \
+            -- 'home/dotfiles/*.yaml' 'home/dotfiles/*.yml' 'home/dotfiles/*.j2' \
+            > "$RUNNER_TEMP/changed-ansible"
+          if [ ! -s "$RUNNER_TEMP/changed-ansible" ]; then
+            echo "No Ansible files changed; nothing to lint."
+            exit 0
+          fi
+          # `cd home/dotfiles` is about where ROLE PATHS resolve, not where the
+          # config lives: the config sits at the repo root and ansible-lint
+          # walks up to find it, but running from the repo root makes every
+          # `role: apps/<topic>` import fail and reports 43 spurious
+          # syntax-check failures (measured 2026-11-25). Paths are made
+          # relative for the same reason the working directory matters
+          # (measured 2026-11-24: repo-relative paths from inside the payload
+          # gave load-failure[not-found] instead of a finding).
+          cd home/dotfiles
+          sed 's|^home/dotfiles/||' "$RUNNER_TEMP/changed-ansible" \
+            | xargs ansible-lint --offline -f pep8
+
       # `tests/gita` drives the real role, which shells out to `gita` and
       # asserts the binary is on PATH. A developer machine has it from
       # `mise use -g pipx:gita`; a runner has nothing, so six cases failed
