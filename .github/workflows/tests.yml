@@ -132,10 +132,14 @@ jobs:
             echo "No Ansible files changed; nothing to lint."
             exit 0
           fi
-          # ansible-lint must run from the project root, and its config file's
-          # location is what defines that root. Paths are made relative to it
-          # for the same reason (measured 2026-11-24: repo-relative paths gave
-          # load-failure[not-found] instead of a finding).
+          # `cd home/dotfiles` is about where ROLE PATHS resolve, not where the
+          # config lives: the config sits at the repo root and ansible-lint
+          # walks up to find it, but running from the repo root makes every
+          # `role: apps/<topic>` import fail and reports 43 spurious
+          # syntax-check failures (measured 2026-11-25). Paths are made
+          # relative for the same reason the working directory matters
+          # (measured 2026-11-24: repo-relative paths from inside the payload
+          # gave load-failure[not-found] instead of a finding).
           cd home/dotfiles
           sed 's|^home/dotfiles/||' "$RUNNER_TEMP/changed-ansible" \
             | xargs ansible-lint --offline -f pep8

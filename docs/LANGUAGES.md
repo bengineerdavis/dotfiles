@@ -33,12 +33,14 @@ open.
 | zsh | — | shellcheck (bash standard, interim) | — | — | — |
 | YAML / Ansible | ansible-lint `--fix` (not wired) | ansible-lint 26.11.0 (enforced on commit and in CI) | — | molecule (queued) | yaml-ls (TBD) |
 
-Ansible detail: the linter reads `home/dotfiles/.ansible-lint` and loads one
-custom rule from `home/dotfiles/.ansible-lint-rules/`. Both are development
-tooling, so `home/.chezmoiignore` keeps them out of the deployed tree, and
-`tests/chezmoi/test_ansible_owned_paths.py` asserts that. The gate runs on
-changed files only, in `prek.toml` and in `.github/workflows/tests.yml`; a
-whole-tree run reports pre-existing debt the change did not cause.
+Ansible detail: the linter reads `.ansible-lint` at the repo root and loads one
+custom rule from `.ansible-lint-rules/`. Both live outside the payload, so no
+ignore rule is needed and nothing reaches a target machine's `~/dotfiles`. The
+linter must be *run* from `home/dotfiles`, though: that is the Ansible project
+root, and running from the repo root resolves `role: apps/<topic>` imports
+against the wrong directory. Both the hook and the CI step change into it. The
+gate runs on changed files only; a whole-tree run reports pre-existing debt the
+change did not cause.
 
 Notes:
 
