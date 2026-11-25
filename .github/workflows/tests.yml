@@ -146,9 +146,13 @@ jobs:
           uv run --frozen pytest tests tools -q \
             --junitxml "$RUNNER_TEMP/pytest.xml" \
             -o junit_family=xunit1 2>&1 | tee "$RUNNER_TEMP/pytest.log"
-          pytest_status=${PIPESTATUS[0]}
+          statuses=("${PIPESTATUS[@]}")
           set -e
-          echo "$pytest_status" > "$RUNNER_TEMP/pytest.status"
+          if [ "${statuses[1]}" -ne 0 ]; then
+            echo "::error::could not write $RUNNER_TEMP/pytest.log (tee exited ${statuses[1]}); the run's output is gone, so this job cannot be diagnosed and is not green."
+            exit 1
+          fi
+          echo "${statuses[0]}" > "$RUNNER_TEMP/pytest.status"
           exit 0
 
       - name: Compare failures against the known-failure baseline
