@@ -23,6 +23,16 @@ home/dotfiles/migration-backups/
 # never shared; see docs/research/topic-vm-tests/PLAN.md § Destroy
 # safety.
 .molecule/
+
+# ansible-lint's project-local cache. It writes installed collections and
+# mock stubs here when it resolves requirements.yml, which is a per-machine
+# download and not source. ansible-lint's own docs say to ignore it.
+#
+# Both locations, because the config lives at the repo root while the runs
+# happen from `home/dotfiles`: ansible-lint decides the cache directory from
+# the project path it infers, so either can appear depending on invocation.
+.ansible/
+home/dotfiles/.ansible/
 # roborev snapshots
 /.roborev/
 
