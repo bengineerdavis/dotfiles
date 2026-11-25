@@ -169,10 +169,13 @@ repo = "local"
 #     --with-executables-from). The mise install is what CI and a developer's
 #     shell both resolve.
 #
-#     Must run from the payload root: the config's location is what sets
-#     ansible-lint's project path, and a config discovered elsewhere makes the
-#     linter treat that directory as the project and report "0 files
-#     processed" — a silent pass (measured 2026-11-24).
+#     Must run from the payload root, not the repo root. The config sits at the
+#     repo root (outside the payload, so it never deploys), and ansible-lint
+#     walks up to find it — verified 2026-11-25 that this gives byte-identical
+#     results to keeping the config beside the payload. But the WORKING
+#     DIRECTORY decides where role paths resolve: from the repo root, every
+#     `role: apps/<topic>` import fails and the run reports 43 spurious
+#     `syntax-check[specific]` failures (128 findings instead of 85).
 #
 #     The runner hands hooks repo-relative paths, so the entry strips the
 #     `home/dotfiles/` prefix after changing directory. Without that, linting
