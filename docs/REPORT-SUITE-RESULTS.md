@@ -95,8 +95,11 @@ The gate becomes structural: assert a report file exists, read counts from the
 compare the failure set to `EXPECTED_FAILURES`. It also takes pytest's exit
 status, because a report written by an interrupted run is well-formed and partial
 — measured: `pytest.exit(returncode=2)` after one passing test wrote
-`tests="1"`, and no XML can distinguish that from a complete run. Delete the text parsers entirely rather than leaving
-them as a fallback — a fallback that still has the ambiguity is how the old
+`tests="1"`, and no XML can distinguish that from a complete run. The flag
+is **required**, not optional: a None default reads as "probably fine", so a
+hand-run gate fails open on exactly the run it cannot judge.
+
+The text parsers are deleted entirely rather than left as a fallback — a fallback that still has the ambiguity is how the old
 behaviour comes back.
 
 **Incumbent as baseline to beat:** the text parser was already in place and
@@ -107,7 +110,11 @@ behaviour comes back.
 - **`--report-log`**: correct but not core → a dependency for no unique capability.
 - **Hardened text parsing**: fixes symptoms, keeps the ambiguous format.
 - **Exit-code-only gating**: cannot express an allowlist.
-- **Reporter actions**: publishing, not gating.
+- **Reporter actions**: they *can* gate on failures and on empty runs
+  (`fail-on-error`, `fail-on-empty`, `action_fail`), so calling them
+  publishing-only was wrong. They still cannot compare exact node IDs
+  against `EXPECTED_FAILURES`, which is the requirement, so the
+  comparison would remain custom logic.
 - **`junit_family=xunit2`**: no `file` attribute, forcing path inference from
   `classname` dots. Rejected as a guess, though it is what most parsers prefer —
   this parser is ours, so it can take xunit1.

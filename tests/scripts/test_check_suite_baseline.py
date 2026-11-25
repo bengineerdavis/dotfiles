@@ -68,6 +68,11 @@ def _run_pytest(tmp_path: pathlib.Path, source: str) -> pathlib.Path:
     return report
 
 
+def _gate(report, exit_code: int = 1) -> int:
+    """Call main() the way CI does, with a recorded pytest exit status."""
+    return check.main([str(report), "--pytest-exit-code", str(exit_code)])
+
+
 def _id_of(tmp_path: pathlib.Path, test_name: str) -> str:
     """The node ID pytest itself reports for a fixture test."""
     report = _run_pytest(
@@ -107,7 +112,7 @@ def test_a_failure_in_the_baseline_is_accepted(tmp_path, monkeypatch, capsys):
 </testsuite></testsuites>
 """
     )
-    assert check.main([str(report)]) == 0
+    assert _gate(report) == 0
     assert "baseline already knows about" in capsys.readouterr().out
 
 
@@ -121,7 +126,7 @@ def test_an_all_passing_run_is_green(tmp_path, monkeypatch, capsys):
             assert True
         """,
     )
-    assert check.main([str(report)]) == 0
+    assert _gate(report) == 0
 
 
 # ── It declines when it must ───────────────────────────────────────────────
@@ -137,7 +142,7 @@ def test_a_regression_is_reported(tmp_path, monkeypatch, capsys):
             assert False, "boom"
         """,
     )
-    assert check.main([str(report)]) == 1
+    assert _gate(report) == 1
     err = capsys.readouterr().err
     assert "test_fixture.py::test_broken" in err
 
@@ -166,13 +171,13 @@ def test_an_empty_selection_is_not_green(tmp_path, monkeypatch, capsys):
         capture_output=True,
         check=False,
     )
-    assert check.main([str(report)]) == 2
+    assert _gate(report) == 2
     assert "no test cases" in capsys.readouterr().err
 
 
 def test_a_missing_report_is_an_error(tmp_path, capsys):
     """No report means the run did not finish, which is not a pass."""
-    assert check.main([str(tmp_path / "absent.xml")]) == 2
+    assert _gate(tmp_path / "absent.xml") == 2
     assert "no test ever ran" in capsys.readouterr().err
 
 
@@ -180,7 +185,7 @@ def test_a_truncated_report_is_an_error(tmp_path, capsys):
     """Pytest writes the file as it finishes; a half-written one is unknown."""
     report = tmp_path / "partial.xml"
     report.write_text("<testsuites><testsuite tests='4'")
-    assert check.main([str(report)]) == 2
+    assert _gate(report) == 2
     assert "not valid XML" in capsys.readouterr().err
 
 
@@ -194,7 +199,7 @@ def test_a_report_without_file_attributes_is_an_error(tmp_path, capsys):
 </testsuite></testsuites>
 """
     )
-    assert check.main([str(report)]) == 2
+    assert _gate(report) == 2
     assert "junit_family=xunit1" in capsys.readouterr().err
 
 
@@ -278,7 +283,7 @@ def test_a_test_failing_and_erroring_is_counted_twice(tmp_path, monkeypatch, cap
     root = check.load_report(report)
     case_id = "test_fixture.py::test_fails_then_errors"
     monkeypatch.setattr(check, "EXPECTED_FAILURES", frozenset({case_id}))
-    assert check.main([str(report)]) == 0
+    assert _gate(report) == 0
     assert "baseline already knows about" in capsys.readouterr().out
 
 
@@ -297,7 +302,7 @@ def test_captured_output_is_not_mistaken_for_results(tmp_path, monkeypatch, caps
             assert True
         """,
     )
-    assert check.main([str(report)]) == 0
+    assert _gate(report) == 0
 
 
 def test_ids_are_built_from_the_file_attribute(tmp_path):
@@ -327,7 +332,7 @@ def test_a_stale_baseline_entry_is_reported_but_not_fatal(
             assert True
         """,
     )
-    assert check.main([str(report)]) == 0
+    assert _gate(report) == 0
     assert "gone.py::test_gone" in capsys.readouterr().err
 
 
@@ -391,7 +396,7 @@ def test_a_class_failure_does_not_inherit_a_module_level_baseline_entry(
             assert False, "boom"
         """,
     )
-    assert check.main([str(report)]) == 1
+    assert _gate(report) == 1
     err = capsys.readouterr().err
     assert "test_fixture.py::TestOne::test_same" in err
 
@@ -434,7 +439,7 @@ def test_a_nested_class_entry_in_the_baseline_is_accepted(
                     assert False, "boom"
         """,
     )
-    assert check.main([str(report)]) == 0
+    assert _gate(report) == 0
 
 
 def test_an_interrupted_run_is_not_green(tmp_path, capsys):
@@ -459,10 +464,31 @@ def test_an_interrupted_run_is_not_green(tmp_path, capsys):
             assert False, "never runs"
         """,
     )
-    # Without the status the gate cannot tell, which is why CI must pass it.
-    assert check.main([str(report)]) == 0
-    assert check.main([str(report), "--pytest-exit-code", "2"]) == 2
+    # The status is what distinguishes this from a complete run.
+    assert _gate(report, 2) == 2
     assert "interrupted or" in capsys.readouterr().err
+
+
+def test_the_exit_status_is_required_not_optional(tmp_path, capsys):
+    """A gate safe only when the caller remembers a flag is not a gate.
+
+    The earlier version defaulted `--pytest-exit-code` to None and accepted it,
+    so running the script by hand on an interrupted run returned 0 (job 868).
+    Omitting the flag must now be a hard error.
+    """
+    report = _report_with(
+        tmp_path,
+        """
+        def test_ok():
+            assert True
+        """,
+    )
+    # argparse raises rather than returning, and it exits 2 — the same code the
+    # gate uses for "cannot judge this run", which is what matters.
+    with pytest.raises(SystemExit) as exit_info:
+        check.main([str(report)])
+    assert exit_info.value.code == 2
+    assert "--pytest-exit-code" in capsys.readouterr().err
 
 
 def test_a_completed_run_passes_either_finishing_status(tmp_path, monkeypatch, capsys):
@@ -475,9 +501,9 @@ def test_a_completed_run_passes_either_finishing_status(tmp_path, monkeypatch, c
             assert True
         """,
     )
-    assert check.main([str(report), "--pytest-exit-code", "0"]) == 0
+    assert _gate(report, 0) == 0
     capsys.readouterr()
-    assert check.main([str(report), "--pytest-exit-code", "1"]) == 0
+    assert _gate(report, 1) == 0
 
 
 def test_a_report_whose_tallies_exceed_its_detail_is_not_green(tmp_path, capsys):
@@ -492,5 +518,5 @@ def test_a_report_whose_tallies_exceed_its_detail_is_not_green(tmp_path, capsys)
 </testsuite></testsuites>
 """
     )
-    assert check.main([str(report)]) == 2
+    assert _gate(report) == 2
     assert "carries 1" in capsys.readouterr().err

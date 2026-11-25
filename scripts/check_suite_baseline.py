@@ -203,17 +203,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--pytest-exit-code",
         type=int,
-        default=None,
+        required=True,
         help=(
             "pytest's own exit status. 0 (all passed) and 1 (some failed) mean "
-            "the run finished; anything else means it was interrupted, so the "
-            "report cannot be judged. Required for a gate that can distinguish "
-            "an interrupted run from a complete one — the XML alone cannot."
+            "the run finished; anything else means it was interrupted. REQUIRED, "
+            "not optional: a report from an interrupted run is well-formed and "
+            "partial, so an omitted status cannot be read as 'probably fine'. A "
+            "gate whose safety depends on the caller remembering a flag fails "
+            "open exactly when someone runs it by hand."
         ),
     )
     args = parser.parse_args(argv)
 
-    if args.pytest_exit_code not in (None, 0, 1):
+    if args.pytest_exit_code not in (0, 1):
         print(
             f"error: pytest exited {args.pytest_exit_code}, which is not a "
             "completed run (0 = passed, 1 = tests failed). It was interrupted or "
