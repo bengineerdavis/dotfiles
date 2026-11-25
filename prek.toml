@@ -160,6 +160,36 @@ pass_filenames = true
 [[repos]]
 repo = "local"
 
+# 3b. Ansible lint over the payload. `language: system` rather than the
+#     upstream pre-commit hook, deliberately: the upstream hook builds its own
+#     virtualenv and would create a SECOND ansible install alongside mise's
+#     `pipx:ansible`, which this repo keeps as one venv precisely so the
+#     controller and its collections cannot skew (apps/mise/files/config.toml
+#     bundles ansible + ansible-lint + argcomplete through
+#     --with-executables-from). The mise install is what CI and a developer's
+#     shell both resolve.
+#
+#     Must run from the payload root: the config's location is what sets
+#     ansible-lint's project path, and a config discovered elsewhere makes the
+#     linter treat that directory as the project and report "0 files
+#     processed" — a silent pass (measured 2026-11-24).
+#
+#     The runner hands hooks repo-relative paths, so the entry strips the
+#     `home/dotfiles/` prefix after changing directory. Without that, linting
+#     `home/dotfiles/x.yaml` from inside `home/dotfiles/` resolves to
+#     `home/dotfiles/home/dotfiles/x.yaml` and fails as load-failure[not-found]
+#     — a failure that looks like a lint finding, which is the wrong shape for
+#     a wiring bug (measured 2026-11-24).
+[[repos.hooks]]
+id = "ansible-lint"
+name = "ansible-lint — payload playbooks, roles and defaults"
+language = "system"
+entry = "sh -c 'cd home/dotfiles && exec ansible-lint -f pep8 \"${@#home/dotfiles/}\"' --"
+files = '^home/dotfiles/.*\.(ya?ml|j2)$'
+types = ["file"]
+pass_filenames = true
+stages = ["pre-commit"]
+
 [[repos.hooks]]
 id = "queue-integrity"
 name = "Queue integrity — backlog/ stays machine-readable"
