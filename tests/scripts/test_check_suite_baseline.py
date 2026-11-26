@@ -1,22 +1,26 @@
-"""Reject regressions, and refuse to pass on no evidence.
+"""The baseline gate reads JUnit XML, and its decisions are the ones we want.
 
-The script exists because a CI job cannot assert "12 failed" — that
-number stays 12 while one suite is fixed and another regresses.
-These tests pin the properties that make it worth running:
+Every test here runs real pytest on a small fixture module and judges the XML it
+writes. That matters: an earlier version of this suite fed hand-written text to a
+regex, so it stayed green while the parser's assumptions about pytest's output
+format were wrong in four ways (roborev job 853). Generating the report with
+pytest itself makes the fixtures honest — and when pytest changes its output,
+these tests notice.
 
-1. A node ID outside the baseline is reported, whichever suite it
-   lives in. The first version matched whole directories, so a new
-   failure inside `tests/clipped/` passed silently.
-2. An ERROR is reported. Collection and fixture errors do not appear
-   in the summary's "N failed" count, so a run can report
-   "1 passed, 1 error" and be green under a failures-only check.
-3. A run with no summary line is an error, not a pass.
+The gate has two directions to prove: it must DECLINE a run it cannot trust, and
+it must PROCEED on one it can. A guard that fails closed and a guard that never
+runs are indistinguishable, so both are tested at the process level via main().
 """
 
 from __future__ import annotations
 
 import importlib.util
 import pathlib
+import subprocess
+import sys
+import textwrap
+
+import pytest
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 
@@ -27,76 +31,492 @@ assert _spec is not None and _spec.loader is not None
 check = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(check)
 
-
 KNOWN = sorted(check.EXPECTED_FAILURES)
 
 
-def _report(failed: list[str], total: int = 13) -> str:
-    lines = [f"FAILED {nodeid} - AssertionError: x" for nodeid in failed]
-    lines.append(f"{total} failed, 1206 passed, 21 skipped in 646.24s")
-    return "\n".join(lines) + "\n"
+def _pyproject(tmp_path: pathlib.Path) -> None:
+    """Let pytest resolve the fixture's node IDs from the temp directory.
+
+    rootdir determines how `file` is written, so the fixture needs its own
+    rootdir; without it the id carries a `../..` prefix.
+    """
+    (tmp_path / "pyproject.toml").write_text("")
 
 
-def test_known_failures_alone_pass():
-    unexpected, absent, saw = check.judge(_report(KNOWN))
-    assert saw
-    assert unexpected == set()
-    assert absent == set()
-
-
-def test_a_failure_outside_the_baseline_is_reported():
-    report = _report([*KNOWN, "tests/chezmoi/test_czd.py::test_something"])
-    unexpected, _, saw = check.judge(report)
-    assert saw
-    assert unexpected == {"tests/chezmoi/test_czd.py::test_something"}
-
-
-def test_a_new_failure_inside_a_known_suite_is_reported():
-    """Matching directories hid a regression beside a known failure."""
-    report = _report([*KNOWN, "tests/clipped/test_new.py::test_regression"])
-    unexpected, _, _ = check.judge(report)
-    assert unexpected == {"tests/clipped/test_new.py::test_regression"}
-
-
-def test_an_error_is_reported():
-    """An ERROR is not a failed count, so failures-only checks miss."""
-    report = (
-        "1 passed, 1 error in 2.0s\nERROR tests/x/test_y.py::test_z - RuntimeError\n"
+def _run_pytest(tmp_path: pathlib.Path, source: str) -> pathlib.Path:
+    """Run real pytest on `source` and return the XML report it wrote."""
+    _pyproject(tmp_path)
+    (tmp_path / "test_fixture.py").write_text(textwrap.dedent(source))
+    report = tmp_path / "report.xml"
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            str(tmp_path / "test_fixture.py"),
+            "-q",
+            "--junitxml",
+            str(report),
+            "-o",
+            "junit_family=xunit1",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        check=False,
     )
-    unexpected, _, saw = check.judge(report)
-    assert saw
-    assert unexpected == {"tests/x/test_y.py::test_z"}
+    assert report.is_file(), "pytest did not write a report"
+    return report
 
 
-def test_a_stale_baseline_entry_is_reported_but_not_fatal(tmp_path, capsys):
-    partial = KNOWN[:-1]
-    report = tmp_path / "r.txt"
-    report.write_text(_report(partial, total=12))
-    assert check.main([str(report)]) == 0
-    assert KNOWN[-1] in capsys.readouterr().err
+def _gate(report, exit_code: int = 1) -> int:
+    """Call main() the way CI does, with a recorded pytest exit status."""
+    return check.main([str(report), "--pytest-exit-code", str(exit_code)])
 
 
-def test_no_summary_line_is_not_a_pass():
-    """A run that died early has an unknown result, never a pass."""
-    _, _, saw = check.judge("collection error: no tests ran\n")
-    assert not saw
+def _id_of(tmp_path: pathlib.Path, test_name: str) -> str:
+    """The node ID pytest itself reports for a fixture test."""
+    report = _run_pytest(
+        tmp_path,
+        """
+        def test_placeholder():
+            assert False
+        """,
+    )
+    root = check.load_report(report)
+    ids = check.failed_ids(root)
+    assert len(ids) == 1
+    return ids.pop().replace("test_placeholder", test_name)
 
 
-def test_empty_output_is_not_a_pass():
-    _, _, saw = check.judge("")
-    assert not saw
+def _report_with(tmp_path: pathlib.Path, body: str) -> pathlib.Path:
+    return _run_pytest(tmp_path, body)
 
 
-def test_a_missing_report_file_is_an_error(tmp_path, capsys):
-    code = check.main([str(tmp_path / "absent.txt")])
-    assert code == 2
+# ── It proceeds when it may ────────────────────────────────────────────────
+
+
+def test_a_failure_in_the_baseline_is_accepted(tmp_path, monkeypatch, capsys):
+    """A known failure is green, and the gate says what it read."""
+    known = KNOWN[0]
+    monkeypatch.setattr(check, "EXPECTED_FAILURES", frozenset({known}))
+    report = tmp_path / "r.xml"
+    report.write_text(
+        f"""<?xml version="1.0"?>
+<testsuites><testsuite name="pytest" tests="2" failures="1" errors="0">
+  <testcase file="{known.split("::")[0]}" name="{known.split("::")[1]}"
+            classname="{known.split("::")[0].removesuffix(".py").replace("/", ".")}">
+    <failure message="boom" />
+  </testcase>
+  <testcase file="tests/other/test_x.py" name="test_ok"
+            classname="tests.other.test_x" />
+</testsuite></testsuites>
+"""
+    )
+    assert _gate(report) == 0
+    assert "baseline already knows about" in capsys.readouterr().out
+
+
+def test_an_all_passing_run_is_green(tmp_path, monkeypatch, capsys):
+    """With an empty baseline a clean run passes."""
+    monkeypatch.setattr(check, "EXPECTED_FAILURES", frozenset())
+    report = _report_with(
+        tmp_path,
+        """
+        def test_a():
+            assert True
+        """,
+    )
+    assert _gate(report) == 0
+
+
+# ── It declines when it must ───────────────────────────────────────────────
+
+
+def test_a_regression_is_reported(tmp_path, monkeypatch, capsys):
+    """A failure outside the baseline fails the gate and names itself."""
+    monkeypatch.setattr(check, "EXPECTED_FAILURES", frozenset())
+    report = _report_with(
+        tmp_path,
+        """
+        def test_broken():
+            assert False, "boom"
+        """,
+    )
+    assert _gate(report) == 1
+    err = capsys.readouterr().err
+    assert "test_fixture.py::test_broken" in err
+
+
+def test_an_empty_selection_is_not_green(tmp_path, monkeypatch, capsys):
+    """Pytest on a selection that matches nothing writes a zero-test report.
+
+    That report is well-formed XML and carries a summary-shaped `tests="0"`,
+    which is why the text-parsing version passed it.
+    """
+    monkeypatch.setattr(check, "EXPECTED_FAILURES", frozenset())
+    _pyproject(tmp_path)
+    report = tmp_path / "empty.xml"
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "no_such_file.py",
+            "--junitxml",
+            str(report),
+            "-o",
+            "junit_family=xunit1",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        check=False,
+    )
+    assert _gate(report) == 2
+    assert "no test cases" in capsys.readouterr().err
+
+
+def test_a_missing_report_is_an_error(tmp_path, capsys):
+    """No report means the run did not finish, which is not a pass."""
+    assert _gate(tmp_path / "absent.xml") == 2
     assert "no test ever ran" in capsys.readouterr().err
 
 
-def test_a_regression_exits_one(tmp_path, capsys):
-    report = tmp_path / "r.txt"
+def test_a_truncated_report_is_an_error(tmp_path, capsys):
+    """Pytest writes the file as it finishes; a half-written one is unknown."""
+    report = tmp_path / "partial.xml"
+    report.write_text("<testsuites><testsuite tests='4'")
+    assert _gate(report) == 2
+    assert "not valid XML" in capsys.readouterr().err
+
+
+def test_a_report_without_file_attributes_is_an_error(tmp_path, capsys):
+    """xunit2 has no `file`, and guessing a path from dots is not allowed."""
+    report = tmp_path / "v2.xml"
     report.write_text(
-        "1 failed, 10 passed\nFAILED tests/things/test_thing.py::test_x\n"
+        """<?xml version="1.0"?>
+<testsuites><testsuite name="pytest" tests="1" failures="1" errors="0">
+  <testcase classname="tests.thing" name="test_x"><failure message="b" /></testcase>
+</testsuite></testsuites>
+"""
     )
-    assert check.main([str(report)]) == 1
-    assert "tests/things/test_thing.py::test_x" in capsys.readouterr().err
+    assert _gate(report) == 2
+    assert "junit_family=xunit1" in capsys.readouterr().err
+
+
+# ── The four defects roborev job 853 found, each pinned ────────────────────
+
+
+def test_a_node_id_containing_the_explanation_separator_is_exact(tmp_path):
+    """Finding 1: " - " inside a parametrize id must not split the id.
+
+    The text parser truncated at that sequence, so a NEW test whose id shared
+    the prefix inherited the baseline entry and passed unseen.
+    """
+    report = _report_with(
+        tmp_path,
+        """
+        import pytest
+
+        @pytest.mark.parametrize("x", ["plain", "with - separator"])
+        def test_ids(x):
+            assert False, "boom"
+        """,
+    )
+    ids = check.failed_ids(check.load_report(report))
+    assert ids == {
+        "test_fixture.py::test_ids[plain]",
+        "test_fixture.py::test_ids[with - separator]",
+    }
+
+
+def test_an_error_after_a_passed_count_is_seen(tmp_path):
+    """Finding 2: `1 failed, 10 passed, 1 error` reports two abnormal outcomes.
+
+    The text parser attached `error` only when it followed `failed` directly, so
+    a real error vanished from the count.
+    """
+    report = _report_with(
+        tmp_path,
+        """
+        import pytest
+
+        @pytest.fixture
+        def broken():
+            yield
+            raise RuntimeError("teardown blew up")
+
+        def test_passes():
+            assert True
+
+        def test_errors_in_teardown(broken):
+            assert True
+        """,
+    )
+    root = check.load_report(report)
+    ids = check.failed_ids(root)
+    assert ids == {"test_fixture.py::test_errors_in_teardown"}
+    suite = next(root.iter("testsuite"))
+    assert int(suite.get("errors") or 0) == 1
+
+
+def test_a_test_failing_and_erroring_is_counted_twice(tmp_path, monkeypatch, capsys):
+    """Finding 3: call failure plus teardown error is a VALID log, not a broken one.
+
+    The text-parsing gate compared a set of ids against an event count, so this
+    legitimate pair looked like missing evidence and was rejected. Here both
+    events are named in the baseline and the run must pass.
+    """
+    report = _report_with(
+        tmp_path,
+        """
+        import pytest
+
+        @pytest.fixture
+        def broken():
+            yield
+            raise RuntimeError("teardown blew up")
+
+        def test_fails_then_errors(broken):
+            assert False, "call failed"
+        """,
+    )
+    root = check.load_report(report)
+    case_id = "test_fixture.py::test_fails_then_errors"
+    monkeypatch.setattr(check, "EXPECTED_FAILURES", frozenset({case_id}))
+    assert _gate(report) == 0
+    assert "baseline already knows about" in capsys.readouterr().out
+
+
+def test_captured_output_is_not_mistaken_for_results(tmp_path, monkeypatch, capsys):
+    """Finding 4: a test printing summary-like text cannot change the verdict.
+
+    The text parser took the first summary-shaped line anywhere in the log, so
+    a test echoing `=== 999 failed` claimed 999 outcomes.
+    """
+    monkeypatch.setattr(check, "EXPECTED_FAILURES", frozenset())
+    report = _report_with(
+        tmp_path,
+        """
+        def test_noisy():
+            print("=== 999 failed, 0 passed in 0.01s")
+            assert True
+        """,
+    )
+    assert _gate(report) == 0
+
+
+def test_ids_are_built_from_the_file_attribute(tmp_path):
+    """The id is assembled from `file`, never inferred from a dotted classname."""
+    report = _report_with(
+        tmp_path,
+        """
+        def test_x():
+            assert False
+        """,
+    )
+    root = check.load_report(report)
+    case = next(c for c in root.iter("testcase") if c.find("failure") is not None)
+    assert case.get("file") == "test_fixture.py"
+    assert check.node_id(case) == "test_fixture.py::test_x"
+
+
+def test_a_stale_baseline_entry_is_reported_but_not_fatal(
+    tmp_path, monkeypatch, capsys
+):
+    """A known failure that now passes is a note, not a red gate."""
+    monkeypatch.setattr(check, "EXPECTED_FAILURES", frozenset({"gone.py::test_gone"}))
+    report = _report_with(
+        tmp_path,
+        """
+        def test_ok():
+            assert True
+        """,
+    )
+    assert _gate(report) == 0
+    assert "gone.py::test_gone" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("known", KNOWN[:1])
+def test_the_real_baseline_entries_are_shaped_like_pytest_ids(known):
+    """Guard against a baseline entry that pytest could never emit."""
+    assert "::" in known
+    assert not known.endswith(".py")
+
+
+def test_a_class_method_is_not_confused_with_a_module_level_test(tmp_path):
+    """Finding from job 856: the class is part of the node ID.
+
+    pytest reports `file.py::TestClass::test_method`. Dropping the class
+    collapsed a module-level `test_same` together with `TestOne.test_same` and
+    `TestTwo.test_same` into one id, so a class-based regression could alias a
+    module-level baseline entry and pass unseen.
+    """
+    report = _report_with(
+        tmp_path,
+        """
+        class TestOne:
+            def test_same(self):
+                assert False, "boom"
+
+        class TestTwo:
+            def test_same(self):
+                assert False, "boom"
+
+        def test_same():
+            assert False, "boom"
+        """,
+    )
+    ids = check.failed_ids(check.load_report(report))
+    assert ids == {
+        "test_fixture.py::TestOne::test_same",
+        "test_fixture.py::TestTwo::test_same",
+        "test_fixture.py::test_same",
+    }
+
+
+def test_a_class_failure_does_not_inherit_a_module_level_baseline_entry(
+    tmp_path, monkeypatch, capsys
+):
+    """The alias itself: only the module-level test is known, so the class fails.
+
+    Before the fix both ids rendered as `test_fixture.py::test_same`, the run
+    looked known, and the gate passed.
+    """
+    monkeypatch.setattr(
+        check, "EXPECTED_FAILURES", frozenset({"test_fixture.py::test_same"})
+    )
+    report = _report_with(
+        tmp_path,
+        """
+        class TestOne:
+            def test_same(self):
+                assert False, "boom"
+
+        def test_same():
+            assert False, "boom"
+        """,
+    )
+    assert _gate(report) == 1
+    err = capsys.readouterr().err
+    assert "test_fixture.py::TestOne::test_same" in err
+
+
+def test_a_nested_class_id_uses_double_colons(tmp_path):
+    """Finding from job 864: pytest nests classes with `::`, not dots.
+
+    `classname` carries `TestOuter.TestInner`; emitting `TestOuter.TestInner`
+    produced an id pytest never prints, so a CORRECT baseline entry failed to
+    match and the run went red for the wrong reason.
+    """
+    report = _report_with(
+        tmp_path,
+        """
+        class TestOuter:
+            class TestInner:
+                def test_method(self):
+                    assert False, "boom"
+        """,
+    )
+    ids = check.failed_ids(check.load_report(report))
+    assert ids == {"test_fixture.py::TestOuter::TestInner::test_method"}
+
+
+def test_a_nested_class_entry_in_the_baseline_is_accepted(
+    tmp_path, monkeypatch, capsys
+):
+    """The nested-class id must match what a human would write in the baseline."""
+    monkeypatch.setattr(
+        check,
+        "EXPECTED_FAILURES",
+        frozenset({"test_fixture.py::TestOuter::TestInner::test_method"}),
+    )
+    report = _report_with(
+        tmp_path,
+        """
+        class TestOuter:
+            class TestInner:
+                def test_method(self):
+                    assert False, "boom"
+        """,
+    )
+    assert _gate(report) == 0
+
+
+def test_an_interrupted_run_is_not_green(tmp_path, capsys):
+    """Finding from job 864: an interruption leaves a well-formed, partial report.
+
+    `pytest.exit(returncode=2)` after one passing test writes `tests="1"` — a
+    report that looks complete. Tests after it never ran, so a regression among
+    them would pass CI unseen. pytest's exit status is what says so.
+    """
+    report = _report_with(
+        tmp_path,
+        """
+        import pytest
+
+        def test_one():
+            assert True
+
+        def test_two():
+            pytest.exit("interrupted", returncode=2)
+
+        def test_three():
+            assert False, "never runs"
+        """,
+    )
+    # The status is what distinguishes this from a complete run.
+    assert _gate(report, 2) == 2
+    assert "interrupted or" in capsys.readouterr().err
+
+
+def test_the_exit_status_is_required_not_optional(tmp_path, capsys):
+    """A gate safe only when the caller remembers a flag is not a gate.
+
+    The earlier version defaulted `--pytest-exit-code` to None and accepted it,
+    so running the script by hand on an interrupted run returned 0 (job 868).
+    Omitting the flag must now be a hard error.
+    """
+    report = _report_with(
+        tmp_path,
+        """
+        def test_ok():
+            assert True
+        """,
+    )
+    # argparse raises rather than returning, and it exits 2 — the same code the
+    # gate uses for "cannot judge this run", which is what matters.
+    with pytest.raises(SystemExit) as exit_info:
+        check.main([str(report)])
+    assert exit_info.value.code == 2
+    assert "--pytest-exit-code" in capsys.readouterr().err
+
+
+def test_a_completed_run_passes_either_finishing_status(tmp_path, monkeypatch, capsys):
+    """0 and 1 both mean the run finished; only the failure list decides."""
+    monkeypatch.setattr(check, "EXPECTED_FAILURES", frozenset())
+    report = _report_with(
+        tmp_path,
+        """
+        def test_ok():
+            assert True
+        """,
+    )
+    assert _gate(report, 0) == 0
+    capsys.readouterr()
+    assert _gate(report, 1) == 0
+
+
+def test_a_report_whose_tallies_exceed_its_detail_is_not_green(tmp_path, capsys):
+    """A truncated report claims failures it does not list."""
+    report = tmp_path / "short.xml"
+    report.write_text(
+        """<?xml version="1.0"?>
+<testsuites><testsuite name="pytest" tests="3" failures="2" errors="0">
+  <testcase file="t.py" name="test_a" classname="t">
+    <failure message="boom" />
+  </testcase>
+</testsuite></testsuites>
+"""
+    )
+    assert _gate(report) == 2
+    assert "carries 1" in capsys.readouterr().err

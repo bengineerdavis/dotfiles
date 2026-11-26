@@ -179,17 +179,35 @@ jobs:
           tar --extract --gzip --file "$archive" chezmoi
           sudo install chezmoi /usr/local/bin/chezmoi
 
-      # pytest's exit status is nonzero for the known failures, so the run is
-      # allowed to finish and the RESULT is judged by which tests failed rather
-      # than by the exit code. See `AGENTS.md` § Known failures: green means the
-      # failure LIST matches. The compare step below is the gate.
+      # pytest's exit status decides whether the run COMPLETED: 0 and 1 do,
+      # anything else means it was interrupted, and no XML can say so. The
+      # status is written to a file because the steps are separate shells.
+      #
+      # `set +e` is required: GitHub runs every `run:` under `bash -e` with
+      # pipefail, and pytest exits 1 on the NORMAL path where only known
+      # failures occur. With errexit left on, the pipeline aborts before the
+      # status is recorded and the comparison never runs — measured, the job
+      # died with neither file written (roborev job 871).
       - name: Tests
         run: |
-          set -o pipefail
-          uv run --frozen pytest tests tools -q 2>&1 | tee "$RUNNER_TEMP/pytest.log" || true
+          set +e
+          uv run --frozen pytest tests tools -q \
+            --junitxml "$RUNNER_TEMP/pytest.xml" \
+            -o junit_family=xunit1 2>&1 | tee "$RUNNER_TEMP/pytest.log"
+          statuses=("${PIPESTATUS[@]}")
+          set -e
+          if [ "${statuses[1]}" -ne 0 ]; then
+            echo "::error::could not write $RUNNER_TEMP/pytest.log (tee exited ${statuses[1]}); the run's output is gone, so this job cannot be diagnosed and is not green."
+            exit 1
+          fi
+          echo "${statuses[0]}" > "$RUNNER_TEMP/pytest.status"
+          exit 0
 
       - name: Compare failures against the known-failure baseline
-        run: uv run --frozen python scripts/check_suite_baseline.py "$RUNNER_TEMP/pytest.log"
+        run: |
+          uv run --frozen python scripts/check_suite_baseline.py \
+            "$RUNNER_TEMP/pytest.xml" \
+            --pytest-exit-code "$(cat "$RUNNER_TEMP/pytest.status")"
 
       # Attach the full log either way. A red job whose output is gone sends the
       # next person back to a laptop to reproduce a failure CI already saw.

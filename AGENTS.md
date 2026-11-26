@@ -734,29 +734,41 @@ almost nothing — the `binned_module` fixture skips without `typer`/`questionar
 
 ### Known failures
 
-**This table is stale post-DOT-73 (PR #114): both suites below now pass.**
-The table and `scripts/check_suite_baseline.py` `EXPECTED_FAILURES` move
-together — DOT-314 owns that update as part of `agent/retro-ci-guard`'s rebase.
-Until then, read the table as the pre-#114 baseline, not current behaviour.
+**The table and `scripts/check_suite_baseline.py` `EXPECTED_FAILURES` move
+together.** The table is the readable copy; the frozenset is the enforced one.
+`tests/docs/test_suite_baseline_matches_agents_table.py` makes drift a red
+suite, so edit both in one commit.
 
-Two suites failed on a clean checkout before DOT-73, for reasons outside the
-code. Expect this shape in older baselines, and do not spend a session proving
-they are not yours:
+**One suite fails on a clean checkout.** Everything else in the old baseline now
+passes; those entries were removed on 2026-11-26 after measuring them green.
 
-| Suite                 | Count | Why                                                                                                                                                                                            |
-| --------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tests/clipped`       | ~10   | Drives the real clipboard through subprocesses; needs a live `wl-copy`/`wl-paste` and a TTY.                                                                                                   |
-| `tests/restart_stale` | 2     | Exercises launchd/systemd role behaviour that the test host does not have.                                                                                                                     |
-| `tests/docs`          | 2     | Only `test_lore_md_rules_survive.py` — trunk red after the 2026-11 `.lore.md` re-distillation rewrites; verified on pristine origin/main 2026-11-19. Owning task refreshes or fixes the guard. |
+| Suite        | Count | Why                                                                                                                                                        |
+| ------------ | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/docs` | 2     | Only `test_lore_md_rules_survive.py` — trunk red after the 2026-11 `.lore.md` re-distillation rewrites; verified on pristine origin/main 2026-11-19 and in CI run 45331112024 (2026-11-24). Owning task refreshes or fixes the guard. |
 
-The `claude_credentials` profile tests fail in CI for a different reason — the
-runner lacks zsh and chezmoi. That is an environment gap with an open fix
-(PR #185), not a baseline entry; adding it here would mask that PR's work.
+CI on 2026-11-24 measured **2 failed, 1658 passed, 109 skipped**, and the gate
+passed — both failures are the `tests/docs` pair above. The ten `tests/clipped`
+and two `tests/restart_stale` entries the baseline had carried since before
+DOT-73 were measured green on 2026-11-26 (82 passed, 13 skipped) and removed.
+
+**Two failure classes are local to a developer machine, not trunk, and must
+never be added to the baseline** — that would blind the gate wherever the cause
+is fixed:
+
+| Local-only class | Why it fails here | Fix the cause, not the baseline |
+|---|---|---|
+| `tests/claude_credentials` (5) | The test pins `PATH=/usr/bin:/bin`; zsh is at `/usr/local/bin/zsh` | Put zsh on `/usr/bin`, or teach the harness the mise path |
+| `tests/guards` antigravity (1) | Drift test reads a cached npx dotagents that declares `~/.gemini/config` | DOT-401 |
+
+`tests/pii_redactor` (3) also failed locally until `chezmoi apply
+~/bin/pii-redactor` refreshed a Sep 15 deployed copy; the repo source already
+held the `qualify_model` the tests assert. Measured 2026-11-24, that suite then
+read **121 passed**.
 
 A full run on the reference host read **12 failed, 1093 passed, 20 skipped**
-pre-#114; measured 2026-11-08 post-#114, the same host reads **zero failed**
-from these suites (1426 passed, 20 skipped) once the `.molecule` scratch trap
-(DOT-310) is cleared. Tracked in DOT-73 (Done) and DOT-314 (baseline refresh).
+pre-#114; post-#114 those suites read zero failed (1426 passed, 20 skipped) once
+the `.molecule` scratch trap (DOT-310) cleared. DOT-73 fixed them; DOT-314 is the
+refresh that removed their entries.
 
 Two ways to keep this cheap, in order of preference:
 
@@ -777,23 +789,45 @@ can run). A change is green when the failure LIST matches, not when the count
 does.
 
 **CI applies that rule mechanically.** `.github/workflows/tests.yml` runs the
-full suite on every pull request and every push to `main`, then feeds the
-captured log to `scripts/check_suite_baseline.py`. That script compares the
-failure node IDs against the table above and fails on anything outside it, so a
-count that stays at 12 while one suite is fixed and another regresses is caught.
-It also refuses to pass when the log holds no pytest summary — a run that died
-before reporting has an unknown result, not a green one.
+full suite on every pull request and every push to `main`, writes a JUnit XML
+report, and passes that report *plus pytest's recorded exit status* to
+`scripts/check_suite_baseline.py`. The script compares the failure node IDs
+against the table above and fails on anything outside it, so a count that stays
+at 12 while one suite is fixed and another regresses is caught.
+
+It refuses to judge a run it cannot trust, and each refusal has a reason:
+
+- **Malformed or missing XML** — the run did not finish, or the file is
+  truncated, so there is no result rather than a green one.
+- **Zero test cases** — a selection that matched nothing proves nothing.
+- **A status other than 0 or 1** — pytest was interrupted, and tests after the
+  interruption are absent from the report entirely.
+- **Tallies that exceed the failure detail** — the report claims failures it
+  does not list.
+
+The status is a **required** argument, not an optional one: a default would read
+as "probably fine", so a hand-run gate would fail open on exactly the run it
+cannot judge.
 
 The baseline is a list of exact node IDs, never of directories. An earlier
 version matched `tests/clipped/` as a prefix, so a brand-new regression beside a
 known clipboard failure passed silently — the same silent-pass shape the script
-exists to prevent. `ERROR` outcomes are parsed too: a collection or fixture error
-does not appear in the summary's failed count, so a run reporting "1 passed, 1
-error" was green under a failures-only check.
+exists to prevent.
 
-The workflow lints only the files a change touches. A whole-tree `ruff check`
-reports pre-existing debt the hooks never see, and a gate that is red on arrival
-teaches everyone to ignore it.
+**The gate reads JUnit XML, not the pytest log.** pytest's human-readable output
+has no reliable delimiter between a node ID and its explanation and no
+unambiguous summary line, which made a text-parsing gate wrong in four ways
+(roborev job 853, measured 2026-11-24): a parametrize id containing ` - ` was
+truncated to a baseline entry, `1 failed, 10 passed, 1 error` hid the error, a
+test failing in its body and erroring in teardown was rejected as incomplete,
+and captured output resembling `=== 999 failed` claimed 999 outcomes. The
+workflow now writes `--junitxml` and the gate reads structure.
+
+`junit_family=xunit1` is **required**: it is the family that emits a `file`
+attribute, which is what turns a testcase back into a repository-relative node
+ID. Under xunit2 the id has to be inferred from a dotted classname, which breaks
+on a test file with a dot in its name — so the gate refuses that report instead
+of guessing.
 
 Without `pyyaml`, `tests/policy` drops from 22 tests to 15 passed / 1 skipped, and
 the skipped module is the one asserting the policy layers grant no permissions —
@@ -924,6 +958,8 @@ Read by name when the work touches them:
 - **`docs/TOPICS.md`** — topic structure, lifecycle, dependency and ownership.
 - **`docs/TRUST-LADDER.md`** — rungs, incident classes, promotion and ageing.
 - **`docs/TESTING.md`** — mutation proving, properties and fuzzing.
+- **`docs/REPORT-SUITE-RESULTS.md`** — why the suite gate reads JUnit XML
+  rather than the pytest log, and the result formats rejected.
 - **`docs/CROSS-PLATFORM.md`** — traps that have bitten on macOS and Debian.
 - **`docs/BACKLOG-MIGRATION.md`** — the queue's migration record.
 - **`docs/BACKLOG-UPSTREAM-CONFIG.md`** — upstream backlog configuration.

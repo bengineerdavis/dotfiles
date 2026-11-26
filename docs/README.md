@@ -24,6 +24,7 @@ instead, so the root holds only the five documents that govern the project.
 | `LINK-CHECKING.md` | Lychee's offline commit checks and reviewed external-link validation |
 | `TRUST-LADDER.md` | the autonomy rungs, promotion and demotion counts, incident classes, ageing |
 | `TESTING.md` | mutation proving, property tests and fuzzing: the working detail behind `AGENTS.md` § Tests |
+| `REPORT-SUITE-RESULTS.md` | which pytest result format the suite gate reads, the ranked alternatives, and what was rejected |
 | `CROSS-PLATFORM.md` | traps that have bitten on both macOS and Debian |
 
 ## Adding one
