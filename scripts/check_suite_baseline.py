@@ -53,18 +53,6 @@ from pathlib import Path
 # enforced one. A node ID here that stops failing is reported as stale.
 EXPECTED_FAILURES = frozenset(
     {
-        "tests/clipped/test_clipped_cli.py::test_paste_outputs_clipboard[paste]",
-        "tests/clipped/test_clipped_cli.py::test_paste_outputs_clipboard[p]",
-        "tests/clipped/test_clipped_cli.py::test_copy_reads_stdin[copy]",
-        "tests/clipped/test_clipped_cli.py::test_copy_reads_stdin[c]",
-        "tests/clipped/test_clipped_cli.py::test_copy_single_file[copy]",
-        "tests/clipped/test_clipped_cli.py::test_copy_single_file[c]",
-        "tests/clipped/test_clipped_cli.py::test_copy_multiple_files_concatenates",
-        "tests/clipped/test_clipped_cli.py::test_auto_mode_with_piped_stdin_copies",
-        "tests/clipped/test_clipped_cli.py::test_auto_mode_with_tty_pastes",
-        "tests/clipped/test_clipped_cli.py::test_copy_handles_non_utf8_bytes",
-        "tests/restart_stale/test_role.py::test_a_missing_kind_fails_before_anything_runs",
-        "tests/restart_stale/test_role.py::test_the_defaults_leave_the_role_inert",
         # Trunk red since the 2026-11 .lore.md re-distillation rewrites: these
         # two drift-guard tests fail on a pristine origin/main checkout
         # (verified locally on main 2026-11-19, before any DOT-343 change; and
@@ -72,6 +60,10 @@ EXPECTED_FAILURES = frozenset(
         # guard surface moved; the owning task refreshes or fixes.
         "tests/docs/test_lore_md_rules_survive.py::test_rule_survives_redistillation[requires_map undefined skips removal]",
         "tests/docs/test_lore_md_rules_survive.py::test_rule_survives_redistillation[work repos never committed]",
+        # A THIRD anchor (`uv --frozen`) fails wherever a local .lore.md has been
+        # re-distilled further than trunk has. It is deliberately NOT listed:
+        # trunk still carries that anchor, so CI is green and an entry here would
+        # turn a local corruption into an expected failure.
     }
 )
 

@@ -739,19 +739,17 @@ together.** The table is the readable copy; the frozenset is the enforced one.
 `tests/docs/test_suite_baseline_matches_agents_table.py` makes drift a red
 suite, so edit both in one commit.
 
-Two suites failed on a clean checkout before DOT-73, for reasons outside the
-code. Expect this shape in older baselines, and do not spend a session proving
-they are not yours:
+**One suite fails on a clean checkout.** Everything else in the old baseline now
+passes; those entries were removed on 2026-11-26 after measuring them green.
 
-| Suite                 | Count | Why                                                                                                                                                                                            |
-| --------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tests/clipped`       | ~10   | Drives the real clipboard through subprocesses; needs a live `wl-copy`/`wl-paste` and a TTY.                                                                                                   |
-| `tests/restart_stale` | 2     | Exercises launchd/systemd role behaviour that the test host does not have.                                                                                                                     |
-| `tests/docs`          | 2     | Only `test_lore_md_rules_survive.py` — trunk red after the 2026-11 `.lore.md` re-distillation rewrites; verified on pristine origin/main 2026-11-19 and in CI run 45331112024 (2026-11-24). Owning task refreshes or fixes the guard. |
+| Suite        | Count | Why                                                                                                                                                        |
+| ------------ | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/docs` | 2     | Only `test_lore_md_rules_survive.py` — trunk red after the 2026-11 `.lore.md` re-distillation rewrites; verified on pristine origin/main 2026-11-19 and in CI run 45331112024 (2026-11-24). Owning task refreshes or fixes the guard. |
 
 CI on 2026-11-24 measured **2 failed, 1658 passed, 109 skipped**, and the gate
-passed — every failing test was one the baseline already knew about. The first
-two suites above no longer fail; their entries are stale but nonfatal.
+passed — both failures are the `tests/docs` pair above. The ten `tests/clipped`
+and two `tests/restart_stale` entries the baseline had carried since before
+DOT-73 were measured green on 2026-11-26 (82 passed, 13 skipped) and removed.
 
 **Two failure classes are local to a developer machine, not trunk, and must
 never be added to the baseline** — that would blind the gate wherever the cause
@@ -768,9 +766,9 @@ held the `qualify_model` the tests assert. Measured 2026-11-24, that suite then
 read **121 passed**.
 
 A full run on the reference host read **12 failed, 1093 passed, 20 skipped**
-pre-#114; measured 2026-11-08 post-#114, the same host reads **zero failed**
-from these suites (1426 passed, 20 skipped) once the `.molecule` scratch trap
-(DOT-310) is cleared. Tracked in DOT-73 (Done) and DOT-314 (baseline refresh).
+pre-#114; post-#114 those suites read zero failed (1426 passed, 20 skipped) once
+the `.molecule` scratch trap (DOT-310) cleared. DOT-73 fixed them; DOT-314 is the
+refresh that removed their entries.
 
 Two ways to keep this cheap, in order of preference:
 
